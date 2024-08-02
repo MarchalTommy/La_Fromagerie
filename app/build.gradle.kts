@@ -59,6 +59,7 @@ dependencies {
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
+    implementation(project(":home:presentation"))
     testImplementation(libs.junit)
     androidTestImplementation(libs.junit)
     androidTestImplementation(libs.espresso.core)
@@ -68,7 +69,6 @@ dependencies {
     debugImplementation(libs.androidx.ui.test.manifest)
 
     implementation(libs.navigation.compose)
-
 
     implementation(platform(libs.koin.bom))
     implementation(libs.koin.core)

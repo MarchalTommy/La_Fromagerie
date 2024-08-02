@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="fruits">
+        <item>Apple</item>
+        <item>Apricot</item>
+        <item>Avocado</item>
+        <item>Banana</item>
+        <item>Blackberry</item>
+        <item>Blueberry</item>
+        <item>Cherry</item>
+        <item>Coconut</item>
+        <item>Guava</item>
+        <item>Raspberry</item>
+        <item>Grape</item>
+        <item>Jackfruit</item>
+        <item>Kiwifruit</item>
+        <item>Mango</item>
+        <item>Watermelon</item>
+        <item>Orange</item>
+        <item>Papaya</item>
+        <item>Pineapple</item>
+        <item>Strawberry</item>
+        <item>Tamarindo</item>
+    </string-array>
+
+    <string-array name="cities">
+        <item>Rome</item>
+        <item>Ecatepec</item>
+        <item>Taipei</item>
+        <item>Puebla</item>
+        <item>Ciudad Juarez</item>
+        <item>Guadalajara</item>
+        <item>Delhi</item>
+        <item>Manila</item>
+        <item>Chihuahua</item>
+        <item>Merida</item>
+        <item>New York</item>
+        <item>Cancún</item>
+        <item>Saltillo</item>
+        <item>Hermosillo</item>
+        <item>Mexicali</item>
+        <item>Culiacán</item>
+        <item>Queretaro</item>
+        <item>Tokio</item>
+        <item>Nairobi</item>
+        <item>Athens</item>
+    </string-array>
+</resources>

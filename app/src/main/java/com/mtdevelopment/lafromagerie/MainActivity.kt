@@ -19,6 +19,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.mtdevelopment.core.presentation.theme.ui.AppTheme
+import com.mtdevelopment.home.presentation.composable.HomeScreen
+import com.mtdevelopment.home.presentation.composable.ProductItem
 
 class MainActivity : ComponentActivity() {
     @OptIn(ExperimentalMaterial3Api::class)
@@ -30,12 +32,11 @@ class MainActivity : ComponentActivity() {
                 val currentRoute =
                     navController.currentBackStackEntryAsState().value?.destination?.route
 
-
                 var bottomBarState by rememberSaveable { (mutableStateOf(false)) }
 
                 Scaffold(
                     modifier = Modifier.fillMaxSize(),
-                    containerColor = MaterialTheme.colorScheme.background,
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
                     topBar = {
                         TopAppBar(
                             title = {
@@ -44,8 +45,7 @@ class MainActivity : ComponentActivity() {
                         )
                     }
                 ) { paddingValues ->
-
-                    Greeting("Android")
+                    HomeScreen(paddingValues)
                 }
             }
         }
