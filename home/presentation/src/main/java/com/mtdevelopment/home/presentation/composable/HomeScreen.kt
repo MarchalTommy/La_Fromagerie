@@ -1,14 +1,26 @@
 package com.mtdevelopment.home.presentation.composable
 
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ShoppingCart
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.mtdevelopment.home.presentation.R
+import com.mtdevelopment.home.presentation.model.ProductType
 import com.mtdevelopment.home.presentation.model.UiProductObject
 
 @Preview
@@ -16,53 +28,190 @@ import com.mtdevelopment.home.presentation.model.UiProductObject
 fun HomeScreen(
     paddingValues: PaddingValues = PaddingValues(64.dp),
 ) {
+
     val testList = listOf(
         UiProductObject(
             id = "1",
-            name = "Brushetta",
-            price = 1.0,
-            imageUrl = null,
+            name = "Ail et Fines Herbes",
+            price = 3.50,
+            imageRes = R.drawable.cheese_afh,
+            type = ProductType.FROMAGE,
             description = ""
         ),
         UiProductObject(
             id = "2",
-            name = "Nature frais",
-            price = 2.0,
-            imageUrl = null,
+            name = "Fromage inconnu",
+            price = 3.50,
+            imageRes = R.drawable.cheese_todefine9,
+            type = ProductType.FROMAGE,
             description = ""
         ),
         UiProductObject(
             id = "3",
-            name = "Cendré crèmeux",
+            name = "Saveur du Jardin",
             price = 3.54,
-            imageUrl = "https://api-drive.drive.supermarchesmatch.fr/api/sdk/cms/media/image/11865.webp",
+            imageRes = R.drawable.cheese_garden,
+            type = ProductType.FROMAGE,
             description = ""
         ),
         UiProductObject(
             id = "4",
-            name = "Ail et Fines Herbes",
-            price = 4.99,
-            imageUrl = "https://www.france-mineraux.fr/wp-content/uploads/2023/11/aliment-fromage-de-chevre.jpg",
+            name = "Duo de moutarde",
+            price = 3.54,
+            imageRes = R.drawable.cheese_mustard_duo,
+            type = ProductType.FROMAGE,
             description = ""
         ),
         UiProductObject(
             id = "5",
+            name = "Poivre",
+            price = 3.54,
+            imageRes = R.drawable.cheese_pepper,
+            type = ProductType.FROMAGE,
+            description = ""
+        ),
+        UiProductObject(
+            id = "6",
+            name = "Pavot bleu",
+            price = 3.54,
+            imageRes = R.drawable.cheese_pavot,
+            type = ProductType.FROMAGE,
+            description = ""
+        ),
+        UiProductObject(
+            id = "7",
+            name = "Faisselle",
+            price = 3.54,
+            imageRes = R.drawable.cheese_faisselle,
+            type = ProductType.FAISSELLE,
+            description = ""
+        ),
+        UiProductObject(
+            id = "8",
+            name = "Cendré crèmeux",
+            price = 3.54,
+            imageUrl = "https://api-drive.drive.supermarchesmatch.fr/api/sdk/cms/media/image/11865.webp",
+            type = ProductType.FROMAGE,
+            description = ""
+        ),
+        UiProductObject(
+            id = "9",
+            name = "Cendré crèmeux",
+            price = 3.54,
+            imageUrl = "https://api-drive.drive.supermarchesmatch.fr/api/sdk/cms/media/image/11865.webp",
+            type = ProductType.FROMAGE,
+            description = ""
+        ),
+        UiProductObject(
+            id = "10",
+            name = "Tomme de Chèvre",
+            price = 3.54,
+            imageUrl = "https://api-drive.drive.supermarchesmatch.fr/api/sdk/cms/media/image/11865.webp",
+            type = ProductType.TOMME,
+            description = ""
+        ),
+        UiProductObject(
+            id = "11",
+            name = "Cendré crèmeux",
+            price = 3.54,
+            imageUrl = "https://api-drive.drive.supermarchesmatch.fr/api/sdk/cms/media/image/11865.webp",
+            type = ProductType.FROMAGE,
+            description = ""
+        ),
+        UiProductObject(
+            id = "12",
+            name = "Cendré crèmeux",
+            price = 3.54,
+            imageUrl = "https://api-drive.drive.supermarchesmatch.fr/api/sdk/cms/media/image/11865.webp",
+            type = ProductType.FROMAGE,
+            description = ""
+        ),
+        UiProductObject(
+            id = "13",
+            name = "Cendré crèmeux",
+            price = 3.54,
+            imageUrl = "https://api-drive.drive.supermarchesmatch.fr/api/sdk/cms/media/image/11865.webp",
+            type = ProductType.FROMAGE,
+            description = ""
+        ),
+        UiProductObject(
+            id = "14",
+            name = "Cendré crèmeux",
+            price = 3.54,
+            imageUrl = "https://api-drive.drive.supermarchesmatch.fr/api/sdk/cms/media/image/11865.webp",
+            type = ProductType.FROMAGE,
+            description = ""
+        ),
+        UiProductObject(
+            id = "15",
+            name = "Cendré crèmeux",
+            price = 3.54,
+            imageUrl = "https://api-drive.drive.supermarchesmatch.fr/api/sdk/cms/media/image/11865.webp",
+            type = ProductType.FROMAGE,
+            description = ""
+        ),
+        UiProductObject(
+            id = "16",
+            name = "Cendré crèmeux",
+            price = 3.54,
+            imageUrl = "https://api-drive.drive.supermarchesmatch.fr/api/sdk/cms/media/image/11865.webp",
+            type = ProductType.FROMAGE,
+            description = ""
+        ),
+        UiProductObject(
+            id = "17",
+            name = "Cendré crèmeux",
+            price = 3.54,
+            imageUrl = "https://api-drive.drive.supermarchesmatch.fr/api/sdk/cms/media/image/11865.webp",
+            type = ProductType.FROMAGE,
+            description = ""
+        ),
+        UiProductObject(
+            id = "18",
+            name = "Ail et Fines Herbes",
+            price = 4.99,
+            imageUrl = "https://www.france-mineraux.fr/wp-content/uploads/2023/11/aliment-fromage-de-chevre.jpg",
+            type = ProductType.FROMAGE,
+            description = ""
+        ),
+        UiProductObject(
+            id = "19",
             name = "Raz-El-Hanout",
             price = 1.0,
             imageUrl = null,
+            type = ProductType.FROMAGE,
             description = ""
         )
     )
-    LazyVerticalGrid(
-        modifier = Modifier
-            .padding(paddingValues)
-            .padding(horizontal = 8.dp),
-        columns = GridCells.Adaptive(minSize = 168.dp)
-    ) {
-        items(items = testList) {
-            ProductItem(
-                product = it
-            )
+
+    Box(modifier = Modifier.fillMaxSize()) {
+
+        LazyVerticalGrid(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+                .padding(horizontal = 8.dp),
+            columns = GridCells.Adaptive(minSize = 168.dp)
+        ) {
+            items(items = testList) {
+                ProductItem(
+                    product = it
+                )
+            }
+        }
+
+        FloatingActionButton(
+            modifier = Modifier
+                .padding(32.dp)
+                .align(Alignment.BottomEnd)
+                .border(
+                    2.dp,
+                    color = MaterialTheme.colorScheme.primary,
+                    shape = RoundedCornerShape(8.dp)
+                ),
+            onClick = { /*TODO*/ }
+        ) {
+            Icon(imageVector = Icons.Default.ShoppingCart, contentDescription = "Cart")
         }
     }
 }

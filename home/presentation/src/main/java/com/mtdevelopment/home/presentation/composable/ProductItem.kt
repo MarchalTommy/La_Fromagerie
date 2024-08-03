@@ -53,9 +53,9 @@ fun ProductItem(
             .padding(8.dp),
         onClick = { /*TODO : navigate to product details*/ },
         colors = CardColors(
-            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+            containerColor = MaterialTheme.colorScheme.primaryContainer,
             contentColor = MaterialTheme.colorScheme.onSurface,
-            disabledContainerColor = MaterialTheme.colorScheme.secondaryContainer,
+            disabledContainerColor = MaterialTheme.colorScheme.primaryContainer,
             disabledContentColor = MaterialTheme.colorScheme.onSurface
         ),
         elevation = CardDefaults.elevatedCardElevation()
@@ -68,11 +68,14 @@ fun ProductItem(
             GlideImage(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .height(128.dp)
                     .clip(RoundedCornerShape(8.dp)),
                 imageModel = {
-                    product?.imageUrl ?: R.drawable.placeholder
+                    product?.imageUrl ?:
+                    product?.imageRes ?:
+                    R.drawable.placeholder
                 },
-                imageOptions = ImageOptions(contentScale = ContentScale.Fit),
+                imageOptions = ImageOptions(contentScale = ContentScale.Crop),
                 requestBuilder = {
                     Glide.with(LocalContext.current)
                         .asBitmap()
@@ -115,7 +118,7 @@ fun ProductItem(
                 Text(
                     modifier = Modifier
                         .padding(horizontal = 8.dp),
-                    text = product?.price.toString().replace(".", ",") + " €",
+                    text = product?.price.toString().replace(".", ",") + "€",
                     style = MaterialTheme.typography.displaySmall,
                     color = MaterialTheme.colorScheme.onSecondaryContainer
                 )

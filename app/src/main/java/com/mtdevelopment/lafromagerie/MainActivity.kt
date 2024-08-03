@@ -9,6 +9,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarColors
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -36,9 +37,17 @@ class MainActivity : ComponentActivity() {
 
                 Scaffold(
                     modifier = Modifier.fillMaxSize(),
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    containerColor = MaterialTheme.colorScheme.surface,
                     topBar = {
                         TopAppBar(
+                            modifier = Modifier,
+                            colors = TopAppBarColors(
+                                containerColor = MaterialTheme.colorScheme.surface,
+                                titleContentColor = MaterialTheme.colorScheme.primary,
+                                navigationIconContentColor = MaterialTheme.colorScheme.primary,
+                                actionIconContentColor = MaterialTheme.colorScheme.primary,
+                                scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer
+                            ),
                             title = {
                                 Text("La Fromagerie")
                             }
