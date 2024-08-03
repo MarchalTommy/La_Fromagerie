@@ -3,7 +3,9 @@ package com.mtdevelopment.lafromagerie
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -11,29 +13,31 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarColors
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.NavHostController
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.mtdevelopment.core.presentation.theme.ui.AppTheme
 import com.mtdevelopment.home.presentation.composable.HomeScreen
-import com.mtdevelopment.home.presentation.composable.ProductItem
+import com.mtdevelopment.home.presentation.viewmodel.MainViewModel
+import com.mtdevelopment.lafromagerie.navigation.CheeseScreens
+import org.koin.androidx.viewmodel.ext.android.viewModel
 
 class MainActivity : ComponentActivity() {
+
+    private val mainViewModel: MainViewModel by viewModel()
+
     @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        enableEdgeToEdge()
+
         setContent {
             AppTheme {
-                val navController = rememberNavController()
-                val currentRoute =
-                    navController.currentBackStackEntryAsState().value?.destination?.route
-
-                var bottomBarState by rememberSaveable { (mutableStateOf(false)) }
+                val navController: NavHostController = rememberNavController()
 
                 Scaffold(
                     modifier = Modifier.fillMaxSize(),
@@ -54,7 +58,18 @@ class MainActivity : ComponentActivity() {
                         )
                     }
                 ) { paddingValues ->
-                    HomeScreen(paddingValues)
+
+                    NavHost(
+                        navController = navController,
+                        startDestination = CheeseScreens.Home.name,
+                        modifier = Modifier.padding(paddingValues)
+                    ) {
+
+                        composable(route = CheeseScreens.Home.name) {
+                            HomeScreen(mainViewModel)
+                        }
+
+                    }
                 }
             }
         }

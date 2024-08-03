@@ -40,13 +40,15 @@ import com.bumptech.glide.load.resource.bitmap.BitmapTransitionOptions.withCross
 import com.bumptech.glide.request.RequestOptions
 import com.mtdevelopment.home.presentation.R
 import com.mtdevelopment.home.presentation.model.UiProductObject
+import com.mtdevelopment.home.presentation.viewmodel.MainViewModel
 import com.skydoves.landscapist.ImageOptions
 import com.skydoves.landscapist.glide.GlideImage
 
 @Preview
 @Composable
 fun ProductItem(
-    product: UiProductObject? = null
+    product: UiProductObject? = null,
+    mainViewModel: MainViewModel? = null
 ) {
     Card(
         modifier = Modifier
@@ -71,9 +73,7 @@ fun ProductItem(
                     .height(128.dp)
                     .clip(RoundedCornerShape(8.dp)),
                 imageModel = {
-                    product?.imageUrl ?:
-                    product?.imageRes ?:
-                    R.drawable.placeholder
+                    product?.imageUrl ?: product?.imageRes ?: R.drawable.placeholder
                 },
                 imageOptions = ImageOptions(contentScale = ContentScale.Crop),
                 requestBuilder = {
@@ -127,7 +127,7 @@ fun ProductItem(
                     modifier = Modifier
                         .width(32.dp)
                         .height(32.dp),
-                    onClick = { /*TODO : add to cart*/ },
+                    onClick = { product?.let { mainViewModel?.addCartObject(it) } },
                     colors = ButtonColors(
                         containerColor = MaterialTheme.colorScheme.secondary,
                         contentColor = MaterialTheme.colorScheme.onSecondary,

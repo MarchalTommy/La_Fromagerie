@@ -2,7 +2,6 @@ package com.mtdevelopment.home.presentation.composable
 
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -15,19 +14,26 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.mtdevelopment.home.presentation.R
+import com.mtdevelopment.home.presentation.composable.cart.CartView
 import com.mtdevelopment.home.presentation.model.ProductType
 import com.mtdevelopment.home.presentation.model.UiProductObject
+import com.mtdevelopment.home.presentation.viewmodel.MainViewModel
 
 @Preview
 @Composable
 fun HomeScreen(
-    paddingValues: PaddingValues = PaddingValues(64.dp),
+    mainViewModel: MainViewModel? = null
 ) {
+    var showBottomSheet by remember { mutableStateOf(false) }
 
     val testList = listOf(
         UiProductObject(
@@ -189,13 +195,13 @@ fun HomeScreen(
         LazyVerticalGrid(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
                 .padding(horizontal = 8.dp),
             columns = GridCells.Adaptive(minSize = 168.dp)
         ) {
             items(items = testList) {
                 ProductItem(
-                    product = it
+                    product = it,
+                    mainViewModel = mainViewModel
                 )
             }
         }
@@ -209,9 +215,15 @@ fun HomeScreen(
                     color = MaterialTheme.colorScheme.primary,
                     shape = RoundedCornerShape(8.dp)
                 ),
-            onClick = { /*TODO*/ }
+            onClick = { showBottomSheet = true }
         ) {
             Icon(imageVector = Icons.Default.ShoppingCart, contentDescription = "Cart")
+        }
+
+        if (showBottomSheet) {
+            CartView(mainViewModel = mainViewModel) {
+                showBottomSheet = false
+            }
         }
     }
 }
