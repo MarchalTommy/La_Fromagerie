@@ -7,7 +7,8 @@ data class UiProductObject(
     val imageUrl: String? = null,
     val imageRes: Int? = null,
     val type: ProductType,
-    val description: String
+    val description: String,
+    var quantity: Int = 0
 ) {
 
 }
