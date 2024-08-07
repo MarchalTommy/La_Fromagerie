@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -31,6 +32,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.bumptech.glide.Glide
@@ -40,7 +42,6 @@ import com.bumptech.glide.request.RequestOptions
 import com.mtdevelopment.core.util.vibratePhone
 import com.mtdevelopment.home.presentation.R
 import com.mtdevelopment.home.presentation.model.UiProductObject
-import com.mtdevelopment.home.presentation.viewmodel.MainViewModel
 import com.skydoves.landscapist.ImageOptions
 import com.skydoves.landscapist.glide.GlideImage
 
@@ -48,7 +49,7 @@ import com.skydoves.landscapist.glide.GlideImage
 @Composable
 fun ProductItem(
     product: UiProductObject? = null,
-    mainViewModel: MainViewModel? = null
+    onAddClick: () -> Unit = {}
 ) {
 
     val context = LocalContext.current
@@ -134,7 +135,7 @@ fun ProductItem(
                         .height(32.dp),
                     onClick = {
                         vibratePhone(context)
-                        product?.let { mainViewModel?.addCartObject(it) }
+                        onAddClick.invoke()
                     },
                     colors = ButtonColors(
                         containerColor = MaterialTheme.colorScheme.secondary,
@@ -161,4 +162,116 @@ fun ProductItem(
         }
     }
 
+}
+
+@Preview
+@Composable
+fun MiniProductItem(
+    product: UiProductObject? = null
+) {
+    Card(
+        modifier = Modifier
+            .padding(8.dp),
+        onClick = {},
+        colors = CardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainer,
+            contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            disabledContainerColor = MaterialTheme.colorScheme.primaryContainer,
+            disabledContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+        ),
+        elevation = CardDefaults.elevatedCardElevation()
+    ) {
+        Column(
+            modifier = Modifier
+                .padding(8.dp)
+        ) {
+            GlideImage(
+                modifier = Modifier
+                    .height(46.dp)
+                    .clip(RoundedCornerShape(8.dp)),
+                imageModel = {
+                    product?.imageUrl ?: product?.imageRes ?: R.drawable.placeholder
+                },
+                // TODO: FIX IMAGE SCALING
+                imageOptions = ImageOptions(contentScale = ContentScale.FillHeight),
+                requestBuilder = {
+                    Glide.with(LocalContext.current)
+                        .asBitmap()
+                        .apply(
+                            RequestOptions().diskCacheStrategy(DiskCacheStrategy.ALL)
+                        )
+                        .transition(withCrossFade())
+                },
+                loading = {
+                    Box(modifier = Modifier.matchParentSize()) {
+                        CircularProgressIndicator(
+                            modifier = Modifier
+                                .align(Alignment.Center),
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                },
+                failure = {
+                    Text(text = "image request failed.")
+                })
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Text(
+                modifier = Modifier
+                    .padding(horizontal = 8.dp)
+                    .fillMaxWidth(0.2f),
+                text = product?.name ?: "Product Name",
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontWeight = FontWeight.Normal
+            )
+
+            Row(
+                modifier = Modifier
+                    .padding(vertical = 8.dp)
+                    .padding(end = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    modifier = Modifier
+                        .padding(horizontal = 8.dp),
+                    text = product?.price.toString().replace(".", ",") + "€",
+                    style = MaterialTheme.typography.displaySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                Button(
+                    modifier = Modifier
+                        .width(32.dp)
+                        .height(32.dp),
+                    onClick = {
+                    },
+                    colors = ButtonColors(
+                        containerColor = MaterialTheme.colorScheme.secondary,
+                        contentColor = MaterialTheme.colorScheme.primaryContainer,
+                        disabledContainerColor = MaterialTheme.colorScheme.secondary,
+                        disabledContentColor = MaterialTheme.colorScheme.primaryContainer
+                    ),
+                    contentPadding = PaddingValues(4.dp),
+                    border = BorderStroke(
+                        width = 2.dp,
+                        color = MaterialTheme.colorScheme.secondary
+                    ),
+                    elevation = ButtonDefaults.elevatedButtonElevation(),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = "Add"
+                    )
+                }
+
+            }
+
+        }
+    }
 }

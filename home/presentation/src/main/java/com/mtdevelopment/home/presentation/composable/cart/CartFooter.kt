@@ -25,11 +25,12 @@ import androidx.compose.ui.unit.dp
 fun CartFooter(
     modifier: Modifier,
     totalAmount: String,
+    hasItems: Boolean,
     onPayClick: () -> Unit
 ) {
     AnimatedVisibility(
         modifier = modifier,
-        visible = totalAmount != "0,00€",
+        visible = hasItems,
         exit = fadeOut(animationSpec = tween(150)),
     ) {
         Column {

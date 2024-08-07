@@ -65,7 +65,12 @@ class MainActivity : ComponentActivity() {
                     ) {
 
                         composable(route = CheeseScreens.Home.name) {
-                            HomeScreen(mainViewModel)
+                            HomeScreen(mainViewModel,
+                                navigateToDetail = {
+                                    navController.navigate(CheeseScreens.Detail.name)
+                                }, navigateToCheckout = {
+                                    navController.navigate(CheeseScreens.Checkout.name)
+                                })
                         }
 
                     }

@@ -114,7 +114,8 @@ fun CartView(
                             animationSpec = tween(300)
                         )
                         .fillMaxWidth(),
-                    totalAmount = cartTotalPrice?.value ?: ""
+                    totalAmount = cartTotalPrice?.value ?: "",
+                    hasItems = cartItemsContent?.value?.isNotEmpty() == true,
                 ) {
                     onNavigateToCheckout.invoke()
                 }

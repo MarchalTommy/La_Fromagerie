@@ -3,7 +3,7 @@ package com.mtdevelopment.lafromagerie.navigation
 enum class CheeseScreens {
     Home,
     Detail,
-    Pay,
+    Checkout,
     Admin,
     Profile,
     Settings
