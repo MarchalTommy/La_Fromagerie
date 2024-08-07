@@ -211,19 +211,23 @@ fun HomeScreen(
                 .padding(32.dp)
                 .align(Alignment.BottomEnd)
                 .border(
-                    2.dp,
-                    color = MaterialTheme.colorScheme.primary,
-                    shape = RoundedCornerShape(8.dp)
+                    3.dp,
+                    color = MaterialTheme.colorScheme.tertiary,
+                    shape = RoundedCornerShape(16.dp)
                 ),
+            containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+            contentColor = MaterialTheme.colorScheme.tertiary,
             onClick = { showBottomSheet = true }
         ) {
             Icon(imageVector = Icons.Default.ShoppingCart, contentDescription = "Cart")
         }
 
         if (showBottomSheet) {
-            CartView(mainViewModel = mainViewModel) {
+            CartView(mainViewModel = mainViewModel, {
                 showBottomSheet = false
-            }
+            }, {
+
+            })
         }
     }
 }

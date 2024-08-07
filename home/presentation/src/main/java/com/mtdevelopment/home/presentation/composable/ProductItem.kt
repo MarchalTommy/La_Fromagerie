@@ -28,7 +28,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -38,6 +37,7 @@ import com.bumptech.glide.Glide
 import com.bumptech.glide.load.engine.DiskCacheStrategy
 import com.bumptech.glide.load.resource.bitmap.BitmapTransitionOptions.withCrossFade
 import com.bumptech.glide.request.RequestOptions
+import com.mtdevelopment.core.util.vibratePhone
 import com.mtdevelopment.home.presentation.R
 import com.mtdevelopment.home.presentation.model.UiProductObject
 import com.mtdevelopment.home.presentation.viewmodel.MainViewModel
@@ -50,15 +50,18 @@ fun ProductItem(
     product: UiProductObject? = null,
     mainViewModel: MainViewModel? = null
 ) {
+
+    val context = LocalContext.current
+
     Card(
         modifier = Modifier
             .padding(8.dp),
         onClick = { /*TODO : navigate to product details*/ },
         colors = CardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer,
-            contentColor = MaterialTheme.colorScheme.onSurface,
+            containerColor = MaterialTheme.colorScheme.surfaceContainer,
+            contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
             disabledContainerColor = MaterialTheme.colorScheme.primaryContainer,
-            disabledContentColor = MaterialTheme.colorScheme.onSurface
+            disabledContentColor = MaterialTheme.colorScheme.onPrimaryContainer
         ),
         elevation = CardDefaults.elevatedCardElevation()
     ) {
@@ -105,13 +108,15 @@ fun ProductItem(
                     .padding(horizontal = 8.dp),
                 text = product?.name ?: "Product Name",
                 style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontWeight = FontWeight.Normal
             )
 
             Row(
                 modifier = Modifier
-                    .fillMaxWidth(),
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp)
+                    .padding(end = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
@@ -120,22 +125,28 @@ fun ProductItem(
                         .padding(horizontal = 8.dp),
                     text = product?.price.toString().replace(".", ",") + "€",
                     style = MaterialTheme.typography.displaySmall,
-                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
                 Button(
                     modifier = Modifier
                         .width(32.dp)
                         .height(32.dp),
-                    onClick = { product?.let { mainViewModel?.addCartObject(it) } },
+                    onClick = {
+                        vibratePhone(context)
+                        product?.let { mainViewModel?.addCartObject(it) }
+                    },
                     colors = ButtonColors(
                         containerColor = MaterialTheme.colorScheme.secondary,
-                        contentColor = MaterialTheme.colorScheme.onSecondary,
+                        contentColor = MaterialTheme.colorScheme.primaryContainer,
                         disabledContainerColor = MaterialTheme.colorScheme.secondary,
-                        disabledContentColor = MaterialTheme.colorScheme.onSecondary
+                        disabledContentColor = MaterialTheme.colorScheme.primaryContainer
                     ),
                     contentPadding = PaddingValues(4.dp),
-                    border = BorderStroke(width = 2.dp, color = Color.White),
+                    border = BorderStroke(
+                        width = 2.dp,
+                        color = MaterialTheme.colorScheme.secondary
+                    ),
                     elevation = ButtonDefaults.elevatedButtonElevation(),
                     shape = RoundedCornerShape(8.dp)
                 ) {

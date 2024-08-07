@@ -3,7 +3,7 @@ package com.mtdevelopment.lafromagerie.navigation
 import androidx.compose.runtime.Composable
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
-import com.mtdevelopment.core.Util.Screen
+import com.mtdevelopment.core.util.Screen
 
 
 @Composable

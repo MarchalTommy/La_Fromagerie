@@ -5,5 +5,5 @@ import kotlinx.coroutines.flow.Flow
 data class UiBasketObject(
     val id: String,
     val content: Flow<List<UiProductObject>>,
-    val totalPrice: Flow<Double>
+    var totalPrice: Flow<String>
 )

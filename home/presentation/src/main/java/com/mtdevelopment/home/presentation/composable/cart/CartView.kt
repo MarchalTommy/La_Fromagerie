@@ -6,6 +6,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
@@ -21,7 +22,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.mtdevelopment.home.presentation.viewmodel.MainViewModel
@@ -32,13 +32,10 @@ import kotlinx.coroutines.launch
 fun CartView(
     mainViewModel: MainViewModel? = null,
     onDismiss: () -> Unit = {},
+    onNavigateToCheckout: () -> Unit = {}
 ) {
 
     val coroutineScope = rememberCoroutineScope()
-
-    val alphaAnimation = remember {
-        androidx.compose.animation.core.Animatable(1f)
-    }
 
     val sheetState = rememberModalBottomSheetState(
         skipPartiallyExpanded = false,
@@ -46,6 +43,7 @@ fun CartView(
 
     val cartItems = mainViewModel?.cartObjects?.collectAsState()
     val cartItemsContent = cartItems?.value?.content?.collectAsState(emptyList())
+    val cartTotalPrice = cartItems?.value?.totalPrice?.collectAsState(initial = "")
 
     ModalBottomSheet(
         modifier = Modifier.fillMaxHeight(),
@@ -63,29 +61,23 @@ fun CartView(
             style = MaterialTheme.typography.titleLarge
         )
 
-        LazyColumn(modifier = Modifier.padding(16.dp)) {
-
-
+        LazyColumn(
+            modifier = Modifier
+                .padding(16.dp)
+                .fillMaxSize()
+        ) {
             item {
+                val alphaAnimation = remember {
+                    Animatable(1f)
+                }
+
                 AnimatedVisibility(
                     visible = cartItemsContent?.value?.isEmpty() == true,
                     enter = fadeIn(animationSpec = tween(800))
                 ) {
-                    Text(
-                        "C'est bien vide d'ailleurs...\nOn commande un p'tit fromage ?",
-                        modifier = Modifier
-                            .padding(16.dp)
-                            .fillMaxWidth()
-                            .graphicsLayer {
-                                this.alpha = alphaAnimation.value
-                            },
-                        textAlign = TextAlign.Center,
-                        color = MaterialTheme.colorScheme.secondary,
-                        style = MaterialTheme.typography.titleLarge
-                    )
+                    CartEmptyMessage(alphaAnimation = alphaAnimation)
                 }
             }
-
             items(cartItemsContent?.value ?: emptyList(), key = { it.id }) {
                 val itemVisibility = remember {
                     Animatable(1f)
@@ -105,7 +97,7 @@ fun CartView(
                             if (it.quantity <= 1) {
                                 itemVisibility.animateTo(
                                     targetValue = 0f,
-                                    animationSpec = tween(300)
+                                    animationSpec = tween(200)
                                 )
                                 mainViewModel?.totallyRemoveObject(it)
                             } else {
@@ -114,7 +106,18 @@ fun CartView(
                         }
                     }
                 )
-
+            }
+            item("Footer") {
+                CartFooter(
+                    modifier = Modifier
+                        .animateItemPlacement(
+                            animationSpec = tween(300)
+                        )
+                        .fillMaxWidth(),
+                    totalAmount = cartTotalPrice?.value ?: ""
+                ) {
+                    onNavigateToCheckout.invoke()
+                }
             }
         }
     }

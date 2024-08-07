@@ -1,4 +1,4 @@
-package com.mtdevelopment.core.Util
+package com.mtdevelopment.core.util
 
 sealed class Screen(val route: String) {
     object SplashScreen : Screen(route = "splash_screen")
