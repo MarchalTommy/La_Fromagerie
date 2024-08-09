@@ -1,13 +1,8 @@
 package com.mtdevelopment.home.presentation.composable
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.VectorConverter
 import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandIn
-import androidx.compose.animation.shrinkOut
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -18,10 +13,14 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ShoppingCart
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -29,7 +28,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -40,9 +39,6 @@ import com.mtdevelopment.home.presentation.composable.cart.CartView
 import com.mtdevelopment.home.presentation.model.ProductType
 import com.mtdevelopment.home.presentation.model.UiProductObject
 import com.mtdevelopment.home.presentation.viewmodel.MainViewModel
-import kotlinx.coroutines.async
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 @Preview
@@ -213,41 +209,15 @@ fun HomeScreen(
         )
     )
 
-    val showMiniAnimated = remember { mutableStateOf(false) }
-    val miniItem = remember { mutableStateOf<UiProductObject?>(null) }
-
-    val translationMini = remember { Animatable(Offset(0f, 0f), Offset.VectorConverter) }
-    translationMini.updateBounds(
-        upperBound = Offset(
-            x = screenSize.widthPx / 2f,
-            y = screenSize.heightPx.toFloat()
-        ),
-        lowerBound = Offset(
-            x = -screenSize.widthPx / 2f,
-            y = -screenSize.heightPx.toFloat()
-        )
-    )
-
     val scaleCart = remember { Animatable(1f) }
+
+    val cartContent =
+        mainViewModel?.cartObjects?.collectAsState()?.value?.content?.collectAsState(emptyList())
 
     fun animateAddingToCart() {
         coroutineScope.launch {
-            showMiniAnimated.value = true
-            translationMini.animateTo(
-                targetValue = Offset(
-                    screenSize.width.value,
-                    screenSize.height.value * 2
-                ),
-                animationSpec = spring(
-                    dampingRatio = Spring.DampingRatioNoBouncy,
-                    stiffness = Spring.StiffnessLow
-                )
-            )
-
-            showMiniAnimated.value = false
-
             scaleCart.animateTo(
-                1.2f,
+                1.6f,
                 animationSpec = spring(
                     dampingRatio = Spring.DampingRatioNoBouncy,
                     stiffness = Spring.StiffnessMedium
@@ -256,16 +226,13 @@ fun HomeScreen(
             scaleCart.animateTo(
                 1f,
                 animationSpec = spring(
-                    dampingRatio = Spring.DampingRatioHighBouncy,
+                    dampingRatio = Spring.DampingRatioMediumBouncy,
                     stiffness = Spring.StiffnessMedium
                 )
             )
-
-            translationMini.snapTo(
-                targetValue = Offset(0f, 0f)
-            )
         }
     }
+
     Box(modifier = Modifier.fillMaxSize()) {
 
         LazyVerticalGrid(
@@ -279,52 +246,44 @@ fun HomeScreen(
                     product = it
                 ) {
                     mainViewModel?.addCartObject(it)
-                    miniItem.value = it
                     animateAddingToCart()
                 }
             }
         }
 
-        FloatingActionButton(
+        BadgedBox(
             modifier = Modifier
-                .padding(32.dp)
                 .align(Alignment.BottomEnd)
                 .graphicsLayer {
                     scaleX = scaleCart.value
                     scaleY = scaleCart.value
                 }
-                .border(
-                    3.dp,
-                    color = MaterialTheme.colorScheme.tertiary,
-                    shape = RoundedCornerShape(16.dp)
-                ),
-            containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-            contentColor = MaterialTheme.colorScheme.tertiary,
-            onClick = { showBottomSheet = true }
+                .padding(32.dp),
+            badge = {
+                if ((cartContent?.value?.size ?: 0) > 0) {
+                    Badge(
+                        containerColor = Color.Red,
+                        contentColor = Color.White
+                    ) {
+                        val cartItemsQuantity = cartContent?.value?.sumOf { it.quantity }
+                        Text("$cartItemsQuantity")
+                    }
+                }
+            }
         ) {
-            Icon(imageVector = Icons.Default.ShoppingCart, contentDescription = "Cart")
-        }
-
-        AnimatedVisibility(
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .graphicsLayer {
-                    this.translationX = translationMini.value.x
-                    this.translationY = translationMini.value.y
-                },
-            visible = showMiniAnimated.value,
-            enter = expandIn(
-                animationSpec = tween(150),
-                expandFrom = Alignment.TopCenter
-            ),
-            exit = shrinkOut(
-                animationSpec = tween(200),
-                shrinkTowards = Alignment.TopCenter
-            )
-        ) {
-            MiniProductItem(
-                miniItem.value
-            )
+            FloatingActionButton(
+                modifier = Modifier
+                    .border(
+                        3.dp,
+                        color = MaterialTheme.colorScheme.tertiary,
+                        shape = RoundedCornerShape(16.dp)
+                    ),
+                containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                contentColor = MaterialTheme.colorScheme.tertiary,
+                onClick = { showBottomSheet = true }
+            ) {
+                Icon(imageVector = Icons.Default.ShoppingCart, contentDescription = "Cart")
+            }
         }
 
         if (showBottomSheet) {
