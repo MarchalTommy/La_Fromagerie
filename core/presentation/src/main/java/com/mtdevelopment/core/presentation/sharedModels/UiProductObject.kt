@@ -1,4 +1,6 @@
-package com.mtdevelopment.home.presentation.model
+package com.mtdevelopment.core.presentation.sharedModels
+
+import android.os.Parcelable
 
 data class UiProductObject(
     val id: String,

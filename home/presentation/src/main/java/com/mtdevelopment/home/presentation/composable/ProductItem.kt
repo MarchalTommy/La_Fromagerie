@@ -43,9 +43,9 @@ import com.bumptech.glide.Glide
 import com.bumptech.glide.load.engine.DiskCacheStrategy
 import com.bumptech.glide.load.resource.bitmap.BitmapTransitionOptions.withCrossFade
 import com.bumptech.glide.request.RequestOptions
+import com.mtdevelopment.core.presentation.sharedModels.UiProductObject
 import com.mtdevelopment.core.util.vibratePhone
 import com.mtdevelopment.home.presentation.R
-import com.mtdevelopment.home.presentation.model.UiProductObject
 import com.skydoves.landscapist.ImageOptions
 import com.skydoves.landscapist.glide.GlideImage
 import kotlinx.coroutines.launch
@@ -55,6 +55,7 @@ import kotlinx.coroutines.launch
 fun ProductItem(
     modifier: Modifier = Modifier,
     product: UiProductObject? = null,
+    onDetailClick: (UiProductObject) -> Unit = {},
     onAddClick: () -> Unit = {}
 ) {
 
@@ -89,7 +90,11 @@ fun ProductItem(
                 scaleX = scaleItemTile.value
                 scaleY = scaleItemTile.value
             },
-        onClick = { /*TODO : navigate to product details*/ },
+        onClick = {
+            if (product != null) {
+                onDetailClick.invoke(product)
+            }
+        },
         colors = CardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainer,
             contentColor = MaterialTheme.colorScheme.onSurfaceVariant,

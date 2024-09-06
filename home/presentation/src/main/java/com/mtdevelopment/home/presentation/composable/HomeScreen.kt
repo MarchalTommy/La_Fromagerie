@@ -32,12 +32,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.mtdevelopment.core.presentation.sharedModels.ProductType
+import com.mtdevelopment.core.presentation.sharedModels.UiProductObject
 import com.mtdevelopment.core.util.ScreenSize
 import com.mtdevelopment.core.util.rememberScreenSize
 import com.mtdevelopment.home.presentation.R
 import com.mtdevelopment.home.presentation.composable.cart.CartView
-import com.mtdevelopment.home.presentation.model.ProductType
-import com.mtdevelopment.home.presentation.model.UiProductObject
 import com.mtdevelopment.home.presentation.viewmodel.MainViewModel
 import kotlinx.coroutines.launch
 
@@ -46,7 +46,7 @@ import kotlinx.coroutines.launch
 fun HomeScreen(
     mainViewModel: MainViewModel? = null,
     screenSize: ScreenSize = rememberScreenSize(),
-    navigateToDetail: (String) -> Unit = {},
+    navigateToDetail: (UiProductObject) -> Unit = {},
     navigateToCheckout: () -> Unit = {}
 ) {
 
@@ -243,8 +243,12 @@ fun HomeScreen(
         ) {
             items(items = testList, key = { it.id }) {
                 ProductItem(
-                    product = it
+                    product = it,
+                    onDetailClick = {
+                        navigateToDetail.invoke(it)
+                    }
                 ) {
+
                     mainViewModel?.addCartObject(it)
                     animateAddingToCart()
                 }

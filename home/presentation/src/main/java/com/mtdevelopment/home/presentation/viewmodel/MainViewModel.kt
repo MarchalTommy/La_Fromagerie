@@ -3,7 +3,7 @@ package com.mtdevelopment.home.presentation.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mtdevelopment.home.presentation.model.UiBasketObject
-import com.mtdevelopment.home.presentation.model.UiProductObject
+import com.mtdevelopment.core.presentation.sharedModels.UiProductObject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow

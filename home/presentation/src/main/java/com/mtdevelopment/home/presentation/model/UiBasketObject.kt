@@ -1,5 +1,6 @@
 package com.mtdevelopment.home.presentation.model
 
+import com.mtdevelopment.core.presentation.sharedModels.UiProductObject
 import kotlinx.coroutines.flow.Flow
 
 data class UiBasketObject(

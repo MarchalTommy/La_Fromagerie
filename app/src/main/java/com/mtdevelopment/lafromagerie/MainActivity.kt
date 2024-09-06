@@ -19,10 +19,13 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.mtd.presentation.composable.DetailScreen
 import com.mtdevelopment.core.presentation.theme.ui.AppTheme
+import com.mtdevelopment.core.util.Screen
 import com.mtdevelopment.home.presentation.composable.HomeScreen
 import com.mtdevelopment.home.presentation.viewmodel.MainViewModel
 import com.mtdevelopment.lafromagerie.navigation.CheeseScreens
+import kotlinx.coroutines.flow.first
 import org.koin.androidx.viewmodel.ext.android.viewModel
 
 class MainActivity : ComponentActivity() {
@@ -66,11 +69,19 @@ class MainActivity : ComponentActivity() {
 
                         composable(route = CheeseScreens.Home.name) {
                             HomeScreen(mainViewModel,
-                                navigateToDetail = {
+                                navigateToDetail = { product ->
                                     navController.navigate(CheeseScreens.Detail.name)
                                 }, navigateToCheckout = {
                                     navController.navigate(CheeseScreens.Checkout.name)
                                 })
+                        }
+
+                        composable(route = CheeseScreens.Detail.name) {
+                            DetailScreen(
+//                                detailProductObject =
+
+
+                            )
                         }
 
                     }
