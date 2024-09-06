@@ -61,7 +61,7 @@ fun HomeScreen(
             price = 3.50,
             imageRes = R.drawable.cheese_afh,
             type = ProductType.FROMAGE,
-            description = ""
+            description = "Fromage frais et savoureux, il se déguste particulièrement bien en apéritifs et en entrée, avec une salade !"
         ),
         UiProductObject(
             id = "2",

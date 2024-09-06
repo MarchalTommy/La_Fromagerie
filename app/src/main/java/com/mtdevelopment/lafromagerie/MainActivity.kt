@@ -79,7 +79,8 @@ class MainActivity : ComponentActivity() {
                         ) {
                             val args = it.toRoute<DetailDestination>()
                             DetailScreen(
-                                detailProductObject = args.productObject
+                                detailProductObject = args.productObject,
+                                viewModel = cartViewModel
                             )
                         }
 

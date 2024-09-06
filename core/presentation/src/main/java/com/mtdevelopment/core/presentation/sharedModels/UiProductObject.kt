@@ -18,10 +18,11 @@ data class UiProductObject(
     var quantity: Int = 0
 ) {
 
+    fun toPrice(): String {
+        return this.price.toString().replace(".", ",") + "€"
+    }
+
     companion object {
         val typeMap = mapOf(typeOf<UiProductObject>() to serializableType<UiProductObject>())
-
-        fun from(savedStateHandle: SavedStateHandle) =
-            savedStateHandle.toRoute<UiProductObject>(typeMap)
     }
 }
