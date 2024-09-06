@@ -1,7 +1,8 @@
 plugins {
     alias(libs.plugins.androidApplication)
-    alias(libs.plugins.jetbrainsKotlinAndroid)
+    alias(libs.plugins.kotlinAndroid)
     alias(libs.plugins.compose.compiler)
+    alias(libs.plugins.kotlin.serialization)
 }
 
 android {
@@ -50,8 +51,9 @@ android {
 dependencies {
 
     implementation(project(":core:presentation"))
+    implementation(project(":cart:presentation"))
     implementation(project(":home:presentation"))
-    implementation(project(":productDetails:presentation"))
+    implementation(project(":details:presentation"))
 
     implementation(libs.core.ktx)
     implementation(libs.lifecycle.runtime.ktx)
@@ -69,6 +71,7 @@ dependencies {
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
 
+    implementation(libs.kotlinx.serialization.json)
     implementation(libs.navigation.compose)
 
     implementation(platform(libs.koin.bom))
@@ -76,5 +79,4 @@ dependencies {
     implementation(libs.koin.android)
     implementation(libs.koin.androidx.compose)
     implementation(libs.koin.androidx.compose.navigation)
-
 }

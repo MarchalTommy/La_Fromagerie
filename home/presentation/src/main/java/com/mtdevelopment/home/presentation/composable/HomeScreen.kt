@@ -32,19 +32,19 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.mtdevelopment.cart.presentation.viewmodel.CartViewModel
 import com.mtdevelopment.core.presentation.sharedModels.ProductType
 import com.mtdevelopment.core.presentation.sharedModels.UiProductObject
 import com.mtdevelopment.core.util.ScreenSize
 import com.mtdevelopment.core.util.rememberScreenSize
 import com.mtdevelopment.home.presentation.R
 import com.mtdevelopment.home.presentation.composable.cart.CartView
-import com.mtdevelopment.home.presentation.viewmodel.MainViewModel
 import kotlinx.coroutines.launch
 
 @Preview
 @Composable
 fun HomeScreen(
-    mainViewModel: MainViewModel? = null,
+    cartViewModel: CartViewModel? = null,
     screenSize: ScreenSize = rememberScreenSize(),
     navigateToDetail: (UiProductObject) -> Unit = {},
     navigateToCheckout: () -> Unit = {}
@@ -212,7 +212,7 @@ fun HomeScreen(
     val scaleCart = remember { Animatable(1f) }
 
     val cartContent =
-        mainViewModel?.cartObjects?.collectAsState()?.value?.content?.collectAsState(emptyList())
+        cartViewModel?.cartObjects?.collectAsState()?.value?.content?.collectAsState(emptyList())
 
     fun animateAddingToCart() {
         coroutineScope.launch {
@@ -248,8 +248,7 @@ fun HomeScreen(
                         navigateToDetail.invoke(it)
                     }
                 ) {
-
-                    mainViewModel?.addCartObject(it)
+                    cartViewModel?.addCartObject(it)
                     animateAddingToCart()
                 }
             }
@@ -291,7 +290,7 @@ fun HomeScreen(
         }
 
         if (showBottomSheet) {
-            CartView(mainViewModel = mainViewModel, {
+            CartView(cartViewModel = cartViewModel, {
                 showBottomSheet = false
             }, {
                 navigateToCheckout.invoke()

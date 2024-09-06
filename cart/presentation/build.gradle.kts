@@ -4,7 +4,7 @@ plugins {
 }
 
 android {
-    namespace = "com.mtdevelopment.auth"
+    namespace = "com.mtdevelopment.cart.presentation"
     compileSdk = 34
 
     defaultConfig {
@@ -23,18 +23,23 @@ android {
             )
         }
     }
-    
     kotlin {
         jvmToolchain(17)
     }
 }
 
 dependencies {
+    implementation(project(":core:presentation"))
 
     implementation(libs.core.ktx)
+    implementation(libs.lifecycle.runtime.ktx)
     implementation(libs.androidx.appcompat)
     implementation(libs.material)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.test.ext.junit)
     androidTestImplementation(libs.espresso.core)
+
+    implementation(platform(libs.koin.bom))
+    implementation(libs.koin.core)
+    implementation(libs.koin.android)
 }

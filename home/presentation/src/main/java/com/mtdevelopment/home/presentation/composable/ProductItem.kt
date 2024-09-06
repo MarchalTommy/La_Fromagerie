@@ -44,7 +44,7 @@ import com.bumptech.glide.load.engine.DiskCacheStrategy
 import com.bumptech.glide.load.resource.bitmap.BitmapTransitionOptions.withCrossFade
 import com.bumptech.glide.request.RequestOptions
 import com.mtdevelopment.core.presentation.sharedModels.UiProductObject
-import com.mtdevelopment.core.util.vibratePhone
+import com.mtdevelopment.core.util.vibratePhoneClick
 import com.mtdevelopment.home.presentation.R
 import com.skydoves.landscapist.ImageOptions
 import com.skydoves.landscapist.glide.GlideImage
@@ -171,7 +171,7 @@ fun ProductItem(
                         .width(32.dp)
                         .height(32.dp),
                     onClick = {
-                        vibratePhone(context)
+                        vibratePhoneClick(context)
                         animateAddToCart()
                         onAddClick.invoke()
                     },

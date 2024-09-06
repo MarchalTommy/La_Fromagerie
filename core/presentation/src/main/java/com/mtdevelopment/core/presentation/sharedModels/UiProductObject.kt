@@ -1,7 +1,12 @@
 package com.mtdevelopment.core.presentation.sharedModels
 
-import android.os.Parcelable
+import androidx.lifecycle.SavedStateHandle
+import androidx.navigation.toRoute
+import com.mtdevelopment.core.util.serializableType
+import kotlinx.serialization.Serializable
+import kotlin.reflect.typeOf
 
+@Serializable
 data class UiProductObject(
     val id: String,
     val name: String,
@@ -13,4 +18,10 @@ data class UiProductObject(
     var quantity: Int = 0
 ) {
 
+    companion object {
+        val typeMap = mapOf(typeOf<UiProductObject>() to serializableType<UiProductObject>())
+
+        fun from(savedStateHandle: SavedStateHandle) =
+            savedStateHandle.toRoute<UiProductObject>(typeMap)
+    }
 }

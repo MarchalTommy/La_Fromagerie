@@ -2,10 +2,11 @@ plugins {
     alias(libs.plugins.androidLibrary)
     alias(libs.plugins.kotlinAndroid)
     alias(libs.plugins.compose.compiler)
+    alias(libs.plugins.kotlin.serialization)
 }
 
 android {
-    namespace = "com.mtdevelopment.home.presentation"
+    namespace = "com.mtd.presentation"
     compileSdk = 34
 
     defaultConfig {
@@ -32,11 +33,6 @@ android {
     }
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.13"
-    }
-    packaging {
-        resources {
-            excludes += "/META-INF/{AL2.0,LGPL2.1}"
-        }
     }
 }
 
@@ -68,5 +64,8 @@ dependencies {
     implementation(libs.koin.android)
     implementation(libs.koin.androidx.compose)
     implementation(libs.koin.androidx.compose.navigation)
+
+    implementation(libs.kotlinx.serialization.json)
+    implementation(libs.navigation.compose)
 
 }

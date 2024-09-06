@@ -1,6 +1,6 @@
 package com.mtdevelopment.lafromagerie.di
 
-import com.mtdevelopment.home.presentation.viewmodel.MainViewModel
+import com.mtdevelopment.cart.presentation.viewmodel.CartViewModel
 import org.koin.androidx.viewmodel.dsl.viewModel
 import org.koin.dsl.module
 
@@ -12,5 +12,5 @@ class UserModule {
 }
 
 val module = module {
-    viewModel { MainViewModel() }
+    viewModel { com.mtdevelopment.cart.presentation.viewmodel.CartViewModel() }
 }
