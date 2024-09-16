@@ -20,6 +20,9 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import com.mtdevelopment.core.presentation.sharedModels.UiProductObject
 import com.mtdevelopment.core.presentation.theme.ui.AppTheme
+import com.mtdevelopment.core.presentation.theme.ui.ScaleTransitionDirection
+import com.mtdevelopment.core.presentation.theme.ui.scaleIntoContainer
+import com.mtdevelopment.core.presentation.theme.ui.scaleOutOfContainer
 import com.mtdevelopment.details.presentation.composable.DetailScreen
 import com.mtdevelopment.home.presentation.composable.HomeScreen
 import kotlinx.serialization.Serializable
@@ -75,7 +78,19 @@ class MainActivity : ComponentActivity() {
                         }
 
                         composable<DetailDestination>(
-                            typeMap = UiProductObject.typeMap
+                            typeMap = UiProductObject.typeMap,
+                            enterTransition = {
+                                scaleIntoContainer()
+                            },
+                            exitTransition = {
+                                scaleOutOfContainer(ScaleTransitionDirection.INWARDS)
+                            },
+                            popEnterTransition = {
+                                scaleIntoContainer(ScaleTransitionDirection.OUTWARDS)
+                            },
+                            popExitTransition = {
+                                scaleOutOfContainer()
+                            }
                         ) {
                             val args = it.toRoute<DetailDestination>()
                             DetailScreen(

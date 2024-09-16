@@ -35,6 +35,7 @@ import androidx.compose.ui.unit.dp
 import com.mtdevelopment.cart.presentation.viewmodel.CartViewModel
 import com.mtdevelopment.core.presentation.sharedModels.ProductType
 import com.mtdevelopment.core.presentation.sharedModels.UiProductObject
+import com.mtdevelopment.core.presentation.testList
 import com.mtdevelopment.core.util.ScreenSize
 import com.mtdevelopment.core.util.rememberScreenSize
 import com.mtdevelopment.home.presentation.R
@@ -53,161 +54,6 @@ fun HomeScreen(
     val coroutineScope = rememberCoroutineScope()
 
     var showBottomSheet by remember { mutableStateOf(false) }
-
-    val testList = listOf(
-        UiProductObject(
-            id = "1",
-            name = "Ail et Fines Herbes",
-            price = 3.50,
-            imageRes = R.drawable.cheese_afh,
-            type = ProductType.FROMAGE,
-            description = "Fromage frais et savoureux, il se déguste particulièrement bien en apéritifs et en entrée, avec une salade !"
-        ),
-        UiProductObject(
-            id = "2",
-            name = "Fromage inconnu",
-            price = 3.50,
-            imageRes = R.drawable.cheese_todefine9,
-            type = ProductType.FROMAGE,
-            description = ""
-        ),
-        UiProductObject(
-            id = "3",
-            name = "Saveur du Jardin",
-            price = 3.54,
-            imageRes = R.drawable.cheese_garden,
-            type = ProductType.FROMAGE,
-            description = ""
-        ),
-        UiProductObject(
-            id = "4",
-            name = "Duo de moutarde",
-            price = 3.54,
-            imageRes = R.drawable.cheese_mustard_duo,
-            type = ProductType.FROMAGE,
-            description = ""
-        ),
-        UiProductObject(
-            id = "5",
-            name = "Poivre",
-            price = 3.54,
-            imageRes = R.drawable.cheese_pepper,
-            type = ProductType.FROMAGE,
-            description = ""
-        ),
-        UiProductObject(
-            id = "6",
-            name = "Pavot bleu",
-            price = 3.54,
-            imageRes = R.drawable.cheese_pavot,
-            type = ProductType.FROMAGE,
-            description = ""
-        ),
-        UiProductObject(
-            id = "7",
-            name = "Faisselle",
-            price = 3.54,
-            imageRes = R.drawable.cheese_faisselle,
-            type = ProductType.FAISSELLE,
-            description = ""
-        ),
-        UiProductObject(
-            id = "8",
-            name = "Cendré crèmeux",
-            price = 3.54,
-            imageUrl = "https://api-drive.drive.supermarchesmatch.fr/api/sdk/cms/media/image/11865.webp",
-            type = ProductType.FROMAGE,
-            description = ""
-        ),
-        UiProductObject(
-            id = "9",
-            name = "Cendré crèmeux",
-            price = 3.54,
-            imageUrl = "https://api-drive.drive.supermarchesmatch.fr/api/sdk/cms/media/image/11865.webp",
-            type = ProductType.FROMAGE,
-            description = ""
-        ),
-        UiProductObject(
-            id = "10",
-            name = "Tomme de Chèvre",
-            price = 3.54,
-            imageUrl = "https://api-drive.drive.supermarchesmatch.fr/api/sdk/cms/media/image/11865.webp",
-            type = ProductType.TOMME,
-            description = ""
-        ),
-        UiProductObject(
-            id = "11",
-            name = "Cendré crèmeux",
-            price = 3.54,
-            imageUrl = "https://api-drive.drive.supermarchesmatch.fr/api/sdk/cms/media/image/11865.webp",
-            type = ProductType.FROMAGE,
-            description = ""
-        ),
-        UiProductObject(
-            id = "12",
-            name = "Cendré crèmeux",
-            price = 3.54,
-            imageUrl = "https://api-drive.drive.supermarchesmatch.fr/api/sdk/cms/media/image/11865.webp",
-            type = ProductType.FROMAGE,
-            description = ""
-        ),
-        UiProductObject(
-            id = "13",
-            name = "Cendré crèmeux",
-            price = 3.54,
-            imageUrl = "https://api-drive.drive.supermarchesmatch.fr/api/sdk/cms/media/image/11865.webp",
-            type = ProductType.FROMAGE,
-            description = ""
-        ),
-        UiProductObject(
-            id = "14",
-            name = "Cendré crèmeux",
-            price = 3.54,
-            imageUrl = "https://api-drive.drive.supermarchesmatch.fr/api/sdk/cms/media/image/11865.webp",
-            type = ProductType.FROMAGE,
-            description = ""
-        ),
-        UiProductObject(
-            id = "15",
-            name = "Cendré crèmeux",
-            price = 3.54,
-            imageUrl = "https://api-drive.drive.supermarchesmatch.fr/api/sdk/cms/media/image/11865.webp",
-            type = ProductType.FROMAGE,
-            description = ""
-        ),
-        UiProductObject(
-            id = "16",
-            name = "Cendré crèmeux",
-            price = 3.54,
-            imageUrl = "https://api-drive.drive.supermarchesmatch.fr/api/sdk/cms/media/image/11865.webp",
-            type = ProductType.FROMAGE,
-            description = ""
-        ),
-        UiProductObject(
-            id = "17",
-            name = "Cendré crèmeux",
-            price = 3.54,
-            imageUrl = "https://api-drive.drive.supermarchesmatch.fr/api/sdk/cms/media/image/11865.webp",
-            type = ProductType.FROMAGE,
-            description = ""
-        ),
-        UiProductObject(
-            id = "18",
-            name = "Ail et Fines Herbes",
-            price = 4.99,
-            imageUrl = "https://www.france-mineraux.fr/wp-content/uploads/2023/11/aliment-fromage-de-chevre.jpg",
-            type = ProductType.FROMAGE,
-            description = ""
-        ),
-        UiProductObject(
-            id = "19",
-            name = "Raz-El-Hanout",
-            price = 1.0,
-            imageUrl = null,
-            type = ProductType.FROMAGE,
-            description = ""
-        )
-    )
 
     val scaleCart = remember { Animatable(1f) }
 
@@ -241,14 +87,14 @@ fun HomeScreen(
                 .padding(horizontal = 8.dp),
             columns = GridCells.Adaptive(minSize = 168.dp)
         ) {
-            items(items = testList, key = { it.id }) {
+            items(items = testList, key = { it.id }) { productListItem ->
                 ProductItem(
-                    product = it,
+                    product = productListItem,
                     onDetailClick = {
                         navigateToDetail.invoke(it)
                     }
                 ) {
-                    cartViewModel?.addCartObject(it)
+                    cartViewModel?.addCartObject(productListItem)
                     animateAddingToCart()
                 }
             }

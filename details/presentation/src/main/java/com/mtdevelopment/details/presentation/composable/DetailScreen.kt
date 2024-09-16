@@ -11,7 +11,10 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.Badge
@@ -46,7 +49,6 @@ import com.bumptech.glide.Glide
 import com.bumptech.glide.load.engine.DiskCacheStrategy
 import com.bumptech.glide.load.resource.bitmap.BitmapTransitionOptions.withCrossFade
 import com.bumptech.glide.request.RequestOptions
-import com.mtd.presentation.R
 import com.mtdevelopment.cart.presentation.viewmodel.CartViewModel
 import com.mtdevelopment.core.presentation.sharedModels.UiProductObject
 import com.mtdevelopment.core.util.ScreenSize
@@ -109,7 +111,8 @@ fun DetailScreen(
                     .fillMaxWidth()
                     .fillMaxHeight(0.3f),
                 imageModel = {
-                    product.imageUrl ?: product.imageRes ?: R.drawable.placeholder
+                    product.imageUrl ?: product.imageRes
+                    ?: com.mtdevelopment.core.presentation.R.drawable.placeholder
                 },
                 imageOptions = ImageOptions(contentScale = ContentScale.FillWidth),
                 requestBuilder = {
@@ -228,36 +231,46 @@ fun DetailScreen(
             }
         }
 
-        Text(
-            modifier = Modifier.padding(16.dp),
-            text = product.description,
-            style = MaterialTheme.typography.bodyMedium
-        )
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 0.dp, max = (screenSize.height / 3))
+                .verticalScroll(state = rememberScrollState(), enabled = true)
+        ) {
+            Text(
+                modifier = Modifier.padding(16.dp),
+                text = product.description,
+                style = MaterialTheme.typography.bodyMedium
+            )
 
-        Text(
-            modifier = Modifier.padding(start = 16.dp, top = 16.dp),
-            text = "Liste des allèrgenes :",
-            style = MaterialTheme.typography.bodyLarge,
-            textDecoration = TextDecoration.Underline
-        )
+        }
 
-        Text(
-            modifier = Modifier.padding(start = 16.dp, top = 4.dp),
-            text = "Ail, herbes",
-            style = MaterialTheme.typography.bodyMedium
-        )
+        if (!product.allergens.isNullOrEmpty()) {
+            Text(
+                modifier = Modifier.padding(start = 16.dp, top = 16.dp),
+                text = "Liste des allèrgenes :",
+                style = MaterialTheme.typography.bodyLarge,
+                textDecoration = TextDecoration.Underline
+            )
+
+            Text(
+                modifier = Modifier.padding(start = 16.dp, top = 4.dp),
+                text = product.allergens?.joinToString(", ") ?: "Aucun !",
+                style = MaterialTheme.typography.bodyMedium
+            )
+        }
 
         BadgedBox(
             modifier = Modifier
                 .align(Alignment.CenterHorizontally)
-                .padding(vertical = 32.dp)
+                .padding(vertical = if (product.allergens.isNullOrEmpty()) 32.dp else 8.dp)
                 .graphicsLayer {
                     scaleX = scaleCart.value
                     scaleY = scaleCart.value
                 }
                 .padding(32.dp),
             badge = {
-                if ((cartContent.value.size) > 0) {
+                if (cartContent.value.find { it.id == product.id } != null) {
                     Badge(
                         containerColor = Color.Red,
                         contentColor = Color.White
@@ -286,6 +299,8 @@ fun DetailScreen(
                 )
             }
         }
+
+
     }
 
 }
