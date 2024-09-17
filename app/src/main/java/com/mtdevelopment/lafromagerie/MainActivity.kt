@@ -12,22 +12,25 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarColors
-import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.toRoute
+import com.mtdevelopment.core.presentation.sharedModels.UiProductObject
 import com.mtdevelopment.core.presentation.theme.ui.AppTheme
+import com.mtdevelopment.core.presentation.theme.ui.ScaleTransitionDirection
+import com.mtdevelopment.core.presentation.theme.ui.scaleIntoContainer
+import com.mtdevelopment.core.presentation.theme.ui.scaleOutOfContainer
+import com.mtdevelopment.details.presentation.composable.DetailScreen
 import com.mtdevelopment.home.presentation.composable.HomeScreen
-import com.mtdevelopment.home.presentation.viewmodel.MainViewModel
-import com.mtdevelopment.lafromagerie.navigation.CheeseScreens
+import kotlinx.serialization.Serializable
 import org.koin.androidx.viewmodel.ext.android.viewModel
 
 class MainActivity : ComponentActivity() {
 
-    private val mainViewModel: MainViewModel by viewModel()
+    private val cartViewModel: com.mtdevelopment.cart.presentation.viewmodel.CartViewModel by viewModel()
 
     @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -60,17 +63,40 @@ class MainActivity : ComponentActivity() {
 
                     NavHost(
                         navController = navController,
-                        startDestination = CheeseScreens.Home.name,
+                        startDestination = HomeScreen,
                         modifier = Modifier.padding(paddingValues)
                     ) {
 
-                        composable(route = CheeseScreens.Home.name) {
-                            HomeScreen(mainViewModel,
-                                navigateToDetail = {
-                                    navController.navigate(CheeseScreens.Detail.name)
+                        composable<HomeScreen> {
+                            HomeScreen(
+                                cartViewModel,
+                                navigateToDetail = { product ->
+                                    navController.navigate(DetailDestination(product))
                                 }, navigateToCheckout = {
-                                    navController.navigate(CheeseScreens.Checkout.name)
+                                    navController.navigate(CheckoutScreen)
                                 })
+                        }
+
+                        composable<DetailDestination>(
+                            typeMap = UiProductObject.typeMap,
+                            enterTransition = {
+                                scaleIntoContainer()
+                            },
+                            exitTransition = {
+                                scaleOutOfContainer(ScaleTransitionDirection.INWARDS)
+                            },
+                            popEnterTransition = {
+                                scaleIntoContainer(ScaleTransitionDirection.OUTWARDS)
+                            },
+                            popExitTransition = {
+                                scaleOutOfContainer()
+                            }
+                        ) {
+                            val args = it.toRoute<DetailDestination>()
+                            DetailScreen(
+                                detailProductObject = args.productObject,
+                                viewModel = cartViewModel
+                            )
                         }
 
                     }
@@ -79,3 +105,14 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
+
+@Serializable
+object HomeScreen
+
+@Serializable
+data class DetailDestination(
+    val productObject: UiProductObject
+)
+
+@Serializable
+object CheckoutScreen

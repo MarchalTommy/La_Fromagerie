@@ -1,6 +1,6 @@
 plugins {
     alias(libs.plugins.androidLibrary)
-    alias(libs.plugins.jetbrainsKotlinAndroid)
+    alias(libs.plugins.kotlinAndroid)
     alias(libs.plugins.compose.compiler)
 }
 
@@ -43,6 +43,7 @@ android {
 dependencies {
 
     implementation(project(":core:presentation"))
+    implementation(project(":cart:presentation"))
 
     implementation(libs.core.ktx)
     implementation(libs.lifecycle.runtime.ktx)

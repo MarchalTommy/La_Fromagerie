@@ -16,7 +16,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.mtdevelopment.home.presentation.model.UiProductObject
+import com.mtdevelopment.core.presentation.sharedModels.UiProductObject
 
 @Preview
 @Composable
