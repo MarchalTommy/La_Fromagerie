@@ -11,7 +11,7 @@ val testList = listOf(
         imageRes = R.drawable.cheese_afh,
         type = ProductType.FROMAGE,
         description = "Fromage frais et savoureux, il se déguste particulièrement bien en apéritifs et en entrée, avec une salade !\nListe des ingrédients :\nDu Fromage\nDe l'herbe\nDe l'ail\nEt c'est tout !\n\n\n\n\nLenght Test...\n\n\n\nLenght Test...\n\n\n\n\n\n\n\n\n\nStill the lenght test !",
-        allergens = listOf("Ail", "Herbes", "Fromage")
+        allergens = listOf("Ail", "Herbes", "Fromage","Ail", "Herbes", "Fromage","Ail", "Herbes", "Fromage",)
     ),
     UiProductObject(
         id = "2",

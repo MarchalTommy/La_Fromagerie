@@ -4,6 +4,9 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -16,6 +19,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
@@ -23,6 +28,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ShapeDefaults
 import androidx.compose.material3.Shapes
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -33,6 +39,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -62,9 +69,7 @@ import kotlinx.coroutines.launch
 fun DetailScreen(
     detailProductObject: UiProductObject,
     viewModel: CartViewModel,
-    screenSize: ScreenSize = rememberScreenSize(),
-    navigateToDetail: (String) -> Unit = {},
-    navigateToCheckout: () -> Unit = {}
+    screenSize: ScreenSize = rememberScreenSize()
 ) {
 
     val coroutineScope = rememberCoroutineScope()
@@ -82,6 +87,8 @@ fun DetailScreen(
     val priceWidth = remember { mutableFloatStateOf(0f) }
     val priceHeightDp = remember { mutableIntStateOf(0) }
     val nameBackgroundTint = MaterialTheme.colorScheme.primaryContainer
+
+    val scrollState = rememberScrollState()
 
     fun animateAddingToCart() {
         coroutineScope.launch {
@@ -231,18 +238,60 @@ fun DetailScreen(
             }
         }
 
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(min = 0.dp, max = (screenSize.height / 3))
-                .verticalScroll(state = rememberScrollState(), enabled = true)
-        ) {
-            Text(
-                modifier = Modifier.padding(16.dp),
-                text = product.description,
-                style = MaterialTheme.typography.bodyMedium
-            )
+        if (product.description.isNotBlank()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+                    .background(
+                        color = MaterialTheme.colorScheme.surfaceContainer,
+                        shape = ShapeDefaults.Medium
+                    )
+                    .heightIn(min = 0.dp, max = (screenSize.height / 4))
+            ) {
+                Column(
+                    modifier = Modifier
+                        .verticalScroll(state = scrollState, enabled = true)
+                        .padding(8.dp)
+                ) {
+                    Text(
+                        modifier = Modifier.fillMaxWidth(0.85f),
+                        text = product.description,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
 
+                Column(
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.SpaceBetween,
+                    horizontalAlignment = Alignment.End
+                ) {
+                    Icon(
+                        modifier = Modifier
+                            .clickable {
+                                coroutineScope.launch {
+                                    scrollState.scrollTo(scrollState.value - 80)
+                                }
+                            }
+                            .alpha(if (scrollState.canScrollBackward) 1f else 0.2f),
+                        imageVector = Icons.Filled.KeyboardArrowUp,
+                        contentDescription = "Scroll top",
+                    )
+                    Icon(
+                        modifier = Modifier
+                            .clickable {
+                                coroutineScope.launch {
+                                    scrollState.scrollTo(scrollState.value + 80)
+                                }
+                            }
+                            .alpha(if (scrollState.canScrollForward) 1f else 0.2f),
+                        imageVector = Icons.Filled.KeyboardArrowDown,
+                        contentDescription = "Scroll down"
+                    )
+                }
+            }
         }
 
         if (!product.allergens.isNullOrEmpty()) {
@@ -256,7 +305,8 @@ fun DetailScreen(
             Text(
                 modifier = Modifier.padding(start = 16.dp, top = 4.dp),
                 text = product.allergens?.joinToString(", ") ?: "Aucun !",
-                style = MaterialTheme.typography.bodyMedium
+                style = MaterialTheme.typography.bodyMedium,
+                maxLines = 2
             )
         }
 
