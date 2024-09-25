@@ -82,6 +82,7 @@ dependencies {
     implementation(project(":cart:presentation"))
     implementation(project(":home:presentation"))
     implementation(project(":details:presentation"))
+    implementation(project(":checkout:presentation"))
 
     implementation(libs.core.ktx)
     implementation(libs.lifecycle.runtime.ktx)

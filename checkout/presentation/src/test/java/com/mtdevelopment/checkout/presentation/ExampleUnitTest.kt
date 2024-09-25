@@ -1,4 +1,4 @@
-package com.mtdevelopment.checkout
+package com.mtdevelopment.checkout.presentation
 
 import org.junit.Test
 
