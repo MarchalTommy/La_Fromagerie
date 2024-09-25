@@ -1,25 +1,26 @@
 plugins {
-    alias(libs.plugins.androidApplication)
+    alias(libs.plugins.androidLibrary)
     alias(libs.plugins.kotlinAndroid)
     alias(libs.plugins.compose.compiler)
-    alias(libs.plugins.kotlin.serialization)
 }
 
 android {
-    namespace = "com.mtdevelopment.lafromagerie"
+    namespace = "com.mtdevelopment.checkout.presentation"
     compileSdk = 34
+    android.buildFeatures.buildConfig = true
 
     defaultConfig {
-        applicationId = "com.mtdevelopment.lafromagerie"
         minSdk = 24
-        targetSdk = 34
-        versionCode = 1
-        versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        vectorDrawables {
-            useSupportLibrary = true
-        }
+        consumerProguardFiles("consumer-rules.pro")
+        val MAPBOX_PUBLIC_TOKEN: String by project
+        val MAPBOX_SECRET_TOKEN: String by project
+        buildConfigField("String", "MAPBOX_PUBLIC_TOKEN", "\"$MAPBOX_PUBLIC_TOKEN\"")
+        buildConfigField(
+            "String", "MAPBOX_SECRET_TOKEN",
+            "\"$MAPBOX_SECRET_TOKEN\""
+        )
     }
 
     buildTypes {
@@ -31,20 +32,12 @@ android {
             )
         }
     }
-    
-    kotlin {
-        jvmToolchain(17)
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_1_8
+        targetCompatibility = JavaVersion.VERSION_1_8
     }
-    buildFeatures {
-        compose = true
-    }
-    composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.13"
-    }
-    packaging {
-        resources {
-            excludes += "/META-INF/{AL2.0,LGPL2.1}"
-        }
+    kotlinOptions {
+        jvmTarget = "1.8"
     }
 }
 
@@ -52,9 +45,6 @@ dependencies {
 
     implementation(project(":core:presentation"))
     implementation(project(":cart:presentation"))
-    implementation(project(":home:presentation"))
-    implementation(project(":details:presentation"))
-    implementation(project(":checkout:presentation"))
 
     implementation(libs.core.ktx)
     implementation(libs.lifecycle.runtime.ktx)
@@ -72,12 +62,14 @@ dependencies {
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
 
-    implementation(libs.kotlinx.serialization.json)
-    implementation(libs.navigation.compose)
+    implementation(libs.landscapist)
 
     implementation(platform(libs.koin.bom))
     implementation(libs.koin.core)
     implementation(libs.koin.android)
     implementation(libs.koin.androidx.compose)
     implementation(libs.koin.androidx.compose.navigation)
+
+    implementation(libs.mapbox)
+    implementation(libs.mapbox.extension)
 }

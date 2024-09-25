@@ -18,6 +18,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
+import com.mtdevelopment.checkout.presentation.composable.CheckoutScreen
 import com.mtdevelopment.core.presentation.sharedModels.UiProductObject
 import com.mtdevelopment.core.presentation.theme.ui.AppTheme
 import com.mtdevelopment.core.presentation.theme.ui.ScaleTransitionDirection
@@ -63,7 +64,7 @@ class MainActivity : ComponentActivity() {
 
                     NavHost(
                         navController = navController,
-                        startDestination = HomeScreen,
+                        startDestination = CheckoutScreen,
                         modifier = Modifier.padding(paddingValues)
                     ) {
 
@@ -97,6 +98,23 @@ class MainActivity : ComponentActivity() {
                                 detailProductObject = args.productObject,
                                 viewModel = cartViewModel
                             )
+                        }
+
+                        composable<CheckoutScreen>(
+                            enterTransition = {
+                                scaleIntoContainer()
+                            },
+                            exitTransition = {
+                                scaleOutOfContainer(ScaleTransitionDirection.INWARDS)
+                            },
+                            popEnterTransition = {
+                                scaleIntoContainer(ScaleTransitionDirection.OUTWARDS)
+                            },
+                            popExitTransition = {
+                                scaleOutOfContainer()
+                            }
+                        ) {
+                            CheckoutScreen(cartViewModel)
                         }
 
                     }

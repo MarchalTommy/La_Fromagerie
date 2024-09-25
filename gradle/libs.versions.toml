@@ -21,6 +21,8 @@ lifecycle-scope = "2.8.2"
 room = "2.6.1"
 serialization = "1.6.3"
 navigation-common-ktx = "2.8.0"
+mapbox = "11.6.1"
+
 
 [libraries]
 core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "core-ktx" }
@@ -73,6 +75,10 @@ room-ktx = { module = "androidx.room:room-ktx", version.ref = "room" }
 
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "serialization" }
 androidx-navigation-common-ktx = { group = "androidx.navigation", name = "navigation-common-ktx", version.ref = "navigation-common-ktx" }
+
+## Map
+mapbox = { module = "com.mapbox.maps:android", version.ref = "mapbox" }
+mapbox-extension = { module = "com.mapbox.extension:maps-compose", version.ref = "mapbox" }
 
 
 [plugins]

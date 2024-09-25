@@ -3,6 +3,7 @@ package com.mtdevelopment.home.presentation.composable
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -33,12 +34,10 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.mtdevelopment.cart.presentation.viewmodel.CartViewModel
-import com.mtdevelopment.core.presentation.sharedModels.ProductType
 import com.mtdevelopment.core.presentation.sharedModels.UiProductObject
 import com.mtdevelopment.core.presentation.testList
 import com.mtdevelopment.core.util.ScreenSize
 import com.mtdevelopment.core.util.rememberScreenSize
-import com.mtdevelopment.home.presentation.R
 import com.mtdevelopment.home.presentation.composable.cart.CartView
 import kotlinx.coroutines.launch
 
@@ -54,7 +53,6 @@ fun HomeScreen(
     val coroutineScope = rememberCoroutineScope()
 
     var showBottomSheet by remember { mutableStateOf(false) }
-
     val scaleCart = remember { Animatable(1f) }
 
     val cartContent =

@@ -27,7 +27,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.mtdevelopment.cart.presentation.viewmodel.CartViewModel
 import com.mtdevelopment.core.util.vibratePhoneClick
-import com.mtdevelopment.core.util.vibratePhoneClickBig
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
@@ -51,7 +50,12 @@ fun CartView(
     ModalBottomSheet(
         modifier = Modifier.fillMaxHeight(),
         sheetState = sheetState,
-        onDismissRequest = { onDismiss.invoke() }
+        onDismissRequest = {
+            coroutineScope.launch {
+                sheetState.hide()
+            }
+            onDismiss.invoke()
+        }
     ) {
 
         Text(
@@ -112,6 +116,7 @@ fun CartView(
                     }
                 )
             }
+
             item("Footer") {
                 CartFooter(
                     modifier = Modifier
@@ -122,8 +127,10 @@ fun CartView(
                     totalAmount = cartTotalPrice?.value ?: "",
                     hasItems = cartItemsContent?.value?.isNotEmpty() == true,
                 ) {
-                    vibratePhoneClickBig(context)
-//                    onNavigateToCheckout.invoke()
+                    coroutineScope.launch {
+                        sheetState.hide()
+                    }
+                    onNavigateToCheckout.invoke()
                 }
             }
         }
