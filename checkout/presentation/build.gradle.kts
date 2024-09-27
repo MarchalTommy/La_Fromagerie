@@ -72,4 +72,7 @@ dependencies {
 
     implementation(libs.mapbox)
     implementation(libs.mapbox.extension)
+
+    implementation(libs.location)
+    implementation(libs.accompanist.permissions)
 }
