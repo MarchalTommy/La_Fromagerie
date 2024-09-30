@@ -14,6 +14,7 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.material3.ShapeDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -30,8 +31,14 @@ fun DeliveryPathPickerComposable(
     checkoutViewModel: CheckoutViewModel,
     onDismiss: () -> Unit = {}
 ) {
+    val previouslySelectedPath = checkoutViewModel.selectedPath.collectAsState()
+
     val radioOptions = DeliveryPath.entries
-    val (selectedOption, onOptionSelected) = remember { mutableStateOf(radioOptions[0]) }
+    val (selectedOption, onOptionSelected) = remember {
+        mutableStateOf(
+            previouslySelectedPath.value ?: radioOptions[0]
+        )
+    }
 
     Dialog(
         properties = DialogProperties(
@@ -95,9 +102,7 @@ fun PathCardComposable(
                 onClick = null
             )
 
-            Column(
-
-            ) {
+            Column {
                 Text(
                     modifier = Modifier.padding(bottom = 8.dp),
                     text = pathName,
