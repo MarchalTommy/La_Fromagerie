@@ -32,6 +32,7 @@ import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -52,7 +53,11 @@ import com.mapbox.maps.extension.compose.style.styleImportsConfig
 import com.mtdevelopment.cart.presentation.viewmodel.CartViewModel
 import com.mtdevelopment.checkout.presentation.BuildConfig.MAPBOX_PUBLIC_TOKEN
 import com.mtdevelopment.checkout.presentation.R
-import com.mtdevelopment.checkout.presentation.model.ShippingSelectableDates
+import com.mtdevelopment.checkout.presentation.model.DeliveryPath
+import com.mtdevelopment.checkout.presentation.model.ShippingDefaultSelectableDates
+import com.mtdevelopment.checkout.presentation.model.ShippingSelectableMetaDates
+import com.mtdevelopment.checkout.presentation.model.ShippingSelectablePontarlierDates
+import com.mtdevelopment.checkout.presentation.model.ShippingSelectableSalinDates
 import com.mtdevelopment.checkout.presentation.viewmodel.CheckoutViewModel
 import com.mtdevelopment.core.util.ScreenSize
 import com.mtdevelopment.core.util.rememberScreenSize
@@ -68,7 +73,8 @@ fun CheckoutScreen(
     screenSize: ScreenSize = rememberScreenSize()
 ) {
 
-
+    // TODO: CLEAN THIS HELL OF A FILE :
+    // EXTRACT, PUT INTO OWN COMPONENT, AND EXTRACT TO VM OR EVEN DOMAIN MORE LOGIC.
     if (MapboxOptions.accessToken != MAPBOX_PUBLIC_TOKEN) {
         MapboxOptions.accessToken = MAPBOX_PUBLIC_TOKEN
     }
@@ -76,6 +82,8 @@ fun CheckoutScreen(
     val calendar = Calendar.getInstance()
     val nextJanuary = Calendar.getInstance()
     val thisDecember = Calendar.getInstance()
+    val tomorrow = Calendar.getInstance()
+    val nextSelectableDate = Calendar.getInstance()
 
     LaunchedEffect(true) {
         calendar.time
@@ -87,16 +95,92 @@ fun CheckoutScreen(
         calendar.timeInMillis
     }
 
-    val datePickerState = rememberDatePickerState(
-        initialSelectedDateMillis = calendar.timeInMillis,
-        yearRange = if (calendar.before(nextJanuary) && calendar.after(thisDecember)) {
-            IntRange(calendar.get(Calendar.YEAR), calendar.get(Calendar.YEAR) + 1)
-        } else {
-            IntRange(calendar.get(Calendar.YEAR), calendar.get(Calendar.YEAR))
-        },
-        initialDisplayMode = DisplayMode.Picker,
-        selectableDates = ShippingSelectableDates()
-    )
+    val selectedPath = checkoutViewModel?.selectedPath?.collectAsState()
+    val nextSelectableDatesList = remember { mutableStateListOf<Long>() }
+
+    val datePickerState =
+        when (selectedPath?.value) {
+
+            DeliveryPath.PATH_META -> {
+                nextSelectableDatesList.clear()
+                for (days in calendar.get(Calendar.DAY_OF_YEAR) + 2..365) {
+                    nextSelectableDate.set(Calendar.DAY_OF_YEAR, days)
+
+                    if (ShippingSelectableMetaDates().isSelectableDate(nextSelectableDate.timeInMillis)) {
+                        nextSelectableDatesList.add(nextSelectableDate.timeInMillis)
+                    }
+                }
+
+                rememberDatePickerState(
+                    initialSelectedDateMillis = nextSelectableDatesList.first(),
+                    yearRange = if (calendar.before(nextJanuary) && calendar.after(thisDecember)) {
+                        IntRange(calendar.get(Calendar.YEAR), calendar.get(Calendar.YEAR) + 1)
+                    } else {
+                        IntRange(calendar.get(Calendar.YEAR), calendar.get(Calendar.YEAR))
+                    },
+                    initialDisplayMode = DisplayMode.Picker,
+                    selectableDates = ShippingSelectableMetaDates()
+                )
+            }
+
+            DeliveryPath.PATH_SALIN -> {
+                nextSelectableDatesList.clear()
+                for (days in calendar.get(Calendar.DAY_OF_YEAR) + 2..365) {
+                    nextSelectableDate.set(Calendar.DAY_OF_YEAR, days)
+
+                    if (ShippingSelectableSalinDates().isSelectableDate(nextSelectableDate.timeInMillis)) {
+                        nextSelectableDatesList.add(nextSelectableDate.timeInMillis)
+                    }
+                }
+
+                rememberDatePickerState(
+                    initialSelectedDateMillis = nextSelectableDatesList.first(),
+                    yearRange = if (calendar.before(nextJanuary) && calendar.after(thisDecember)) {
+                        IntRange(calendar.get(Calendar.YEAR), calendar.get(Calendar.YEAR) + 1)
+                    } else {
+                        IntRange(calendar.get(Calendar.YEAR), calendar.get(Calendar.YEAR))
+                    },
+                    initialDisplayMode = DisplayMode.Picker,
+                    selectableDates = ShippingSelectableSalinDates()
+                )
+            }
+
+            DeliveryPath.PATH_PON -> {
+                nextSelectableDatesList.clear()
+                for (days in calendar.get(Calendar.DAY_OF_YEAR) + 2..365) {
+                    nextSelectableDate.set(Calendar.DAY_OF_YEAR, days)
+
+                    if (ShippingSelectablePontarlierDates().isSelectableDate(nextSelectableDate.timeInMillis)) {
+                        nextSelectableDatesList.add(nextSelectableDate.timeInMillis)
+                    }
+                }
+
+                rememberDatePickerState(
+                    initialSelectedDateMillis = nextSelectableDatesList.first(),
+                    yearRange = if (calendar.before(nextJanuary) && calendar.after(thisDecember)) {
+                        IntRange(calendar.get(Calendar.YEAR), calendar.get(Calendar.YEAR) + 1)
+                    } else {
+                        IntRange(calendar.get(Calendar.YEAR), calendar.get(Calendar.YEAR))
+                    },
+                    initialDisplayMode = DisplayMode.Picker,
+                    selectableDates = ShippingSelectablePontarlierDates()
+                )
+            }
+
+            else -> {
+                tomorrow.set(Calendar.DAY_OF_YEAR, (calendar.get(Calendar.DAY_OF_YEAR) + 1))
+                rememberDatePickerState(
+                    initialSelectedDateMillis = tomorrow.timeInMillis,
+                    yearRange = if (calendar.before(nextJanuary) && calendar.after(thisDecember)) {
+                        IntRange(calendar.get(Calendar.YEAR), calendar.get(Calendar.YEAR) + 1)
+                    } else {
+                        IntRange(calendar.get(Calendar.YEAR), calendar.get(Calendar.YEAR))
+                    },
+                    initialDisplayMode = DisplayMode.Picker,
+                    selectableDates = ShippingDefaultSelectableDates()
+                )
+            }
+        }
 
     val datePickerVisibility = remember { mutableStateOf(false) }
     val dateFieldText = remember { mutableStateOf("") }
@@ -111,7 +195,9 @@ fun CheckoutScreen(
         showDeliveryPathPicker.value = true
     }
 
-    val selectedDeliveryPath = checkoutViewModel?.selectedPath?.collectAsState()
+    LaunchedEffect(selectedPath?.value) {
+        dateFieldText.value = ""
+    }
 
     Surface(modifier = Modifier.fillMaxSize()) {
 
@@ -176,7 +262,6 @@ fun CheckoutScreen(
                     ) {
                         MapEffect(Unit) { mapView ->
 
-
                         }
                     }
                 }
@@ -187,23 +272,25 @@ fun CheckoutScreen(
                 horizontalArrangement = Arrangement.SpaceAround,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                TextButton(
-                    modifier = Modifier.padding(horizontal = 8.dp).weight(1f),
-                    onClick = {
-                        localisationPermissionState.value = true
-                    },
-                    content = {
-                        Text(
-                            modifier = Modifier.padding(8.dp).align(Alignment.CenterVertically),
-                            text = stringResource(R.string.auto_locate),
-                            textAlign = TextAlign.Center
-                        )
-                    })
+                if (selectedPath?.value == null) {
+                    TextButton(
+                        modifier = Modifier.padding(horizontal = 8.dp).weight(1f),
+                        onClick = {
+                            localisationPermissionState.value = true
+                        },
+                        content = {
+                            Text(
+                                modifier = Modifier.padding(8.dp).align(Alignment.CenterVertically),
+                                text = stringResource(R.string.auto_locate),
+                                textAlign = TextAlign.Center
+                            )
+                        })
 
-                VerticalDivider(
-                    modifier = Modifier.padding(8.dp).height(64.dp),
-                    thickness = Dp.Hairline
-                )
+                    VerticalDivider(
+                        modifier = Modifier.padding(8.dp).height(64.dp),
+                        thickness = Dp.Hairline
+                    )
+                }
 
                 TextButton(
                     modifier = Modifier.padding(horizontal = 8.dp).weight(1f),
@@ -219,14 +306,13 @@ fun CheckoutScreen(
                     })
             }
 
-            if (localisationSuccess.value) {
+            if (localisationSuccess.value || selectedPath?.value != null || geolocIsOnPath.value) {
                 Text(
                     modifier = Modifier.padding(horizontal = 8.dp).fillMaxWidth(),
                     text = when {
-                        // TODO: DEBUG THAT, MANUAL SELECT DOES NOT TRIGGER THIS MESSAGE...
-                        selectedDeliveryPath?.value != null -> stringResource(
+                        selectedPath?.value != null -> stringResource(
                             R.string.manual_path_chosen,
-                            selectedDeliveryPath.value?.pathName ?: "Unknown"
+                            selectedPath.value?.pathName ?: "Unknown"
                         )
 
                         geolocIsOnPath.value -> stringResource(
@@ -234,7 +320,9 @@ fun CheckoutScreen(
                             "Métabief"/* todo Replace with user city if supported */
                         )
 
-                        !geolocIsOnPath.value && selectedDeliveryPath?.value == null -> stringResource(R.string.auto_geoloc_not_on_path)
+                        !geolocIsOnPath.value && selectedPath?.value == null -> stringResource(
+                            R.string.auto_geoloc_not_on_path
+                        )
 
                         else -> "ERROR"
                     },
@@ -252,7 +340,14 @@ fun CheckoutScreen(
                 modifier = Modifier.clickable {
                     datePickerVisibility.value = true
                 }.padding(horizontal = 8.dp).fillMaxWidth(),
-                value = dateFieldText.value,
+                value = if (datePickerState.selectableDates.isSelectableDate(
+                        datePickerState.selectedDateMillis ?: 0L
+                    )
+                ) {
+                    dateFieldText.value
+                } else {
+                    ""
+                },
                 onValueChange = { newValue ->
                     dateFieldText.value = newValue
                 },
@@ -286,7 +381,6 @@ fun CheckoutScreen(
             }
         }
 
-
         if (showDeliveryPathPicker.value) {
             if (checkoutViewModel != null) {
                 DeliveryPathPickerComposable(checkoutViewModel) {
@@ -295,6 +389,5 @@ fun CheckoutScreen(
             }
         }
     }
-
 
 }

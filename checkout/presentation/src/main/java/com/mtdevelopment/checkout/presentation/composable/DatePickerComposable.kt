@@ -26,9 +26,6 @@ fun DatePickerComposable(
     androidx.compose.material3.DatePickerDialog(
         modifier = Modifier,
         onDismissRequest = {
-            dateFieldText.value = datePickerState.selectedDateMillis?.let {
-                SimpleDateFormat("dd/MM/yyyy", Locale.FRANCE).format(it)
-            } ?: ""
             datePickerVisibility.value = false
         },
         confirmButton = {
