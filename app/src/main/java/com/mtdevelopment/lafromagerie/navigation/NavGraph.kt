@@ -9,7 +9,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.toRoute
 import com.mtdevelopment.cart.presentation.viewmodel.CartViewModel
-import com.mtdevelopment.checkout.presentation.composable.DeliveryOptionScreen
+import com.mtdevelopment.checkout.presentation.screen.DeliveryOptionScreen
 import com.mtdevelopment.checkout.presentation.viewmodel.CheckoutViewModel
 import com.mtdevelopment.core.presentation.sharedModels.UiProductObject
 import com.mtdevelopment.core.presentation.theme.ui.ScaleTransitionDirection
@@ -38,7 +38,7 @@ fun NavGraph(
                 navigateToDetail = { product ->
                     navController.navigate(DetailDestination(product))
                 }, navigateToCheckout = {
-                    navController.navigate(CheckoutScreen)
+                    navController.navigate(DeliveryOptionScreen)
                 })
         }
 
@@ -64,7 +64,7 @@ fun NavGraph(
             )
         }
 
-        composable<CheckoutScreen>(
+        composable<DeliveryOptionScreen>(
             enterTransition = {
                 scaleIntoContainer()
             },
