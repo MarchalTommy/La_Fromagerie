@@ -16,7 +16,8 @@ import com.mtdevelopment.checkout.presentation.model.DeliveryPath
 @Composable
 fun LocalisationTextComposable(
     selectedPath: State<DeliveryPath?>?,
-    geolocIsOnPath: State<Boolean>
+    geolocIsOnPath: State<Boolean>,
+    userCity: State<String?>
 ) {
     Text(
         modifier = Modifier.padding(horizontal = 8.dp).fillMaxWidth(),
@@ -28,7 +29,7 @@ fun LocalisationTextComposable(
 
             geolocIsOnPath.value -> stringResource(
                 R.string.auto_geoloc_success,
-                "Métabief"/* todo Replace with user city if supported */
+                userCity.value?: "ERREUR"
             )
 
             !geolocIsOnPath.value && selectedPath?.value == null -> stringResource(

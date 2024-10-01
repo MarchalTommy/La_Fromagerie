@@ -1,5 +1,9 @@
-package com.mtdevelopment.checkout.presentation.composable
+package com.mtdevelopment.checkout.presentation.screen
 
+import android.annotation.SuppressLint
+import android.location.Geocoder
+import android.location.Geocoder.GeocodeListener
+import android.os.Build
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -15,12 +19,23 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationServices
+import com.mapbox.android.core.permissions.PermissionsManager.Companion.areLocationPermissionsGranted
 import com.mapbox.common.MapboxOptions
 import com.mtdevelopment.cart.presentation.viewmodel.CartViewModel
 import com.mtdevelopment.checkout.presentation.BuildConfig.MAPBOX_PUBLIC_TOKEN
+import com.mtdevelopment.checkout.presentation.composable.DatePickerComposable
+import com.mtdevelopment.checkout.presentation.composable.DateTextField
+import com.mtdevelopment.checkout.presentation.composable.DeliveryPathPickerComposable
+import com.mtdevelopment.checkout.presentation.composable.LocalisationTextComposable
+import com.mtdevelopment.checkout.presentation.composable.LocalisationTypePicker
+import com.mtdevelopment.checkout.presentation.composable.MapBoxComposable
+import com.mtdevelopment.checkout.presentation.composable.RequestLocationPermission
 import com.mtdevelopment.checkout.presentation.model.DeliveryPath
 import com.mtdevelopment.checkout.presentation.model.ShippingDefaultSelectableDates
 import com.mtdevelopment.checkout.presentation.model.ShippingSelectableMetaDates
@@ -41,8 +56,41 @@ fun DeliveryOptionScreen(
     screenSize: ScreenSize = rememberScreenSize()
 ) {
 
-    // TODO: CLEAN THIS HELL OF A FILE :
-    // EXTRACT, PUT INTO OWN COMPONENT, AND EXTRACT TO VM OR EVEN DOMAIN MORE LOGIC.
+    val context = LocalContext.current
+
+    lateinit var fusedLocationProviderClient: FusedLocationProviderClient
+
+    /**
+     * Retrieves the last known user location asynchronously.
+     *
+     * @param onGetLastLocationSuccess Callback function invoked when the location is successfully retrieved.
+     *        It provides a Pair representing latitude and longitude.
+     * @param onGetLastLocationFailed Callback function invoked when an error occurs while retrieving the location.
+     *        It provides the Exception that occurred.
+     */
+    @SuppressLint("MissingPermission")
+    fun getLastLocation(
+        onGetLastLocationSuccess: (Pair<Double, Double>) -> Unit,
+        onGetLastLocationFailed: (Exception) -> Unit
+    ) {
+        // Check if location permissions are granted
+        if (areLocationPermissionsGranted(context)) {
+            // Retrieve the last known location
+            fusedLocationProviderClient.lastLocation
+                .addOnSuccessListener { location ->
+                    location?.let {
+                        // If location is not null, invoke the success callback with latitude and longitude
+                        onGetLastLocationSuccess(Pair(it.latitude, it.longitude))
+                    }
+                }
+                .addOnFailureListener { exception ->
+                    // If an error occurs, invoke the failure callback with the exception
+                    onGetLastLocationFailed(exception)
+                }
+        }
+    }
+
+
     if (MapboxOptions.accessToken != MAPBOX_PUBLIC_TOKEN) {
         MapboxOptions.accessToken = MAPBOX_PUBLIC_TOKEN
     }
@@ -167,15 +215,61 @@ fun DeliveryOptionScreen(
         dateFieldText.value = ""
     }
 
+    val userCity = remember { mutableStateOf("") }
+
+    fun getCityFromGeocoder(addressesList: List<android.location.Address>?) {
+        val foundAddress = addressesList?.find { address ->
+            val correctPath =
+                DeliveryPath.entries.find { path ->
+                    path.availableCities.contains(
+                        address.locality
+                    )
+                }
+            if (correctPath != null) {
+                geolocIsOnPath.value = true
+                checkoutViewModel?.setSelectedPath(correctPath)
+                true
+            } else {
+                geolocIsOnPath.value = false
+                false
+            }
+        }
+        foundAddress?.locality?.let { locality ->
+            userCity.value = locality
+        }
+    }
+
+    val geocodeListener = GeocodeListener { addressesList ->
+        getCityFromGeocoder(addressesList)
+    }
+
     Surface(modifier = Modifier.fillMaxSize()) {
 
         // Localisation permission
         if (localisationPermissionState.value) {
             RequestLocationPermission(
                 onPermissionGranted = {
-                    localisationSuccess.value = true
-                    geolocIsOnPath.value =
-                        true /* DO NOT FORGET TO REMOVE, FOR DEBUG PURPOSE ONLY */
+                    fusedLocationProviderClient =
+                        LocationServices.getFusedLocationProviderClient(context)
+                    getLastLocation(onGetLastLocationSuccess = {
+                        localisationSuccess.value = true
+                        val geocoder = Geocoder(context)
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                            geocoder.getFromLocation(
+                                it.first,
+                                it.second,
+                                1,
+                                geocodeListener
+                            )
+                        } else {
+                            val addressesList = geocoder.getFromLocation(it.first, it.second, 1)
+                            getCityFromGeocoder(addressesList)
+                        }
+
+                    },
+                        onGetLastLocationFailed = {
+                            userCity.value = "Unknown"
+                        })
                 },
                 onPermissionDenied = {
                     localisationSuccess.value = false
@@ -203,7 +297,8 @@ fun DeliveryOptionScreen(
             if (localisationSuccess.value || selectedPath?.value != null || geolocIsOnPath.value) {
                 LocalisationTextComposable(
                     selectedPath = selectedPath,
-                    geolocIsOnPath = geolocIsOnPath
+                    geolocIsOnPath = geolocIsOnPath,
+                    userCity = userCity
                 )
             }
 
