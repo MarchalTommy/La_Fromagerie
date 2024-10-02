@@ -7,15 +7,12 @@ import android.os.Build
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.DisplayMode
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Surface
-import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -36,6 +33,7 @@ import com.mtdevelopment.checkout.presentation.composable.LocalisationTextCompos
 import com.mtdevelopment.checkout.presentation.composable.LocalisationTypePicker
 import com.mtdevelopment.checkout.presentation.composable.MapBoxComposable
 import com.mtdevelopment.checkout.presentation.composable.RequestLocationPermission
+import com.mtdevelopment.checkout.presentation.composable.getDatePickerState
 import com.mtdevelopment.checkout.presentation.model.DeliveryPath
 import com.mtdevelopment.checkout.presentation.model.ShippingDefaultSelectableDates
 import com.mtdevelopment.checkout.presentation.model.ShippingSelectableMetaDates
@@ -44,8 +42,8 @@ import com.mtdevelopment.checkout.presentation.model.ShippingSelectableSalinDate
 import com.mtdevelopment.checkout.presentation.viewmodel.CheckoutViewModel
 import com.mtdevelopment.core.util.ScreenSize
 import com.mtdevelopment.core.util.rememberScreenSize
-import java.util.Calendar
 
+@SuppressLint("MissingPermission")
 @OptIn(ExperimentalMaterial3Api::class)
 @Preview
 @Composable
@@ -60,15 +58,6 @@ fun DeliveryOptionScreen(
 
     lateinit var fusedLocationProviderClient: FusedLocationProviderClient
 
-    /**
-     * Retrieves the last known user location asynchronously.
-     *
-     * @param onGetLastLocationSuccess Callback function invoked when the location is successfully retrieved.
-     *        It provides a Pair representing latitude and longitude.
-     * @param onGetLastLocationFailed Callback function invoked when an error occurs while retrieving the location.
-     *        It provides the Exception that occurred.
-     */
-    @SuppressLint("MissingPermission")
     fun getLastLocation(
         onGetLastLocationSuccess: (Pair<Double, Double>) -> Unit,
         onGetLastLocationFailed: (Exception) -> Unit
@@ -90,111 +79,29 @@ fun DeliveryOptionScreen(
         }
     }
 
-
     if (MapboxOptions.accessToken != MAPBOX_PUBLIC_TOKEN) {
         MapboxOptions.accessToken = MAPBOX_PUBLIC_TOKEN
     }
 
-    val calendar = Calendar.getInstance()
-    val nextJanuary = Calendar.getInstance()
-    val thisDecember = Calendar.getInstance()
-    val tomorrow = Calendar.getInstance()
-    val nextSelectableDate = Calendar.getInstance()
-
-    LaunchedEffect(true) {
-        calendar.time
-
-        nextJanuary.set(calendar.get(Calendar.YEAR) + 1, 1, 14)
-        nextJanuary.timeInMillis
-
-        thisDecember.set(calendar.get(Calendar.YEAR), 11, 1)
-        calendar.timeInMillis
-    }
-
     val selectedPath = checkoutViewModel?.selectedPath?.collectAsState()
-    val nextSelectableDatesList = remember { mutableStateListOf<Long>() }
 
     val datePickerState =
         when (selectedPath?.value) {
 
             DeliveryPath.PATH_META -> {
-                nextSelectableDatesList.clear()
-                for (days in calendar.get(Calendar.DAY_OF_YEAR) + 2..365) {
-                    nextSelectableDate.set(Calendar.DAY_OF_YEAR, days)
-
-                    if (ShippingSelectableMetaDates().isSelectableDate(nextSelectableDate.timeInMillis)) {
-                        nextSelectableDatesList.add(nextSelectableDate.timeInMillis)
-                    }
-                }
-
-                rememberDatePickerState(
-                    initialSelectedDateMillis = nextSelectableDatesList.first(),
-                    yearRange = if (calendar.before(nextJanuary) && calendar.after(thisDecember)) {
-                        IntRange(calendar.get(Calendar.YEAR), calendar.get(Calendar.YEAR) + 1)
-                    } else {
-                        IntRange(calendar.get(Calendar.YEAR), calendar.get(Calendar.YEAR))
-                    },
-                    initialDisplayMode = DisplayMode.Picker,
-                    selectableDates = ShippingSelectableMetaDates()
-                )
+                getDatePickerState(ShippingSelectableMetaDates())
             }
 
             DeliveryPath.PATH_SALIN -> {
-                nextSelectableDatesList.clear()
-                for (days in calendar.get(Calendar.DAY_OF_YEAR) + 2..365) {
-                    nextSelectableDate.set(Calendar.DAY_OF_YEAR, days)
-
-                    if (ShippingSelectableSalinDates().isSelectableDate(nextSelectableDate.timeInMillis)) {
-                        nextSelectableDatesList.add(nextSelectableDate.timeInMillis)
-                    }
-                }
-
-                rememberDatePickerState(
-                    initialSelectedDateMillis = nextSelectableDatesList.first(),
-                    yearRange = if (calendar.before(nextJanuary) && calendar.after(thisDecember)) {
-                        IntRange(calendar.get(Calendar.YEAR), calendar.get(Calendar.YEAR) + 1)
-                    } else {
-                        IntRange(calendar.get(Calendar.YEAR), calendar.get(Calendar.YEAR))
-                    },
-                    initialDisplayMode = DisplayMode.Picker,
-                    selectableDates = ShippingSelectableSalinDates()
-                )
+                getDatePickerState(ShippingSelectableSalinDates())
             }
 
             DeliveryPath.PATH_PON -> {
-                nextSelectableDatesList.clear()
-                for (days in calendar.get(Calendar.DAY_OF_YEAR) + 2..365) {
-                    nextSelectableDate.set(Calendar.DAY_OF_YEAR, days)
-
-                    if (ShippingSelectablePontarlierDates().isSelectableDate(nextSelectableDate.timeInMillis)) {
-                        nextSelectableDatesList.add(nextSelectableDate.timeInMillis)
-                    }
-                }
-
-                rememberDatePickerState(
-                    initialSelectedDateMillis = nextSelectableDatesList.first(),
-                    yearRange = if (calendar.before(nextJanuary) && calendar.after(thisDecember)) {
-                        IntRange(calendar.get(Calendar.YEAR), calendar.get(Calendar.YEAR) + 1)
-                    } else {
-                        IntRange(calendar.get(Calendar.YEAR), calendar.get(Calendar.YEAR))
-                    },
-                    initialDisplayMode = DisplayMode.Picker,
-                    selectableDates = ShippingSelectablePontarlierDates()
-                )
+                getDatePickerState(ShippingSelectablePontarlierDates())
             }
 
             else -> {
-                tomorrow.set(Calendar.DAY_OF_YEAR, (calendar.get(Calendar.DAY_OF_YEAR) + 1))
-                rememberDatePickerState(
-                    initialSelectedDateMillis = tomorrow.timeInMillis,
-                    yearRange = if (calendar.before(nextJanuary) && calendar.after(thisDecember)) {
-                        IntRange(calendar.get(Calendar.YEAR), calendar.get(Calendar.YEAR) + 1)
-                    } else {
-                        IntRange(calendar.get(Calendar.YEAR), calendar.get(Calendar.YEAR))
-                    },
-                    initialDisplayMode = DisplayMode.Picker,
-                    selectableDates = ShippingDefaultSelectableDates()
-                )
+                getDatePickerState(ShippingDefaultSelectableDates())
             }
         }
 
@@ -216,6 +123,7 @@ fun DeliveryOptionScreen(
     }
 
     val userCity = remember { mutableStateOf("") }
+    val userCityLocation = remember { mutableStateOf<Pair<Double, Double>?>(null) }
 
     fun getCityFromGeocoder(addressesList: List<android.location.Address>?) {
         val foundAddress = addressesList?.find { address ->
@@ -253,6 +161,7 @@ fun DeliveryOptionScreen(
                         LocationServices.getFusedLocationProviderClient(context)
                     getLastLocation(onGetLastLocationSuccess = {
                         localisationSuccess.value = true
+                        userCityLocation.value = it
                         val geocoder = Geocoder(context)
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                             geocoder.getFromLocation(
@@ -285,13 +194,14 @@ fun DeliveryOptionScreen(
         Column(modifier = Modifier.fillMaxSize().padding(8.dp)) {
 
             // Map Card
-            MapBoxComposable()
+            MapBoxComposable(userLocation = userCityLocation)
 
             // Localisation Type Picker
             LocalisationTypePicker(
                 localisationPermissionState = localisationPermissionState,
                 showDeliverySelection = { showDeliverySelection() },
-                selectedPath = selectedPath
+                selectedPath = selectedPath,
+                localisationSuccess = localisationSuccess
             )
 
             if (localisationSuccess.value || selectedPath?.value != null || geolocIsOnPath.value) {
