@@ -24,14 +24,15 @@ import com.mtdevelopment.checkout.presentation.model.DeliveryPath
 fun LocalisationTypePicker(
     localisationPermissionState: MutableState<Boolean>,
     showDeliverySelection: () -> Unit,
-    selectedPath: State<DeliveryPath?>?
+    selectedPath: State<DeliveryPath?>?,
+    localisationSuccess: State<Boolean>
 ) {
     Row(
         modifier = Modifier.padding(horizontal = 8.dp).fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceAround,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        if (selectedPath?.value == null) {
+        if (selectedPath?.value == null && !localisationSuccess.value) {
             TextButton(
                 modifier = Modifier.padding(horizontal = 8.dp).weight(1f),
                 onClick = {
