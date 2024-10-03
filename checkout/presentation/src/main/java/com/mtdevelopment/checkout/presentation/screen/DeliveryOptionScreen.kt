@@ -4,16 +4,22 @@ import android.annotation.SuppressLint
 import android.location.Geocoder
 import android.location.Geocoder.GeocodeListener
 import android.os.Build
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Place
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonColors
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -254,9 +260,22 @@ fun DeliveryOptionScreen(
                 Icon(Icons.Rounded.Place, "")
             }
 
-            Button(
-                modifier = Modifier.align(Alignment.CenterHorizontally).padding(16.dp),
-                enabled = userNameFieldText.value.isNotBlank() && userAddressFieldText.value.isNotBlank() && dateFieldText.value.isNotBlank(),
+            Button(modifier = Modifier
+                .align(Alignment.CenterHorizontally)
+                .padding(16.dp),
+                contentPadding = PaddingValues(16.dp),
+                border = BorderStroke(
+                    width = 2.dp,
+                    color = MaterialTheme.colorScheme.secondary
+                ),
+                colors = ButtonColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.secondary,
+                    disabledContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                    disabledContentColor = MaterialTheme.colorScheme.secondary
+                ),
+                elevation = ButtonDefaults.elevatedButtonElevation(),
+                shape = RoundedCornerShape(8.dp),
                 onClick = {
                     checkoutViewModel?.setUserInfo(
                         UserInfo(
@@ -264,10 +283,9 @@ fun DeliveryOptionScreen(
                             userAddressFieldText.value
                         )
                     )
-                },
-                content = {
-                    Text("Valider et passer au paiement")
-                })
+                }) {
+                Text("Valider et passer au paiement")
+            }
         }
 
         if (datePickerVisibility.value) {
