@@ -194,7 +194,10 @@ fun DeliveryOptionScreen(
         Column(modifier = Modifier.fillMaxSize().padding(8.dp)) {
 
             // Map Card
-            MapBoxComposable(userLocation = userCityLocation)
+            MapBoxComposable(
+                userLocation = userCityLocation,
+                chosenPath = selectedPath
+            )
 
             // Localisation Type Picker
             LocalisationTypePicker(
