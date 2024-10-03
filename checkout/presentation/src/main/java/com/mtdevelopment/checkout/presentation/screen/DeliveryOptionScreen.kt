@@ -7,14 +7,21 @@ import android.os.Build
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Person
+import androidx.compose.material.icons.rounded.Place
+import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
@@ -33,12 +40,14 @@ import com.mtdevelopment.checkout.presentation.composable.LocalisationTextCompos
 import com.mtdevelopment.checkout.presentation.composable.LocalisationTypePicker
 import com.mtdevelopment.checkout.presentation.composable.MapBoxComposable
 import com.mtdevelopment.checkout.presentation.composable.RequestLocationPermission
+import com.mtdevelopment.checkout.presentation.composable.UserInfoComposable
 import com.mtdevelopment.checkout.presentation.composable.getDatePickerState
 import com.mtdevelopment.checkout.presentation.model.DeliveryPath
 import com.mtdevelopment.checkout.presentation.model.ShippingDefaultSelectableDates
 import com.mtdevelopment.checkout.presentation.model.ShippingSelectableMetaDates
 import com.mtdevelopment.checkout.presentation.model.ShippingSelectablePontarlierDates
 import com.mtdevelopment.checkout.presentation.model.ShippingSelectableSalinDates
+import com.mtdevelopment.checkout.presentation.model.UserInfo
 import com.mtdevelopment.checkout.presentation.viewmodel.CheckoutViewModel
 import com.mtdevelopment.core.util.ScreenSize
 import com.mtdevelopment.core.util.rememberScreenSize
@@ -105,8 +114,11 @@ fun DeliveryOptionScreen(
             }
         }
 
+    val shouldDatePickerBeClickable = remember { mutableStateOf(false) }
     val datePickerVisibility = remember { mutableStateOf(false) }
     val dateFieldText = remember { mutableStateOf("") }
+    val userNameFieldText = remember { mutableStateOf("") }
+    val userAddressFieldText = remember { mutableStateOf("") }
 
     val localisationPermissionState = remember { mutableStateOf(false) }
 
@@ -119,6 +131,7 @@ fun DeliveryOptionScreen(
     }
 
     LaunchedEffect(selectedPath?.value) {
+        shouldDatePickerBeClickable.value = selectedPath?.value != null
         dateFieldText.value = ""
     }
 
@@ -221,18 +234,48 @@ fun DeliveryOptionScreen(
             )
 
             DateTextField(
+                shouldBeClickable = shouldDatePickerBeClickable,
                 datePickerVisibility = datePickerVisibility,
                 dateFieldText = dateFieldText,
                 datePickerState = datePickerState
             )
 
-            if (datePickerVisibility.value) {
-                DatePickerComposable(
-                    datePickerVisibility = datePickerVisibility,
-                    dateFieldText = dateFieldText,
-                    datePickerState = datePickerState
-                )
+            UserInfoComposable(
+                userNameFieldText,
+                "Nom complet"
+            ) {
+                Icon(Icons.Rounded.Person, "")
             }
+
+            UserInfoComposable(
+                userAddressFieldText,
+                "Adresse exacte"
+            ) {
+                Icon(Icons.Rounded.Place, "")
+            }
+
+            Button(
+                modifier = Modifier.align(Alignment.CenterHorizontally).padding(16.dp),
+                enabled = userNameFieldText.value.isNotBlank() && userAddressFieldText.value.isNotBlank() && dateFieldText.value.isNotBlank(),
+                onClick = {
+                    checkoutViewModel?.setUserInfo(
+                        UserInfo(
+                            userNameFieldText.value,
+                            userAddressFieldText.value
+                        )
+                    )
+                },
+                content = {
+                    Text("Valider et passer au paiement")
+                })
+        }
+
+        if (datePickerVisibility.value) {
+            DatePickerComposable(
+                datePickerVisibility = datePickerVisibility,
+                dateFieldText = dateFieldText,
+                datePickerState = datePickerState
+            )
         }
 
         if (showDeliveryPathPicker.value) {

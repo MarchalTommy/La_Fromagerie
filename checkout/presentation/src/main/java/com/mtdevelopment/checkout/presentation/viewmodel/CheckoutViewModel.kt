@@ -3,6 +3,7 @@ package com.mtdevelopment.checkout.presentation.viewmodel
 import androidx.lifecycle.ViewModel
 import com.mtdevelopment.cart.presentation.model.UiBasketObject
 import com.mtdevelopment.checkout.presentation.model.DeliveryPath
+import com.mtdevelopment.checkout.presentation.model.UserInfo
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -22,5 +23,11 @@ class CheckoutViewModel : ViewModel(), KoinComponent {
         _selectedPath.value = path
     }
 
-    // TODO: All logic about keepink which delivery path is selected, user name, address, etc...
+    private val _userInfo = MutableStateFlow<UserInfo?>(null)
+    val userInfo: StateFlow<UserInfo?> = _userInfo.asStateFlow()
+
+    fun setUserInfo(userInfo: UserInfo) {
+        _userInfo.value = userInfo
+    }
+
 }

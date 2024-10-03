@@ -7,7 +7,7 @@
     <string name="auto_geoloc_success">Vous avez été géolocalisé sur le parcours de livraison désservant %1s.\nSi ce n\'est pas exacte, merci de sélectionner votre parcours manuellement avec le bouton ci-dessus.</string>
     <string name="auto_geoloc_not_on_path">L\'adresse à laquelle vous avez été géolocalisé ne semble pas sur un parcours de livraison…\nVous pouvez choisir un parcours manuellement en cliquant sur le bouton ci-dessus.</string>
     <string name="manual_path_chosen">Vous avez choisis le parcours de livraison %1s. Vous pourrez choisir une date de livraison correspondante à cette zone.</string>
-    <string name="delivery_date_label">Date de livraison :</string>
+    <string name="delivery_date_label">Date de livraison</string>
     <string name="mapbox_style_URL" translatable="false">mapbox://styles/marchaldevelopment/cm1gh7eih002r01pe96i52fga</string>
     <string name="mapbox_style_key" translatable="false">Basic</string>
 </resources>

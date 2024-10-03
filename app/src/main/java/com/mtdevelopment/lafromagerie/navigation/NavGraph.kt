@@ -28,7 +28,7 @@ fun NavGraph(
 ) {
     NavHost(
         navController = navController,
-        startDestination = DeliveryOptionScreen,
+        startDestination = HomeScreen,
         modifier = Modifier.padding(paddingValues)
     ) {
 
