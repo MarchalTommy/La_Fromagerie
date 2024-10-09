@@ -9,7 +9,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Place
@@ -72,6 +74,8 @@ fun DeliveryOptionScreen(
     val context = LocalContext.current
 
     lateinit var fusedLocationProviderClient: FusedLocationProviderClient
+    val scrollState = rememberScrollState()
+    val columnScrollingEnabled = remember { mutableStateOf(true) }
 
     fun getLastLocation(
         onGetLastLocationSuccess: (Pair<Double, Double>) -> Unit,
@@ -170,7 +174,10 @@ fun DeliveryOptionScreen(
         null
     }
 
-    Surface(modifier = Modifier.fillMaxSize()) {
+    Surface(
+        modifier = Modifier.fillMaxSize()
+            .verticalScroll(state = scrollState, enabled = columnScrollingEnabled.value)
+    ) {
 
         // Localisation permission
         if (localisationPermissionState.value) {
@@ -218,7 +225,8 @@ fun DeliveryOptionScreen(
             // Map Card
             MapBoxComposable(
                 userLocation = userCityLocation,
-                chosenPath = selectedPath
+                chosenPath = selectedPath,
+                columnScrollingEnabled = columnScrollingEnabled
             )
 
             // Localisation Type Picker
