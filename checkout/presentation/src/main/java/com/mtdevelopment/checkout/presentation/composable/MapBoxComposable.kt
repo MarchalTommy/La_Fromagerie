@@ -1,6 +1,8 @@
 package com.mtdevelopment.checkout.presentation.composable
 
 import android.location.Geocoder
+import android.view.MotionEvent
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -11,14 +13,18 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.contentColorFor
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInteropFilter
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import com.mapbox.android.gestures.MoveGestureDetector
 import com.mapbox.geojson.Point
 import com.mapbox.maps.CameraOptions
 import com.mapbox.maps.MapView
@@ -28,6 +34,7 @@ import com.mapbox.maps.extension.compose.MapboxMap
 import com.mapbox.maps.extension.compose.animation.viewport.rememberMapViewportState
 import com.mapbox.maps.extension.compose.style.standard.MapboxStandardStyle
 import com.mapbox.maps.extension.compose.style.styleImportsConfig
+import com.mapbox.maps.logI
 import com.mapbox.maps.plugin.animation.MapAnimationOptions
 import com.mapbox.maps.plugin.animation.camera
 import com.mapbox.maps.plugin.annotation.AnnotationConfig
@@ -35,14 +42,18 @@ import com.mapbox.maps.plugin.annotation.annotations
 import com.mapbox.maps.plugin.annotation.generated.PointAnnotationManager
 import com.mapbox.maps.plugin.annotation.generated.PointAnnotationOptions
 import com.mapbox.maps.plugin.annotation.generated.createPointAnnotationManager
+import com.mapbox.maps.plugin.gestures.OnMoveListener
+import com.mapbox.maps.plugin.gestures.addOnMoveListener
 import com.mtdevelopment.checkout.presentation.model.DeliveryPath
 import com.mtdevelopment.core.util.ScreenSize
 import com.mtdevelopment.core.util.rememberScreenSize
 
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun MapBoxComposable(
     userLocation: State<Pair<Double, Double>?>? = null,
-    chosenPath: State<DeliveryPath?>? = null
+    chosenPath: State<DeliveryPath?>? = null,
+    columnScrollingEnabled: MutableState<Boolean>
 ) {
 
     val context = LocalContext.current
@@ -170,7 +181,7 @@ fun MapBoxComposable(
 
     Card(
         modifier = Modifier.heightIn(min = 0.dp, max = (screenSize.height / 5) * 2)
-            .fillMaxWidth().padding(4.dp),
+            .fillMaxWidth().padding(4.dp).focusable(true),
         colors = CardColors(
             containerColor = MaterialTheme.colorScheme.primaryContainer,
             contentColor = MaterialTheme.colorScheme.contentColorFor(MaterialTheme.colorScheme.primaryContainer),
@@ -184,6 +195,19 @@ fun MapBoxComposable(
             elevation = CardDefaults.elevatedCardElevation()
         ) {
             MapboxMap(
+                modifier = Modifier.pointerInteropFilter(onTouchEvent = {
+                    when (it.action) {
+                        MotionEvent.ACTION_DOWN -> {
+                            columnScrollingEnabled.value = false
+                            logI("MapTouch", "PRESSED DOWN")
+                            false
+                        }
+
+                        else -> {
+                            false
+                        }
+                    }
+                }),
                 mapViewportState = rememberMapViewportState {
                     setCameraOptions {
                         zoom(8.5)
@@ -217,6 +241,23 @@ fun MapBoxComposable(
             ) {
                 MapEffect(Unit) { mapView ->
                     map.value = mapView
+
+                    mapView.mapboxMap.addOnMoveListener(object : OnMoveListener {
+                        override fun onMove(detector: MoveGestureDetector): Boolean {
+                            //Do nothing
+                            return false
+                        }
+
+                        override fun onMoveBegin(detector: MoveGestureDetector) {
+                            //Do nothing
+                        }
+
+                        override fun onMoveEnd(detector: MoveGestureDetector) {
+                            columnScrollingEnabled.value = true
+                            logI("MapTouch", "RELEASED")
+                        }
+
+                    })
 
                     pointAnnotationManager =
                         mapView.annotations.createPointAnnotationManager(AnnotationConfig())
