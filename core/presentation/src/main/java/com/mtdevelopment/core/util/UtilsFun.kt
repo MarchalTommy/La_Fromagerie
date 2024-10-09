@@ -60,7 +60,7 @@ fun vibratePhoneClickBig(context: Context) {
 }
 
 /*
-Thanks to this article for that thing :
+Thanks to this article for that method :
 https://medium.com/mercadona-tech/type-safety-in-navigation-compose-23c03e3d74a5
  */
 inline fun <reified T : Any> serializableType(

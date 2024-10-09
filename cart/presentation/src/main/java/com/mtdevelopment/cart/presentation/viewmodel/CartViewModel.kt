@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mtdevelopment.cart.presentation.model.UiBasketObject
 import com.mtdevelopment.core.presentation.sharedModels.UiProductObject
+import com.mtdevelopment.core.usecase.GetIsNetworkConnectedUseCase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -14,7 +15,11 @@ import kotlinx.coroutines.launch
 import org.koin.core.component.KoinComponent
 import java.util.Formatter
 
-class CartViewModel : ViewModel(), KoinComponent {
+class CartViewModel(
+    getIsNetworkConnectedUseCase: GetIsNetworkConnectedUseCase
+) : ViewModel(), KoinComponent {
+
+    val isConnected = getIsNetworkConnectedUseCase()
 
     private val _cartObjects =
         MutableStateFlow(UiBasketObject("1", flowOf(emptyList()), flowOf("0,00€")))

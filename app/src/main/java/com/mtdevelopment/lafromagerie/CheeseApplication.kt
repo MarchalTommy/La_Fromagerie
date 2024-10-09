@@ -1,7 +1,7 @@
 package com.mtdevelopment.lafromagerie
 
 import android.app.Application
-import com.mtdevelopment.lafromagerie.di.module
+import com.mtdevelopment.lafromagerie.di.appModule
 import org.koin.android.ext.koin.androidContext
 import org.koin.android.ext.koin.androidLogger
 import org.koin.core.context.startKoin
@@ -19,7 +19,7 @@ class CheeseApplication : Application() {
 
             // Place Koin Modules here !
             modules(
-                module
+                appModule
             )
         }
     }

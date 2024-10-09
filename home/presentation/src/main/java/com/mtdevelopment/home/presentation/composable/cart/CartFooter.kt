@@ -19,6 +19,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 
 @Composable
@@ -26,6 +27,7 @@ fun CartFooter(
     modifier: Modifier,
     totalAmount: String,
     hasItems: Boolean,
+    canShowDelivery: Boolean,
     onPayClick: () -> Unit
 ) {
     AnimatedVisibility(
@@ -53,25 +55,53 @@ fun CartFooter(
                     style = MaterialTheme.typography.titleLarge
                 )
             }
-            Button(modifier = Modifier
-                .align(Alignment.CenterHorizontally)
-                .padding(16.dp),
-                contentPadding = PaddingValues(16.dp),
-                border = BorderStroke(
-                    width = 2.dp,
-                    color = MaterialTheme.colorScheme.secondary
-                ),
-                colors = ButtonColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    contentColor = MaterialTheme.colorScheme.secondary,
-                    disabledContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                    disabledContentColor = MaterialTheme.colorScheme.secondary
-                ),
-                elevation = ButtonDefaults.elevatedButtonElevation(),
-                shape = RoundedCornerShape(8.dp),
-                onClick = { onPayClick.invoke() }) {
-                Text(text = "Choisir une date de livraison")
+            if (canShowDelivery) {
+                Button(modifier = Modifier
+                    .align(Alignment.CenterHorizontally)
+                    .padding(16.dp),
+                    contentPadding = PaddingValues(16.dp),
+                    border = BorderStroke(
+                        width = 2.dp,
+                        color = MaterialTheme.colorScheme.secondary
+                    ),
+                    colors = ButtonColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.secondary,
+                        disabledContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                        disabledContentColor = MaterialTheme.colorScheme.secondary
+                    ),
+                    elevation = ButtonDefaults.elevatedButtonElevation(),
+                    shape = RoundedCornerShape(8.dp),
+                    onClick = { onPayClick.invoke() }) {
+                    Text(text = "Choisir une date de livraison")
+                }
+            } else {
+                Text(
+                    modifier = Modifier
+                        .align(Alignment.CenterHorizontally)
+                        .padding(horizontal = 16.dp),
+                    style = MaterialTheme.typography.titleLarge,
+                    text = "Vous ne semblez pas être connecté à internet",
+                    textAlign = TextAlign.Center
+                )
+                Text(
+                    modifier = Modifier
+                        .align(Alignment.CenterHorizontally)
+                        .padding(start = 16.dp, end = 16.dp, top = 8.dp),
+                    style = MaterialTheme.typography.bodyLarge,
+                    text = "mais nous en avons besoins pour passer la commande !",
+                    textAlign = TextAlign.Center
+                )
+                Text(
+                    modifier = Modifier
+                        .align(Alignment.CenterHorizontally)
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    style = MaterialTheme.typography.bodyMedium,
+                    text = "On vous laisse trouver une connexion, on patiente sagement...",
+                    textAlign = TextAlign.Center
+                )
             }
+
         }
     }
 }

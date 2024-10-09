@@ -39,6 +39,8 @@ fun CartView(
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
 
+    val isNetworkConnected = cartViewModel?.isConnected?.collectAsState(false)
+
     val sheetState = rememberModalBottomSheetState(
         skipPartiallyExpanded = false,
     )
@@ -126,6 +128,7 @@ fun CartView(
                         .fillMaxWidth(),
                     totalAmount = cartTotalPrice?.value ?: "",
                     hasItems = cartItemsContent?.value?.isNotEmpty() == true,
+                    canShowDelivery = isNetworkConnected?.value ?: false
                 ) {
                     coroutineScope.launch {
                         sheetState.hide()
