@@ -1,8 +1,8 @@
 package com.mtdevelopment.checkout.presentation.screen
 
 import android.annotation.SuppressLint
+import android.location.Address
 import android.location.Geocoder
-import android.location.Geocoder.GeocodeListener
 import android.os.Build
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Column
@@ -59,6 +59,7 @@ import com.mtdevelopment.checkout.presentation.model.UserInfo
 import com.mtdevelopment.checkout.presentation.viewmodel.CheckoutViewModel
 import com.mtdevelopment.core.util.ScreenSize
 import com.mtdevelopment.core.util.rememberScreenSize
+import java.io.IOException
 
 @SuppressLint("MissingPermission")
 @OptIn(ExperimentalMaterial3Api::class)
@@ -72,6 +73,8 @@ fun DeliveryOptionScreen(
 ) {
 
     val context = LocalContext.current
+
+    val geocoder = Geocoder(context)
 
     lateinit var fusedLocationProviderClient: FusedLocationProviderClient
     val scrollState = rememberScrollState()
@@ -144,7 +147,7 @@ fun DeliveryOptionScreen(
     val userCity = remember { mutableStateOf("") }
     val userCityLocation = remember { mutableStateOf<Pair<Double, Double>?>(null) }
 
-    fun getCityFromGeocoder(addressesList: List<android.location.Address>?) {
+    fun getCityFromGeocoder(addressesList: List<Address>?) {
         val foundAddress = addressesList?.find { address ->
             val correctPath =
                 DeliveryPath.entries.find { path ->
@@ -166,14 +169,6 @@ fun DeliveryOptionScreen(
         }
     }
 
-    val geocodeListener = if (Geocoder.isPresent()) {
-        GeocodeListener { addressesList ->
-            getCityFromGeocoder(addressesList)
-        }
-    } else {
-        null
-    }
-
     Surface(
         modifier = Modifier.fillMaxSize()
             .verticalScroll(state = scrollState, enabled = columnScrollingEnabled.value)
@@ -188,21 +183,22 @@ fun DeliveryOptionScreen(
                     getLastLocation(onGetLastLocationSuccess = {
                         localisationSuccess.value = true
                         userCityLocation.value = it
-                        if (Geocoder.isPresent()) {
-                            val geocoder = Geocoder(context)
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                                geocoder.getFromLocation(
-                                    it.first,
-                                    it.second,
-                                    1,
-                                    geocodeListener!!
-                                )
-                            } else {
-                                val addressesList = geocoder.getFromLocation(it.first, it.second, 1)
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                            geocoder.getFromLocation(
+                                it.first,
+                                it.second,
+                                1
+                            ) { addressesList ->
                                 getCityFromGeocoder(addressesList)
                             }
                         } else {
-                            userCity.value = "Unknown"
+                            val addressesList =
+                                try {
+                                    geocoder.getFromLocation(it.first, it.second, 1)
+                                } catch (e: IOException) {
+                                    null
+                                }
+                            getCityFromGeocoder(addressesList)
                         }
                     },
                         onGetLastLocationFailed = {

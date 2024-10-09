@@ -1,6 +1,8 @@
 package com.mtdevelopment.checkout.presentation.composable
 
+import android.location.Address
 import android.location.Geocoder
+import android.os.Build
 import android.view.MotionEvent
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.fillMaxSize
@@ -18,6 +20,7 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
@@ -47,6 +50,8 @@ import com.mapbox.maps.plugin.gestures.addOnMoveListener
 import com.mtdevelopment.checkout.presentation.model.DeliveryPath
 import com.mtdevelopment.core.util.ScreenSize
 import com.mtdevelopment.core.util.rememberScreenSize
+import kotlinx.coroutines.launch
+import java.io.IOException
 
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
@@ -56,7 +61,11 @@ fun MapBoxComposable(
     columnScrollingEnabled: MutableState<Boolean>
 ) {
 
+    val FRASNE_LATITUDE = 46.854022
+    val FRASNE_LONGITUDE = 6.156132
+
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
 
     val selectedPathZoomPoint = remember {
         mutableStateOf<Point?>(
@@ -70,66 +79,138 @@ fun MapBoxComposable(
     }
     val geocoder = Geocoder(context)
 
-    fun getCameraLocalisationFromPath(path: DeliveryPath) {
-        val northWestCity = geocoder.getFromLocationName(
-            when (path) {
-                DeliveryPath.PATH_META -> {
-                    "Censeau"
-                }
+    fun selectNorthWestCityFromPath(path: DeliveryPath): String {
+        return when (path) {
+            DeliveryPath.PATH_META -> {
+                "Censeau"
+            }
 
-                DeliveryPath.PATH_SALIN -> {
-                    "Ivrey"
-                }
+            DeliveryPath.PATH_SALIN -> {
+                "Ivrey"
+            }
 
-                DeliveryPath.PATH_PON -> {
-                    "Levier"
-                }
-            }, 1
-        )?.first()
-
-        val southEastCity = geocoder.getFromLocationName(
-            when (path) {
-                DeliveryPath.PATH_META -> {
-                    "Jougne"
-                }
-
-                DeliveryPath.PATH_SALIN -> {
-                    "Boujailles"
-                }
-
-                DeliveryPath.PATH_PON -> {
-                    "La Cluse-et-Mijoux"
-                }
-            }, 1
-        )?.first()
-
-        northWestCity?.let {
-            selectedPathZoomPoint.value = Point.fromLngLat(
-                northWestCity.longitude, northWestCity.latitude
-            )
+            DeliveryPath.PATH_PON -> {
+                "Levier"
+            }
         }
+    }
 
-        southEastCity?.let {
-            selectedPathZoomPoint2.value = Point.fromLngLat(
-                southEastCity.longitude, southEastCity.latitude
-            )
+    fun selectSouthEastCityFromPath(path: DeliveryPath): String {
+        return when (path) {
+            DeliveryPath.PATH_META -> {
+                "Jougne"
+            }
+
+            DeliveryPath.PATH_SALIN -> {
+                "Boujailles"
+            }
+
+            DeliveryPath.PATH_PON -> {
+                "La Cluse-et-Mijoux"
+            }
+        }
+    }
+
+    fun getCameraLocalisationFromPath(path: DeliveryPath) {
+        coroutineScope.launch {
+            var northWestCity: Address? = null
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                geocoder.getFromLocationName(selectNorthWestCityFromPath(path), 1) { addressList ->
+                    northWestCity = addressList.firstOrNull()
+                }
+            } else {
+                // TODO: LOADER BECAUSE BLOCKING
+                northWestCity = try {
+                    geocoder.getFromLocationName(
+                        selectNorthWestCityFromPath(path), 1
+                    )?.firstOrNull()
+                } catch (e: IOException) {
+                    null
+                }
+            }
+
+            var southEastCity: Address? = null
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                geocoder.getFromLocationName(
+                    selectSouthEastCityFromPath(path),
+                    1
+                ) { addressList ->
+                    southEastCity = addressList.firstOrNull()
+                }
+            } else {
+                // TODO: LOADER BECAUSE BLOCKING
+                southEastCity = try {
+                    geocoder.getFromLocationName(
+                        selectSouthEastCityFromPath(path), 1
+                    )?.firstOrNull()
+                } catch (e: IOException) {
+                    null
+                }
+            }
+
+            northWestCity?.let {
+                selectedPathZoomPoint.value = Point.fromLngLat(
+                    it.longitude, it.latitude
+                )
+            }
+
+            southEastCity?.let {
+                selectedPathZoomPoint2.value = Point.fromLngLat(
+                    it.longitude, it.latitude
+                )
+            }
         }
     }
 
     fun getBaseCameraLocation(): Point {
-        val northWestCity = geocoder.getFromLocationName(
-            "Ivrey", 1
-        )?.first()
 
-        val southEastCity = geocoder.getFromLocationName(
-            "Jougne", 1
-        )?.first()
+        var northWestCity: Address? = null
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            geocoder.getFromLocationName(
+                "Ivrey",
+                1
+            ) { addressList ->
+                northWestCity = addressList.firstOrNull()
+            }
+        } else {
+            // TODO: LOADER BECAUSE BLOCKING
+            northWestCity = try {
+                geocoder.getFromLocationName(
+                    "Ivrey", 1
+                )?.firstOrNull()
+            } catch (e: IOException) {
+                null
+            }
+        }
+
+        var southEastCity: Address? = null
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            geocoder.getFromLocationName(
+                "Jougne",
+                1
+            ) { addressList ->
+                southEastCity = addressList.firstOrNull()
+            }
+        } else {
+            // TODO: LOADER BECAUSE BLOCKING
+            southEastCity = try {
+                geocoder.getFromLocationName(
+                    "Jougne", 1
+                )?.firstOrNull()
+            } catch (e: IOException) {
+                null
+            }
+        }
+
+        if (northWestCity == null || southEastCity == null) {
+            return Point.fromLngLat(FRASNE_LONGITUDE, FRASNE_LATITUDE)
+        }
 
         val northWestPoint = Point.fromLngLat(
-            northWestCity?.longitude ?: 0.0, northWestCity?.latitude ?: 0.0
+            (northWestCity as Address).longitude, northWestCity!!.latitude
         )
         val southEastPoint = Point.fromLngLat(
-            southEastCity?.longitude ?: 0.0, southEastCity?.latitude ?: 0.0
+            (southEastCity as Address).longitude, southEastCity!!.latitude
         )
 
         val long = (southEastPoint.longitude() + northWestPoint.longitude()) / 2
@@ -167,11 +248,11 @@ fun MapBoxComposable(
             cameraOptions = CameraOptions.Builder()
                 .center(
                     Point.fromLngLat(
-                        long ?: 0.0,
-                        lat ?: 0.0,
+                        long ?: FRASNE_LONGITUDE,
+                        lat ?: FRASNE_LATITUDE,
                     )
                 )
-                .zoom(9.5)
+                .zoom(if(lat != null && long != null) 9.5 else 8.5)
                 .build(),
             animationOptions = MapAnimationOptions.mapAnimationOptions {
                 duration(1500)
