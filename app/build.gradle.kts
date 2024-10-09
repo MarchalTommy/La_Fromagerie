@@ -51,6 +51,8 @@ android {
 dependencies {
 
     implementation(project(":core:presentation"))
+    implementation(project(":core:domain"))
+    implementation(project(":core:data"))
     implementation(project(":cart:presentation"))
     implementation(project(":home:presentation"))
     implementation(project(":details:presentation"))
@@ -80,4 +82,5 @@ dependencies {
     implementation(libs.koin.android)
     implementation(libs.koin.androidx.compose)
     implementation(libs.koin.androidx.compose.navigation)
+    testImplementation(libs.koin.test)
 }

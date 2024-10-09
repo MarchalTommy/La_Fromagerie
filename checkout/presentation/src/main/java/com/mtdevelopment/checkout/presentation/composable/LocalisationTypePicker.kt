@@ -1,5 +1,6 @@
 package com.mtdevelopment.checkout.presentation.composable
 
+import android.location.Geocoder
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -32,7 +33,7 @@ fun LocalisationTypePicker(
         horizontalArrangement = Arrangement.SpaceAround,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        if (selectedPath?.value == null && !localisationSuccess.value) {
+        if (selectedPath?.value == null && !localisationSuccess.value && Geocoder.isPresent()) {
             TextButton(
                 modifier = Modifier.padding(horizontal = 8.dp).weight(1f),
                 onClick = {

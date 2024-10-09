@@ -77,18 +77,14 @@ fun DeliveryOptionScreen(
         onGetLastLocationSuccess: (Pair<Double, Double>) -> Unit,
         onGetLastLocationFailed: (Exception) -> Unit
     ) {
-        // Check if location permissions are granted
         if (areLocationPermissionsGranted(context)) {
-            // Retrieve the last known location
             fusedLocationProviderClient.lastLocation
                 .addOnSuccessListener { location ->
                     location?.let {
-                        // If location is not null, invoke the success callback with latitude and longitude
                         onGetLastLocationSuccess(Pair(it.latitude, it.longitude))
                     }
                 }
                 .addOnFailureListener { exception ->
-                    // If an error occurs, invoke the failure callback with the exception
                     onGetLastLocationFailed(exception)
                 }
         }
@@ -166,8 +162,12 @@ fun DeliveryOptionScreen(
         }
     }
 
-    val geocodeListener = GeocodeListener { addressesList ->
-        getCityFromGeocoder(addressesList)
+    val geocodeListener = if (Geocoder.isPresent()) {
+        GeocodeListener { addressesList ->
+            getCityFromGeocoder(addressesList)
+        }
+    } else {
+        null
     }
 
     Surface(modifier = Modifier.fillMaxSize()) {
@@ -181,19 +181,22 @@ fun DeliveryOptionScreen(
                     getLastLocation(onGetLastLocationSuccess = {
                         localisationSuccess.value = true
                         userCityLocation.value = it
-                        val geocoder = Geocoder(context)
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                            geocoder.getFromLocation(
-                                it.first,
-                                it.second,
-                                1,
-                                geocodeListener
-                            )
+                        if (Geocoder.isPresent()) {
+                            val geocoder = Geocoder(context)
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                geocoder.getFromLocation(
+                                    it.first,
+                                    it.second,
+                                    1,
+                                    geocodeListener!!
+                                )
+                            } else {
+                                val addressesList = geocoder.getFromLocation(it.first, it.second, 1)
+                                getCityFromGeocoder(addressesList)
+                            }
                         } else {
-                            val addressesList = geocoder.getFromLocation(it.first, it.second, 1)
-                            getCityFromGeocoder(addressesList)
+                            userCity.value = "Unknown"
                         }
-
                     },
                         onGetLastLocationFailed = {
                             userCity.value = "Unknown"

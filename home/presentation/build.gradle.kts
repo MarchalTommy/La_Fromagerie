@@ -43,6 +43,7 @@ android {
 dependencies {
 
     implementation(project(":core:presentation"))
+    implementation(project(":core:domain"))
     implementation(project(":cart:presentation"))
 
     implementation(libs.core.ktx)
