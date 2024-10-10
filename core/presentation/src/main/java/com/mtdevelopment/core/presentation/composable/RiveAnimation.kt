@@ -2,11 +2,17 @@ package com.mtdevelopment.core.presentation.composable
 
 import androidx.annotation.RawRes
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
@@ -51,11 +57,19 @@ fun RiveAnimation(
     val lifecycleOwner = LocalLifecycleOwner.current
 
     if (LocalInspectionMode.current) { // For Developing only,
-        Image(
-            modifier = modifier.size(100.dp),
-            painter = painterResource(id = R.drawable.cheese_afh), //any image
-            contentDescription = contentDescription
-        )
+        Box(modifier = Modifier) {
+            Surface(
+                modifier = modifier
+                    .background(Color.Black)
+                    .alpha(0.2f)
+                    .fillMaxSize(),
+            ) {}
+            Image(
+                modifier = modifier.size(100.dp),
+                painter = painterResource(id = R.drawable.cheese_afh), //any image
+                contentDescription = contentDescription
+            )
+        }
     } else {
         val semantics = if (contentDescription != null) {
             Modifier.semantics {
@@ -94,32 +108,43 @@ fun RiveAnimation(
                     (notifyStop != null)
         }
 
-        AndroidView(
-            modifier = modifier
-                .then(semantics)
-                .clipToBounds(),
-            factory = { context ->
-                riveAnimationView = RiveAnimationView(context).apply {
-                    setRiveResource(
-                        resId,
-                        artboardName,
-                        animationName,
-                        stateMachineName,
-                        autoplay,
-                        fit,
-                        alignment,
-                        loop
-                    )
+        Box(
+            modifier = Modifier,
+            contentAlignment = androidx.compose.ui.Alignment.Center
+        ) {
+            Box(
+                Modifier
+                    .matchParentSize()
+                    .background(Color.Black.copy(alpha = 0.8f))
+            )
+
+            AndroidView(
+                modifier = modifier
+                    .then(semantics)
+                    .clipToBounds(),
+                factory = { context ->
+                    riveAnimationView = RiveAnimationView(context).apply {
+                        setRiveResource(
+                            resId,
+                            artboardName,
+                            animationName,
+                            stateMachineName,
+                            autoplay,
+                            fit,
+                            alignment,
+                            loop
+                        )
+                    }
+                    listener?.let {
+                        riveAnimationView?.registerListener(it)
+                    }
+                    riveAnimationView!!
+                },
+                update = {
+                    update.invoke(it)
                 }
-                listener?.let {
-                    riveAnimationView?.registerListener(it)
-                }
-                riveAnimationView!!
-            },
-            update = {
-                update.invoke(it)
-            }
-        )
+            )
+        }
 
         DisposableEffect(lifecycleOwner) {
             onDispose {
@@ -129,6 +154,7 @@ fun RiveAnimation(
             }
         }
     }
+
 }
 
 @Composable

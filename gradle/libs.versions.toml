@@ -25,6 +25,7 @@ serialization = "1.6.3"
 navigation-common-ktx = "2.8.0"
 mapbox = "11.6.1"
 location = "21.3.0"
+contentment = "2.0.1"
 
 [libraries]
 core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "core-ktx" }
@@ -97,6 +98,9 @@ accompanist-permissions = { module = "com.google.accompanist:accompanist-permiss
 
 ## Location
 location = { module = "com.google.android.gms:play-services-location", version.ref = "location" }
+
+## Contentment (avoid loader flickering)
+contentment = { module = "me.rmyhal.contentment:contentment", version.ref = "contentment"}
 
 
 [plugins]

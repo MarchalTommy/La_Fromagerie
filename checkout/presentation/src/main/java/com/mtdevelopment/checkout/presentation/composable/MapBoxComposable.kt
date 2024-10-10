@@ -27,6 +27,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInteropFilter
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.loader.content.Loader
 import com.mapbox.android.gestures.MoveGestureDetector
 import com.mapbox.geojson.Point
 import com.mapbox.maps.CameraOptions
@@ -114,21 +115,21 @@ fun MapBoxComposable(
 
     fun getCameraLocalisationFromPath(path: DeliveryPath) {
         coroutineScope.launch {
+
+            isLoading.value = true
+
             var northWestCity: Address? = null
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 geocoder.getFromLocationName(selectNorthWestCityFromPath(path), 1) { addressList ->
                     northWestCity = addressList.firstOrNull()
                 }
             } else {
-                isLoading.value = true
                 northWestCity = try {
                     geocoder.getFromLocationName(
                         selectNorthWestCityFromPath(path), 1
                     )?.firstOrNull()
                 } catch (e: IOException) {
                     null
-                } finally {
-                    isLoading.value = false
                 }
             }
 
@@ -141,15 +142,12 @@ fun MapBoxComposable(
                     southEastCity = addressList.firstOrNull()
                 }
             } else {
-                isLoading.value = true
                 southEastCity = try {
                     geocoder.getFromLocationName(
                         selectSouthEastCityFromPath(path), 1
                     )?.firstOrNull()
                 } catch (e: IOException) {
                     null
-                } finally {
-                    isLoading.value = false
                 }
             }
 
@@ -169,6 +167,9 @@ fun MapBoxComposable(
 
     fun getBaseCameraLocation(): Point {
 
+        isLoading.value = true
+
+
         var northWestCity: Address? = null
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             geocoder.getFromLocationName(
@@ -178,15 +179,12 @@ fun MapBoxComposable(
                 northWestCity = addressList.firstOrNull()
             }
         } else {
-            isLoading.value = true
             northWestCity = try {
                 geocoder.getFromLocationName(
                     "Ivrey", 1
                 )?.firstOrNull()
             } catch (e: IOException) {
                 null
-            } finally {
-                isLoading.value = false
             }
         }
 
@@ -199,15 +197,12 @@ fun MapBoxComposable(
                 southEastCity = addressList.firstOrNull()
             }
         } else {
-            isLoading.value = true
             southEastCity = try {
                 geocoder.getFromLocationName(
                     "Jougne", 1
                 )?.firstOrNull()
             } catch (e: IOException) {
                 null
-            } finally {
-                isLoading.value = false
             }
         }
 
@@ -225,6 +220,7 @@ fun MapBoxComposable(
         val long = (southEastPoint.longitude() + northWestPoint.longitude()) / 2
         val lat = (southEastPoint.latitude() + northWestPoint.latitude()) / 2
 
+        isLoading.value = false
         return Point.fromLngLat(long, lat)
     }
 
@@ -252,6 +248,8 @@ fun MapBoxComposable(
 
         val lat = selectedPathZoomPoint.value?.latitude()
             ?.plus(selectedPathZoomPoint2.value?.latitude() ?: 0.0)?.div(2)
+
+        isLoading.value = false
 
         map.value?.camera?.flyTo(
             cameraOptions = CameraOptions.Builder()
@@ -423,7 +421,9 @@ fun MapBoxComposable(
         else -> {
             map.value?.mapboxMap?.loadStyle(
                 "mapbox://styles/marchaldevelopment/cm1s77ihq00m301pl7w12c0kc"
-            )
+            ) {
+                isLoading.value = false
+            }
         }
     }
 }

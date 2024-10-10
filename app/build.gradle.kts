@@ -2,6 +2,8 @@ import kotlin.text.lowercase
 import kotlin.text.removePrefix
 import kotlin.text.removeSuffix
 
+import org.jetbrains.kotlin.cli.jvm.main
+
 plugins {
     alias(libs.plugins.androidApplication)
     alias(libs.plugins.kotlinAndroid)
