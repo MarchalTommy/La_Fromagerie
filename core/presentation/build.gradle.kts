@@ -25,7 +25,7 @@ android {
             )
         }
     }
-    
+
     kotlin {
         jvmToolchain(17)
     }

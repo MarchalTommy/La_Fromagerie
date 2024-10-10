@@ -35,6 +35,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import app.rive.runtime.kotlin.core.Loop
+import app.rive.runtime.kotlin.core.Rive
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import com.mapbox.android.core.permissions.PermissionsManager.Companion.areLocationPermissionsGranted
@@ -61,6 +63,7 @@ import com.mtdevelopment.checkout.presentation.viewmodel.CheckoutViewModel
 import com.mtdevelopment.core.presentation.composable.RiveAnimation
 import com.mtdevelopment.core.util.ScreenSize
 import com.mtdevelopment.core.util.rememberScreenSize
+import me.rmyhal.contentment.Contentment
 import java.io.IOException
 
 @SuppressLint("MissingPermission")
@@ -141,6 +144,10 @@ fun DeliveryOptionScreen(
     val showDeliveryPathPicker = remember { mutableStateOf(false) }
     fun showDeliverySelection() {
         showDeliveryPathPicker.value = true
+    }
+
+    LaunchedEffect(Unit) {
+        Rive.init(context)
     }
 
     LaunchedEffect(selectedPath?.value) {
@@ -325,4 +332,14 @@ fun DeliveryOptionScreen(
         }
     }
 
+}
+
+@Composable
+fun SetLoader() {
+        RiveAnimation(
+            modifier = Modifier.fillMaxSize(),
+            resId = R.raw.goat_loading,
+            contentDescription = "Loading animation",
+            loop = Loop.LOOP
+        )
 }

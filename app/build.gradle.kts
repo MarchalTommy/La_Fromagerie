@@ -1,3 +1,5 @@
+import org.jetbrains.kotlin.cli.jvm.main
+
 plugins {
     alias(libs.plugins.androidApplication)
     alias(libs.plugins.kotlinAndroid)
@@ -42,9 +44,7 @@ android {
         kotlinCompilerExtensionVersion = "1.5.13"
     }
     packaging {
-        resources {
-            excludes += "/META-INF/{AL2.0,LGPL2.1}"
-        }
+        jniLibs.pickFirsts.add("**/libc++_shared.so")
     }
 }
 
