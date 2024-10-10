@@ -41,6 +41,7 @@ import com.mapbox.android.core.permissions.PermissionsManager.Companion.areLocat
 import com.mapbox.common.MapboxOptions
 import com.mtdevelopment.cart.presentation.viewmodel.CartViewModel
 import com.mtdevelopment.checkout.presentation.BuildConfig.MAPBOX_PUBLIC_TOKEN
+import com.mtdevelopment.checkout.presentation.R
 import com.mtdevelopment.checkout.presentation.composable.DatePickerComposable
 import com.mtdevelopment.checkout.presentation.composable.DateTextField
 import com.mtdevelopment.checkout.presentation.composable.DeliveryPathPickerComposable
@@ -57,6 +58,7 @@ import com.mtdevelopment.checkout.presentation.model.ShippingSelectablePontarlie
 import com.mtdevelopment.checkout.presentation.model.ShippingSelectableSalinDates
 import com.mtdevelopment.checkout.presentation.model.UserInfo
 import com.mtdevelopment.checkout.presentation.viewmodel.CheckoutViewModel
+import com.mtdevelopment.core.presentation.composable.RiveAnimation
 import com.mtdevelopment.core.util.ScreenSize
 import com.mtdevelopment.core.util.rememberScreenSize
 import java.io.IOException
@@ -79,6 +81,8 @@ fun DeliveryOptionScreen(
     lateinit var fusedLocationProviderClient: FusedLocationProviderClient
     val scrollState = rememberScrollState()
     val columnScrollingEnabled = remember { mutableStateOf(true) }
+
+    val isLoading = remember { mutableStateOf(false) }
 
     fun getLastLocation(
         onGetLastLocationSuccess: (Pair<Double, Double>) -> Unit,
@@ -222,7 +226,8 @@ fun DeliveryOptionScreen(
             MapBoxComposable(
                 userLocation = userCityLocation,
                 chosenPath = selectedPath,
-                columnScrollingEnabled = columnScrollingEnabled
+                columnScrollingEnabled = columnScrollingEnabled,
+                isLoading = isLoading
             )
 
             // Localisation Type Picker
@@ -293,6 +298,14 @@ fun DeliveryOptionScreen(
                 }) {
                 Text("Valider et passer au paiement")
             }
+        }
+
+        if (isLoading.value) {
+            RiveAnimation(
+                modifier = Modifier.fillMaxSize(),
+                resId = R.raw.goat_loading,
+                contentDescription = "Loading animation"
+            )
         }
 
         if (datePickerVisibility.value) {

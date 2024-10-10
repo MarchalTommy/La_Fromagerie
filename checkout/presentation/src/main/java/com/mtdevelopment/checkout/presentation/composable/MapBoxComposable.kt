@@ -58,7 +58,8 @@ import java.io.IOException
 fun MapBoxComposable(
     userLocation: State<Pair<Double, Double>?>? = null,
     chosenPath: State<DeliveryPath?>? = null,
-    columnScrollingEnabled: MutableState<Boolean>
+    columnScrollingEnabled: MutableState<Boolean>,
+    isLoading: MutableState<Boolean>
 ) {
 
     val FRASNE_LATITUDE = 46.854022
@@ -119,13 +120,15 @@ fun MapBoxComposable(
                     northWestCity = addressList.firstOrNull()
                 }
             } else {
-                // TODO: LOADER BECAUSE BLOCKING
+                isLoading.value = true
                 northWestCity = try {
                     geocoder.getFromLocationName(
                         selectNorthWestCityFromPath(path), 1
                     )?.firstOrNull()
                 } catch (e: IOException) {
                     null
+                } finally {
+                    isLoading.value = false
                 }
             }
 
@@ -138,13 +141,15 @@ fun MapBoxComposable(
                     southEastCity = addressList.firstOrNull()
                 }
             } else {
-                // TODO: LOADER BECAUSE BLOCKING
+                isLoading.value = true
                 southEastCity = try {
                     geocoder.getFromLocationName(
                         selectSouthEastCityFromPath(path), 1
                     )?.firstOrNull()
                 } catch (e: IOException) {
                     null
+                } finally {
+                    isLoading.value = false
                 }
             }
 
@@ -173,13 +178,15 @@ fun MapBoxComposable(
                 northWestCity = addressList.firstOrNull()
             }
         } else {
-            // TODO: LOADER BECAUSE BLOCKING
+            isLoading.value = true
             northWestCity = try {
                 geocoder.getFromLocationName(
                     "Ivrey", 1
                 )?.firstOrNull()
             } catch (e: IOException) {
                 null
+            } finally {
+                isLoading.value = false
             }
         }
 
@@ -192,13 +199,15 @@ fun MapBoxComposable(
                 southEastCity = addressList.firstOrNull()
             }
         } else {
-            // TODO: LOADER BECAUSE BLOCKING
+            isLoading.value = true
             southEastCity = try {
                 geocoder.getFromLocationName(
                     "Jougne", 1
                 )?.firstOrNull()
             } catch (e: IOException) {
                 null
+            } finally {
+                isLoading.value = false
             }
         }
 
@@ -252,7 +261,7 @@ fun MapBoxComposable(
                         lat ?: FRASNE_LATITUDE,
                     )
                 )
-                .zoom(if(lat != null && long != null) 9.5 else 8.5)
+                .zoom(if (lat != null && long != null) 9.5 else 8.5)
                 .build(),
             animationOptions = MapAnimationOptions.mapAnimationOptions {
                 duration(1500)
@@ -343,10 +352,11 @@ fun MapBoxComposable(
                     pointAnnotationManager =
                         mapView.annotations.createPointAnnotationManager(AnnotationConfig())
 
+                    isLoading.value = true
                     mapView.mapboxMap.loadStyle(
                         "mapbox://styles/marchaldevelopment/cm1s77ihq00m301pl7w12c0kc"
                     ) {
-                        // TODO: Lottie Loader
+                        isLoading.value = false
                     }
                 }
             }
