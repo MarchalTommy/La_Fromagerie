@@ -81,6 +81,13 @@ fun DeliveryOptionScreen(
     screenSize: ScreenSize = rememberScreenSize()
 ) {
 
+    // TODO: FIX AUTO-GEOLOC ->
+    // Double click for it to geoloc
+    // Never seems to work on emulator ?! What about real world then...
+    // TODO: FIX LOADER ->
+    // Is still blocked by UI thread breaking when Geocoder bug. Place geocoder in custom thread ?
+    // Removes itself just after the delay, not after boolean set to false OR delay. Bad brain of me.
+
     val context = LocalContext.current
 
     val geocoder = Geocoder(context)
@@ -189,7 +196,6 @@ fun DeliveryOptionScreen(
         modifier = Modifier.fillMaxSize()
             .verticalScroll(state = scrollState, enabled = columnScrollingEnabled.value)
     ) {
-
         // Localisation permission
         if (localisationPermissionState.value) {
             RequestLocationPermission(
@@ -210,6 +216,7 @@ fun DeliveryOptionScreen(
                         } else {
                             val addressesList =
                                 try {
+                                    // TODO: Loader + async ?
                                     geocoder.getFromLocation(it.first, it.second, 1)
                                 } catch (e: IOException) {
                                     null
@@ -218,6 +225,7 @@ fun DeliveryOptionScreen(
                         }
                     },
                         onGetLastLocationFailed = {
+                            localisationSuccess.value = false
                             userCity.value = "Unknown"
                         })
                 },
@@ -315,7 +323,7 @@ fun DeliveryOptionScreen(
         LaunchedEffect(isLoading.value) {
             val currentValue = isLoading.value
             val showUpDelay = 200L
-            val removeDelay = 1500L
+            val removeDelay = 1000L
             CoroutineScope(Dispatchers.Default).launch {
                 delay(if (isLoading.value) showUpDelay else removeDelay)
                 // Should show loading only if state hasn't change in last 200ms
