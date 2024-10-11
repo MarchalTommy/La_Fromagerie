@@ -1,9 +1,11 @@
 package com.mtdevelopment.checkout.presentation.screen
 
 import android.annotation.SuppressLint
+import android.content.ContentValues.TAG
 import android.location.Address
 import android.location.Geocoder
 import android.os.Build
+import android.util.Log
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -35,7 +37,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import app.rive.runtime.kotlin.core.Loop
 import app.rive.runtime.kotlin.core.Rive
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
@@ -63,7 +64,10 @@ import com.mtdevelopment.checkout.presentation.viewmodel.CheckoutViewModel
 import com.mtdevelopment.core.presentation.composable.RiveAnimation
 import com.mtdevelopment.core.util.ScreenSize
 import com.mtdevelopment.core.util.rememberScreenSize
-import me.rmyhal.contentment.Contentment
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.io.IOException
 
 @SuppressLint("MissingPermission")
@@ -86,6 +90,7 @@ fun DeliveryOptionScreen(
     val columnScrollingEnabled = remember { mutableStateOf(true) }
 
     val isLoading = remember { mutableStateOf(false) }
+    val shouldShowLoading = remember { mutableStateOf(false) }
 
     fun getLastLocation(
         onGetLastLocationSuccess: (Pair<Double, Double>) -> Unit,
@@ -307,7 +312,24 @@ fun DeliveryOptionScreen(
             }
         }
 
-        if (isLoading.value) {
+        LaunchedEffect(isLoading.value) {
+            val currentValue = isLoading.value
+            val showUpDelay = 200L
+            val removeDelay = 1500L
+            CoroutineScope(Dispatchers.Default).launch {
+                delay(if (isLoading.value) showUpDelay else removeDelay)
+                // Should show loading only if state hasn't change in last 200ms
+                if (isLoading.value == currentValue && isLoading.value) {
+                    Log.i(TAG, "DeliveryOptionScreen: SHOWING LOADER")
+                    shouldShowLoading.value = true
+                } else if (isLoading.value == currentValue && !isLoading.value) {
+                    Log.i(TAG, "DeliveryOptionScreen: REMOVING LOADER")
+                    shouldShowLoading.value = false
+                }
+            }
+        }
+
+        if (shouldShowLoading.value) {
             RiveAnimation(
                 modifier = Modifier.fillMaxSize(),
                 resId = R.raw.goat_loading,
@@ -331,15 +353,4 @@ fun DeliveryOptionScreen(
             }
         }
     }
-
-}
-
-@Composable
-fun SetLoader() {
-        RiveAnimation(
-            modifier = Modifier.fillMaxSize(),
-            resId = R.raw.goat_loading,
-            contentDescription = "Loading animation",
-            loop = Loop.LOOP
-        )
 }

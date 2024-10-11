@@ -13,6 +13,7 @@ rive = "9.6.5"
 koin-bom = "3.5.6"
 appcompat = "1.7.0"
 material = "1.12.0"
+firebase-bom = "33.4.0"
 navigation-compose = "2.8.0"
 datastore = "1.1.0"
 accompanist = "0.28.0"
@@ -26,6 +27,8 @@ navigation-common-ktx = "2.8.0"
 mapbox = "11.6.1"
 location = "21.3.0"
 contentment = "2.0.1"
+crashlytics = "3.0.2"
+google-service = "4.4.2"
 
 [libraries]
 core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "core-ktx" }
@@ -53,10 +56,19 @@ androidx-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit
 androidx-material3 = { group = "androidx.compose.material3", name = "material3" }
 
 
+## Firebase
+firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebase-bom" }
+firebase-auth = { module = "com.google.firebase:firebase-auth" }
+firebase-firestore = { module = "com.google.firebase:firebase-firestore" }
+firebase-analytics = { module = "com.google.firebase:firebase-analytics" }
+firebase-crashlytics = { module = "com.google.firebase:firebase-crashlytics" }
+firebase-crashlytics-ndk = { module = "com.google.firebase:firebase-crashlytics-ndk" }
+
+
 ## Images
 # Landscapist (replaces base glide / coil / picasso)
 landscapist = { group = "com.github.skydoves", name = "landscapist-glide", version.ref = "landscapist" }
-rive-android = { module = "app.rive:rive-android", version.ref = "rive"}
+rive-android = { module = "app.rive:rive-android", version.ref = "rive" }
 
 
 ## Injection
@@ -66,7 +78,7 @@ koin-core = { module = "io.insert-koin:koin-core" }
 koin-android = { module = "io.insert-koin:koin-android" }
 koin-androidx-compose = { module = "io.insert-koin:koin-androidx-compose" }
 koin-androidx-compose-navigation = { module = "io.insert-koin:koin-androidx-compose-navigation" }
-koin-test = { module = "io.insert-koin:koin-test-junit4"}
+koin-test = { module = "io.insert-koin:koin-test-junit4" }
 androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
 
 
@@ -100,7 +112,7 @@ accompanist-permissions = { module = "com.google.accompanist:accompanist-permiss
 location = { module = "com.google.android.gms:play-services-location", version.ref = "location" }
 
 ## Contentment (avoid loader flickering)
-contentment = { module = "me.rmyhal.contentment:contentment", version.ref = "contentment"}
+contentment = { module = "me.rmyhal.contentment:contentment", version.ref = "contentment" }
 
 
 [plugins]
@@ -110,4 +122,6 @@ compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "
 kotlin-kapt = { id = "org.jetbrains.kotlin.kapt", version.ref = "kotlin" }
 androidLibrary = { id = "com.android.library", version.ref = "agp" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+firebase-crashlytics-plugin = { id = "com.google.firebase.crashlytics", version.ref = "crashlytics" }
+google-service = { id = "com.google.gms.google-services", version.ref = "google-service" }
 

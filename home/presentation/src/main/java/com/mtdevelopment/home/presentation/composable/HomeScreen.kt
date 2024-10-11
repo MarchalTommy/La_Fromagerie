@@ -3,7 +3,6 @@ package com.mtdevelopment.home.presentation.composable
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -31,7 +30,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.tooling.preview.Devices
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.tooling.preview.Wallpapers
 import androidx.compose.ui.unit.dp
 import com.mtdevelopment.cart.presentation.viewmodel.CartViewModel
 import com.mtdevelopment.core.presentation.sharedModels.UiProductObject
@@ -41,7 +42,21 @@ import com.mtdevelopment.core.util.rememberScreenSize
 import com.mtdevelopment.home.presentation.composable.cart.CartView
 import kotlinx.coroutines.launch
 
-@Preview
+@Preview(
+    name = "Default device",
+    device = Devices.DEFAULT,
+    wallpaper = Wallpapers.GREEN_DOMINATED_EXAMPLE
+)
+@Preview(
+    name = "Small device",
+    device = Devices.PIXEL_2,
+    wallpaper = Wallpapers.RED_DOMINATED_EXAMPLE
+)
+@Preview(
+    name = "Smaller device",
+    device = "spec:width=720px,height=980px,dpi=320",
+    wallpaper = Wallpapers.BLUE_DOMINATED_EXAMPLE
+)
 @Composable
 fun HomeScreen(
     cartViewModel: CartViewModel? = null,
@@ -127,7 +142,9 @@ fun HomeScreen(
                     ),
                 containerColor = MaterialTheme.colorScheme.tertiaryContainer,
                 contentColor = MaterialTheme.colorScheme.tertiary,
-                onClick = { showBottomSheet = true }
+                onClick = {
+                    showBottomSheet = true
+                }
             ) {
                 Icon(imageVector = Icons.Default.ShoppingCart, contentDescription = "Cart")
             }
