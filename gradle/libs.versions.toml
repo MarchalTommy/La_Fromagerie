@@ -1,6 +1,7 @@
 [versions]
 agp = "8.4.2"
 kotlin = "2.0.0"
+kotlinx-coroutines = "1.9.0"
 core-ktx = "1.13.1"
 junit = "4.13.2"
 androidx-test-ext-junit = "1.1.5"
@@ -11,6 +12,7 @@ compose-bom = "2024.06.00"
 landscapist = "2.3.2"
 rive = "9.6.5"
 koin-bom = "3.5.6"
+ktor = "3.0.0"
 appcompat = "1.7.0"
 material = "1.12.0"
 firebase-bom = "33.4.0"
@@ -29,10 +31,15 @@ location = "21.3.0"
 contentment = "2.0.1"
 crashlytics = "3.0.2"
 google-service = "4.4.2"
+wallet = "19.4.0"
+wallet-button = "1.0.0"
 
 [libraries]
 core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "core-ktx" }
 material = { group = "com.google.android.material", name = "material", version.ref = "material" }
+
+play-service-wallet = { group = "com.google.android.gms", name = "play-services-wallet", version.ref = "wallet" }
+google-pay-compose = { group = "com.google.pay.button", name = "compose-pay-button", version.ref = "wallet-button" }
 
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-test-ext-junit = { group = "androidx.test.ext", name = "junit", version.ref = "androidx-test-ext-junit" }
@@ -42,6 +49,8 @@ lifecycle-runtime-ktx = { group = "androidx.lifecycle", name = "lifecycle-runtim
 lifecycle-viewmodel-ktx = { module = "androidx.lifecycle:lifecycle-viewmodel-ktx", version.ref = "lifecycle-scope" }
 lifecycle-viewmodel = { module = "androidx.lifecycle:lifecycle-viewmodel", version.ref = "lifecycle-scope" }
 
+kotlinx-coroutines = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "kotlinx-coroutines" }
+kotlinx-coroutines-service = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-play-services", version.ref = "kotlinx-coroutines" }
 
 ## Compose
 activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activity-compose" }
@@ -80,6 +89,13 @@ koin-androidx-compose = { module = "io.insert-koin:koin-androidx-compose" }
 koin-androidx-compose-navigation = { module = "io.insert-koin:koin-androidx-compose-navigation" }
 koin-test = { module = "io.insert-koin:koin-test-junit4" }
 androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
+
+## KTOR client
+ktor-client-android = { module = "io.ktor:ktor-client-android", version.ref = "ktor" }
+ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
+ktor-client-cio = { module = "io.ktor:ktor-client-cio", version.ref = "ktor" }
+ktor-client-logging = { module = "io.ktor:ktor-client-logging", version.ref = "ktor" }
+ktor-client-auth = { module = "io.ktor:ktor-client-auth", version.ref = "ktor" }
 
 
 ## Pager

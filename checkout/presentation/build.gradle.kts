@@ -45,6 +45,7 @@ dependencies {
 
     implementation(project(":core:presentation"))
     implementation(project(":core:domain"))
+    implementation(project(":checkout:domain"))
     implementation(project(":cart:presentation"))
 
     implementation(libs.core.ktx)
@@ -77,4 +78,7 @@ dependencies {
 
     implementation(libs.location)
     implementation(libs.accompanist.permissions)
+
+    implementation(libs.play.service.wallet)
+    implementation(libs.google.pay.compose)
 }

@@ -1,0 +1,20 @@
+{
+  "apiVersion": 2,
+  "apiVersionMinor": 0,
+  "allowedPaymentMethods": [
+    {
+      "type": "CARD",
+      "parameters": {
+        "allowedAuthMethods": ["PAN_ONLY", "CRYPTOGRAM_3DS"],
+        "allowedCardNetworks": ["MASTERCARD", "VISA"]
+      },
+      "tokenizationSpecification": {
+        "type": "PAYMENT_GATEWAY",
+        "parameters": {
+          "gateway": "sumup",
+          "gatewayMerchantId": "YOUR_SUMUP_MERCHANT_ID"
+        }
+      }
+    }
+  ]
+}

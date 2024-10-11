@@ -4,7 +4,7 @@ plugins {
 }
 
 android {
-    namespace = "com.mtdevelopment.core.data"
+    namespace = "com.mtdevelopment.checkout.domain"
     compileSdk = 34
 
     defaultConfig {
@@ -23,15 +23,16 @@ android {
             )
         }
     }
-
-    kotlin {
-        jvmToolchain(17)
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_1_8
+        targetCompatibility = JavaVersion.VERSION_1_8
+    }
+    kotlinOptions {
+        jvmTarget = "1.8"
     }
 }
 
 dependencies {
-
-    implementation(project(":core:domain"))
 
     implementation(libs.core.ktx)
     implementation(libs.androidx.appcompat)
@@ -40,8 +41,11 @@ dependencies {
     androidTestImplementation(libs.androidx.test.ext.junit)
     androidTestImplementation(libs.espresso.core)
 
-    implementation(libs.ktor.client.android)
-    implementation(libs.ktor.client.core)
-    implementation(libs.ktor.client.cio)
-    implementation(libs.ktor.client.logging)
+    implementation(platform(libs.koin.bom))
+    implementation(libs.koin.core)
+    implementation(libs.koin.android)
+    implementation(libs.koin.androidx.compose)
+    implementation(libs.koin.androidx.compose.navigation)
+
+    implementation(libs.play.service.wallet)
 }

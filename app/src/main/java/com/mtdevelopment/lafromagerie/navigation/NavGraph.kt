@@ -9,6 +9,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.toRoute
 import com.mtdevelopment.cart.presentation.viewmodel.CartViewModel
+import com.mtdevelopment.checkout.presentation.screen.CheckoutScreen
 import com.mtdevelopment.checkout.presentation.screen.DeliveryOptionScreen
 import com.mtdevelopment.checkout.presentation.viewmodel.CheckoutViewModel
 import com.mtdevelopment.core.presentation.sharedModels.UiProductObject
@@ -24,7 +25,8 @@ fun NavGraph(
     cartViewModel: CartViewModel,
     checkoutViewModel: CheckoutViewModel,
     paddingValues: PaddingValues,
-    navController: NavHostController
+    navController: NavHostController,
+    onGooglePayButtonClick: () -> Unit = {}
 ) {
     NavHost(
         navController = navController,
@@ -79,6 +81,23 @@ fun NavGraph(
             }
         ) {
             DeliveryOptionScreen(cartViewModel, checkoutViewModel)
+        }
+
+        composable<CheckoutScreen>(
+            enterTransition = {
+                scaleIntoContainer()
+            },
+            exitTransition = {
+                scaleOutOfContainer(ScaleTransitionDirection.INWARDS)
+            },
+            popEnterTransition = {
+                scaleIntoContainer(ScaleTransitionDirection.OUTWARDS)
+            },
+            popExitTransition = {
+                scaleOutOfContainer()
+            }
+        ) {
+            CheckoutScreen(cartViewModel, checkoutViewModel, onGooglePayButtonClick = onGooglePayButtonClick)
         }
 
     }

@@ -19,7 +19,7 @@ class CheeseApplication : Application() {
 
             // Place Koin Modules here !
             modules(
-                appModule
+                appModule()
             )
         }
     }

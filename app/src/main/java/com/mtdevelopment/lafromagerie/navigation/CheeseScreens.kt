@@ -14,3 +14,6 @@ data class DetailDestination(
 
 @Serializable
 object DeliveryOptionScreen
+
+@Serializable
+object CheckoutScreen

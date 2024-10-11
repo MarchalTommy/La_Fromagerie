@@ -57,6 +57,8 @@ dependencies {
     implementation(project(":home:presentation"))
     implementation(project(":details:presentation"))
     implementation(project(":checkout:presentation"))
+    implementation(project(":checkout:domain"))
+    implementation(project(":checkout:data"))
 
     implementation(libs.core.ktx)
     implementation(libs.lifecycle.runtime.ktx)
@@ -83,4 +85,12 @@ dependencies {
     implementation(libs.koin.androidx.compose)
     implementation(libs.koin.androidx.compose.navigation)
     testImplementation(libs.koin.test)
+
+    implementation(libs.play.service.wallet)
+
+    implementation(libs.ktor.client.android)
+    implementation(libs.ktor.client.core)
+    implementation(libs.ktor.client.cio)
+    implementation(libs.ktor.client.logging)
+    implementation(libs.ktor.client.auth)
 }

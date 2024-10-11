@@ -1,6 +1,7 @@
 package com.mtdevelopment.lafromagerie
 
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -14,6 +15,8 @@ import androidx.compose.material3.TopAppBarColors
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
+import com.google.android.gms.common.api.CommonStatusCodes
+import com.google.android.gms.wallet.contract.TaskResultContracts
 import com.mtdevelopment.checkout.presentation.viewmodel.CheckoutViewModel
 import com.mtdevelopment.core.presentation.theme.ui.AppTheme
 import com.mtdevelopment.lafromagerie.navigation.NavGraph
@@ -56,7 +59,23 @@ class MainActivity : ComponentActivity() {
                         cartViewModel = cartViewModel,
                         checkoutViewModel = checkoutViewModel,
                         paddingValues = paddingValues,
-                        navController = navController
+                        navController = navController,
+                        onGooglePayButtonClick = {
+                            val paymentDataLauncher =
+                                registerForActivityResult(TaskResultContracts.GetPaymentDataResult()) { taskResult ->
+                                    when (taskResult.status.statusCode) {
+                                        CommonStatusCodes.SUCCESS -> {
+                                            taskResult.result!!.let {
+                                                Log.i("Google Pay result:", it.toJson())
+                                                checkoutViewModel.setGooglePayResult(it)
+                                            }
+                                        }
+                                        //CommonStatusCodes.CANCELED -> The user canceled
+                                        //CommonStatusCodes.DEVELOPER_ERROR -> The API returned an error (it.status: Status)
+                                        //else -> Handle internal and other unexpected errors
+                                    }
+                                }
+                        }
                     )
                 }
             }
