@@ -169,7 +169,6 @@ fun MapBoxComposable(
 
         isLoading.value = true
 
-
         var northWestCity: Address? = null
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             geocoder.getFromLocationName(

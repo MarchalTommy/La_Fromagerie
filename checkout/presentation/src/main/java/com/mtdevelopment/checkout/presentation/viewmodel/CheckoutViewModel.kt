@@ -15,8 +15,6 @@ class CheckoutViewModel(
     getIsConnectedUseCase: GetIsNetworkConnectedUseCase
 ) : ViewModel(), KoinComponent {
 
-    val isConnected = getIsConnectedUseCase.invoke()
-
     private val _cartObjects =
         MutableStateFlow(UiBasketObject("1", flowOf(emptyList()), flowOf("0,00€")))
     val cartObjects: StateFlow<UiBasketObject> = _cartObjects.asStateFlow()

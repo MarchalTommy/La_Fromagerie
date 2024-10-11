@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "541930609515",
+    "project_id": "la-fromagerie-25560",
+    "storage_bucket": "la-fromagerie-25560.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:541930609515:android:c53c2e51423d11e06d4a2e",
+        "android_client_info": {
+          "package_name": "com.mtdevelopment.lafromagerie"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC2Ew_BcBaZzr3PJz6Iil8B0ReklP3GSi4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
