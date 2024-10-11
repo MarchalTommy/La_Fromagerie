@@ -15,19 +15,18 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.contentColorFor
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInteropFilter
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.loader.content.Loader
 import com.mapbox.android.gestures.MoveGestureDetector
 import com.mapbox.geojson.Point
 import com.mapbox.maps.CameraOptions
@@ -51,6 +50,8 @@ import com.mapbox.maps.plugin.gestures.addOnMoveListener
 import com.mtdevelopment.checkout.presentation.model.DeliveryPath
 import com.mtdevelopment.core.util.ScreenSize
 import com.mtdevelopment.core.util.rememberScreenSize
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.io.IOException
 
@@ -67,7 +68,8 @@ fun MapBoxComposable(
     val FRASNE_LONGITUDE = 6.156132
 
     val context = LocalContext.current
-    val coroutineScope = rememberCoroutineScope()
+    val cameraBasePoint =
+        remember { mutableStateOf(Point.fromLngLat(FRASNE_LONGITUDE, FRASNE_LATITUDE)) }
 
     val selectedPathZoomPoint = remember {
         mutableStateOf<Point?>(
@@ -114,7 +116,7 @@ fun MapBoxComposable(
     }
 
     fun getCameraLocalisationFromPath(path: DeliveryPath) {
-        coroutineScope.launch {
+        CoroutineScope(Dispatchers.IO).launch {
 
             isLoading.value = true
 
@@ -165,62 +167,63 @@ fun MapBoxComposable(
         }
     }
 
-    fun getBaseCameraLocation(): Point {
+    fun getBaseCameraLocation(callback: (Point) -> Unit) {
+        CoroutineScope(Dispatchers.IO).launch {
+            isLoading.value = true
 
-        isLoading.value = true
-
-        var northWestCity: Address? = null
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            geocoder.getFromLocationName(
-                "Ivrey",
-                1
-            ) { addressList ->
-                northWestCity = addressList.firstOrNull()
-            }
-        } else {
-            northWestCity = try {
+            var northWestCity: Address? = null
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 geocoder.getFromLocationName(
-                    "Ivrey", 1
-                )?.firstOrNull()
-            } catch (e: IOException) {
-                null
+                    "Ivrey",
+                    1
+                ) { addressList ->
+                    northWestCity = addressList.firstOrNull()
+                }
+            } else {
+                northWestCity = try {
+                    geocoder.getFromLocationName(
+                        "Ivrey", 1
+                    )?.firstOrNull()
+                } catch (e: IOException) {
+                    null
+                }
             }
-        }
 
-        var southEastCity: Address? = null
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            geocoder.getFromLocationName(
-                "Jougne",
-                1
-            ) { addressList ->
-                southEastCity = addressList.firstOrNull()
-            }
-        } else {
-            southEastCity = try {
+            var southEastCity: Address? = null
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 geocoder.getFromLocationName(
-                    "Jougne", 1
-                )?.firstOrNull()
-            } catch (e: IOException) {
-                null
+                    "Jougne",
+                    1
+                ) { addressList ->
+                    southEastCity = addressList.firstOrNull()
+                }
+            } else {
+                southEastCity = try {
+                    geocoder.getFromLocationName(
+                        "Jougne", 1
+                    )?.firstOrNull()
+                } catch (e: IOException) {
+                    null
+                }
             }
+
+            if (northWestCity == null || southEastCity == null) {
+                callback.invoke(Point.fromLngLat(FRASNE_LONGITUDE, FRASNE_LATITUDE))
+                return@launch
+            }
+
+            val northWestPoint = Point.fromLngLat(
+                (northWestCity as Address).longitude, northWestCity!!.latitude
+            )
+            val southEastPoint = Point.fromLngLat(
+                (southEastCity as Address).longitude, southEastCity!!.latitude
+            )
+
+            val long = (southEastPoint.longitude() + northWestPoint.longitude()) / 2
+            val lat = (southEastPoint.latitude() + northWestPoint.latitude()) / 2
+
+            callback.invoke(Point.fromLngLat(long, lat))
         }
-
-        if (northWestCity == null || southEastCity == null) {
-            return Point.fromLngLat(FRASNE_LONGITUDE, FRASNE_LATITUDE)
-        }
-
-        val northWestPoint = Point.fromLngLat(
-            (northWestCity as Address).longitude, northWestCity!!.latitude
-        )
-        val southEastPoint = Point.fromLngLat(
-            (southEastCity as Address).longitude, southEastCity!!.latitude
-        )
-
-        val long = (southEastPoint.longitude() + northWestPoint.longitude()) / 2
-        val lat = (southEastPoint.latitude() + northWestPoint.latitude()) / 2
-
-        isLoading.value = false
-        return Point.fromLngLat(long, lat)
     }
 
     val screenSize: ScreenSize = rememberScreenSize()
@@ -266,6 +269,13 @@ fun MapBoxComposable(
         )
     }
 
+    LaunchedEffect(Unit) {
+        getBaseCameraLocation {
+            cameraBasePoint.value = it
+            isLoading.value = false
+        }
+    }
+
     Card(
         modifier = Modifier.heightIn(min = 0.dp, max = (screenSize.height / 5) * 2)
             .fillMaxWidth().padding(4.dp).focusable(true),
@@ -299,7 +309,7 @@ fun MapBoxComposable(
                     setCameraOptions {
                         zoom(8.5)
                         center(
-                            getBaseCameraLocation()
+                            cameraBasePoint.value
                         )
                         pitch(0.0)
                         bearing(0.0)
