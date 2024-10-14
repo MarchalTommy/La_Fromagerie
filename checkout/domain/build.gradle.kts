@@ -48,4 +48,5 @@ dependencies {
     implementation(libs.koin.androidx.compose.navigation)
 
     implementation(libs.play.service.wallet)
+    implementation(libs.datastore.preferences)
 }

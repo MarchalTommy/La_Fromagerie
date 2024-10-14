@@ -52,6 +52,7 @@ lifecycle-viewmodel = { module = "androidx.lifecycle:lifecycle-viewmodel", versi
 kotlinx-coroutines = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "kotlinx-coroutines" }
 kotlinx-coroutines-service = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-play-services", version.ref = "kotlinx-coroutines" }
 
+
 ## Compose
 activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activity-compose" }
 androidx-compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "compose-bom" }
@@ -90,6 +91,7 @@ koin-androidx-compose-navigation = { module = "io.insert-koin:koin-androidx-comp
 koin-test = { module = "io.insert-koin:koin-test-junit4" }
 androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
 
+
 ## KTOR client
 ktor-client-android = { module = "io.ktor:ktor-client-android", version.ref = "ktor" }
 ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
@@ -111,6 +113,11 @@ room-compiler = { module = "androidx.room:room-compiler", version.ref = "room" }
 room-ktx = { module = "androidx.room:room-ktx", version.ref = "room" }
 
 
+## Datastore preferences
+datastore-preferences = { module = "androidx.datastore:datastore-preferences", version.ref = "datastore" }
+datastore-proto = { module = "androidx.datastore:datastore", version.ref = "datastore" }
+
+
 ## Compose navigation + serialization
 navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "navigation-compose" }
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "serialization" }
@@ -121,11 +128,14 @@ androidx-navigation-common-ktx = { group = "androidx.navigation", name = "naviga
 mapbox = { module = "com.mapbox.maps:android", version.ref = "mapbox" }
 mapbox-extension = { module = "com.mapbox.extension:maps-compose", version.ref = "mapbox" }
 
+
 ## Permissions
 accompanist-permissions = { module = "com.google.accompanist:accompanist-permissions", version.ref = "accompanist-permissions" }
 
+
 ## Location
 location = { module = "com.google.android.gms:play-services-location", version.ref = "location" }
+
 
 ## Contentment (avoid loader flickering)
 contentment = { module = "me.rmyhal.contentment:contentment", version.ref = "contentment" }

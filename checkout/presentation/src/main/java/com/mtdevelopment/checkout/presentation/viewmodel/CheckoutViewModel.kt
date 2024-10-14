@@ -2,7 +2,9 @@ package com.mtdevelopment.checkout.presentation.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.android.gms.tasks.Task
 import com.google.android.gms.wallet.PaymentData
+import com.mapbox.maps.logE
 import com.mtdevelopment.cart.presentation.model.UiBasketObject
 import com.mtdevelopment.checkout.domain.usecase.CreatePaymentClientUseCase
 import com.mtdevelopment.checkout.domain.usecase.FetchAllowedPaymentMethods
@@ -51,16 +53,24 @@ class CheckoutViewModel(
     }
 
     init {
-        createPaymentClientUseCase.invoke()
+
+        viewModelScope.launch {
+            createPaymentClientUseCase.invoke()
+        }
     }
 
-    fun payWithGooglePay(amount: Double) {
+    fun payWithGooglePay(amount: Double, onComplete: (Task<PaymentData>?) -> Unit) {
         viewModelScope.launch {
             if (fetchCanUseGooglePayUseCase.invoke() == true) {
-                getLoadPaymentDataTaskUseCase.invoke(
-                    price = amount
+                logE(tag = "PAYMENT", "CAN USE GOOGLE PAY")
+                onComplete.invoke(
+                    getLoadPaymentDataTaskUseCase.invoke(
+                        price = amount
+                    )
                 )
             } else {
+                logE(tag = "PAYMENT", "CANNOT USE GOOGLE PAY")
+                onComplete.invoke(null)
                 // TODO: MANAGE ERROR
             }
         }

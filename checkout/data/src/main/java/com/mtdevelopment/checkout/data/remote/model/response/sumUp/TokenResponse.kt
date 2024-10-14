@@ -1,4 +1,4 @@
-package com.mtdevelopment.checkout.data.remote.model
+package com.mtdevelopment.checkout.data.remote.model.response.sumUp
 
 
 import kotlinx.serialization.SerialName

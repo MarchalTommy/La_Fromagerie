@@ -1,9 +1,11 @@
 package com.mtdevelopment.lafromagerie.di
 
 import com.mtdevelopment.cart.presentation.viewmodel.CartViewModel
+import com.mtdevelopment.checkout.data.local.CheckoutDatastorePreferenceImpl
 import com.mtdevelopment.checkout.data.remote.model.Constants
 import com.mtdevelopment.checkout.data.remote.source.SumUpDataSource
 import com.mtdevelopment.checkout.data.repository.PaymentRepositoryImpl
+import com.mtdevelopment.checkout.domain.repository.CheckoutDatastorePreference
 import com.mtdevelopment.checkout.domain.repository.PaymentRepository
 import com.mtdevelopment.checkout.domain.usecase.CreatePaymentClientUseCase
 import com.mtdevelopment.checkout.domain.usecase.FetchAllowedPaymentMethods
@@ -26,7 +28,7 @@ import org.koin.androidx.viewmodel.dsl.viewModel
 import org.koin.dsl.module
 
 fun appModule() = listOf(
-    mainAppModule, provideHttpClientModule
+    mainAppModule, provideDatastore, provideHttpClientModule
 )
 
 val mainAppModule = module {
@@ -69,4 +71,8 @@ val provideHttpClientModule = module {
             }
         }
     }
+}
+
+val provideDatastore = module {
+    single<CheckoutDatastorePreference> { CheckoutDatastorePreferenceImpl(get()) }
 }

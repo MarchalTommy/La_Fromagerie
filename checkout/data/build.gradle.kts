@@ -7,17 +7,19 @@ plugins {
 android {
     namespace = "com.mtdevelopment.checkout.data"
     compileSdk = 34
+    android.buildFeatures.buildConfig = true
 
     defaultConfig {
         minSdk = 24
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles("consumer-rules.pro")
-        // TODO: REPLACE WITH PARENTS ACCOUNT KEYs
         val SUMUP_PRIVATE_KEY: String by project
         buildConfigField("String", "SUMUP_PRIVATE_KEY", "\"$SUMUP_PRIVATE_KEY\"")
         val SUMUP_PUBLIC_KEY: String by project
-        buildConfigField("String", "SUMUP_PUBLIC_Key", "\"$SUMUP_PUBLIC_KEY\"")
+        buildConfigField("String", "SUMUP_PUBLIC_KEY", "\"$SUMUP_PUBLIC_KEY\"")
+        val SUMUP_MERCHANT_ID: String by project
+        buildConfigField("String", "SUMUP_MERCHANT_ID", "\"$SUMUP_MERCHANT_ID\"")
     }
 
     buildTypes {
@@ -67,4 +69,6 @@ dependencies {
     implementation(libs.ktor.client.cio)
     implementation(libs.ktor.client.logging)
     implementation(libs.ktor.client.auth)
+
+    implementation(libs.datastore.preferences)
 }

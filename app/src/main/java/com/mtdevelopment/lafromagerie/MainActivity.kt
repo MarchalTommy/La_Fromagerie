@@ -27,6 +27,21 @@ class MainActivity : ComponentActivity() {
     private val cartViewModel: com.mtdevelopment.cart.presentation.viewmodel.CartViewModel by viewModel()
     private val checkoutViewModel: CheckoutViewModel by viewModel()
 
+    val paymentDataLauncher =
+        registerForActivityResult(TaskResultContracts.GetPaymentDataResult()) { taskResult ->
+            when (taskResult.status.statusCode) {
+                CommonStatusCodes.SUCCESS -> {
+                    taskResult.result!!.let {
+                        Log.i("Google Pay result:", it.toJson())
+                        checkoutViewModel.setGooglePayResult(it)
+                    }
+                }
+                //CommonStatusCodes.CANCELED -> The user canceled
+                //CommonStatusCodes.DEVELOPER_ERROR -> The API returned an error (it.status: Status)
+                //else -> Handle internal and other unexpected errors
+            }
+        }
+
     @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
@@ -61,24 +76,20 @@ class MainActivity : ComponentActivity() {
                         paddingValues = paddingValues,
                         navController = navController,
                         onGooglePayButtonClick = {
-                            val paymentDataLauncher =
-                                registerForActivityResult(TaskResultContracts.GetPaymentDataResult()) { taskResult ->
-                                    when (taskResult.status.statusCode) {
-                                        CommonStatusCodes.SUCCESS -> {
-                                            taskResult.result!!.let {
-                                                Log.i("Google Pay result:", it.toJson())
-                                                checkoutViewModel.setGooglePayResult(it)
-                                            }
-                                        }
-                                        //CommonStatusCodes.CANCELED -> The user canceled
-                                        //CommonStatusCodes.DEVELOPER_ERROR -> The API returned an error (it.status: Status)
-                                        //else -> Handle internal and other unexpected errors
-                                    }
-                                }
+                            Log.e("PAYMENT", "BUTTON CLICKED")
+                            requestPayment()
                         }
                     )
                 }
             }
+        }
+
+
+    }
+
+    private fun requestPayment() {
+        checkoutViewModel.payWithGooglePay(3.5) {
+            it?.addOnCompleteListener(paymentDataLauncher::launch)
         }
     }
 }

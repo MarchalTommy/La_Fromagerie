@@ -27,4 +27,12 @@ interface PaymentRepository {
     // SUMUP
     ///////////////////////////////////////////////////////////////////////////
 
+    suspend fun getCheckoutFromRef(reference: String?)
+
+    suspend fun getCheckoutFromId(id: String)
+
+    fun createNewCheckout()
+
+    fun processCheckout(id:String)
+
 }

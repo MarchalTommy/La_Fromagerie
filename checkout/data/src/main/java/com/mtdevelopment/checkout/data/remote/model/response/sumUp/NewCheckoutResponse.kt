@@ -1,15 +1,15 @@
-package com.mtdevelopment.checkout.data.remote.model
+package com.mtdevelopment.checkout.data.remote.model.response.sumUp
 
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class CheckoutResponse(
+data class NewCheckoutResponse(
     @SerialName("amount")
     val amount: Double?,
     @SerialName("checkout_reference")
-    val checkoutReference: Any?,
+    val checkoutReference: String?,
     @SerialName("currency")
     val currency: String?,
     @SerialName("customer_id")
@@ -17,19 +17,21 @@ data class CheckoutResponse(
     @SerialName("date")
     val date: String?,
     @SerialName("description")
-    val description: Any?,
+    val description: String?,
     @SerialName("id")
     val id: String?,
     @SerialName("mandate")
     val mandate: Mandate?,
     @SerialName("merchant_code")
-    val merchantCode: Any?,
+    val merchantCode: String?,
+    @SerialName("merchant_country")
+    val merchantCountry: String?,
     @SerialName("pay_to_email")
-    val payToEmail: Any?,
+    val payToEmail: String?,
     @SerialName("return_url")
-    val returnUrl: Any?,
+    val returnUrl: String?,
     @SerialName("status")
-    val status: Any?,
+    val status: String?,
     @SerialName("transactions")
     val transactions: List<Transaction?>?,
     @SerialName("valid_until")
@@ -54,19 +56,19 @@ data class CheckoutResponse(
         @SerialName("currency")
         val currency: String?,
         @SerialName("entry_mode")
-        val entryMode: Any?,
+        val entryMode: String?,
         @SerialName("id")
         val id: String?,
         @SerialName("installments_count")
-        val installmentsCount: Any?,
+        val installmentsCount: Int?,
         @SerialName("internal_id")
         val internalId: Int?,
         @SerialName("merchant_code")
         val merchantCode: String?,
         @SerialName("payment_type")
-        val paymentType: Any?,
+        val paymentType: String?,
         @SerialName("status")
-        val status: Any?,
+        val status: String?,
         @SerialName("timestamp")
         val timestamp: String?,
         @SerialName("tip_amount")

@@ -93,4 +93,6 @@ dependencies {
     implementation(libs.ktor.client.cio)
     implementation(libs.ktor.client.logging)
     implementation(libs.ktor.client.auth)
+
+    implementation(libs.datastore.preferences)
 }

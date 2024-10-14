@@ -8,8 +8,8 @@ import com.google.android.gms.wallet.PaymentDataRequest
 import com.google.android.gms.wallet.PaymentsClient
 import com.google.android.gms.wallet.Wallet
 import com.google.android.gms.wallet.WalletConstants
-import com.mtdevelopment.checkout.data.remote.model.GrantType
-import com.mtdevelopment.checkout.data.remote.model.TokenRequest
+import com.mtdevelopment.checkout.data.BuildConfig
+import com.mtdevelopment.checkout.data.local.CheckoutDatastorePreferenceImpl
 import com.mtdevelopment.checkout.data.remote.model.allowedAuthMethods
 import com.mtdevelopment.checkout.data.remote.model.allowedCardNetworks
 import com.mtdevelopment.checkout.data.remote.source.SumUpDataSource
@@ -21,12 +21,9 @@ import org.json.JSONObject
 
 class PaymentRepositoryImpl(
     private val context: Context,
-    private val sumUpDataSource: SumUpDataSource
+    private val sumUpDataSource: SumUpDataSource,
+//    private val datastore: CheckoutDatastorePreferenceImpl
 ) : PaymentRepository {
-
-    init {
-        initClientToken()
-    }
 
     ///////////////////////////////////////////////////////////////////////////
     // GOOGLE PAY PART
@@ -99,14 +96,13 @@ class PaymentRepositoryImpl(
             )
 
     private fun gatewayTokenizationSpecification(): JSONObject {
-        // TODO : GET SUMUP MERCHANT CODE : https://developer.sumup.com/online-payments/apm/google-pay
         return JSONObject().apply {
             put("type", "PAYMENT_GATEWAY")
             put(
                 "parameters", JSONObject(
                     mapOf(
                         "gateway" to "sumup",
-                        "gatewayMerchantId" to "YOUR_SUMUP_MERCHANT_ID"
+                        "gatewayMerchantId" to BuildConfig.SUMUP_MERCHANT_ID
                     )
                 )
             )
@@ -127,24 +123,42 @@ class PaymentRepositoryImpl(
     // SUMUP PART
     ///////////////////////////////////////////////////////////////////////////
     private fun initClientToken() {
-        // TODO: GET TOKENs FROM LOCAL STORAGE (JETPACK DATASTORE I THINK ?)
-        val bearerTokens = BearerTokens("BEARER", "REFRESH")
+        // TODO: GET TOKENs FROM LOCAL STORAGE (JETPACK DATASTORE I THINK ?) Try with api key and if it does not work, go with OAUTH 2.0
+//        val token = datastore.sumUpTokenFlow.first()
+//        val refresh = datastore.sumUpRefreshTokenFlow.first()
+        val bearerTokens = BearerTokens(BuildConfig.SUMUP_PRIVATE_KEY, null)
         sumUpDataSource.initClientToken(bearerTokens)
     }
 
-    private fun generateTokenRequestBody(
-        clientId: String,
-        clientSecret: String,
-        authCode: String,
-        grantType: GrantType,
-        refreshToken: String? = null
-    ): TokenRequest {
-        return TokenRequest(
-            clientId = clientId,
-            clientSecret = clientSecret,
-            authCode = authCode,
-            grantType = grantType,
-            refreshToken = refreshToken
-        )
+//    private fun generateTokenRequestBody(
+//        clientId: String,
+//        clientSecret: String,
+//        authCode: String,
+//        grantType: GrantType,
+//        refreshToken: String? = null
+//    ): TokenRequest {
+//        return TokenRequest(
+//            clientId = clientId,
+//            clientSecret = clientSecret,
+//            authCode = authCode,
+//            grantType = grantType,
+//            refreshToken = refreshToken
+//        )
+//    }
+
+    override suspend fun getCheckoutFromRef(reference: String?) {
+        TODO("Not yet implemented")
+    }
+
+    override suspend fun getCheckoutFromId(id: String) {
+        TODO("Not yet implemented")
+    }
+
+    override fun createNewCheckout() {
+        TODO("Not yet implemented")
+    }
+
+    override fun processCheckout(id: String) {
+        TODO("Not yet implemented")
     }
 }

@@ -77,8 +77,9 @@ import java.io.IOException
 fun DeliveryOptionScreen(
     cartViewModel: CartViewModel? = null,
     checkoutViewModel: CheckoutViewModel? = null,
+    screenSize: ScreenSize = rememberScreenSize(),
     navigateToHome: () -> Unit = {},
-    screenSize: ScreenSize = rememberScreenSize()
+    navigateToCheckout: () -> Unit = {}
 ) {
 
     // TODO: FIX AUTO-GEOLOC ->
@@ -315,6 +316,7 @@ fun DeliveryOptionScreen(
                             userAddressFieldText.value
                         )
                     )
+                    navigateToCheckout.invoke()
                 }) {
                 Text("Valider et passer au paiement")
             }

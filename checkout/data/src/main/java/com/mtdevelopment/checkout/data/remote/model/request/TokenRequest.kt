@@ -1,4 +1,4 @@
-package com.mtdevelopment.checkout.data.remote.model
+package com.mtdevelopment.checkout.data.remote.model.request
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable

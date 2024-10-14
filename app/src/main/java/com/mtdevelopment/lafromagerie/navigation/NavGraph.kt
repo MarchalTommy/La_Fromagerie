@@ -30,7 +30,7 @@ fun NavGraph(
 ) {
     NavHost(
         navController = navController,
-        startDestination = HomeScreen,
+        startDestination = CheckoutScreen,
         modifier = Modifier.padding(paddingValues)
     ) {
 
@@ -80,7 +80,9 @@ fun NavGraph(
                 scaleOutOfContainer()
             }
         ) {
-            DeliveryOptionScreen(cartViewModel, checkoutViewModel)
+            DeliveryOptionScreen(cartViewModel, checkoutViewModel, navigateToCheckout = {
+                navController.navigate(CheckoutScreen)
+            })
         }
 
         composable<CheckoutScreen>(
@@ -97,7 +99,11 @@ fun NavGraph(
                 scaleOutOfContainer()
             }
         ) {
-            CheckoutScreen(cartViewModel, checkoutViewModel, onGooglePayButtonClick = onGooglePayButtonClick)
+            CheckoutScreen(
+                cartViewModel,
+                checkoutViewModel,
+                onGooglePayButtonClick = onGooglePayButtonClick
+            )
         }
 
     }
