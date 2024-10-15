@@ -1,5 +1,6 @@
 package com.mtdevelopment.checkout.presentation.viewmodel
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.android.gms.tasks.Task
@@ -21,6 +22,7 @@ import kotlinx.coroutines.launch
 import org.koin.core.component.KoinComponent
 
 class CheckoutViewModel(
+    private val savedStateHandle: SavedStateHandle,
     getIsConnectedUseCase: GetIsNetworkConnectedUseCase,
     private val createPaymentClientUseCase: CreatePaymentClientUseCase,
     private val fetchCanUseGooglePayUseCase: FetchCanUseGooglePayUseCase,
@@ -30,33 +32,21 @@ class CheckoutViewModel(
 
     val allowedPaymentMethods = fetchAllowedPaymentMethods.invoke().toString()
 
-    private val _cartObjects =
-        MutableStateFlow(UiBasketObject("1", flowOf(emptyList()), flowOf("0,00€")))
-    val cartObjects: StateFlow<UiBasketObject> = _cartObjects.asStateFlow()
-
-    private val _selectedPath = MutableStateFlow<DeliveryPath?>(null)
-    val selectedPath: StateFlow<DeliveryPath?> = _selectedPath.asStateFlow()
-
+    val paymentUiState = savedStateHandle.getStateFlow("paymentUiState", PaymentUiState.NotStarted)
     private val _googlePayData: MutableStateFlow<PaymentData> =
         MutableStateFlow(PaymentData.fromJson("{}"))
+
     val googlePayData: StateFlow<PaymentData> = _googlePayData.asStateFlow()
-
-    fun setSelectedPath(path: DeliveryPath) {
-        _selectedPath.value = path
-    }
-
-    private val _userInfo = MutableStateFlow<UserInfo?>(null)
-    val userInfo: StateFlow<UserInfo?> = _userInfo.asStateFlow()
-
-    fun setUserInfo(userInfo: UserInfo) {
-        _userInfo.value = userInfo
-    }
 
     init {
 
         viewModelScope.launch {
             createPaymentClientUseCase.invoke()
         }
+    }
+
+    fun test() {
+        savedStateHandle["deliveryUiState"] = DeliveryUiState.Ready
     }
 
     fun payWithGooglePay(amount: Double, onComplete: (Task<PaymentData>?) -> Unit) {
@@ -82,4 +72,11 @@ class CheckoutViewModel(
 //        googlePayData.toJson().get("")
     }
 
+}
+
+abstract class PaymentUiState internal constructor() {
+    object NotStarted : PaymentUiState()
+    object Available : PaymentUiState()
+    class PaymentCompleted(val payerName: String) : PaymentUiState()
+    class Error(val code: Int, val message: String? = null) : PaymentUiState()
 }

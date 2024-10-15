@@ -8,15 +8,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import com.google.pay.button.PayButton
-import com.mtdevelopment.cart.presentation.viewmodel.CartViewModel
 import com.mtdevelopment.checkout.presentation.viewmodel.CheckoutViewModel
+import org.koin.androidx.compose.koinViewModel
 
 @Composable
 fun CheckoutScreen(
-    cartViewModel: CartViewModel? = null,
-    checkoutViewModel: CheckoutViewModel? = null,
     onGooglePayButtonClick: () -> Unit = {}
 ) {
+
+    val checkoutViewModel = koinViewModel<CheckoutViewModel>()
 
     Column(
         modifier = Modifier.fillMaxSize(),
@@ -28,7 +28,7 @@ fun CheckoutScreen(
                 .testTag("payButton")
                 .fillMaxWidth(),
             onClick = onGooglePayButtonClick,
-            allowedPaymentMethods = checkoutViewModel?.allowedPaymentMethods ?: ""
+            allowedPaymentMethods = checkoutViewModel.allowedPaymentMethods
         )
 
     }

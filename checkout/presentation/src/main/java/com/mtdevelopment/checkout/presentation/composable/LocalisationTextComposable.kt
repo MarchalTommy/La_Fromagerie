@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.State
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
@@ -15,28 +14,26 @@ import com.mtdevelopment.checkout.presentation.model.DeliveryPath
 
 @Composable
 fun LocalisationTextComposable(
-    selectedPath: State<DeliveryPath?>?,
-    geolocIsOnPath: State<Boolean>,
-    userCity: State<String?>
+    selectedPath: DeliveryPath?,
+    geolocIsOnPath: Boolean,
+    userCity: String?
 ) {
     Text(
         modifier = Modifier.padding(horizontal = 8.dp).fillMaxWidth(),
         text = when {
-            selectedPath?.value != null -> stringResource(
+            selectedPath != null -> stringResource(
                 R.string.manual_path_chosen,
-                selectedPath.value?.pathName ?: "Unknown"
+                selectedPath.pathName ?: "Unknown"
             )
 
-            geolocIsOnPath.value -> stringResource(
+            geolocIsOnPath -> stringResource(
                 R.string.auto_geoloc_success,
-                userCity.value?: "ERREUR"
+                userCity ?: "ERREUR"
             )
 
-            !geolocIsOnPath.value && selectedPath?.value == null -> stringResource(
+            else -> stringResource(
                 R.string.auto_geoloc_not_on_path
             )
-
-            else -> "ERROR"
         },
         style = MaterialTheme.typography.bodyLarge,
         textAlign = TextAlign.Center

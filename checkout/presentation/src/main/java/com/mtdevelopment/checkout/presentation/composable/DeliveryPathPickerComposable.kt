@@ -15,6 +15,7 @@ import androidx.compose.material3.ShapeDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -23,20 +24,27 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.lifecycle.ViewModelStoreOwner
 import com.mtdevelopment.checkout.presentation.model.DeliveryPath
-import com.mtdevelopment.checkout.presentation.viewmodel.CheckoutViewModel
+import com.mtdevelopment.checkout.presentation.viewmodel.DeliveryUiState
+import com.mtdevelopment.checkout.presentation.viewmodel.DeliveryViewModel
+import org.koin.androidx.compose.koinViewModel
 
 @Composable
 fun DeliveryPathPickerComposable(
-    checkoutViewModel: CheckoutViewModel,
+    viewModelStoreOwner: ViewModelStoreOwner,
     onDismiss: () -> Unit = {}
 ) {
-    val previouslySelectedPath = checkoutViewModel.selectedPath.collectAsState()
+
+    val deliveryViewModel = koinViewModel<DeliveryViewModel>(viewModelStoreOwner = viewModelStoreOwner)
+
+    val screenState by deliveryViewModel.deliveryUiState.collectAsState()
+    val previouslySelectedPath = (screenState as? DeliveryUiState.DeliveryDataState)?.path
 
     val radioOptions = DeliveryPath.entries
     val (selectedOption, onOptionSelected) = remember {
         mutableStateOf(
-            previouslySelectedPath.value ?: radioOptions[0]
+            previouslySelectedPath ?: radioOptions[0]
         )
     }
 
@@ -66,7 +74,7 @@ fun DeliveryPathPickerComposable(
                 Button(
                     modifier = Modifier.padding(8.dp).align(Alignment.CenterHorizontally),
                     onClick = {
-                        checkoutViewModel.setSelectedPath(selectedOption)
+                        deliveryViewModel.manageScreenState(path = selectedOption)
                         onDismiss()
                     }
                 ) {

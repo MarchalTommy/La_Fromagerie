@@ -10,8 +10,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.MutableState
-import androidx.compose.runtime.State
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -23,21 +21,21 @@ import com.mtdevelopment.checkout.presentation.model.DeliveryPath
 
 @Composable
 fun LocalisationTypePicker(
-    localisationPermissionState: MutableState<Boolean>,
+    hasSelectedPath: Boolean,
+    isLocalisationSuccessful: Boolean,
     showDeliverySelection: () -> Unit,
-    selectedPath: State<DeliveryPath?>?,
-    localisationSuccess: State<Boolean>
+    setLocalisationPermission: (Boolean) -> Unit
 ) {
     Row(
         modifier = Modifier.padding(horizontal = 8.dp).fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceAround,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        if (selectedPath?.value == null && !localisationSuccess.value && Geocoder.isPresent()) {
+        if (!hasSelectedPath && !isLocalisationSuccessful && Geocoder.isPresent()) {
             TextButton(
                 modifier = Modifier.padding(horizontal = 8.dp).weight(1f),
                 onClick = {
-                    localisationPermissionState.value = true
+                    setLocalisationPermission.invoke(true)
                 },
                 content = {
                     Text(

@@ -9,7 +9,6 @@ import com.google.android.gms.wallet.PaymentsClient
 import com.google.android.gms.wallet.Wallet
 import com.google.android.gms.wallet.WalletConstants
 import com.mtdevelopment.checkout.data.BuildConfig
-import com.mtdevelopment.checkout.data.local.CheckoutDatastorePreferenceImpl
 import com.mtdevelopment.checkout.data.remote.model.allowedAuthMethods
 import com.mtdevelopment.checkout.data.remote.model.allowedCardNetworks
 import com.mtdevelopment.checkout.data.remote.source.SumUpDataSource
@@ -45,8 +44,7 @@ class PaymentRepositoryImpl(
 
     private val merchantInfo: JSONObject =
         JSONObject().put("merchantName", "EARL Des Laizinnes")
-//            .put("merchantId", "123809134581094")
-    // TODO: Here replace merchant ID shit by the real one given by google after doing what needs to be done
+            .put("merchantId", BuildConfig.GOOGLE_PAY_ID)
     // TODO: MAY NOT BE NECESSARY ON ANDROID ? Not specified in google tutorial, but is specified on SumUp Doc... Try and see !
 
 

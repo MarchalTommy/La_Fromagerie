@@ -15,8 +15,6 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.ShapeDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.MutableState
-import androidx.compose.runtime.State
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
@@ -26,15 +24,16 @@ import com.mtdevelopment.checkout.presentation.R
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DateTextField(
-    shouldBeClickable: State<Boolean>,
-    datePickerVisibility: MutableState<Boolean>,
+    shouldBeClickable: Boolean,
     datePickerState: DatePickerState,
-    dateFieldText: MutableState<String>
+    dateFieldText: String,
+    showDatePicker: () -> Unit,
+    setDateTextFieldText: (String) -> Unit
 ) {
     OutlinedTextField(
-        modifier = if (shouldBeClickable.value) {
+        modifier = if (shouldBeClickable) {
             Modifier.clickable {
-                datePickerVisibility.value = true
+                showDatePicker.invoke()
             }.padding(horizontal = 8.dp).fillMaxWidth()
         } else {
             Modifier.padding(horizontal = 8.dp).fillMaxWidth()
@@ -43,17 +42,17 @@ fun DateTextField(
                 datePickerState.selectedDateMillis ?: 0L
             )
         ) {
-            dateFieldText.value
+            dateFieldText
         } else {
             ""
         },
         onValueChange = { newValue ->
-            dateFieldText.value = newValue
+            setDateTextFieldText.invoke(newValue)
         },
         enabled = false,
         label = {
             Text(
-                if (shouldBeClickable.value) {
+                if (shouldBeClickable) {
                     stringResource(R.string.delivery_date_label)
                 } else {
                     "Sélectionnez un parcours pour choisir une date"

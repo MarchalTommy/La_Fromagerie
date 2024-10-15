@@ -24,7 +24,6 @@ import org.koin.androidx.viewmodel.ext.android.viewModel
 
 class MainActivity : ComponentActivity() {
 
-    private val cartViewModel: com.mtdevelopment.cart.presentation.viewmodel.CartViewModel by viewModel()
     private val checkoutViewModel: CheckoutViewModel by viewModel()
 
     val paymentDataLauncher =
@@ -71,8 +70,6 @@ class MainActivity : ComponentActivity() {
                     }
                 ) { paddingValues ->
                     NavGraph(
-                        cartViewModel = cartViewModel,
-                        checkoutViewModel = checkoutViewModel,
                         paddingValues = paddingValues,
                         navController = navController,
                         onGooglePayButtonClick = {

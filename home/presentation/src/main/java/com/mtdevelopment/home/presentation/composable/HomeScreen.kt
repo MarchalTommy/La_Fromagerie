@@ -41,6 +41,7 @@ import com.mtdevelopment.core.util.ScreenSize
 import com.mtdevelopment.core.util.rememberScreenSize
 import com.mtdevelopment.home.presentation.composable.cart.CartView
 import kotlinx.coroutines.launch
+import org.koin.androidx.compose.koinViewModel
 
 @Preview(
     name = "Default device",
@@ -59,11 +60,12 @@ import kotlinx.coroutines.launch
 )
 @Composable
 fun HomeScreen(
-    cartViewModel: CartViewModel? = null,
     screenSize: ScreenSize = rememberScreenSize(),
     navigateToDetail: (UiProductObject) -> Unit = {},
     navigateToCheckout: () -> Unit = {}
 ) {
+
+    val cartViewModel = koinViewModel<CartViewModel>()
 
     val coroutineScope = rememberCoroutineScope()
 
@@ -71,7 +73,7 @@ fun HomeScreen(
     val scaleCart = remember { Animatable(1f) }
 
     val cartContent =
-        cartViewModel?.cartObjects?.collectAsState()?.value?.content?.collectAsState(emptyList())
+        cartViewModel.cartObjects.collectAsState().value.content.collectAsState(emptyList())
 
     fun animateAddingToCart() {
         coroutineScope.launch {
@@ -107,7 +109,7 @@ fun HomeScreen(
                         navigateToDetail.invoke(it)
                     }
                 ) {
-                    cartViewModel?.addCartObject(productListItem)
+                    cartViewModel.addCartObject(productListItem)
                     animateAddingToCart()
                 }
             }
@@ -122,12 +124,12 @@ fun HomeScreen(
                 }
                 .padding(32.dp),
             badge = {
-                if ((cartContent?.value?.size ?: 0) > 0) {
+                if ((cartContent.value.size) > 0) {
                     Badge(
                         containerColor = Color.Red,
                         contentColor = Color.White
                     ) {
-                        val cartItemsQuantity = cartContent?.value?.sumOf { it.quantity }
+                        val cartItemsQuantity = cartContent.value.sumOf { it.quantity }
                         Text("$cartItemsQuantity")
                     }
                 }

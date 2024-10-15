@@ -12,6 +12,7 @@ import com.mtdevelopment.checkout.domain.usecase.FetchAllowedPaymentMethods
 import com.mtdevelopment.checkout.domain.usecase.FetchCanUseGooglePayUseCase
 import com.mtdevelopment.checkout.domain.usecase.GetLoadPaymentDataTaskUseCase
 import com.mtdevelopment.checkout.presentation.viewmodel.CheckoutViewModel
+import com.mtdevelopment.checkout.presentation.viewmodel.DeliveryViewModel
 import com.mtdevelopment.core.repository.NetworkRepository
 import com.mtdevelopment.core.repository.NetworkRepositoryImpl
 import com.mtdevelopment.core.usecase.GetIsNetworkConnectedUseCase
@@ -43,8 +44,10 @@ val mainAppModule = module {
     factory { GetLoadPaymentDataTaskUseCase(get()) }
 
     viewModel { CartViewModel(get()) }
+    viewModel { DeliveryViewModel(get()) }
     viewModel {
         CheckoutViewModel(
+            savedStateHandle = get(),
             createPaymentClientUseCase = get(),
             fetchCanUseGooglePayUseCase = get(),
             getLoadPaymentDataTaskUseCase = get(),

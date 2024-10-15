@@ -8,21 +8,21 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.ShapeDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.MutableState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
 @Composable
 fun UserInfoComposable(
-    fieldText: MutableState<String>,
+    fieldText: String,
     label: String,
+    setText: (String) -> Unit,
     leadingIcon: @Composable () -> Unit
 ) {
     OutlinedTextField(
         modifier = Modifier.padding(start = 8.dp, end = 8.dp).fillMaxWidth(),
-        value = fieldText.value,
+        value = fieldText,
         onValueChange = { text ->
-            fieldText.value = text
+            setText.invoke(text)
         },
         label = { Text(label) },
         shape = ShapeDefaults.Medium,

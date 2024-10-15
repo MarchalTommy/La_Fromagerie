@@ -22,21 +22,18 @@ import com.mtdevelopment.home.presentation.composable.HomeScreen
 
 @Composable
 fun NavGraph(
-    cartViewModel: CartViewModel,
-    checkoutViewModel: CheckoutViewModel,
     paddingValues: PaddingValues,
     navController: NavHostController,
     onGooglePayButtonClick: () -> Unit = {}
 ) {
     NavHost(
         navController = navController,
-        startDestination = CheckoutScreen,
+        startDestination = DeliveryOptionScreen,
         modifier = Modifier.padding(paddingValues)
     ) {
 
         composable<HomeScreen> {
             HomeScreen(
-                cartViewModel,
                 navigateToDetail = { product ->
                     navController.navigate(DetailDestination(product))
                 }, navigateToCheckout = {
@@ -61,8 +58,7 @@ fun NavGraph(
         ) {
             val args = it.toRoute<DetailDestination>()
             DetailScreen(
-                detailProductObject = args.productObject,
-                viewModel = cartViewModel
+                detailProductObject = args.productObject
             )
         }
 
@@ -80,7 +76,7 @@ fun NavGraph(
                 scaleOutOfContainer()
             }
         ) {
-            DeliveryOptionScreen(cartViewModel, checkoutViewModel, navigateToCheckout = {
+            DeliveryOptionScreen(navigateToCheckout = {
                 navController.navigate(CheckoutScreen)
             })
         }
@@ -100,8 +96,6 @@ fun NavGraph(
             }
         ) {
             CheckoutScreen(
-                cartViewModel,
-                checkoutViewModel,
                 onGooglePayButtonClick = onGooglePayButtonClick
             )
         }

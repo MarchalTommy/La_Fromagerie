@@ -13,7 +13,6 @@ import androidx.compose.material3.ShapeDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -26,26 +25,28 @@ import java.util.Locale
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DatePickerComposable(
-    datePickerVisibility: MutableState<Boolean>,
-    dateFieldText: MutableState<String>,
-    datePickerState: DatePickerState
+    datePickerState: DatePickerState,
+    setDateTextFieldText: (String) -> Unit,
+    setDatePickerVisibility: (Boolean) -> Unit
 ) {
     androidx.compose.material3.DatePickerDialog(
         modifier = Modifier,
         onDismissRequest = {
-            datePickerVisibility.value = false
+            setDatePickerVisibility.invoke(false)
         },
         confirmButton = {
             Text("OK", Modifier.padding(16.dp).clickable {
-                dateFieldText.value = datePickerState.selectedDateMillis?.let {
-                    SimpleDateFormat("dd/MM/yyyy", Locale.FRANCE).format(it)
-                } ?: ""
-                datePickerVisibility.value = false
+                setDateTextFieldText.invoke(
+                    datePickerState.selectedDateMillis?.let {
+                        SimpleDateFormat("dd/MM/yyyy", Locale.FRANCE).format(it)
+                    } ?: ""
+                )
+                setDatePickerVisibility.invoke(false)
             })
         },
         dismissButton = {
             Text("Annuler", Modifier.padding(16.dp).clickable {
-                datePickerVisibility.value = false
+                setDatePickerVisibility.invoke(false)
             })
         },
         shape = ShapeDefaults.Medium,

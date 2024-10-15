@@ -64,13 +64,15 @@ import com.mtdevelopment.core.util.vibratePhoneClick
 import com.skydoves.landscapist.ImageOptions
 import com.skydoves.landscapist.glide.GlideImage
 import kotlinx.coroutines.launch
+import org.koin.androidx.compose.koinViewModel
 
 @Composable
 fun DetailScreen(
     detailProductObject: UiProductObject,
-    viewModel: CartViewModel,
     screenSize: ScreenSize = rememberScreenSize()
 ) {
+
+    val viewModel = koinViewModel<CartViewModel>()
 
     val coroutineScope = rememberCoroutineScope()
 

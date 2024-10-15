@@ -16,18 +16,20 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.contentColorFor
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.MutableState
-import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInteropFilter
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.ViewModelStoreOwner
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.mapbox.android.gestures.MoveGestureDetector
+import com.mapbox.common.MapboxOptions
 import com.mapbox.geojson.Point
 import com.mapbox.maps.CameraOptions
 import com.mapbox.maps.MapView
@@ -47,22 +49,37 @@ import com.mapbox.maps.plugin.annotation.generated.PointAnnotationOptions
 import com.mapbox.maps.plugin.annotation.generated.createPointAnnotationManager
 import com.mapbox.maps.plugin.gestures.OnMoveListener
 import com.mapbox.maps.plugin.gestures.addOnMoveListener
+import com.mtdevelopment.checkout.presentation.BuildConfig.MAPBOX_PUBLIC_TOKEN
 import com.mtdevelopment.checkout.presentation.model.DeliveryPath
+import com.mtdevelopment.checkout.presentation.viewmodel.DeliveryUiState
+import com.mtdevelopment.checkout.presentation.viewmodel.DeliveryViewModel
 import com.mtdevelopment.core.util.ScreenSize
 import com.mtdevelopment.core.util.rememberScreenSize
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import org.koin.androidx.compose.koinViewModel
 import java.io.IOException
 
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun MapBoxComposable(
-    userLocation: State<Pair<Double, Double>?>? = null,
-    chosenPath: State<DeliveryPath?>? = null,
-    columnScrollingEnabled: MutableState<Boolean>,
-    isLoading: MutableState<Boolean>
+    viewModelStoreOwner: ViewModelStoreOwner,
+    columnScrollState: (Boolean) -> Unit,
 ) {
+
+    if (MapboxOptions.accessToken != MAPBOX_PUBLIC_TOKEN) {
+        MapboxOptions.accessToken = MAPBOX_PUBLIC_TOKEN
+    }
+
+    val viewmodel = koinViewModel<DeliveryViewModel>(viewModelStoreOwner = viewModelStoreOwner)
+    val screenState by viewmodel.deliveryUiState.collectAsStateWithLifecycle()
+
+    val chosenPath =
+        rememberSaveable { mutableStateOf((screenState as? DeliveryUiState.DeliveryDataState)?.path) }
+
+    val userLocation =
+        (screenState as? DeliveryUiState.DeliveryDataState)?.userLocation
 
     val FRASNE_LATITUDE = 46.854022
     val FRASNE_LONGITUDE = 6.156132
@@ -118,8 +135,6 @@ fun MapBoxComposable(
     fun getCameraLocalisationFromPath(path: DeliveryPath) {
         CoroutineScope(Dispatchers.IO).launch {
 
-            isLoading.value = true
-
             var northWestCity: Address? = null
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 geocoder.getFromLocationName(selectNorthWestCityFromPath(path), 1) { addressList ->
@@ -169,7 +184,6 @@ fun MapBoxComposable(
 
     fun getBaseCameraLocation(callback: (Point) -> Unit) {
         CoroutineScope(Dispatchers.IO).launch {
-            isLoading.value = true
 
             var northWestCity: Address? = null
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -237,21 +251,19 @@ fun MapBoxComposable(
     val point = remember {
         mutableStateOf<Point>(
             Point.fromLngLat(
-                userLocation?.value?.second ?: 0.0,
-                userLocation?.value?.first ?: 0.0
+                userLocation?.second ?: 0.0,
+                userLocation?.first ?: 0.0
             )
         )
     }
 
-    fun zoomOnSelectedPathMainCity() {
+    fun zoomOnSelectedPathBounds() {
         val long =
             (selectedPathZoomPoint.value?.longitude()
                 ?.plus(selectedPathZoomPoint2.value?.longitude() ?: 0.0))?.div(2)
 
         val lat = selectedPathZoomPoint.value?.latitude()
             ?.plus(selectedPathZoomPoint2.value?.latitude() ?: 0.0)?.div(2)
-
-        isLoading.value = false
 
         map.value?.camera?.flyTo(
             cameraOptions = CameraOptions.Builder()
@@ -272,7 +284,6 @@ fun MapBoxComposable(
     LaunchedEffect(Unit) {
         getBaseCameraLocation {
             cameraBasePoint.value = it
-            isLoading.value = false
         }
     }
 
@@ -295,7 +306,7 @@ fun MapBoxComposable(
                 modifier = Modifier.pointerInteropFilter(onTouchEvent = {
                     when (it.action) {
                         MotionEvent.ACTION_DOWN -> {
-                            columnScrollingEnabled.value = false
+                            columnScrollState.invoke(false)
                             logI("MapTouch", "PRESSED DOWN")
                             false
                         }
@@ -350,7 +361,7 @@ fun MapBoxComposable(
                         }
 
                         override fun onMoveEnd(detector: MoveGestureDetector) {
-                            columnScrollingEnabled.value = true
+                            columnScrollState.invoke(true)
                             logI("MapTouch", "RELEASED")
                         }
 
@@ -359,21 +370,19 @@ fun MapBoxComposable(
                     pointAnnotationManager =
                         mapView.annotations.createPointAnnotationManager(AnnotationConfig())
 
-                    isLoading.value = true
                     mapView.mapboxMap.loadStyle(
                         "mapbox://styles/marchaldevelopment/cm1s77ihq00m301pl7w12c0kc"
                     ) {
-                        isLoading.value = false
                     }
                 }
             }
         }
     }
 
-    if (userLocation?.value != null) {
+    if (userLocation != null) {
         point.value = Point.fromLngLat(
-            userLocation.value?.second ?: 0.0,
-            userLocation.value?.first ?: 0.0
+            userLocation.second,
+            userLocation.first
         )
 
         if (point.value.latitude() != 0.0 && point.value.longitude() != 0.0) {
@@ -399,13 +408,13 @@ fun MapBoxComposable(
         }
     }
 
-    when (chosenPath?.value) {
+    when (chosenPath.value) {
         DeliveryPath.PATH_META -> {
             getCameraLocalisationFromPath(DeliveryPath.PATH_META)
             map.value?.mapboxMap?.loadStyle(
                 "mapbox://styles/marchaldevelopment/cm1te6xn5018j01qphimw2wuz"
             ) {
-                zoomOnSelectedPathMainCity()
+                zoomOnSelectedPathBounds()
             }
         }
 
@@ -414,7 +423,7 @@ fun MapBoxComposable(
             map.value?.mapboxMap?.loadStyle(
                 "mapbox://styles/marchaldevelopment/cm1te6tb700om01pl70i6avlk"
             ) {
-                zoomOnSelectedPathMainCity()
+                zoomOnSelectedPathBounds()
             }
         }
 
@@ -423,7 +432,7 @@ fun MapBoxComposable(
             map.value?.mapboxMap?.loadStyle(
                 "mapbox://styles/marchaldevelopment/cm1teahes00xi01qrghgr91ku"
             ) {
-                zoomOnSelectedPathMainCity()
+                zoomOnSelectedPathBounds()
             }
         }
 
@@ -431,7 +440,6 @@ fun MapBoxComposable(
             map.value?.mapboxMap?.loadStyle(
                 "mapbox://styles/marchaldevelopment/cm1s77ihq00m301pl7w12c0kc"
             ) {
-                isLoading.value = false
             }
         }
     }
