@@ -23,8 +23,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import com.mtdevelopment.checkout.presentation.model.DeliveryPath
-import com.mtdevelopment.checkout.presentation.viewmodel.CheckoutViewModel
+import com.mtdevelopment.core.model.DeliveryPath
 import com.mtdevelopment.checkout.presentation.viewmodel.DeliveryViewModel
 
 @Composable

@@ -37,7 +37,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.navigation.NavArgs
 import app.rive.runtime.kotlin.core.Rive
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
@@ -54,7 +53,6 @@ import com.mtdevelopment.checkout.presentation.composable.MapBoxComposable
 import com.mtdevelopment.checkout.presentation.composable.RequestLocationPermission
 import com.mtdevelopment.checkout.presentation.composable.UserInfoComposable
 import com.mtdevelopment.checkout.presentation.composable.getDatePickerState
-import com.mtdevelopment.checkout.presentation.model.DeliveryPath
 import com.mtdevelopment.checkout.presentation.model.ShippingDefaultSelectableDates
 import com.mtdevelopment.checkout.presentation.model.ShippingSelectableMetaDates
 import com.mtdevelopment.checkout.presentation.model.ShippingSelectablePontarlierDates
@@ -62,6 +60,7 @@ import com.mtdevelopment.checkout.presentation.model.ShippingSelectableSalinDate
 import com.mtdevelopment.checkout.presentation.model.UiCheckoutObject
 import com.mtdevelopment.checkout.presentation.model.UserInfo
 import com.mtdevelopment.checkout.presentation.viewmodel.DeliveryViewModel
+import com.mtdevelopment.core.model.DeliveryPath
 import com.mtdevelopment.core.presentation.composable.RiveAnimation
 import com.mtdevelopment.core.util.ScreenSize
 import com.mtdevelopment.core.util.rememberScreenSize
@@ -79,7 +78,7 @@ import java.io.IOException
 fun DeliveryOptionScreen(
     screenSize: ScreenSize = rememberScreenSize(),
     navigateToHome: () -> Unit = {},
-    navigateToCheckout: (UiCheckoutObject) -> Unit = {}
+    navigateToCheckout: () -> Unit = {}
 ) {
 
     // TODO: FIX AUTO-GEOLOC ->
@@ -312,20 +311,18 @@ fun DeliveryOptionScreen(
                 elevation = ButtonDefaults.elevatedButtonElevation(),
                 shape = RoundedCornerShape(8.dp),
                 onClick = {
-                    deliveryViewModel?.setUserInfo(
+                    deliveryViewModel.setUserInfo(
                         UserInfo(
                             userNameFieldText.value,
                             userAddressFieldText.value
                         )
                     )
-//                    navigateToCheckout.invoke(
-//                        UiCheckoutObject(
-//                            cartItems = ,
-//                            userInfo = ,
-//                            deliveryPath = ,
-//                            deliveryDate =
-//                        )
-//                    )
+                    datePickerState.selectedDateMillis?.let {
+                        deliveryViewModel.saveSelectedDate(
+                            date = it
+                        )
+                    }
+                    navigateToCheckout.invoke()
                 }) {
                 Text("Valider et passer au paiement")
             }

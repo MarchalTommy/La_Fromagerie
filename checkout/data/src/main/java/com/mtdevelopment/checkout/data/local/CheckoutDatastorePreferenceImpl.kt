@@ -13,7 +13,7 @@ import kotlinx.coroutines.flow.map
 
 class CheckoutDatastorePreferenceImpl(private val context: Context) : CheckoutDatastorePreference {
 
-    private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
+    private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "checkout_settings")
 
     // BEARER TOKEN USED TO AUTH ON SUMUP API
     private val SUMUP_TOKEN = stringPreferencesKey("sumup_token")

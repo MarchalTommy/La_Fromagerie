@@ -11,7 +11,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.mtdevelopment.checkout.presentation.R
-import com.mtdevelopment.checkout.presentation.model.DeliveryPath
+import com.mtdevelopment.core.model.DeliveryPath
 
 @Composable
 fun LocalisationTextComposable(

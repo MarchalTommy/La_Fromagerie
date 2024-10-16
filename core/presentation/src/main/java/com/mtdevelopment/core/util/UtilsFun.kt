@@ -10,6 +10,16 @@ import android.os.VibratorManager
 import androidx.navigation.NavType
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import java.util.Locale
+
+fun Double.toCentsLong(): Long {
+    return (this * 100).toLong()
+}
+
+fun Long.toUiPrice(): String {
+    return String.format(locale = Locale.FRANCE, "%.2f", this.toDouble() / 100)
+        .replace(".", ",") + "€"
+}
 
 fun vibratePhoneClick(context: Context) {
     if (Build.VERSION.SDK_INT < 34) {

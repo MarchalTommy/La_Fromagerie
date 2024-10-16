@@ -44,8 +44,8 @@ import com.bumptech.glide.load.engine.DiskCacheStrategy
 import com.bumptech.glide.load.resource.bitmap.BitmapTransitionOptions.withCrossFade
 import com.bumptech.glide.request.RequestOptions
 import com.mtdevelopment.core.presentation.sharedModels.UiProductObject
+import com.mtdevelopment.core.util.toUiPrice
 import com.mtdevelopment.core.util.vibratePhoneClick
-import com.mtdevelopment.home.presentation.R
 import com.skydoves.landscapist.ImageOptions
 import com.skydoves.landscapist.glide.GlideImage
 import kotlinx.coroutines.launch
@@ -114,7 +114,8 @@ fun ProductItem(
                     .height(128.dp)
                     .clip(RoundedCornerShape(8.dp)),
                 imageModel = {
-                    product?.imageUrl ?: product?.imageRes ?: com.mtdevelopment.core.presentation.R.drawable.placeholder
+                    product?.imageUrl ?: product?.imageRes
+                    ?: com.mtdevelopment.core.presentation.R.drawable.placeholder
                 },
                 imageOptions = ImageOptions(contentScale = ContentScale.Crop),
                 requestBuilder = {
@@ -158,13 +159,15 @@ fun ProductItem(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text(
-                    modifier = Modifier
-                        .padding(horizontal = 8.dp),
-                    text = product?.price.toString().replace(".", ",") + "€",
-                    style = MaterialTheme.typography.displaySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                product?.priceInCents?.toUiPrice()?.let {
+                    Text(
+                        modifier = Modifier
+                            .padding(horizontal = 8.dp),
+                        text = it,
+                        style = MaterialTheme.typography.displaySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
 
                 Button(
                     modifier = Modifier

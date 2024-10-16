@@ -47,7 +47,7 @@ import com.mapbox.maps.plugin.annotation.generated.PointAnnotationOptions
 import com.mapbox.maps.plugin.annotation.generated.createPointAnnotationManager
 import com.mapbox.maps.plugin.gestures.OnMoveListener
 import com.mapbox.maps.plugin.gestures.addOnMoveListener
-import com.mtdevelopment.checkout.presentation.model.DeliveryPath
+import com.mtdevelopment.core.model.DeliveryPath
 import com.mtdevelopment.core.util.ScreenSize
 import com.mtdevelopment.core.util.rememberScreenSize
 import kotlinx.coroutines.CoroutineScope

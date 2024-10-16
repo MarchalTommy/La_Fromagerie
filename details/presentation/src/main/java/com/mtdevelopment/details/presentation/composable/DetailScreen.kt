@@ -60,6 +60,7 @@ import com.mtdevelopment.cart.presentation.viewmodel.CartViewModel
 import com.mtdevelopment.core.presentation.sharedModels.UiProductObject
 import com.mtdevelopment.core.util.ScreenSize
 import com.mtdevelopment.core.util.rememberScreenSize
+import com.mtdevelopment.core.util.toUiPrice
 import com.mtdevelopment.core.util.vibratePhoneClick
 import com.skydoves.landscapist.ImageOptions
 import com.skydoves.landscapist.glide.GlideImage
@@ -226,7 +227,7 @@ fun DetailScreen(
                 Text(
                     modifier = Modifier
                         .padding(horizontal = 16.dp, vertical = 8.dp),
-                    text = product.toPrice(),
+                    text = product.priceInCents.toUiPrice(),
                     style = MaterialTheme.typography.titleLarge,
                     color = MaterialTheme.colorScheme.onBackground,
                     onTextLayout = { textLayoutResult ->

@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.androidLibrary)
     alias(libs.plugins.kotlinAndroid)
+    alias(libs.plugins.kotlin.serialization)
 }
 
 android {
@@ -44,4 +45,11 @@ dependencies {
     implementation(libs.ktor.client.core)
     implementation(libs.ktor.client.cio)
     implementation(libs.ktor.client.logging)
+
+    implementation(libs.kotlinx.coroutines)
+    implementation(libs.kotlinx.coroutines.service)
+    implementation(libs.kotlinx.serialization.json)
+
+    implementation(libs.datastore.preferences)
+    implementation(libs.google.gson)
 }

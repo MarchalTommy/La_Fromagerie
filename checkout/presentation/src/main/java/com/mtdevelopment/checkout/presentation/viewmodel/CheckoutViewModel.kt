@@ -9,20 +9,17 @@ import com.google.android.gms.tasks.Task
 import com.google.android.gms.wallet.PaymentData
 import com.google.android.gms.wallet.PaymentDataRequest
 import com.google.android.gms.wallet.PaymentsClient
-import com.mtdevelopment.cart.presentation.model.UiBasketObject
 import com.mtdevelopment.checkout.domain.usecase.CreatePaymentsClientUseCase
 import com.mtdevelopment.checkout.domain.usecase.FetchAllowedPaymentMethods
 import com.mtdevelopment.checkout.domain.usecase.GetCanUseGooglePayUseCase
+import com.mtdevelopment.checkout.domain.usecase.GetCheckoutDataUseCase
 import com.mtdevelopment.checkout.domain.usecase.GetIsReadyToPayUseCase
 import com.mtdevelopment.checkout.domain.usecase.GetPaymentDataRequestUseCase
-import com.mtdevelopment.checkout.presentation.model.DeliveryPath
-import com.mtdevelopment.checkout.presentation.model.UserInfo
 import com.mtdevelopment.core.usecase.GetIsNetworkConnectedUseCase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -34,9 +31,10 @@ class CheckoutViewModel(
     getIsConnectedUseCase: GetIsNetworkConnectedUseCase,
     fetchAllowedPaymentMethods: FetchAllowedPaymentMethods,
     createPaymentsClientUseCase: CreatePaymentsClientUseCase,
+    private val getCheckoutDataUseCase: GetCheckoutDataUseCase,
     private val getIsReadyToPayUseCase: GetIsReadyToPayUseCase,
     private val getCanUseGooglePayUseCase: GetCanUseGooglePayUseCase,
-    private val getPaymentDataRequestUseCase: GetPaymentDataRequestUseCase
+    private val getPaymentDataRequestUseCase: GetPaymentDataRequestUseCase,
 ) : ViewModel(), KoinComponent {
 
     val isConnected: StateFlow<Boolean> = getIsConnectedUseCase.invoke().stateIn(
@@ -45,21 +43,14 @@ class CheckoutViewModel(
         initialValue = false
     )
 
+    // TODO: Get the "getCheckoutDataUseCase" data (I need data classes here I think) and use it at
+    //  least to create the final price for now
+
     private val _paymentUiState: MutableStateFlow<PaymentUiState> =
         MutableStateFlow(PaymentUiState.NotStarted)
     val paymentUiState: StateFlow<PaymentUiState> = _paymentUiState.asStateFlow()
 
     val allowedPaymentMethods = fetchAllowedPaymentMethods.invoke().toString()
-
-    private val _cartObjects =
-        MutableStateFlow(UiBasketObject("1", flowOf(emptyList()), flowOf("0,00€")))
-    val cartObjects: StateFlow<UiBasketObject> = _cartObjects.asStateFlow()
-
-    private val _selectedPath = MutableStateFlow<DeliveryPath?>(null)
-    val selectedPath: StateFlow<DeliveryPath?> = _selectedPath.asStateFlow()
-
-    private val _userInfo = MutableStateFlow<UserInfo?>(null)
-    val userInfo: StateFlow<UserInfo?> = _userInfo.asStateFlow()
 
     private val _googlePayData: MutableStateFlow<PaymentData> =
         MutableStateFlow(PaymentData.fromJson("{}"))
@@ -67,14 +58,6 @@ class CheckoutViewModel(
 
     private val _isGooglePayAvailable: MutableStateFlow<Boolean> = MutableStateFlow(false)
     val isGooglePayAvailable: StateFlow<Boolean> = _isGooglePayAvailable.asStateFlow()
-
-    fun setSelectedPath(path: DeliveryPath) {
-        _selectedPath.value = path
-    }
-
-    fun setUserInfo(userInfo: UserInfo) {
-        _userInfo.value = userInfo
-    }
 
     // A client for interacting with the Google Pay API.
     private val paymentsClient: PaymentsClient = createPaymentsClientUseCase.invoke()

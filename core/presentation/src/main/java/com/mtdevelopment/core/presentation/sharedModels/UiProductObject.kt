@@ -8,7 +8,7 @@ import kotlin.reflect.typeOf
 data class UiProductObject(
     val id: String,
     val name: String,
-    val price: Double,
+    val priceInCents: Long,
     val imageUrl: String? = null,
     val imageRes: Int? = null,
     val type: ProductType,
@@ -16,10 +16,6 @@ data class UiProductObject(
     val allergens: List<String>? = null,
     var quantity: Int = 0
 ) {
-
-    fun toPrice(): String {
-        return this.price.toString().replace(".", ",") + "€"
-    }
 
     companion object {
         val typeMap = mapOf(typeOf<UiProductObject>() to serializableType<UiProductObject>())

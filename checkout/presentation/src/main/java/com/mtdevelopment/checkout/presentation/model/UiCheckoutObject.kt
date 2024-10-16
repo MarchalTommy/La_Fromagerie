@@ -1,6 +1,7 @@
 package com.mtdevelopment.checkout.presentation.model
 
 import com.mtdevelopment.cart.presentation.model.UiBasketObject
+import com.mtdevelopment.core.model.DeliveryPath
 import kotlinx.serialization.Serializable
 
 // TODO: Create an object with only pre-formatted data. Store all data in datastore and generates

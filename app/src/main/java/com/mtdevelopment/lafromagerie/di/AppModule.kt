@@ -10,12 +10,19 @@ import com.mtdevelopment.checkout.domain.repository.PaymentRepository
 import com.mtdevelopment.checkout.domain.usecase.CreatePaymentsClientUseCase
 import com.mtdevelopment.checkout.domain.usecase.FetchAllowedPaymentMethods
 import com.mtdevelopment.checkout.domain.usecase.GetCanUseGooglePayUseCase
+import com.mtdevelopment.checkout.domain.usecase.GetCheckoutDataUseCase
 import com.mtdevelopment.checkout.domain.usecase.GetIsReadyToPayUseCase
 import com.mtdevelopment.checkout.domain.usecase.GetPaymentDataRequestUseCase
 import com.mtdevelopment.checkout.presentation.viewmodel.CheckoutViewModel
+import com.mtdevelopment.checkout.presentation.viewmodel.DeliveryViewModel
+import com.mtdevelopment.core.local.SharedDatastoreImpl
 import com.mtdevelopment.core.repository.NetworkRepository
 import com.mtdevelopment.core.repository.NetworkRepositoryImpl
+import com.mtdevelopment.core.repository.SharedDatastore
+import com.mtdevelopment.core.usecase.ClearDatastoreUseCase
+import com.mtdevelopment.core.usecase.ClearOrderUseCase
 import com.mtdevelopment.core.usecase.GetIsNetworkConnectedUseCase
+import com.mtdevelopment.core.usecase.SaveToDatastoreUseCase
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.plugins.DefaultRequest
@@ -37,6 +44,11 @@ val mainAppModule = module {
     single<NetworkRepository> { NetworkRepositoryImpl(get()) }
     single<PaymentRepository> { PaymentRepositoryImpl(get(), get()) }
 
+    factory { GetCheckoutDataUseCase(get()) }
+    factory { SaveToDatastoreUseCase(get()) }
+    factory { ClearDatastoreUseCase(get()) }
+    factory { ClearOrderUseCase(get()) }
+
     factory { GetIsReadyToPayUseCase(get()) }
     factory { GetCanUseGooglePayUseCase(get()) }
     factory { FetchAllowedPaymentMethods(get()) }
@@ -44,11 +56,13 @@ val mainAppModule = module {
     factory { GetIsNetworkConnectedUseCase(get()) }
     factory { GetPaymentDataRequestUseCase(get()) }
 
-    viewModel { CartViewModel(get()) }
+    viewModel { CartViewModel(get(), get()) }
+    viewModel { DeliveryViewModel(get(), get()) }
     viewModel {
         CheckoutViewModel(
             getIsConnectedUseCase = get(),
             getIsReadyToPayUseCase = get(),
+            getCheckoutDataUseCase = get(),
             getCanUseGooglePayUseCase = get(),
             fetchAllowedPaymentMethods = get(),
             createPaymentsClientUseCase = get(),
@@ -78,4 +92,5 @@ val provideHttpClientModule = module {
 
 val provideDatastore = module {
     single<CheckoutDatastorePreference> { CheckoutDatastorePreferenceImpl(get()) }
+    single<SharedDatastore> { SharedDatastoreImpl(get()) }
 }

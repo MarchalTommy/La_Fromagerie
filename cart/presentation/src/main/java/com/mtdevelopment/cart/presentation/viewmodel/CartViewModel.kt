@@ -3,8 +3,12 @@ package com.mtdevelopment.cart.presentation.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mtdevelopment.cart.presentation.model.UiBasketObject
+import com.mtdevelopment.core.model.CartItem
+import com.mtdevelopment.core.model.CartItems
 import com.mtdevelopment.core.presentation.sharedModels.UiProductObject
 import com.mtdevelopment.core.usecase.GetIsNetworkConnectedUseCase
+import com.mtdevelopment.core.usecase.SaveToDatastoreUseCase
+import com.mtdevelopment.core.util.toCentsLong
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -17,10 +21,10 @@ import java.util.Formatter
 import kotlin.random.Random
 
 class CartViewModel(
-    getIsNetworkConnectedUseCase: GetIsNetworkConnectedUseCase
+    getIsNetworkConnectedUseCase: GetIsNetworkConnectedUseCase,
+    private val saveToDatastoreUseCase: SaveToDatastoreUseCase
 ) : ViewModel(), KoinComponent {
 
-    // TODO: Save cart in datastore on each modification.
     // TODO: Add a button to reset / empty the cart with confirmation popup
     // TODO: Add a way to save a "preferred cart" with stuff you usually order
 
@@ -53,16 +57,29 @@ class CartViewModel(
                 mutableContent = mutableListOf(value.apply { quantity = 1 })
             }
 
-            _cartObjects.emit(
-                _cartObjects.value.copy(
-                    content = flowOf(mutableContent as List<UiProductObject>),
-                    totalPrice = flowOf(
-                        formatter.format(
-                            "%,.2f€",
-                            mutableContent.sumOf { (it.price * it.quantity) }).toString()
-                    )
+            val newCartObject = _cartObjects.value.copy(
+                content = flowOf(mutableContent as List<UiProductObject>),
+                totalPrice = flowOf(
+                    formatter.format(
+                        "%,.2f€",
+                        mutableContent.sumOf { (it.priceInCents * it.quantity) }).toString()
                 )
             )
+
+            saveToDatastoreUseCase.invoke(
+                CartItems(
+                    newCartObject.content.last().map {
+                        CartItem(
+                            name = it.name,
+                            price = it.priceInCents,
+                            quantity = it.quantity
+                        )
+                    },
+                    newCartObject.totalPrice.last().replace(",", ".").toDouble().toCentsLong()
+                )
+            )
+
+            _cartObjects.emit(newCartObject)
         }
     }
 
@@ -79,15 +96,30 @@ class CartViewModel(
                 selectedItem.quantity--
             }
 
-            _cartObjects.emit(
-                _cartObjects.value.copy(
-                    content = flowOf(mutableContent),
-                    totalPrice = flowOf(
-                        formatter.format(
-                            "%,.2f€",
-                            mutableContent.sumOf { (it.price * it.quantity) }).toString()
-                    )
+            val newCartObject = _cartObjects.value.copy(
+                content = flowOf(mutableContent),
+                totalPrice = flowOf(
+                    formatter.format(
+                        "%,.2f€",
+                        mutableContent.sumOf { (it.priceInCents * it.quantity) }).toString()
                 )
+            )
+
+            saveToDatastoreUseCase.invoke(
+                CartItems(
+                    newCartObject.content.last().map {
+                        CartItem(
+                            name = it.name,
+                            price = it.priceInCents,
+                            quantity = it.quantity
+                        )
+                    },
+                    newCartObject.totalPrice.last().replace(",", ".").toDouble().toCentsLong()
+                )
+            )
+
+            _cartObjects.emit(
+                newCartObject
             )
         }
     }
@@ -101,15 +133,31 @@ class CartViewModel(
 
             val cleanedList = (_cartObjects.value.content.single() as MutableList)
             cleanedList.remove(value)
-            _cartObjects.emit(
-                _cartObjects.value.copy(
-                    content = (flowOf(cleanedList)),
-                    totalPrice = flowOf(
-                        formatter.format(
-                            "%,.2f€",
-                            cleanedList.sumOf { (it.price * it.quantity) }).toString()
-                    )
+
+            val newCartObject = _cartObjects.value.copy(
+                content = (flowOf(cleanedList)),
+                totalPrice = flowOf(
+                    formatter.format(
+                        "%,.2f€",
+                        cleanedList.sumOf { (it.priceInCents * it.quantity) }).toString()
                 )
+            )
+
+            saveToDatastoreUseCase.invoke(
+                CartItems(
+                    newCartObject.content.last().map {
+                        CartItem(
+                            name = it.name,
+                            price = it.priceInCents,
+                            quantity = it.quantity
+                        )
+                    },
+                    newCartObject.totalPrice.last().replace(",", ".").toDouble().toCentsLong()
+                )
+            )
+
+            _cartObjects.emit(
+                newCartObject
             )
         }
     }

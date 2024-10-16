@@ -1,4 +1,4 @@
-package com.mtdevelopment.checkout.presentation.model
+package com.mtdevelopment.core.model
 
 enum class DeliveryPath(val pathName: String, vararg val availableCities: String) {
     PATH_META(pathName = "Le Haut", "Labergement", "Métabief", "Saint-Antoine", "Rochejean"),
