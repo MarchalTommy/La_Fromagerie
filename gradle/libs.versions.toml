@@ -33,6 +33,7 @@ crashlytics = "3.0.2"
 google-service = "4.4.2"
 wallet = "19.4.0"
 wallet-button = "1.0.0"
+rebugger = "1.0.0-rc03"
 
 [libraries]
 core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "core-ktx" }
@@ -139,6 +140,10 @@ location = { module = "com.google.android.gms:play-services-location", version.r
 
 ## Contentment (avoid loader flickering)
 contentment = { module = "me.rmyhal.contentment:contentment", version.ref = "contentment" }
+
+
+## DEBUG
+rebugger = { module = "io.github.theapache64:rebugger", version.ref = "rebugger" }
 
 
 [plugins]

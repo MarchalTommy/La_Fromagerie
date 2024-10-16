@@ -95,4 +95,5 @@ dependencies {
     implementation(libs.ktor.client.auth)
 
     implementation(libs.datastore.preferences)
+    implementation(libs.rebugger)
 }

@@ -32,13 +32,11 @@ import org.koin.androidx.compose.koinViewModel
 
 @Composable
 fun DeliveryPathPickerComposable(
-    viewModelStoreOwner: ViewModelStoreOwner,
+    screenState: DeliveryUiState,
+    setChosenPath: (DeliveryPath) -> Unit = {},
     onDismiss: () -> Unit = {}
 ) {
 
-    val deliveryViewModel = koinViewModel<DeliveryViewModel>(viewModelStoreOwner = viewModelStoreOwner)
-
-    val screenState by deliveryViewModel.deliveryUiState.collectAsState()
     val previouslySelectedPath = (screenState as? DeliveryUiState.DeliveryDataState)?.path
 
     val radioOptions = DeliveryPath.entries
@@ -74,7 +72,7 @@ fun DeliveryPathPickerComposable(
                 Button(
                     modifier = Modifier.padding(8.dp).align(Alignment.CenterHorizontally),
                     onClick = {
-                        deliveryViewModel.manageScreenState(path = selectedOption)
+                        setChosenPath.invoke(selectedOption)
                         onDismiss()
                     }
                 ) {

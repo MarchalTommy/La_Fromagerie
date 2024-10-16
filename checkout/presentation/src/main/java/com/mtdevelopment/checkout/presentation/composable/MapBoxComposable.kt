@@ -26,8 +26,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInteropFilter
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.ViewModelStoreOwner
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.mapbox.android.gestures.MoveGestureDetector
 import com.mapbox.common.MapboxOptions
 import com.mapbox.geojson.Point
@@ -52,28 +50,24 @@ import com.mapbox.maps.plugin.gestures.addOnMoveListener
 import com.mtdevelopment.checkout.presentation.BuildConfig.MAPBOX_PUBLIC_TOKEN
 import com.mtdevelopment.checkout.presentation.model.DeliveryPath
 import com.mtdevelopment.checkout.presentation.viewmodel.DeliveryUiState
-import com.mtdevelopment.checkout.presentation.viewmodel.DeliveryViewModel
 import com.mtdevelopment.core.util.ScreenSize
 import com.mtdevelopment.core.util.rememberScreenSize
+import com.theapache64.rebugger.Rebugger
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import org.koin.androidx.compose.koinViewModel
 import java.io.IOException
 
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun MapBoxComposable(
-    viewModelStoreOwner: ViewModelStoreOwner,
+    screenState: DeliveryUiState,
     columnScrollState: (Boolean) -> Unit,
 ) {
 
     if (MapboxOptions.accessToken != MAPBOX_PUBLIC_TOKEN) {
         MapboxOptions.accessToken = MAPBOX_PUBLIC_TOKEN
     }
-
-    val viewmodel = koinViewModel<DeliveryViewModel>(viewModelStoreOwner = viewModelStoreOwner)
-    val screenState by viewmodel.deliveryUiState.collectAsStateWithLifecycle()
 
     val chosenPath =
         rememberSaveable { mutableStateOf((screenState as? DeliveryUiState.DeliveryDataState)?.path) }
@@ -286,6 +280,26 @@ fun MapBoxComposable(
             cameraBasePoint.value = it
         }
     }
+
+    Rebugger(
+        trackMap = mapOf(
+            "columnScrollState" to columnScrollState,
+            "screenState" to screenState,
+            "chosenPath" to chosenPath,
+            "userLocation" to userLocation,
+            "FRASNE_LATITUDE" to FRASNE_LATITUDE,
+            "FRASNE_LONGITUDE" to FRASNE_LONGITUDE,
+            "context" to context,
+            "cameraBasePoint" to cameraBasePoint,
+            "selectedPathZoomPoint" to selectedPathZoomPoint,
+            "selectedPathZoomPoint2" to selectedPathZoomPoint2,
+            "geocoder" to geocoder,
+            "screenSize" to screenSize,
+            "map" to map,
+            "pointAnnotationManager" to pointAnnotationManager,
+            "point" to point,
+        ),
+    )
 
     Card(
         modifier = Modifier.heightIn(min = 0.dp, max = (screenSize.height / 5) * 2)

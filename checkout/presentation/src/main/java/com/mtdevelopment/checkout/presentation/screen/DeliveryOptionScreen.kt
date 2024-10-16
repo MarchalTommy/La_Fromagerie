@@ -26,7 +26,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -35,8 +35,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import app.rive.runtime.kotlin.core.Rive
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
@@ -61,8 +59,7 @@ import com.mtdevelopment.checkout.presentation.viewmodel.DeliveryUiState
 import com.mtdevelopment.checkout.presentation.viewmodel.DeliveryViewModel
 import com.mtdevelopment.checkout.presentation.viewmodel.LOCALISATION_ERROR
 import com.mtdevelopment.core.presentation.composable.RiveAnimation
-import com.mtdevelopment.core.util.ScreenSize
-import com.mtdevelopment.core.util.rememberScreenSize
+import com.theapache64.rebugger.Rebugger
 import org.koin.androidx.compose.koinViewModel
 import java.io.IOException
 
@@ -71,7 +68,6 @@ import java.io.IOException
 @Preview
 @Composable
 fun DeliveryOptionScreen(
-    screenSize: ScreenSize = rememberScreenSize(),
     navigateToHome: () -> Unit = {},
     navigateToCheckout: () -> Unit = {}
 ) {
@@ -83,117 +79,121 @@ fun DeliveryOptionScreen(
     // Is still blocked by UI thread breaking when Geocoder bug. Place geocoder in custom thread ?
     // Removes itself just after the delay, not after boolean set to false OR delay. Bad brain of me.
 
-
-    val viewModelStoreOwner = checkNotNull(LocalViewModelStoreOwner.current) {
-        "No ViewModelStoreOwner was provided via LocalViewModelStoreOwner"
-    }
-
     val context = LocalContext.current
 
     val cartViewModel = koinViewModel<CartViewModel>()
     val deliveryViewModel =
-        koinViewModel<DeliveryViewModel>(viewModelStoreOwner = viewModelStoreOwner)
+        koinViewModel<DeliveryViewModel>()
+    val screenState = deliveryViewModel.deliveryUiState.collectAsState()
 
-    val screenState by deliveryViewModel.deliveryUiState.collectAsStateWithLifecycle()
+
     lateinit var fusedLocationProviderClient: FusedLocationProviderClient
     val geocoder = Geocoder(context)
 
-    val scrollState = rememberScrollState()
-    val columnScrollingEnabled = remember { mutableStateOf(true) }
-    val selectedPath =
-        remember { mutableStateOf((screenState as? DeliveryUiState.DeliveryDataState)?.path) }
-
-    val shouldDatePickerBeClickable = remember { mutableStateOf(false) }
-    val dateFieldText = remember { mutableStateOf("") }
-    val userNameFieldText = remember {
-        mutableStateOf(
-            (screenState as? DeliveryUiState.DeliveryDataState)?.userInfo?.userName ?: ""
-        )
-    }
-    val userAddressFieldText = remember {
-        mutableStateOf(
-            (screenState as? DeliveryUiState.DeliveryDataState)?.userInfo?.userAddress ?: ""
-        )
-    }
-
-    val localisationPermissionState = remember { mutableStateOf(false) }
-
-    val localisationSuccess =
-        remember { mutableStateOf(screenState is DeliveryUiState.LocationSuccess) }
-    val geolocIsOnPath =
-        remember { mutableStateOf(screenState is DeliveryUiState.LocalisationNotOnPath) }
-
-    val userCity = remember { mutableStateOf("") }
-
-    val datePickerState =
-        when (selectedPath.value) {
-            DeliveryPath.PATH_META -> {
-                getDatePickerState(ShippingSelectableMetaDates())
-            }
-
-            DeliveryPath.PATH_SALIN -> {
-                getDatePickerState(ShippingSelectableSalinDates())
-            }
-
-            DeliveryPath.PATH_PON -> {
-                getDatePickerState(ShippingSelectablePontarlierDates())
-            }
-
-            else -> {
-                getDatePickerState(ShippingDefaultSelectableDates())
-            }
-        }
-
-    fun getLastLocation(
-        onGetLastLocationSuccess: (Pair<Double, Double>) -> Unit,
-        onGetLastLocationFailed: (Exception) -> Unit
-    ) {
-        if (areLocationPermissionsGranted(context)) {
-            fusedLocationProviderClient.lastLocation
-                .addOnSuccessListener { location ->
-                    location?.let {
-                        onGetLastLocationSuccess(Pair(it.latitude, it.longitude))
-                    }
-                }
-                .addOnFailureListener { exception ->
-                    onGetLastLocationFailed(exception)
-                }
-        }
-    }
-
-    fun getCityFromGeocoder(addressesList: List<Address>?) {
-        val foundAddress = addressesList?.find { address ->
-            val correctPath =
-                DeliveryPath.entries.find { path ->
-                    path.availableCities.contains(
-                        address.locality
-                    )
-                }
-            if (correctPath != null) {
-                deliveryViewModel.manageScreenState(path = correctPath)
-                true
-            } else {
-                deliveryViewModel.manageScreenState(localisationError = LOCALISATION_ERROR.NOT_ON_PATH)
-                false
-            }
-        }
-        foundAddress?.locality?.let { locality ->
-            userCity.value = locality
-        }
-    }
-
-    LaunchedEffect(Unit) {
-        Rive.init(context)
-    }
-
-    LaunchedEffect(selectedPath) {
-        shouldDatePickerBeClickable.value = selectedPath.value != null
-        dateFieldText.value = ""
-    }
+    Rebugger(
+        trackMap = mapOf(
+            "navigateToHome" to navigateToHome,
+            "navigateToCheckout" to navigateToCheckout,
+            "context" to context,
+            "cartViewModel" to cartViewModel,
+            "deliveryViewModel" to deliveryViewModel,
+            "screenState" to screenState,
+            "geocoder" to geocoder,
+        ),
+    )
 
     Surface(
         modifier = Modifier.fillMaxSize()
     ) {
+
+        val scrollState = rememberScrollState()
+        val columnScrollingEnabled = remember { mutableStateOf(true) }
+        val selectedPath =
+            remember { mutableStateOf((screenState.value as? DeliveryUiState.DeliveryDataState)?.path) }
+
+        val shouldDatePickerBeClickable = remember { mutableStateOf(false) }
+        val dateFieldText = remember { mutableStateOf("") }
+        val userNameFieldText = remember {
+            mutableStateOf(
+                (screenState.value as? DeliveryUiState.DeliveryDataState)?.userInfo?.userName ?: ""
+            )
+        }
+        val userAddressFieldText = remember {
+            mutableStateOf(
+                (screenState.value as? DeliveryUiState.DeliveryDataState)?.userInfo?.userAddress
+                    ?: ""
+            )
+        }
+
+        val localisationPermissionState = remember { mutableStateOf(false) }
+
+        val userCity = remember { mutableStateOf("") }
+
+        val datePickerState =
+            when (selectedPath.value) {
+                DeliveryPath.PATH_META -> {
+                    getDatePickerState(ShippingSelectableMetaDates())
+                }
+
+                DeliveryPath.PATH_SALIN -> {
+                    getDatePickerState(ShippingSelectableSalinDates())
+                }
+
+                DeliveryPath.PATH_PON -> {
+                    getDatePickerState(ShippingSelectablePontarlierDates())
+                }
+
+                else -> {
+                    getDatePickerState(ShippingDefaultSelectableDates())
+                }
+            }
+
+        fun getLastLocation(
+            onGetLastLocationSuccess: (Pair<Double, Double>) -> Unit,
+            onGetLastLocationFailed: (Exception) -> Unit
+        ) {
+            if (areLocationPermissionsGranted(context)) {
+                fusedLocationProviderClient.lastLocation
+                    .addOnSuccessListener { location ->
+                        location?.let {
+                            onGetLastLocationSuccess(Pair(it.latitude, it.longitude))
+                        }
+                    }
+                    .addOnFailureListener { exception ->
+                        onGetLastLocationFailed(exception)
+                    }
+            }
+        }
+
+        fun getCityFromGeocoder(addressesList: List<Address>?) {
+            val foundAddress = addressesList?.find { address ->
+                val correctPath =
+                    DeliveryPath.entries.find { path ->
+                        path.availableCities.contains(
+                            address.locality
+                        )
+                    }
+                if (correctPath != null) {
+                    deliveryViewModel.manageScreenState(path = correctPath)
+                    true
+                } else {
+                    deliveryViewModel.manageScreenState(localisationError = LOCALISATION_ERROR.NOT_ON_PATH)
+                    false
+                }
+            }
+            foundAddress?.locality?.let { locality ->
+                userCity.value = locality
+            }
+        }
+
+        LaunchedEffect(Unit) {
+            Rive.init(context)
+        }
+
+        LaunchedEffect(selectedPath) {
+            shouldDatePickerBeClickable.value = selectedPath.value != null
+            dateFieldText.value = ""
+        }
         // Localisation permission
         if (localisationPermissionState.value) {
             RequestLocationPermission(
@@ -238,6 +238,19 @@ fun DeliveryOptionScreen(
             )
         }
 
+        Rebugger(
+            trackMap = mapOf(
+                "navigateToHome" to navigateToHome,
+                "navigateToCheckout" to navigateToCheckout,
+                "context" to context,
+                "cartViewModel" to cartViewModel,
+                "deliveryViewModel" to deliveryViewModel,
+                "screenState" to screenState,
+                "geocoder" to geocoder,
+                "Modifier.fillMaxSize()" to Modifier.fillMaxSize(),
+            ),
+        )
+
         // TODO: Actually IDK why but recomposing all the time without even touching it.
         Column(
             modifier = Modifier.fillMaxSize().padding(8.dp)
@@ -246,16 +259,16 @@ fun DeliveryOptionScreen(
 
             // Map Card
             MapBoxComposable(
-                viewModelStoreOwner = viewModelStoreOwner,
+                screenState = screenState.value,
                 columnScrollState = {
-                    columnScrollingEnabled.value = it
+//                    columnScrollingEnabled.value = it
                 },
             )
 
             // Localisation Type Picker
             LocalisationTypePicker(
                 hasSelectedPath = selectedPath.value != null,
-                isLocalisationSuccessful = screenState is DeliveryUiState.LocationSuccess,
+                isLocalisationSuccessful = screenState.value is DeliveryUiState.LocationSuccess,
                 showDeliverySelection = {
                     deliveryViewModel.manageScreenState(shouldShowPathSelection = true)
                 },
@@ -264,13 +277,13 @@ fun DeliveryOptionScreen(
                 }
             )
 
-            if (screenState is DeliveryUiState.LocationSuccess ||
+            if (screenState.value is DeliveryUiState.LocationSuccess ||
                 selectedPath.value != null ||
-                screenState is DeliveryUiState.LocalisationNotOnPath
+                screenState.value is DeliveryUiState.LocalisationNotOnPath
             ) {
                 LocalisationTextComposable(
                     selectedPath = selectedPath.value,
-                    geolocIsOnPath = screenState is DeliveryUiState.LocalisationNotOnPath,
+                    geolocIsOnPath = screenState.value is DeliveryUiState.LocalisationNotOnPath,
                     userCity = userCity.value
                 )
             }
@@ -340,6 +353,19 @@ fun DeliveryOptionScreen(
                 }) {
                 Text("Valider et passer au paiement")
             }
+
+            Rebugger(
+                trackMap = mapOf(
+                    "navigateToHome" to navigateToHome,
+                    "navigateToCheckout" to navigateToCheckout,
+                    "context" to context,
+                    "cartViewModel" to cartViewModel,
+                    "deliveryViewModel" to deliveryViewModel,
+                    "screenState" to screenState,
+                    "geocoder" to geocoder,
+                    "Modifier.fillMaxSize()" to Modifier.fillMaxSize(),
+                ),
+            )
         }
 
 //        LaunchedEffect(isLoading.value) {
@@ -359,7 +385,7 @@ fun DeliveryOptionScreen(
 //            }
 //        }
 
-        if (screenState is DeliveryUiState.Loading) {
+        if (screenState.value is DeliveryUiState.Loading) {
             RiveAnimation(
                 modifier = Modifier.fillMaxSize(),
                 resId = R.raw.goat_loading,
@@ -367,7 +393,7 @@ fun DeliveryOptionScreen(
             )
         }
 
-        if (screenState is DeliveryUiState.DateSelection) {
+        if (screenState.value is DeliveryUiState.DateSelection) {
             DatePickerComposable(
                 datePickerState = datePickerState,
                 setDateTextFieldText = {
@@ -379,8 +405,10 @@ fun DeliveryOptionScreen(
             )
         }
 
-        if (screenState is DeliveryUiState.PathSelection) {
-            DeliveryPathPickerComposable(viewModelStoreOwner) {
+        if (screenState.value is DeliveryUiState.PathSelection) {
+            DeliveryPathPickerComposable(screenState.value, setChosenPath = {
+                deliveryViewModel.manageScreenState(path = it)
+            }) {
                 deliveryViewModel.manageScreenState(shouldShowPathSelection = false)
             }
         }
