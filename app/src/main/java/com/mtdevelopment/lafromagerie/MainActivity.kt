@@ -32,8 +32,8 @@ class MainActivity : ComponentActivity() {
             when (taskResult.status.statusCode) {
                 CommonStatusCodes.SUCCESS -> {
                     taskResult.result!!.let {
-                        Log.i("Google Pay result:", it.toJson())
-                        checkoutViewModel.setGooglePayResult(it)
+                        Log.i("Google Pay result", it.toJson())
+                        checkoutViewModel.setPaymentData(it)
                     }
                 }
                 //CommonStatusCodes.CANCELED -> The user canceled
@@ -71,8 +71,6 @@ class MainActivity : ComponentActivity() {
                     }
                 ) { paddingValues ->
                     NavGraph(
-                        cartViewModel = cartViewModel,
-                        checkoutViewModel = checkoutViewModel,
                         paddingValues = paddingValues,
                         navController = navController,
                         onGooglePayButtonClick = {
@@ -88,8 +86,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun requestPayment() {
-        checkoutViewModel.payWithGooglePay(3.5) {
-            it?.addOnCompleteListener(paymentDataLauncher::launch)
-        }
+        val task = checkoutViewModel.getLoadPaymentDataTask(priceCents = 350L)
+        task.addOnCompleteListener(paymentDataLauncher::launch)
     }
 }

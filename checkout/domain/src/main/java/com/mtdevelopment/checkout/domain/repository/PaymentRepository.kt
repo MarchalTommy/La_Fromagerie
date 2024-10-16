@@ -3,6 +3,7 @@ package com.mtdevelopment.checkout.domain.repository
 import com.google.android.gms.tasks.Task
 import com.google.android.gms.wallet.PaymentData
 import com.google.android.gms.wallet.PaymentsClient
+import org.json.JSONArray
 import org.json.JSONObject
 
 interface PaymentRepository {
@@ -10,18 +11,15 @@ interface PaymentRepository {
     ///////////////////////////////////////////////////////////////////////////
     // GOOGLE PAY
     ///////////////////////////////////////////////////////////////////////////
+    fun createPaymentsClient(): PaymentsClient
 
-    val baseRequest: JSONObject
+    val allowedPaymentMethods: JSONArray
 
-    val cardPaymentMethod: JSONObject
+    fun isReadyToPayRequest(): JSONObject?
 
-    fun createPaymentsClient(): PaymentsClient?
+    suspend fun canUseGooglePay(): Boolean?
 
-    suspend fun fetchCanUseGooglePay(): Boolean?
-
-    fun getLoadPaymentDataTask(
-        price: String
-    ): Task<PaymentData>?
+    fun getPaymentDataRequest(priceCents: Long): JSONObject
 
     ///////////////////////////////////////////////////////////////////////////
     // SUMUP
@@ -34,5 +32,4 @@ interface PaymentRepository {
     fun createNewCheckout()
 
     fun processCheckout(id:String)
-
 }

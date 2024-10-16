@@ -2,12 +2,12 @@ package com.mtdevelopment.checkout.domain.usecase
 
 import com.mtdevelopment.checkout.domain.repository.PaymentRepository
 
-class GetLoadPaymentDataTaskUseCase(
+class GetPaymentDataRequestUseCase(
     private val paymentRepository: PaymentRepository
 ) {
 
     operator fun invoke(
-        price: Double
-    ) = paymentRepository.getLoadPaymentDataTask(price.toString())
+        price: Long
+    ) = paymentRepository.getPaymentDataRequest(price)
 
 }

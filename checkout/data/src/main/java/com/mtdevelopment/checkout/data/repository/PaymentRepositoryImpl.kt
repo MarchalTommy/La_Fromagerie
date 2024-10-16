@@ -1,23 +1,20 @@
 package com.mtdevelopment.checkout.data.repository
 
 import android.content.Context
-import com.google.android.gms.tasks.Task
 import com.google.android.gms.wallet.IsReadyToPayRequest
-import com.google.android.gms.wallet.PaymentData
-import com.google.android.gms.wallet.PaymentDataRequest
 import com.google.android.gms.wallet.PaymentsClient
 import com.google.android.gms.wallet.Wallet
-import com.google.android.gms.wallet.WalletConstants
 import com.mtdevelopment.checkout.data.BuildConfig
-import com.mtdevelopment.checkout.data.local.CheckoutDatastorePreferenceImpl
-import com.mtdevelopment.checkout.data.remote.model.allowedAuthMethods
-import com.mtdevelopment.checkout.data.remote.model.allowedCardNetworks
+import com.mtdevelopment.checkout.data.remote.model.Constants
 import com.mtdevelopment.checkout.data.remote.source.SumUpDataSource
 import com.mtdevelopment.checkout.domain.repository.PaymentRepository
 import io.ktor.client.plugins.auth.providers.BearerTokens
 import kotlinx.coroutines.tasks.await
+import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
+import java.math.BigDecimal
+import java.math.RoundingMode
 
 class PaymentRepositoryImpl(
     private val context: Context,
@@ -28,96 +25,89 @@ class PaymentRepositoryImpl(
     ///////////////////////////////////////////////////////////////////////////
     // GOOGLE PAY PART
     ///////////////////////////////////////////////////////////////////////////
-    override val baseRequest: JSONObject =
-        JSONObject().put("apiVersion", 2).put("apiVersionMinor", "0")
 
-    private var client: PaymentsClient? = null
+    private lateinit var client: PaymentsClient
 
-    override val cardPaymentMethod: JSONObject =
-        baseCardPaymentMethod().put("tokenizationSpecification", gatewayTokenizationSpecification())
+    private val baseRequest = JSONObject()
+        .put("apiVersion", 2)
+        .put("apiVersionMinor", 0)
 
-    private fun transactionInfo(price: String): JSONObject =
+    private val gatewayTokenizationSpecification: JSONObject =
         JSONObject()
-            .put("totalPrice", price)
-            .put("totalPriceStatus", "FINAL")
-            .put("countryCode", "FR")
-            .put("currencyCode", "EUR")
+            .put("type", "PAYMENT_GATEWAY")
+            .put("parameters", JSONObject(Constants.PAYMENT_GATEWAY_TOKENIZATION_PARAMETERS))
 
-    private val merchantInfo: JSONObject =
-        JSONObject().put("merchantName", "EARL Des Laizinnes")
-//            .put("merchantId", "123809134581094")
-    // TODO: Here replace merchant ID shit by the real one given by google after doing what needs to be done
-    // TODO: MAY NOT BE NECESSARY ON ANDROID ? Not specified in google tutorial, but is specified on SumUp Doc... Try and see !
+    private val allowedCardNetworks = JSONArray(Constants.SUPPORTED_NETWORKS)
 
-
-    override fun createPaymentsClient(): PaymentsClient? {
-        client = Wallet.getPaymentsClient(
-            context,
-            Wallet.WalletOptions.Builder().setEnvironment(WalletConstants.ENVIRONMENT_TEST)
-                .build()
-        )
-        return client
-    }
-
-    override suspend fun fetchCanUseGooglePay(): Boolean? {
-        val request = IsReadyToPayRequest.fromJson(isReadyToPayRequest().toString())
-        return client?.isReadyToPay(request)?.await()
-    }
-
-    override fun getLoadPaymentDataTask(
-        price: String
-    ): Task<PaymentData>? {
-        val paymentDataRequestJson =
-            generatePaymentDataRequest(transactionInfo(price), merchantInfo)
-        val request = PaymentDataRequest.fromJson(paymentDataRequestJson.toString())
-        return client?.loadPaymentData(request)
-    }
-
-    private fun isReadyToPayRequest(): JSONObject? =
-        try {
-            baseRequest
-                .put("allowedPaymentMethods", cardPaymentMethod)
-        } catch (e: JSONException) {
-            null
-        }
+    private val allowedCardAuthMethods = JSONArray(Constants.SUPPORTED_METHODS)
 
     private fun baseCardPaymentMethod(): JSONObject =
         JSONObject()
             .put("type", "CARD")
             .put(
                 "parameters", JSONObject()
-                    .put("allowedAuthMethods", allowedAuthMethods)
+                    .put("allowedAuthMethods", allowedCardAuthMethods)
                     .put("allowedCardNetworks", allowedCardNetworks)
-                    .put("billingAddressRequired", true)
-                    .put(
-                        "billingAddressParameters", JSONObject()
-                            .put("format", "FULL")
-                    )
             )
 
-    private fun gatewayTokenizationSpecification(): JSONObject {
-        return JSONObject().apply {
-            put("type", "PAYMENT_GATEWAY")
-            put(
-                "parameters", JSONObject(
-                    mapOf(
-                        "gateway" to "sumup",
-                        "gatewayMerchantId" to BuildConfig.SUMUP_MERCHANT_ID
-                    )
-                )
-            )
+    private val cardPaymentMethod: JSONObject = baseCardPaymentMethod()
+        .put("tokenizationSpecification", gatewayTokenizationSpecification)
+
+    override val allowedPaymentMethods: JSONArray = JSONArray().put(cardPaymentMethod)
+
+    override fun isReadyToPayRequest(): JSONObject? =
+        try {
+            baseRequest
+                .put("allowedPaymentMethods", JSONArray().put(baseCardPaymentMethod()))
+        } catch (e: JSONException) {
+            null
         }
+
+    override suspend fun canUseGooglePay(): Boolean {
+        val request = IsReadyToPayRequest.fromJson(isReadyToPayRequest().toString())
+        return client.isReadyToPay(request).await()
     }
 
-    private fun generatePaymentDataRequest(
-        transactionInfo: JSONObject,
-        merchantInfo: JSONObject
-    ): JSONObject {
-        return baseRequest
-            .put("allowedPaymentMethods", cardPaymentMethod)
-            .put("transactionInfo", transactionInfo)
-            .put("merchantInfo", merchantInfo)
+    private val merchantInfo: JSONObject =
+        JSONObject().put("merchantName", "EARL Des Laizinnes")
+
+    override fun createPaymentsClient(): PaymentsClient {
+        val walletOptions = Wallet.WalletOptions.Builder()
+            .setEnvironment(Constants.PAYMENTS_ENVIRONMENT)
+            .build()
+        client = Wallet.getPaymentsClient(context, walletOptions)
+        return client
     }
+
+    private fun getTransactionInfo(price: String): JSONObject =
+        JSONObject()
+            .put("totalPrice", price)
+            .put("totalPriceStatus", "FINAL")
+            .put("countryCode", Constants.COUNTRY_CODE)
+            .put("currencyCode", Constants.CURRENCY_CODE)
+
+    override fun getPaymentDataRequest(priceCents: Long): JSONObject =
+        baseRequest
+            .put("allowedPaymentMethods", allowedPaymentMethods)
+            .put("transactionInfo", getTransactionInfo(priceCents.centsToString()))
+            .put("merchantInfo", merchantInfo)
+            .put("shippingAddressRequired", true)
+            .put(
+                "shippingAddressParameters", JSONObject()
+                    .put("phoneNumberRequired", false)
+                    .put("allowedCountryCodes", JSONArray(listOf("FR")))
+            )
+
+
+    private val CENTS = BigDecimal(100)
+
+    /**
+     * Converts cents to a string format accepted by [getPaymentDataRequest].
+     */
+    private fun Long.centsToString() = BigDecimal(this)
+        .divide(CENTS)
+        .setScale(2, RoundingMode.HALF_EVEN)
+        .toString()
 
     ///////////////////////////////////////////////////////////////////////////
     // SUMUP PART

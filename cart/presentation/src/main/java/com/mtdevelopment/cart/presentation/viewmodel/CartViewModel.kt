@@ -14,15 +14,26 @@ import kotlinx.coroutines.flow.single
 import kotlinx.coroutines.launch
 import org.koin.core.component.KoinComponent
 import java.util.Formatter
+import kotlin.random.Random
 
 class CartViewModel(
     getIsNetworkConnectedUseCase: GetIsNetworkConnectedUseCase
 ) : ViewModel(), KoinComponent {
 
+    // TODO: Save cart in datastore on each modification.
+    // TODO: Add a button to reset / empty the cart with confirmation popup
+    // TODO: Add a way to save a "preferred cart" with stuff you usually order
+
     val isConnected = getIsNetworkConnectedUseCase()
 
     private val _cartObjects =
-        MutableStateFlow(UiBasketObject("1", flowOf(emptyList()), flowOf("0,00€")))
+        MutableStateFlow(
+            UiBasketObject(
+                Random.nextLong().toString(),
+                flowOf(emptyList()),
+                flowOf("0,00€")
+            )
+        )
     val cartObjects: StateFlow<UiBasketObject> = _cartObjects.asStateFlow()
 
     fun addCartObject(value: UiProductObject) {

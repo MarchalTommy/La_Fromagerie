@@ -1,10 +1,13 @@
 package com.mtdevelopment.checkout.domain.usecase
 
 import com.mtdevelopment.checkout.domain.repository.PaymentRepository
-import org.json.JSONArray
 
-class FetchAllowedPaymentMethods(
+class GetCanUseGooglePayUseCase(
     private val paymentRepository: PaymentRepository
 ) {
-    operator fun invoke(): JSONArray = paymentRepository.allowedPaymentMethods
+
+    suspend operator fun invoke(): Boolean? {
+        return paymentRepository.canUseGooglePay()
+    }
+
 }

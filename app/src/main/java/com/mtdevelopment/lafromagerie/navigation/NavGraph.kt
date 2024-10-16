@@ -8,10 +8,8 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.toRoute
-import com.mtdevelopment.cart.presentation.viewmodel.CartViewModel
 import com.mtdevelopment.checkout.presentation.screen.CheckoutScreen
 import com.mtdevelopment.checkout.presentation.screen.DeliveryOptionScreen
-import com.mtdevelopment.checkout.presentation.viewmodel.CheckoutViewModel
 import com.mtdevelopment.core.presentation.sharedModels.UiProductObject
 import com.mtdevelopment.core.presentation.theme.ui.ScaleTransitionDirection
 import com.mtdevelopment.core.presentation.theme.ui.scaleIntoContainer
@@ -22,25 +20,24 @@ import com.mtdevelopment.home.presentation.composable.HomeScreen
 
 @Composable
 fun NavGraph(
-    cartViewModel: CartViewModel,
-    checkoutViewModel: CheckoutViewModel,
     paddingValues: PaddingValues,
     navController: NavHostController,
     onGooglePayButtonClick: () -> Unit = {}
 ) {
     NavHost(
         navController = navController,
-        startDestination = CheckoutScreen,
+        startDestination = HomeScreen,
         modifier = Modifier.padding(paddingValues)
     ) {
 
         composable<HomeScreen> {
             HomeScreen(
-                cartViewModel,
                 navigateToDetail = { product ->
                     navController.navigate(DetailDestination(product))
-                }, navigateToCheckout = {
-                    navController.navigate(DeliveryOptionScreen)
+                }, navigateToDelivery = { items ->
+                    navController.navigate(
+                        DeliveryOptionScreen(items)
+                    )
                 })
         }
 
@@ -61,8 +58,7 @@ fun NavGraph(
         ) {
             val args = it.toRoute<DetailDestination>()
             DetailScreen(
-                detailProductObject = args.productObject,
-                viewModel = cartViewModel
+                detailProductObject = args.productObject
             )
         }
 
@@ -80,8 +76,12 @@ fun NavGraph(
                 scaleOutOfContainer()
             }
         ) {
-            DeliveryOptionScreen(cartViewModel, checkoutViewModel, navigateToCheckout = {
-                navController.navigate(CheckoutScreen)
+            DeliveryOptionScreen(navigateToCheckout = { checkoutData ->
+                navController.navigate(
+                    CheckoutScreen(
+                        checkoutData = checkoutData
+                    )
+                )
             })
         }
 
@@ -100,8 +100,6 @@ fun NavGraph(
             }
         ) {
             CheckoutScreen(
-                cartViewModel,
-                checkoutViewModel,
                 onGooglePayButtonClick = onGooglePayButtonClick
             )
         }

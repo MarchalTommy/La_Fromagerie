@@ -37,12 +37,12 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.navigation.NavArgs
 import app.rive.runtime.kotlin.core.Rive
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import com.mapbox.android.core.permissions.PermissionsManager.Companion.areLocationPermissionsGranted
 import com.mapbox.common.MapboxOptions
-import com.mtdevelopment.cart.presentation.viewmodel.CartViewModel
 import com.mtdevelopment.checkout.presentation.BuildConfig.MAPBOX_PUBLIC_TOKEN
 import com.mtdevelopment.checkout.presentation.R
 import com.mtdevelopment.checkout.presentation.composable.DatePickerComposable
@@ -59,8 +59,9 @@ import com.mtdevelopment.checkout.presentation.model.ShippingDefaultSelectableDa
 import com.mtdevelopment.checkout.presentation.model.ShippingSelectableMetaDates
 import com.mtdevelopment.checkout.presentation.model.ShippingSelectablePontarlierDates
 import com.mtdevelopment.checkout.presentation.model.ShippingSelectableSalinDates
+import com.mtdevelopment.checkout.presentation.model.UiCheckoutObject
 import com.mtdevelopment.checkout.presentation.model.UserInfo
-import com.mtdevelopment.checkout.presentation.viewmodel.CheckoutViewModel
+import com.mtdevelopment.checkout.presentation.viewmodel.DeliveryViewModel
 import com.mtdevelopment.core.presentation.composable.RiveAnimation
 import com.mtdevelopment.core.util.ScreenSize
 import com.mtdevelopment.core.util.rememberScreenSize
@@ -68,6 +69,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import org.koin.androidx.compose.koinViewModel
 import java.io.IOException
 
 @SuppressLint("MissingPermission")
@@ -75,11 +77,9 @@ import java.io.IOException
 @Preview
 @Composable
 fun DeliveryOptionScreen(
-    cartViewModel: CartViewModel? = null,
-    checkoutViewModel: CheckoutViewModel? = null,
     screenSize: ScreenSize = rememberScreenSize(),
     navigateToHome: () -> Unit = {},
-    navigateToCheckout: () -> Unit = {}
+    navigateToCheckout: (UiCheckoutObject) -> Unit = {}
 ) {
 
     // TODO: FIX AUTO-GEOLOC ->
@@ -88,6 +88,8 @@ fun DeliveryOptionScreen(
     // TODO: FIX LOADER ->
     // Is still blocked by UI thread breaking when Geocoder bug. Place geocoder in custom thread ?
     // Removes itself just after the delay, not after boolean set to false OR delay. Bad brain of me.
+
+    val deliveryViewModel = koinViewModel<DeliveryViewModel>()
 
     val context = LocalContext.current
 
@@ -121,7 +123,7 @@ fun DeliveryOptionScreen(
         MapboxOptions.accessToken = MAPBOX_PUBLIC_TOKEN
     }
 
-    val selectedPath = checkoutViewModel?.selectedPath?.collectAsState()
+    val selectedPath = deliveryViewModel?.selectedPath?.collectAsState()
 
     val datePickerState =
         when (selectedPath?.value) {
@@ -181,7 +183,7 @@ fun DeliveryOptionScreen(
                 }
             if (correctPath != null) {
                 geolocIsOnPath.value = true
-                checkoutViewModel?.setSelectedPath(correctPath)
+                deliveryViewModel?.setSelectedPath(correctPath)
                 true
             } else {
                 geolocIsOnPath.value = false
@@ -310,13 +312,20 @@ fun DeliveryOptionScreen(
                 elevation = ButtonDefaults.elevatedButtonElevation(),
                 shape = RoundedCornerShape(8.dp),
                 onClick = {
-                    checkoutViewModel?.setUserInfo(
+                    deliveryViewModel?.setUserInfo(
                         UserInfo(
                             userNameFieldText.value,
                             userAddressFieldText.value
                         )
                     )
-                    navigateToCheckout.invoke()
+//                    navigateToCheckout.invoke(
+//                        UiCheckoutObject(
+//                            cartItems = ,
+//                            userInfo = ,
+//                            deliveryPath = ,
+//                            deliveryDate =
+//                        )
+//                    )
                 }) {
                 Text("Valider et passer au paiement")
             }
@@ -356,10 +365,8 @@ fun DeliveryOptionScreen(
         }
 
         if (showDeliveryPathPicker.value) {
-            if (checkoutViewModel != null) {
-                DeliveryPathPickerComposable(checkoutViewModel) {
-                    showDeliveryPathPicker.value = false
-                }
+            DeliveryPathPickerComposable(deliveryViewModel) {
+                showDeliveryPathPicker.value = false
             }
         }
     }

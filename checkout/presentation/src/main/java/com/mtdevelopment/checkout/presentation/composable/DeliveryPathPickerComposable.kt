@@ -25,10 +25,11 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.mtdevelopment.checkout.presentation.model.DeliveryPath
 import com.mtdevelopment.checkout.presentation.viewmodel.CheckoutViewModel
+import com.mtdevelopment.checkout.presentation.viewmodel.DeliveryViewModel
 
 @Composable
 fun DeliveryPathPickerComposable(
-    checkoutViewModel: CheckoutViewModel,
+    checkoutViewModel: DeliveryViewModel,
     onDismiss: () -> Unit = {}
 ) {
     val previouslySelectedPath = checkoutViewModel.selectedPath.collectAsState()

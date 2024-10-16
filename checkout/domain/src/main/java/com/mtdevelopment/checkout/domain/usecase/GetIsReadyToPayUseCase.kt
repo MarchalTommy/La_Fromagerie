@@ -2,10 +2,10 @@ package com.mtdevelopment.checkout.domain.usecase
 
 import com.mtdevelopment.checkout.domain.repository.PaymentRepository
 
-class CreatePaymentClientUseCase(
+class GetIsReadyToPayUseCase(
     private val paymentRepository: PaymentRepository,
 ) {
 
-    operator fun invoke() = paymentRepository.createPaymentsClient()
+    suspend operator fun invoke() = paymentRepository.isReadyToPayRequest()
 
 }

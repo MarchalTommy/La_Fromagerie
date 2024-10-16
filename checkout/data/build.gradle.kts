@@ -20,6 +20,8 @@ android {
         buildConfigField("String", "SUMUP_PUBLIC_KEY", "\"$SUMUP_PUBLIC_KEY\"")
         val SUMUP_MERCHANT_ID: String by project
         buildConfigField("String", "SUMUP_MERCHANT_ID", "\"$SUMUP_MERCHANT_ID\"")
+        val GOOGLE_PAY_ID: String by project
+        buildConfigField("String", "GOOGLE_PAY_ID", "\"$GOOGLE_PAY_ID\"")
     }
 
     buildTypes {

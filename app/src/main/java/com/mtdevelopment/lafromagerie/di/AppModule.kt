@@ -7,10 +7,11 @@ import com.mtdevelopment.checkout.data.remote.source.SumUpDataSource
 import com.mtdevelopment.checkout.data.repository.PaymentRepositoryImpl
 import com.mtdevelopment.checkout.domain.repository.CheckoutDatastorePreference
 import com.mtdevelopment.checkout.domain.repository.PaymentRepository
-import com.mtdevelopment.checkout.domain.usecase.CreatePaymentClientUseCase
+import com.mtdevelopment.checkout.domain.usecase.CreatePaymentsClientUseCase
 import com.mtdevelopment.checkout.domain.usecase.FetchAllowedPaymentMethods
-import com.mtdevelopment.checkout.domain.usecase.FetchCanUseGooglePayUseCase
-import com.mtdevelopment.checkout.domain.usecase.GetLoadPaymentDataTaskUseCase
+import com.mtdevelopment.checkout.domain.usecase.GetCanUseGooglePayUseCase
+import com.mtdevelopment.checkout.domain.usecase.GetIsReadyToPayUseCase
+import com.mtdevelopment.checkout.domain.usecase.GetPaymentDataRequestUseCase
 import com.mtdevelopment.checkout.presentation.viewmodel.CheckoutViewModel
 import com.mtdevelopment.core.repository.NetworkRepository
 import com.mtdevelopment.core.repository.NetworkRepositoryImpl
@@ -36,20 +37,22 @@ val mainAppModule = module {
     single<NetworkRepository> { NetworkRepositoryImpl(get()) }
     single<PaymentRepository> { PaymentRepositoryImpl(get(), get()) }
 
-    factory { GetIsNetworkConnectedUseCase(get()) }
-    factory { CreatePaymentClientUseCase(get()) }
+    factory { GetIsReadyToPayUseCase(get()) }
+    factory { GetCanUseGooglePayUseCase(get()) }
     factory { FetchAllowedPaymentMethods(get()) }
-    factory { FetchCanUseGooglePayUseCase(get()) }
-    factory { GetLoadPaymentDataTaskUseCase(get()) }
+    factory { CreatePaymentsClientUseCase(get()) }
+    factory { GetIsNetworkConnectedUseCase(get()) }
+    factory { GetPaymentDataRequestUseCase(get()) }
 
     viewModel { CartViewModel(get()) }
     viewModel {
         CheckoutViewModel(
-            createPaymentClientUseCase = get(),
-            fetchCanUseGooglePayUseCase = get(),
-            getLoadPaymentDataTaskUseCase = get(),
+            getIsConnectedUseCase = get(),
+            getIsReadyToPayUseCase = get(),
+            getCanUseGooglePayUseCase = get(),
             fetchAllowedPaymentMethods = get(),
-            getIsConnectedUseCase = get()
+            createPaymentsClientUseCase = get(),
+            getPaymentDataRequestUseCase = get()
         )
     }
 }
