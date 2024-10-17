@@ -32,7 +32,7 @@ import io.ktor.client.plugins.logging.Logger
 import io.ktor.client.plugins.logging.Logging
 import io.ktor.http.HttpHeaders
 import io.ktor.http.URLProtocol
-import org.koin.androidx.viewmodel.dsl.viewModel
+import org.koin.androidx.viewmodel.dsl.viewModelOf
 import org.koin.dsl.module
 
 fun appModule() = listOf(
@@ -56,19 +56,9 @@ val mainAppModule = module {
     factory { GetIsNetworkConnectedUseCase(get()) }
     factory { GetPaymentDataRequestUseCase(get()) }
 
-    viewModel { CartViewModel(get(), get()) }
-    viewModel { DeliveryViewModel(get(), get()) }
-    viewModel {
-        CheckoutViewModel(
-            getIsConnectedUseCase = get(),
-            getIsReadyToPayUseCase = get(),
-            getCheckoutDataUseCase = get(),
-            getCanUseGooglePayUseCase = get(),
-            fetchAllowedPaymentMethods = get(),
-            createPaymentsClientUseCase = get(),
-            getPaymentDataRequestUseCase = get()
-        )
-    }
+    viewModelOf(::CartViewModel)
+    viewModelOf(::DeliveryViewModel)
+    viewModelOf(::CheckoutViewModel)
 }
 
 val provideHttpClientModule = module {

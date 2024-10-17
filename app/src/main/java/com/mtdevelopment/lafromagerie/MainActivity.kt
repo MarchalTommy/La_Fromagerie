@@ -17,6 +17,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import com.google.android.gms.common.api.CommonStatusCodes
 import com.google.android.gms.wallet.contract.TaskResultContracts
+import com.mtdevelopment.cart.presentation.viewmodel.CartViewModel
 import com.mtdevelopment.checkout.presentation.viewmodel.CheckoutViewModel
 import com.mtdevelopment.core.presentation.theme.ui.AppTheme
 import com.mtdevelopment.lafromagerie.navigation.NavGraph
@@ -24,8 +25,8 @@ import org.koin.androidx.viewmodel.ext.android.viewModel
 
 class MainActivity : ComponentActivity() {
 
-    private val cartViewModel: com.mtdevelopment.cart.presentation.viewmodel.CartViewModel by viewModel()
     private val checkoutViewModel: CheckoutViewModel by viewModel()
+    private val cartViewModel: CartViewModel by viewModel()
 
     val paymentDataLauncher =
         registerForActivityResult(TaskResultContracts.GetPaymentDataResult()) { taskResult ->
@@ -73,9 +74,10 @@ class MainActivity : ComponentActivity() {
                     NavGraph(
                         paddingValues = paddingValues,
                         navController = navController,
-                        onGooglePayButtonClick = {
+                        cartViewModel = cartViewModel,
+                        onGooglePayButtonClick = { priceCents ->
                             Log.e("PAYMENT", "BUTTON CLICKED")
-                            requestPayment()
+                            requestPayment(priceCents)
                         }
                     )
                 }
@@ -85,8 +87,8 @@ class MainActivity : ComponentActivity() {
 
     }
 
-    private fun requestPayment() {
-        val task = checkoutViewModel.getLoadPaymentDataTask(priceCents = 350L)
+    private fun requestPayment(priceCents: Long) {
+        val task = checkoutViewModel.getLoadPaymentDataTask(priceCents)
         task.addOnCompleteListener(paymentDataLauncher::launch)
     }
 }

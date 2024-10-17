@@ -9,6 +9,7 @@ import com.mtdevelopment.core.presentation.sharedModels.UiProductObject
 import com.mtdevelopment.core.usecase.GetIsNetworkConnectedUseCase
 import com.mtdevelopment.core.usecase.SaveToDatastoreUseCase
 import com.mtdevelopment.core.util.toCentsLong
+import com.mtdevelopment.core.util.toUiPrice
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -17,7 +18,6 @@ import kotlinx.coroutines.flow.last
 import kotlinx.coroutines.flow.single
 import kotlinx.coroutines.launch
 import org.koin.core.component.KoinComponent
-import java.util.Formatter
 import kotlin.random.Random
 
 class CartViewModel(
@@ -43,10 +43,6 @@ class CartViewModel(
     fun addCartObject(value: UiProductObject) {
         viewModelScope.launch {
 
-            val sb: StringBuilder =
-                StringBuilder()
-            val formatter = Formatter(sb)
-
             var mutableContent = _cartObjects.value.content.last() as? MutableList
             val selectedItem = mutableContent?.find { it.id == value.id }
             if (selectedItem != null) {
@@ -60,9 +56,7 @@ class CartViewModel(
             val newCartObject = _cartObjects.value.copy(
                 content = flowOf(mutableContent as List<UiProductObject>),
                 totalPrice = flowOf(
-                    formatter.format(
-                        "%,.2f€",
-                        mutableContent.sumOf { (it.priceInCents * it.quantity) }).toString()
+                    mutableContent.sumOf { (it.priceInCents * it.quantity) }.toUiPrice()
                 )
             )
 
@@ -75,7 +69,8 @@ class CartViewModel(
                             quantity = it.quantity
                         )
                     },
-                    newCartObject.totalPrice.last().replace(",", ".").toDouble().toCentsLong()
+                    newCartObject.totalPrice.last().replace(",", ".").replace("€", "").toDouble()
+                        .toCentsLong()
                 )
             )
 
@@ -85,11 +80,6 @@ class CartViewModel(
 
     fun removeCartObject(value: UiProductObject) {
         viewModelScope.launch {
-
-            val sb: StringBuilder =
-                StringBuilder()
-            val formatter = Formatter(sb)
-
             val mutableContent = _cartObjects.value.content.single() as MutableList
             val selectedItem = mutableContent.find { it.id == value.id }
             if (selectedItem != null && selectedItem.quantity > 1) {
@@ -99,9 +89,7 @@ class CartViewModel(
             val newCartObject = _cartObjects.value.copy(
                 content = flowOf(mutableContent),
                 totalPrice = flowOf(
-                    formatter.format(
-                        "%,.2f€",
-                        mutableContent.sumOf { (it.priceInCents * it.quantity) }).toString()
+                    mutableContent.sumOf { (it.priceInCents * it.quantity) }.toUiPrice()
                 )
             )
 
@@ -114,7 +102,8 @@ class CartViewModel(
                             quantity = it.quantity
                         )
                     },
-                    newCartObject.totalPrice.last().replace(",", ".").toDouble().toCentsLong()
+                    newCartObject.totalPrice.last().replace(",", ".").replace("€", "").toDouble()
+                        .toCentsLong()
                 )
             )
 
@@ -127,19 +116,13 @@ class CartViewModel(
     fun totallyRemoveObject(value: UiProductObject) {
         viewModelScope.launch {
 
-            val sb: StringBuilder =
-                StringBuilder()
-            val formatter = Formatter(sb)
-
             val cleanedList = (_cartObjects.value.content.single() as MutableList)
             cleanedList.remove(value)
 
             val newCartObject = _cartObjects.value.copy(
                 content = (flowOf(cleanedList)),
                 totalPrice = flowOf(
-                    formatter.format(
-                        "%,.2f€",
-                        cleanedList.sumOf { (it.priceInCents * it.quantity) }).toString()
+                    cleanedList.sumOf { (it.priceInCents * it.quantity) }.toUiPrice()
                 )
             )
 
@@ -152,7 +135,8 @@ class CartViewModel(
                             quantity = it.quantity
                         )
                     },
-                    newCartObject.totalPrice.last().replace(",", ".").toDouble().toCentsLong()
+                    newCartObject.totalPrice.last().replace(",", ".").replace("€", "").toDouble()
+                        .toCentsLong()
                 )
             )
 

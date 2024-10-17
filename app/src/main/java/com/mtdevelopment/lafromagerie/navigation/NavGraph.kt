@@ -8,6 +8,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.toRoute
+import com.mtdevelopment.cart.presentation.viewmodel.CartViewModel
 import com.mtdevelopment.checkout.presentation.screen.CheckoutScreen
 import com.mtdevelopment.checkout.presentation.screen.DeliveryOptionScreen
 import com.mtdevelopment.core.presentation.sharedModels.UiProductObject
@@ -22,7 +23,8 @@ import com.mtdevelopment.home.presentation.composable.HomeScreen
 fun NavGraph(
     paddingValues: PaddingValues,
     navController: NavHostController,
-    onGooglePayButtonClick: () -> Unit = {}
+    cartViewModel: CartViewModel,
+    onGooglePayButtonClick: (priceCents: Long) -> Unit = {}
 ) {
     NavHost(
         navController = navController,
@@ -32,11 +34,12 @@ fun NavGraph(
 
         composable<HomeScreen> {
             HomeScreen(
+                cartViewModel = cartViewModel,
                 navigateToDetail = { product ->
                     navController.navigate(DetailDestination(product))
-                }, navigateToDelivery = { items ->
+                }, navigateToDelivery = {
                     navController.navigate(
-                        DeliveryOptionScreen(items)
+                        DeliveryOptionScreen
                     )
                 })
         }
@@ -58,6 +61,7 @@ fun NavGraph(
         ) {
             val args = it.toRoute<DetailDestination>()
             DetailScreen(
+                viewModel = cartViewModel,
                 detailProductObject = args.productObject
             )
         }
@@ -76,11 +80,9 @@ fun NavGraph(
                 scaleOutOfContainer()
             }
         ) {
-            DeliveryOptionScreen(navigateToCheckout = { checkoutData ->
+            DeliveryOptionScreen(navigateToCheckout = {
                 navController.navigate(
-                    CheckoutScreen(
-                        checkoutData = checkoutData
-                    )
+                    CheckoutScreen
                 )
             })
         }

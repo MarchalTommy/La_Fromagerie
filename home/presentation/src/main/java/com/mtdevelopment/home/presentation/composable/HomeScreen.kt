@@ -30,43 +30,20 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.tooling.preview.Devices
-import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.tooling.preview.Wallpapers
 import androidx.compose.ui.unit.dp
 import com.mtdevelopment.cart.presentation.model.UiBasketObject
 import com.mtdevelopment.cart.presentation.viewmodel.CartViewModel
 import com.mtdevelopment.core.presentation.sharedModels.UiProductObject
 import com.mtdevelopment.core.presentation.testList
-import com.mtdevelopment.core.util.ScreenSize
-import com.mtdevelopment.core.util.rememberScreenSize
 import com.mtdevelopment.home.presentation.composable.cart.CartView
 import kotlinx.coroutines.launch
-import org.koin.androidx.compose.koinViewModel
 
-@Preview(
-    name = "Default device",
-    device = Devices.DEFAULT,
-    wallpaper = Wallpapers.GREEN_DOMINATED_EXAMPLE
-)
-@Preview(
-    name = "Small device",
-    device = Devices.PIXEL_2,
-    wallpaper = Wallpapers.RED_DOMINATED_EXAMPLE
-)
-@Preview(
-    name = "Smaller device",
-    device = "spec:width=720px,height=980px,dpi=320",
-    wallpaper = Wallpapers.BLUE_DOMINATED_EXAMPLE
-)
 @Composable
 fun HomeScreen(
-    screenSize: ScreenSize = rememberScreenSize(),
+    cartViewModel: CartViewModel,
     navigateToDetail: (UiProductObject) -> Unit = {},
     navigateToDelivery: (UiBasketObject) -> Unit = {}
 ) {
-
-    val cartViewModel = koinViewModel<CartViewModel>()
     val coroutineScope = rememberCoroutineScope()
 
     var showBottomSheet by remember { mutableStateOf(false) }

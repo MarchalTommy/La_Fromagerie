@@ -9,6 +9,7 @@ import com.google.android.gms.tasks.Task
 import com.google.android.gms.wallet.PaymentData
 import com.google.android.gms.wallet.PaymentDataRequest
 import com.google.android.gms.wallet.PaymentsClient
+import com.mtdevelopment.checkout.domain.model.LocalCheckoutInformation
 import com.mtdevelopment.checkout.domain.usecase.CreatePaymentsClientUseCase
 import com.mtdevelopment.checkout.domain.usecase.FetchAllowedPaymentMethods
 import com.mtdevelopment.checkout.domain.usecase.GetCanUseGooglePayUseCase
@@ -43,8 +44,10 @@ class CheckoutViewModel(
         initialValue = false
     )
 
-    // TODO: Get the "getCheckoutDataUseCase" data (I need data classes here I think) and use it at
-    //  least to create the final price for now
+    val checkoutScreenObject: StateFlow<LocalCheckoutInformation?> =
+        getCheckoutDataUseCase.invoke().stateIn(
+            viewModelScope, SharingStarted.WhileSubscribed(5000), null
+        )
 
     private val _paymentUiState: MutableStateFlow<PaymentUiState> =
         MutableStateFlow(PaymentUiState.NotStarted)

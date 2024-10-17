@@ -7,9 +7,13 @@ import android.os.CombinedVibration
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
+import androidx.compose.runtime.Composable
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import org.koin.compose.currentKoinScope
 import java.util.Locale
 
 fun Double.toCentsLong(): Long {
@@ -86,5 +90,13 @@ inline fun <reified T : Any> serializableType(
 
     override fun put(bundle: Bundle, key: String, value: T) {
         bundle.putString(key, json.encodeToString(value))
+    }
+}
+
+@Composable
+inline fun <reified T : ViewModel> koinViewModel(): T {
+    val scope = currentKoinScope()
+    return viewModel {
+        scope.get<T>()
     }
 }
