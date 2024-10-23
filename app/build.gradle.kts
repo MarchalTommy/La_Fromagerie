@@ -1,3 +1,7 @@
+import kotlin.text.lowercase
+import kotlin.text.removePrefix
+import kotlin.text.removeSuffix
+
 plugins {
     alias(libs.plugins.androidApplication)
     alias(libs.plugins.kotlinAndroid)
@@ -34,8 +38,8 @@ android {
         applicationId = "com.mtdevelopment.lafromagerie"
         minSdk = 24
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "1.0.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -103,4 +107,74 @@ dependencies {
     implementation(libs.koin.android)
     implementation(libs.koin.androidx.compose)
     implementation(libs.koin.androidx.compose.navigation)
+}
+
+class Version(code: Int, version: String) {
+    private var major: Int = 0
+    private var minor: Int = 0
+    private var patch: Int = 0
+    private var code: Int = code
+
+    init {
+        val (major, minor, patch) = version.split(".")
+        this.major = major.toInt()
+        this.minor = minor.toInt()
+        this.patch = patch.toInt()
+    }
+
+    fun bumpMajor() {
+        major += 1
+        minor = 0
+        patch = 0
+        code += 1
+    }
+
+    fun bumpMinor() {
+        minor += 1
+        patch = 0
+        code += 1
+    }
+
+    fun bumpPatch() {
+        patch += 1
+        code += 1
+    }
+
+    fun getName(): String = "$major.$minor.$patch"
+
+    fun getCode(): Int = code
+}
+
+tasks.addRule("Pattern: bump<TYPE>Version") {
+    val taskName = this
+    if (taskName.matches("bump(Major|Minor|Patch)Version".toRegex())) {
+        tasks.create(taskName) {
+            doLast {
+                val type = taskName.removePrefix("bump").removeSuffix("Version")
+
+                println("Bumping ${type.lowercase()} version...")
+
+                val oldVersionCode = android.defaultConfig.versionCode!!
+                val oldVersionName = android.defaultConfig.versionName!!
+
+                val version = Version(oldVersionCode, oldVersionName)
+                when (type) {
+                    "Major" -> version.bumpMajor()
+                    "Minor" -> version.bumpMinor()
+                    "Patch" -> version.bumpPatch()
+                }
+
+                val newVersionName = version.getName()
+                val newVersionCode = version.getCode()
+
+                println("$oldVersionName ($oldVersionCode) → $newVersionName ($newVersionCode)")
+
+                // Update version properties in buildFile
+                val updated = buildFile.readText()
+                    .replaceFirst("versionName = \"$oldVersionName\"", "versionName = \"$newVersionName\"")
+                    .replaceFirst("versionCode = $oldVersionCode", "versionCode = $newVersionCode")
+                buildFile.writeText(updated)
+            }
+        }
+    }
 }
