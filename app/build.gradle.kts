@@ -9,6 +9,27 @@ android {
     namespace = "com.mtdevelopment.lafromagerie"
     compileSdk = 34
 
+    signingConfigs {
+        create("release") {
+            keyAlias = System.getenv("KEYSTORE_ALIAS") ?: project.findProperty("KEYSTORE_ALIAS")
+                ?.toString()
+            println(keyAlias)
+            keyPassword =
+                System.getenv("KEYSTORE_ALIAS_PASS") ?: project.findProperty("KEYSTORE_ALIAS_PASS")
+                    ?.toString()
+            println(keyPassword)
+            storeFile =
+                (System.getenv("KEYSTORE_PATH") ?: project.findProperty("KEYSTORE_PATH"))?.let {
+                    file(
+                        it
+                    )
+                }
+            println(storeFile)
+            storePassword =
+                System.getenv("KEYSTORE_PASS") ?: (project.findProperty("KEYSTORE_PASS") as? String)
+            println(storePassword)
+        }
+    }
     defaultConfig {
         applicationId = "com.mtdevelopment.lafromagerie"
         minSdk = 24
@@ -23,15 +44,20 @@ android {
     }
 
     buildTypes {
-        release {
+        debug {
             isMinifyEnabled = false
+        }
+
+        release {
+            isMinifyEnabled = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            signingConfig = signingConfigs.getByName("release")
         }
     }
-    
+
     kotlin {
         jvmToolchain(17)
     }
@@ -42,9 +68,7 @@ android {
         kotlinCompilerExtensionVersion = "1.5.13"
     }
     packaging {
-        resources {
-            excludes += "/META-INF/{AL2.0,LGPL2.1}"
-        }
+        jniLibs.pickFirsts.add("**/libc++_shared.so")
     }
 }
 
