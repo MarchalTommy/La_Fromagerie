@@ -15,8 +15,12 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles("consumer-rules.pro")
-        val MAPBOX_PUBLIC_TOKEN: String by project
-        val MAPBOX_SECRET_TOKEN: String by project
+        val MAPBOX_PUBLIC_TOKEN =
+            System.getenv("MAPBOX_PUBLIC_TOKEN") ?: project.findProperty("MAPBOX_PUBLIC_TOKEN")
+                ?.toString()
+        val MAPBOX_SECRET_TOKEN =
+            System.getenv("MAPBOX_SECRET_TOKEN") ?: project.findProperty("MAPBOX_SECRET_TOKEN")
+                ?.toString()
         buildConfigField("String", "MAPBOX_PUBLIC_TOKEN", "\"$MAPBOX_PUBLIC_TOKEN\"")
         buildConfigField(
             "String", "MAPBOX_SECRET_TOKEN",
