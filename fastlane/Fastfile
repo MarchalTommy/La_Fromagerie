@@ -26,6 +26,8 @@ platform :android do
 			puts "Valeur de TESTERS: #{TESTERS}"
 			ARTIFACT_PATH = options[:ARTIFACT_PATH]
 			puts "Valeur de ARTIFACT_PATH: #{ARTIFACT_PATH}"
+			CHANGELOG = options[:CHANGELOG]
+			puts "Valeur de CHANGELOG: #{CHANGELOG}"
 		end
 			
 			
@@ -54,7 +56,7 @@ platform :android do
 			android_artifact_type: "APK",
 			android_artifact_path: "#{ARTIFACT_PATH}",
             testers: "#{TESTERS}",
-            release_notes: "Lots of amazing new features to test out!"
+            release_notes: "#{CHANGELOG}"
         )
 	end
 	
