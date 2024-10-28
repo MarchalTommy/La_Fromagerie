@@ -32,11 +32,10 @@ platform :android do
 
 	desc "Deploy to firebase App Distribution"
 	lane :distribute do
-        build_android_app(...)
+			gradle(task: "clean assembleRelease")
         release = firebase_app_distribution(
-		#REPLACE WITH RELEASE APP ID WHEN DONE
-            app: "1:123456789:android:abcd1234",
-            testers: "gilles.marchal25560@gmail.com, marchal.tommy@gmail.com",
+            app: "1:541930609515:android:c53c2e51423d11e06d4a2e",
+            testers: "marchal.tommy@gmail.com",
             release_notes: "Lots of amazing new features to test out!"
         )
 #  desc "Deploy a new version to the Google Play"
