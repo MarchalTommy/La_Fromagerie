@@ -28,36 +28,97 @@ platform :android do
 			puts "Valeur de ARTIFACT_PATH: #{ARTIFACT_PATH}"
 			CHANGELOG = options[:CHANGELOG]
 			puts "Valeur de CHANGELOG: #{CHANGELOG}"
+			VERSION_CHANGE = options[:VERSION_CHANGE]
+			puts "Valeur de VERSION_CHANGE: #{VERSION_CHANGE}"
 		end
-			
-			
+
   desc "Runs all the tests"
   lane :test do
     gradle(task: "test")
+
+	android_get_version_name(
+    gradle_file: "app/build.gradle.kts" # optional
+  )
+
+  android_set_version_name(
+    version_name: "1.23.4",
+    gradle_file: "app/build.gradle.kts" # optional
+  )
+
+  android_get_version_code(
+    gradle_file: "app/build.gradle.kts" # optional
+  )
+
+  android_set_version_code(
+    version_code: 17, # optional, if not specified, Version Code will be incremented
+    gradle_file: "app/build.gradle.kts" # optional
+  )
   end
 
-  desc "Submit a new Beta Build to Crashlytics Beta"
-  lane :beta do
-    gradle(task: "clean assembleRelease")
-    crashlytics
+  private_lane :determine_release_name do
+    version = android_get_version_name(
+    gradle_file: "app/build.gradle.kts" # optional
+	)
+
+    if version.empty?
+      UI.user_error!("Whoops, current version not found!")
+    else
+      current_version = version
+    end
+
+    parts = current_version.split(".")
+
+    major = parts[0]
+    minor = parts[1]
+    patch = parts[2]
+
+    target_major = (major.to_i + 1).to_s + ".0.0"
+    target_minor = major + "." + (minor.to_i + 1).to_s + ".0"
+    target_patch = major + "." + minor + "." + (patch.to_i + 1).to_s
+
+    next target_major if VERSION_CHANGE.match("1")
+    next target_minor if VERSION_CHANGE.match("2")
+    next target_patch if VERSION_CHANGE.match("3")
+    next current_version if VERSION_CHANGE.match("0")
+
   end
-  
+
   desc "Build The APK of the app"
   lane :build do
 	gradle(task: "clean assembleRelease")
   end
 
-	desc "Deploy to firebase App Distribution"
-	lane :distribute do |options|
-	
-			firebase_app_distribution(
-			app: "#{APP_ID}",
-			firebase_cli_token: "#{FIREBASE_CLI_TOKEN}",
-			android_artifact_type: "APK",
-			android_artifact_path: "#{ARTIFACT_PATH}",
-            testers: "#{TESTERS}",
-            release_notes: "#{CHANGELOG}"
-        )
-	end
-	
+  desc "Update version"
+  lane :version do |options|
+  	newVersion = determine_release_name
+	UI.success("👍  The new version name is: #{newVersion}")
+
+	increment_version_code(
+	gradle_file_path: "app/build.gradle.kts",
+    #ext_constant_name: "test"
+    #app_folder_name:"app"
+  )
+
+  	android_set_version_name(
+    version_name: newVersion,
+    gradle_file: "app/build.gradle.kts" # optional
+  )
+
+  	android_gradle_commiter(
+  	app_folder_name:"app"
+  )
+ end
+
+  desc "Deploy to firebase App Distribution"
+  lane :distribute do |options|
+	firebase_app_distribution(
+	app: "#{APP_ID}",
+	firebase_cli_token: "#{FIREBASE_CLI_TOKEN}",
+	android_artifact_type: "APK",
+	android_artifact_path: "#{ARTIFACT_PATH}",
+	testers: "#{TESTERS}",
+	release_notes: "#{CHANGELOG}"
+  )
+  end
+
 end
