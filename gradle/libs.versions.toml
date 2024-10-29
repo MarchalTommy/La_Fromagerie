@@ -142,7 +142,6 @@ location = { module = "com.google.android.gms:play-services-location", version.r
 ## Contentment (avoid loader flickering)
 contentment = { module = "me.rmyhal.contentment:contentment", version.ref = "contentment" }
 
-
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }
 kotlinAndroid = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
