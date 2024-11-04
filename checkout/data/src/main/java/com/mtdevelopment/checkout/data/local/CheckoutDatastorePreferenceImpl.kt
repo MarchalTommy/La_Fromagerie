@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.mtdevelopment.checkout.domain.repository.CheckoutDatastorePreference
 import kotlinx.coroutines.flow.Flow
@@ -48,6 +49,28 @@ class CheckoutDatastorePreferenceImpl(private val context: Context) : CheckoutDa
     override suspend fun setSumUpTokenValidity(duration: Long) {
         context.dataStore.edit { settings ->
             settings[SUMUP_TOKEN_VALIDITY] = duration
+        }
+    }
+
+    private val CHECKOUT_REFERENCE = stringSetPreferencesKey("checkout_reference")
+    override val checkoutReferencesFlow: Flow<List<String>> =
+        context.dataStore.data.map { preferences ->
+            preferences[CHECKOUT_REFERENCE]?.toList() ?: setOf<String>().toList()
+        }
+
+    override suspend fun saveCheckoutReference(reference: String) {
+        context.dataStore.edit { settings ->
+            if (settings[CHECKOUT_REFERENCE] != null) {
+                val newSet = settings[CHECKOUT_REFERENCE]?.toMutableSet()
+                newSet?.add(reference)
+                newSet?.let {
+                    settings[CHECKOUT_REFERENCE] = newSet.toSet()
+                } ?: run {
+                    settings[CHECKOUT_REFERENCE] = setOf(reference)
+                }
+            } else {
+                settings[CHECKOUT_REFERENCE] = setOf(reference)
+            }
         }
     }
 }

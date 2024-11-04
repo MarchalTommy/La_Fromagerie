@@ -17,6 +17,8 @@ import io.ktor.client.request.get
 import io.ktor.client.request.post
 import io.ktor.client.request.put
 import io.ktor.client.request.setBody
+import io.ktor.http.ContentType
+import io.ktor.http.contentType
 import io.ktor.http.path
 import kotlinx.coroutines.flow.Flow
 
@@ -76,7 +78,6 @@ class SumUpDataSource(private val httpClient: HttpClient) {
                         "v0.1/checkouts"
                     )
                     parameters.append("id", id)
-
                 }
             }.body<CheckoutFromIdResponse>()
             NetWorkResult.Success(response)
@@ -90,8 +91,9 @@ class SumUpDataSource(private val httpClient: HttpClient) {
                     path(
                         "v0.1/checkouts"
                     )
-                    setBody(body)
                 }
+                contentType(ContentType.Application.Json)
+                setBody(body)
             }.body<NewCheckoutResponse?>()
             NetWorkResult.Success(response)
         }
@@ -107,8 +109,9 @@ class SumUpDataSource(private val httpClient: HttpClient) {
                     body.id?.let {
                         parameters.append("id", it)
                     }
-                    setBody(body)
                 }
+                contentType(ContentType.Application.Json)
+                setBody(body)
             }.body<ProcessCheckoutResponse?>()
             NetWorkResult.Success(response)
         }

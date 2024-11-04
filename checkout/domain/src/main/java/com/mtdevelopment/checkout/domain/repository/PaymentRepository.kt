@@ -1,8 +1,9 @@
 package com.mtdevelopment.checkout.domain.repository
 
-import com.google.android.gms.wallet.PaymentData
 import com.google.android.gms.wallet.PaymentsClient
 import com.mtdevelopment.checkout.domain.model.GooglePayData
+import com.mtdevelopment.checkout.domain.model.NewCheckoutResult
+import com.mtdevelopment.checkout.domain.model.ProcessCheckoutResult
 import kotlinx.coroutines.flow.Flow
 import org.json.JSONArray
 import org.json.JSONObject
@@ -30,10 +31,10 @@ interface PaymentRepository {
 
     suspend fun getCheckoutFromId(id: String)
 
-    fun createNewCheckout(amount: Double, reference: String): Flow<Any>
+    fun createNewCheckout(amount: Double, reference: String): Flow<NewCheckoutResult>
 
     fun processCheckout(
         reference: String,
-        googlePayData: GooglePayData.PaymentMethodData
-    ): Flow<Any>
+        googlePayData: GooglePayData
+    ): Flow<ProcessCheckoutResult>
 }

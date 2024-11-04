@@ -1,6 +1,7 @@
 package com.mtdevelopment.checkout.data.remote.model.response.sumUp
 
 
+import com.mtdevelopment.checkout.domain.model.NewCheckoutResult
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -79,3 +80,44 @@ data class NewCheckoutResponse(
         val vatAmount: Int?
     )
 }
+
+fun NewCheckoutResponse.toNewCheckoutResult() = NewCheckoutResult(
+    amount = this.amount,
+    checkoutReference = this.checkoutReference,
+    currency = this.currency,
+    customerId = this.customerId,
+    date = this.date,
+    description = this.description,
+    id = this.id,
+    mandate = this.mandate?.toMandateResult(),
+    merchantCode = this.merchantCode,
+    merchantCountry = this.merchantCountry,
+    payToEmail = this.payToEmail,
+    returnUrl = this.returnUrl,
+    status = this.status,
+    transactions = this.transactions?.map { it?.toTransactionResult() },
+    validUntil = this.validUntil
+)
+
+fun NewCheckoutResponse.Mandate.toMandateResult() = NewCheckoutResult.Mandate(
+    merchantCode = this.merchantCode,
+    status = this.status,
+    type = this.type
+)
+
+fun NewCheckoutResponse.Transaction.toTransactionResult() = NewCheckoutResult.Transaction(
+    amount = this.amount,
+    authCode = this.authCode,
+    currency = this.currency,
+    entryMode = this.entryMode,
+    id = this.id,
+    installmentsCount = this.installmentsCount,
+    internalId = this.internalId,
+    merchantCode = this.merchantCode,
+    paymentType = this.paymentType,
+    status = this.status,
+    timestamp = this.timestamp,
+    tipAmount = this.tipAmount,
+    transactionCode = this.transactionCode,
+    vatAmount = this.vatAmount
+)

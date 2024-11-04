@@ -9,7 +9,10 @@ import com.google.android.gms.tasks.Task
 import com.google.android.gms.wallet.PaymentData
 import com.google.android.gms.wallet.PaymentDataRequest
 import com.google.android.gms.wallet.PaymentsClient
+import com.google.gson.Gson
+import com.mtdevelopment.checkout.domain.model.GooglePayData
 import com.mtdevelopment.checkout.domain.model.LocalCheckoutInformation
+import com.mtdevelopment.checkout.domain.model.NewCheckoutResult
 import com.mtdevelopment.checkout.domain.usecase.CreateNewCheckoutUseCase
 import com.mtdevelopment.checkout.domain.usecase.CreatePaymentsClientUseCase
 import com.mtdevelopment.checkout.domain.usecase.FetchAllowedPaymentMethods
@@ -18,7 +21,9 @@ import com.mtdevelopment.checkout.domain.usecase.GetCheckoutDataUseCase
 import com.mtdevelopment.checkout.domain.usecase.GetIsReadyToPayUseCase
 import com.mtdevelopment.checkout.domain.usecase.GetPaymentDataRequestUseCase
 import com.mtdevelopment.checkout.domain.usecase.ProcessSumUpCheckoutUseCase
+import com.mtdevelopment.checkout.domain.usecase.SaveCheckoutReferenceUseCase
 import com.mtdevelopment.core.usecase.GetIsNetworkConnectedUseCase
+import com.mtdevelopment.core.util.toPriceDouble
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -39,7 +44,8 @@ class CheckoutViewModel(
     private val getCanUseGooglePayUseCase: GetCanUseGooglePayUseCase,
     private val getPaymentDataRequestUseCase: GetPaymentDataRequestUseCase,
     private val createNewCheckoutUseCase: CreateNewCheckoutUseCase,
-    private val processSumUpCheckoutUseCase: ProcessSumUpCheckoutUseCase
+    private val processSumUpCheckoutUseCase: ProcessSumUpCheckoutUseCase,
+    private val saveCheckoutReferenceUseCase: SaveCheckoutReferenceUseCase
 ) : ViewModel(), KoinComponent {
 
     val isConnected: StateFlow<Boolean> = getIsConnectedUseCase.invoke().stateIn(
@@ -66,12 +72,16 @@ class CheckoutViewModel(
     private val _isGooglePayAvailable: MutableStateFlow<Boolean> = MutableStateFlow(false)
     val isGooglePayAvailable: StateFlow<Boolean> = _isGooglePayAvailable.asStateFlow()
 
+    private val _createCheckoutState: MutableStateFlow<NewCheckoutResult?> = MutableStateFlow(null)
+    val createCheckoutState: StateFlow<NewCheckoutResult?> = _createCheckoutState.asStateFlow()
+
     // A client for interacting with the Google Pay API.
     private val paymentsClient: PaymentsClient = createPaymentsClientUseCase.invoke()
 
     init {
         viewModelScope.launch {
             verifyGooglePayReadiness()
+            createCheckout()
         }
     }
 
@@ -118,14 +128,43 @@ class CheckoutViewModel(
         Log.e("Google Pay API error", "Error code: $statusCode, Message: $message")
     }
 
+    private suspend fun createCheckout() {
+        val checkoutRef = kotlin.random.Random.nextLong().toString()
+        saveCheckoutReferenceUseCase.invoke(checkoutRef)
+        createNewCheckoutUseCase.invoke(
+            amount = checkoutScreenObject.value?.totalPrice?.toPriceDouble() ?: 0.0,
+            reference = checkoutRef
+        ).collect {
+            _createCheckoutState.update { it }
+        }
+    }
+
+    private suspend fun processCheckout(paymentDataItem: GooglePayData, checkoutRef: String) {
+        processSumUpCheckoutUseCase.invoke(
+            reference = checkoutRef,
+            googlePayData = paymentDataItem
+        ).collect {
+            Log.d("Checkout", it.toString())
+        }
+    }
+
     fun setPaymentData(paymentData: PaymentData) {
-        val payState = extractPaymentBillingName(paymentData)?.let {
-            PaymentUiState.PaymentCompleted(payerName = it)
-        } ?: PaymentUiState.Error(CommonStatusCodes.INTERNAL_ERROR)
+//        val payState = extractPaymentBillingName(paymentData)?.let {
+//            PaymentUiState.PaymentCompleted(payerName = it)
+//        } ?: PaymentUiState.Error(CommonStatusCodes.INTERNAL_ERROR)
 
-
-
-        _paymentUiState.update { payState }
+        viewModelScope.launch {
+            val checkoutRef = kotlin.random.Random.nextLong().toString()
+            saveCheckoutReferenceUseCase.invoke(checkoutRef)
+            createCheckoutState.collect {
+                if (it?.status == "pending") {
+                    val paymentDataItem =
+                        Gson().fromJson(paymentData.toJson(), GooglePayData::class.java)
+                    processCheckout(paymentDataItem, checkoutRef)
+                }
+            }
+        }
+//        _paymentUiState.update { payState }
     }
 
     private fun extractPaymentBillingName(paymentData: PaymentData): String? {
@@ -135,13 +174,13 @@ class CheckoutViewModel(
             // Token will be null if PaymentDataRequest was not constructed using fromJson(String).
             val paymentMethodData =
                 JSONObject(paymentInformation).getJSONObject("paymentMethodData")
-            // TODO : As shipping is mandatory here, we need to verify and cancel the order if the
-            //  shipping selected here is NOT available for delivery or selected delivery date
-
-            // TODO : CHECK LEGALLY if I can NOT ask for billing Address
-            val shippingName = JSONObject(paymentInformation)
-                .getJSONObject("shippingAddress").getString("name")
-            Log.d("Shipping Name", shippingName)
+//            // TODO : As shipping is mandatory here, we need to verify and cancel the order if the
+//            //  shipping selected here is NOT available for delivery or selected delivery date
+//
+//            // TODO : CHECK LEGALLY if I can NOT ask for billing Address
+//            val shippingName = JSONObject(paymentInformation)
+//                .getJSONObject("shippingAddress").getString("name")
+//            Log.d("Shipping Name", shippingName)
 
             // Logging token string.
             Log.d(
@@ -150,7 +189,7 @@ class CheckoutViewModel(
                     .getString("token")
             )
 
-            return shippingName
+            return "ROBERTS TESTEUR"
         } catch (error: JSONException) {
             Log.e("handlePaymentSuccess", "Error: $error")
         }

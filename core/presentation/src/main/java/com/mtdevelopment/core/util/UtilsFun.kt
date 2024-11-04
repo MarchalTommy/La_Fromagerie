@@ -20,6 +20,10 @@ fun Double.toCentsLong(): Long {
     return (this * 100).toLong()
 }
 
+fun Long.toPriceDouble(): Double {
+    return this.toDouble() / 100
+}
+
 fun Long.toUiPrice(): String {
     return String.format(locale = Locale.FRANCE, "%.2f", this.toDouble() / 100)
         .replace(".", ",") + "€"

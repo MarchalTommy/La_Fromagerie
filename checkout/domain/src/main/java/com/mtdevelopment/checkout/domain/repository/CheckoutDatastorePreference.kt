@@ -17,4 +17,7 @@ interface CheckoutDatastorePreference {
 
     suspend fun setSumUpTokenValidity(duration: Long)
 
+    val checkoutReferencesFlow: Flow<List<String>>
+
+    suspend fun saveCheckoutReference(reference: String)
 }

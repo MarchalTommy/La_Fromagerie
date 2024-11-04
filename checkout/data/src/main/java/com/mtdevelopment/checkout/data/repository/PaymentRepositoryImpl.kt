@@ -6,17 +6,23 @@ import com.google.android.gms.wallet.PaymentsClient
 import com.google.android.gms.wallet.Wallet
 import com.mtdevelopment.checkout.data.BuildConfig
 import com.mtdevelopment.checkout.data.remote.model.Constants
+import com.mtdevelopment.checkout.data.remote.model.request.Address
+import com.mtdevelopment.checkout.data.remote.model.request.CHECKOUT_CREATION_BODY_PURPOSE
 import com.mtdevelopment.checkout.data.remote.model.request.CheckoutCreationBody
+import com.mtdevelopment.checkout.data.remote.model.request.PersonalDetails
 import com.mtdevelopment.checkout.data.remote.model.request.ProcessCheckoutRequest
 import com.mtdevelopment.checkout.data.remote.model.request.toPaymentData
-import com.mtdevelopment.checkout.data.remote.model.response.sumUp.NewCheckoutResponse
-import com.mtdevelopment.checkout.data.remote.model.response.sumUp.ProcessCheckoutResponse
+import com.mtdevelopment.checkout.data.remote.model.response.sumUp.toNewCheckoutResult
+import com.mtdevelopment.checkout.data.remote.model.response.sumUp.toProcessCheckoutResult
 import com.mtdevelopment.checkout.data.remote.source.SumUpDataSource
 import com.mtdevelopment.checkout.domain.model.GooglePayData
+import com.mtdevelopment.checkout.domain.model.NewCheckoutResult
+import com.mtdevelopment.checkout.domain.model.ProcessCheckoutResult
 import com.mtdevelopment.checkout.domain.repository.PaymentRepository
 import com.mtdevelopment.core.util.NetWorkResult
 import io.ktor.client.plugins.auth.providers.BearerTokens
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.transform
 import kotlinx.coroutines.tasks.await
 import org.json.JSONArray
 import org.json.JSONException
@@ -29,6 +35,10 @@ class PaymentRepositoryImpl(
     private val sumUpDataSource: SumUpDataSource,
 //    private val datastore: CheckoutDatastorePreferenceImpl
 ) : PaymentRepository {
+
+    init {
+        initClientToken()
+    }
 
     ///////////////////////////////////////////////////////////////////////////
     // GOOGLE PAY PART
@@ -149,36 +159,52 @@ class PaymentRepositoryImpl(
 
     // TODO: Create checkout when clicking on google pay button
     // TODO: Save checkout reference securely
+    // TODO: CHECK WITH THESE IDIOTS WHY 404 ON CREATE CHECKOUT ?!
     override fun createNewCheckout(
         amount: Double,
         reference: String
-    ): Flow<NetWorkResult<NewCheckoutResponse?>> {
+    ): Flow<NewCheckoutResult> {
         return sumUpDataSource.createNewCheckout(
             CheckoutCreationBody(
                 checkoutReference = reference,
                 amount = amount,
                 currency = "EUR",
-                payToEmail = "gilles.marchal25560@gmail.com",
-                merchantCode = "MFHN73AC"
+                id = "${reference.hashCode()}",
+                personalDetails = PersonalDetails(
+                    email = "marchal.tommy@gmail.com",
+                    firstName = "Tommy",
+                    lastName = "Marchal",
+                    address = Address(
+                        city = "Boujailles",
+                        country = "France",
+                        firstLine = "8 La Vessoye",
+                        postalCode = "25560"
+                    )
+                ),
+                purpose = CHECKOUT_CREATION_BODY_PURPOSE.CHECKOUT,
+
+//                payToEmail = "gilles.marchal25560@gmail.com",
+//                merchantCode = "MFHN73AC",
+                merchantCode = "MCL9SMEE"
             )
-        )
+        ).transform { value -> value.data?.toNewCheckoutResult() }
     }
 
     // TODO: Call after google pay success, see how to manage the UI with that thing
     override fun processCheckout(
         reference: String,
-        googlePayData: GooglePayData.PaymentMethodData
-    ): Flow<NetWorkResult<ProcessCheckoutResponse?>> {
+        googlePayData: GooglePayData
+    ): Flow<ProcessCheckoutResult> {
         return sumUpDataSource.processCheckout(
             ProcessCheckoutRequest(
                 id = reference,
                 currency = "EUR",
                 googlePay = ProcessCheckoutRequest.GooglePay(
-                    apiVersion = 2,
-                    apiVersionMinor = 0,
-                    paymentMethodData = googlePayData.toPaymentData()
+                    apiVersion = googlePayData.apiVersion,
+                    apiVersionMinor = googlePayData.apiVersionMinor,
+                    paymentMethodData = googlePayData.paymentMethodData?.toPaymentData()
                 )
             )
-        )
+        ).transform { value -> value.data?.toProcessCheckoutResult() }
     }
 }

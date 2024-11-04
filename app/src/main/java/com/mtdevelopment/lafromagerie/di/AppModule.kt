@@ -15,6 +15,7 @@ import com.mtdevelopment.checkout.domain.usecase.GetCheckoutDataUseCase
 import com.mtdevelopment.checkout.domain.usecase.GetIsReadyToPayUseCase
 import com.mtdevelopment.checkout.domain.usecase.GetPaymentDataRequestUseCase
 import com.mtdevelopment.checkout.domain.usecase.ProcessSumUpCheckoutUseCase
+import com.mtdevelopment.checkout.domain.usecase.SaveCheckoutReferenceUseCase
 import com.mtdevelopment.checkout.presentation.viewmodel.CheckoutViewModel
 import com.mtdevelopment.checkout.presentation.viewmodel.DeliveryViewModel
 import com.mtdevelopment.core.local.SharedDatastoreImpl
@@ -28,12 +29,15 @@ import com.mtdevelopment.core.usecase.SaveToDatastoreUseCase
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.plugins.DefaultRequest
+import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.logging.ANDROID
 import io.ktor.client.plugins.logging.LogLevel
 import io.ktor.client.plugins.logging.Logger
 import io.ktor.client.plugins.logging.Logging
 import io.ktor.http.HttpHeaders
 import io.ktor.http.URLProtocol
+import io.ktor.serialization.kotlinx.json.json
+import kotlinx.serialization.json.Json
 import org.koin.androidx.viewmodel.dsl.viewModelOf
 import org.koin.dsl.module
 
@@ -60,6 +64,7 @@ val mainAppModule = module {
 
     factory { CreateNewCheckoutUseCase(get()) }
     factory { ProcessSumUpCheckoutUseCase(get()) }
+    factory { SaveCheckoutReferenceUseCase(get()) }
 
     viewModelOf(::CartViewModel)
     viewModelOf(::DeliveryViewModel)
@@ -80,6 +85,12 @@ val provideHttpClientModule = module {
                     protocol = URLProtocol.HTTPS
                     host = Constants.BASE_URL_WITHOUT_HTTPS
                 }
+            }
+            install(ContentNegotiation) {
+                json(Json {
+                    prettyPrint = true
+                    isLenient = true
+                })
             }
         }
     }
