@@ -7,12 +7,14 @@ import com.mtdevelopment.checkout.data.remote.source.SumUpDataSource
 import com.mtdevelopment.checkout.data.repository.PaymentRepositoryImpl
 import com.mtdevelopment.checkout.domain.repository.CheckoutDatastorePreference
 import com.mtdevelopment.checkout.domain.repository.PaymentRepository
+import com.mtdevelopment.checkout.domain.usecase.CreateNewCheckoutUseCase
 import com.mtdevelopment.checkout.domain.usecase.CreatePaymentsClientUseCase
 import com.mtdevelopment.checkout.domain.usecase.FetchAllowedPaymentMethods
 import com.mtdevelopment.checkout.domain.usecase.GetCanUseGooglePayUseCase
 import com.mtdevelopment.checkout.domain.usecase.GetCheckoutDataUseCase
 import com.mtdevelopment.checkout.domain.usecase.GetIsReadyToPayUseCase
 import com.mtdevelopment.checkout.domain.usecase.GetPaymentDataRequestUseCase
+import com.mtdevelopment.checkout.domain.usecase.ProcessSumUpCheckoutUseCase
 import com.mtdevelopment.checkout.presentation.viewmodel.CheckoutViewModel
 import com.mtdevelopment.checkout.presentation.viewmodel.DeliveryViewModel
 import com.mtdevelopment.core.local.SharedDatastoreImpl
@@ -55,6 +57,9 @@ val mainAppModule = module {
     factory { CreatePaymentsClientUseCase(get()) }
     factory { GetIsNetworkConnectedUseCase(get()) }
     factory { GetPaymentDataRequestUseCase(get()) }
+
+    factory { CreateNewCheckoutUseCase(get()) }
+    factory { ProcessSumUpCheckoutUseCase(get()) }
 
     viewModelOf(::CartViewModel)
     viewModelOf(::DeliveryViewModel)

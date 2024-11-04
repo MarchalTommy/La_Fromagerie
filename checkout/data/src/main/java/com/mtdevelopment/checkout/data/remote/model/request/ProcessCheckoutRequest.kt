@@ -1,13 +1,12 @@
 package com.mtdevelopment.checkout.data.remote.model.request
 
 
+import com.mtdevelopment.checkout.domain.model.GooglePayData
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
 data class ProcessCheckoutRequest(
-    @SerialName("amount")
-    val amount: Int?,
     @SerialName("currency")
     val currency: String?,
     @SerialName("google_pay")
@@ -55,3 +54,17 @@ data class ProcessCheckoutRequest(
         }
     }
 }
+
+fun GooglePayData.PaymentMethodData.toPaymentData() =
+    ProcessCheckoutRequest.GooglePay.PaymentMethodData(
+        description = description,
+        info = ProcessCheckoutRequest.GooglePay.PaymentMethodData.Info(
+            cardDetails = info?.cardDetails,
+            cardNetwork = info?.cardNetwork
+        ),
+        tokenizationData = ProcessCheckoutRequest.GooglePay.PaymentMethodData.TokenizationData(
+            token = tokenizationData?.token,
+            type = tokenizationData?.type
+        ),
+        type = type
+    )

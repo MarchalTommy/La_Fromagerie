@@ -15,6 +15,7 @@ import io.ktor.client.plugins.auth.providers.BearerTokens
 import io.ktor.client.plugins.auth.providers.bearer
 import io.ktor.client.request.get
 import io.ktor.client.request.post
+import io.ktor.client.request.put
 import io.ktor.client.request.setBody
 import io.ktor.http.path
 import kotlinx.coroutines.flow.Flow
@@ -98,7 +99,7 @@ class SumUpDataSource(private val httpClient: HttpClient) {
 
     fun processCheckout(body: ProcessCheckoutRequest): Flow<NetWorkResult<ProcessCheckoutResponse?>> {
         return toResultFlow {
-            val response = httpClient.post {
+            val response = httpClient.put {
                 url {
                     path(
                         "v0.1/checkouts"

@@ -10,12 +10,14 @@ import com.google.android.gms.wallet.PaymentData
 import com.google.android.gms.wallet.PaymentDataRequest
 import com.google.android.gms.wallet.PaymentsClient
 import com.mtdevelopment.checkout.domain.model.LocalCheckoutInformation
+import com.mtdevelopment.checkout.domain.usecase.CreateNewCheckoutUseCase
 import com.mtdevelopment.checkout.domain.usecase.CreatePaymentsClientUseCase
 import com.mtdevelopment.checkout.domain.usecase.FetchAllowedPaymentMethods
 import com.mtdevelopment.checkout.domain.usecase.GetCanUseGooglePayUseCase
 import com.mtdevelopment.checkout.domain.usecase.GetCheckoutDataUseCase
 import com.mtdevelopment.checkout.domain.usecase.GetIsReadyToPayUseCase
 import com.mtdevelopment.checkout.domain.usecase.GetPaymentDataRequestUseCase
+import com.mtdevelopment.checkout.domain.usecase.ProcessSumUpCheckoutUseCase
 import com.mtdevelopment.core.usecase.GetIsNetworkConnectedUseCase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -36,6 +38,8 @@ class CheckoutViewModel(
     private val getIsReadyToPayUseCase: GetIsReadyToPayUseCase,
     private val getCanUseGooglePayUseCase: GetCanUseGooglePayUseCase,
     private val getPaymentDataRequestUseCase: GetPaymentDataRequestUseCase,
+    private val createNewCheckoutUseCase: CreateNewCheckoutUseCase,
+    private val processSumUpCheckoutUseCase: ProcessSumUpCheckoutUseCase
 ) : ViewModel(), KoinComponent {
 
     val isConnected: StateFlow<Boolean> = getIsConnectedUseCase.invoke().stateIn(
@@ -118,6 +122,8 @@ class CheckoutViewModel(
         val payState = extractPaymentBillingName(paymentData)?.let {
             PaymentUiState.PaymentCompleted(payerName = it)
         } ?: PaymentUiState.Error(CommonStatusCodes.INTERNAL_ERROR)
+
+
 
         _paymentUiState.update { payState }
     }

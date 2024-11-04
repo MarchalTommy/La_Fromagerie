@@ -1,5 +1,6 @@
 package com.mtdevelopment.checkout.data.remote.model.request
 
+import com.mtdevelopment.checkout.domain.model.Checkout
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -142,3 +143,42 @@ enum class CHECKOUT_CREATION_BODY_PURPOSE(val value: String) {
 enum class CHECKOUT_CREATION_BODY_STATUS(val value: String) {
     PENDING("PENDING"), FAILED("FAILED"), PAID("PAID")
 }
+
+fun Checkout.toCheckoutCreationBody() = CheckoutCreationBody(
+    amount = amount,
+    checkoutReference = checkoutReference,
+    currency = currency,
+    customerId = customerId,
+    date = date,
+    description = description,
+    id = id,
+    merchantCode = merchantCode,
+    payToEmail = payToEmail,
+    paymentType = paymentType,
+    personalDetails = PersonalDetails(
+        address = Address(
+            city = personalDetails?.address?.city,
+            country = personalDetails?.address?.country,
+            firstLine = personalDetails?.address?.firstLine,
+            postalCode = personalDetails?.address?.postalCode
+        ),
+        email = personalDetails?.email,
+        firstName = personalDetails?.firstName,
+        lastName = personalDetails?.lastName,
+        taxId = personalDetails?.taxId,
+    ),
+    purpose = CHECKOUT_CREATION_BODY_PURPOSE.CHECKOUT,
+    redirectUrl = redirectUrl,
+    returnUrl = returnUrl,
+    status = CHECKOUT_CREATION_BODY_STATUS.valueOf(status?.name ?: ""),
+    transactions = transactions?.map {
+        Transaction(
+            amount = it.amount,
+            currency = it.currency,
+            id = it.id,
+            installmentsCount = it.installmentsCount,
+            paymentType = it.paymentType,
+        )
+    },
+    validUntil = validUntil
+)

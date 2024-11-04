@@ -6,9 +6,17 @@ import com.google.android.gms.wallet.PaymentsClient
 import com.google.android.gms.wallet.Wallet
 import com.mtdevelopment.checkout.data.BuildConfig
 import com.mtdevelopment.checkout.data.remote.model.Constants
+import com.mtdevelopment.checkout.data.remote.model.request.CheckoutCreationBody
+import com.mtdevelopment.checkout.data.remote.model.request.ProcessCheckoutRequest
+import com.mtdevelopment.checkout.data.remote.model.request.toPaymentData
+import com.mtdevelopment.checkout.data.remote.model.response.sumUp.NewCheckoutResponse
+import com.mtdevelopment.checkout.data.remote.model.response.sumUp.ProcessCheckoutResponse
 import com.mtdevelopment.checkout.data.remote.source.SumUpDataSource
+import com.mtdevelopment.checkout.domain.model.GooglePayData
 import com.mtdevelopment.checkout.domain.repository.PaymentRepository
+import com.mtdevelopment.core.util.NetWorkResult
 import io.ktor.client.plugins.auth.providers.BearerTokens
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.tasks.await
 import org.json.JSONArray
 import org.json.JSONException
@@ -139,11 +147,38 @@ class PaymentRepositoryImpl(
         TODO("Not yet implemented")
     }
 
-    override fun createNewCheckout() {
-        TODO("Not yet implemented")
+    // TODO: Create checkout when clicking on google pay button
+    // TODO: Save checkout reference securely
+    override fun createNewCheckout(
+        amount: Double,
+        reference: String
+    ): Flow<NetWorkResult<NewCheckoutResponse?>> {
+        return sumUpDataSource.createNewCheckout(
+            CheckoutCreationBody(
+                checkoutReference = reference,
+                amount = amount,
+                currency = "EUR",
+                payToEmail = "gilles.marchal25560@gmail.com",
+                merchantCode = "MFHN73AC"
+            )
+        )
     }
 
-    override fun processCheckout(id: String) {
-        TODO("Not yet implemented")
+    // TODO: Call after google pay success, see how to manage the UI with that thing
+    override fun processCheckout(
+        reference: String,
+        googlePayData: GooglePayData.PaymentMethodData
+    ): Flow<NetWorkResult<ProcessCheckoutResponse?>> {
+        return sumUpDataSource.processCheckout(
+            ProcessCheckoutRequest(
+                id = reference,
+                currency = "EUR",
+                googlePay = ProcessCheckoutRequest.GooglePay(
+                    apiVersion = 2,
+                    apiVersionMinor = 0,
+                    paymentMethodData = googlePayData.toPaymentData()
+                )
+            )
+        )
     }
 }
