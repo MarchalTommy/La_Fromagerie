@@ -57,7 +57,6 @@ import com.mtdevelopment.checkout.presentation.model.ShippingDefaultSelectableDa
 import com.mtdevelopment.checkout.presentation.model.ShippingSelectableMetaDates
 import com.mtdevelopment.checkout.presentation.model.ShippingSelectablePontarlierDates
 import com.mtdevelopment.checkout.presentation.model.ShippingSelectableSalinDates
-import com.mtdevelopment.checkout.presentation.model.UiCheckoutObject
 import com.mtdevelopment.checkout.presentation.model.UserInfo
 import com.mtdevelopment.checkout.presentation.viewmodel.DeliveryViewModel
 import com.mtdevelopment.core.model.DeliveryPath

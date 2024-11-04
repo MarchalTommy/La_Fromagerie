@@ -91,12 +91,7 @@ class PaymentRepositoryImpl(
             .put("allowedPaymentMethods", allowedPaymentMethods)
             .put("transactionInfo", getTransactionInfo(priceCents.centsToString()))
             .put("merchantInfo", merchantInfo)
-            .put("shippingAddressRequired", true)
-            .put(
-                "shippingAddressParameters", JSONObject()
-                    .put("phoneNumberRequired", false)
-                    .put("allowedCountryCodes", JSONArray(listOf("FR")))
-            )
+            .put("shippingAddressRequired", false)
 
 
     private val CENTS = BigDecimal(100)
