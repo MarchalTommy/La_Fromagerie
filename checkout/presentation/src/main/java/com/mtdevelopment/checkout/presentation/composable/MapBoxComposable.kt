@@ -58,10 +58,10 @@ import java.io.IOException
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun MapBoxComposable(
-    userLocation: State<Pair<Double, Double>?>? = null,
-    chosenPath: State<DeliveryPath?>? = null,
-    columnScrollingEnabled: MutableState<Boolean>,
-    isLoading: MutableState<Boolean>
+    userLocation: Pair<Double, Double>? = null,
+    chosenPath: DeliveryPath? = null,
+    setIsLoading: (Boolean) -> Unit,
+    setColumnScrollingEnabled: (Boolean) -> Unit,
 ) {
 
     val FRASNE_LATITUDE = 46.854022
@@ -118,7 +118,7 @@ fun MapBoxComposable(
     fun getCameraLocalisationFromPath(path: DeliveryPath) {
         CoroutineScope(Dispatchers.IO).launch {
 
-            isLoading.value = true
+            setIsLoading.invoke(true)
 
             var northWestCity: Address? = null
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -169,7 +169,7 @@ fun MapBoxComposable(
 
     fun getBaseCameraLocation(callback: (Point) -> Unit) {
         CoroutineScope(Dispatchers.IO).launch {
-            isLoading.value = true
+            setIsLoading.invoke(true)
 
             var northWestCity: Address? = null
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -237,8 +237,8 @@ fun MapBoxComposable(
     val point = remember {
         mutableStateOf<Point>(
             Point.fromLngLat(
-                userLocation?.value?.second ?: 0.0,
-                userLocation?.value?.first ?: 0.0
+                userLocation?.second ?: 0.0,
+                userLocation?.first ?: 0.0
             )
         )
     }
@@ -251,7 +251,7 @@ fun MapBoxComposable(
         val lat = selectedPathZoomPoint.value?.latitude()
             ?.plus(selectedPathZoomPoint2.value?.latitude() ?: 0.0)?.div(2)
 
-        isLoading.value = false
+        setIsLoading.invoke(false)
 
         map.value?.camera?.flyTo(
             cameraOptions = CameraOptions.Builder()
@@ -272,7 +272,7 @@ fun MapBoxComposable(
     LaunchedEffect(Unit) {
         getBaseCameraLocation {
             cameraBasePoint.value = it
-            isLoading.value = false
+            setIsLoading.invoke(false)
         }
     }
 
@@ -295,7 +295,7 @@ fun MapBoxComposable(
                 modifier = Modifier.pointerInteropFilter(onTouchEvent = {
                     when (it.action) {
                         MotionEvent.ACTION_DOWN -> {
-                            columnScrollingEnabled.value = false
+                            setColumnScrollingEnabled.invoke(false)
                             logI("MapTouch", "PRESSED DOWN")
                             false
                         }
@@ -350,8 +350,7 @@ fun MapBoxComposable(
                         }
 
                         override fun onMoveEnd(detector: MoveGestureDetector) {
-                            columnScrollingEnabled.value = true
-                            logI("MapTouch", "RELEASED")
+                            setColumnScrollingEnabled.invoke(true)
                         }
 
                     })
@@ -359,21 +358,21 @@ fun MapBoxComposable(
                     pointAnnotationManager =
                         mapView.annotations.createPointAnnotationManager(AnnotationConfig())
 
-                    isLoading.value = true
+                    setIsLoading.invoke(true)
                     mapView.mapboxMap.loadStyle(
                         "mapbox://styles/marchaldevelopment/cm1s77ihq00m301pl7w12c0kc"
                     ) {
-                        isLoading.value = false
+                        setIsLoading.invoke(false)
                     }
                 }
             }
         }
     }
 
-    if (userLocation?.value != null) {
+    if (userLocation != null) {
         point.value = Point.fromLngLat(
-            userLocation.value?.second ?: 0.0,
-            userLocation.value?.first ?: 0.0
+            userLocation.second,
+            userLocation.first
         )
 
         if (point.value.latitude() != 0.0 && point.value.longitude() != 0.0) {
@@ -399,7 +398,7 @@ fun MapBoxComposable(
         }
     }
 
-    when (chosenPath?.value) {
+    when (chosenPath) {
         DeliveryPath.PATH_META -> {
             getCameraLocalisationFromPath(DeliveryPath.PATH_META)
             map.value?.mapboxMap?.loadStyle(
@@ -431,7 +430,7 @@ fun MapBoxComposable(
             map.value?.mapboxMap?.loadStyle(
                 "mapbox://styles/marchaldevelopment/cm1s77ihq00m301pl7w12c0kc"
             ) {
-                isLoading.value = false
+                setIsLoading.invoke(false)
             }
         }
     }

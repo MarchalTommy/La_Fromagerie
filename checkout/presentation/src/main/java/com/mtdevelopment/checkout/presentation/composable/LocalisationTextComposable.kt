@@ -15,24 +15,24 @@ import com.mtdevelopment.core.model.DeliveryPath
 
 @Composable
 fun LocalisationTextComposable(
-    selectedPath: State<DeliveryPath?>?,
+    selectedPath: DeliveryPath?,
     geolocIsOnPath: Boolean,
-    userCity: State<String?>
+    userCity: String
 ) {
     Text(
         modifier = Modifier.padding(horizontal = 8.dp).fillMaxWidth(),
         text = when {
-            selectedPath?.value != null -> stringResource(
+            selectedPath != null -> stringResource(
                 R.string.manual_path_chosen,
-                selectedPath.value?.pathName ?: "Unknown"
+                selectedPath.pathName
             )
 
             geolocIsOnPath -> stringResource(
                 R.string.auto_geoloc_success,
-                userCity.value?: "ERREUR"
+                userCity
             )
 
-            !geolocIsOnPath && selectedPath?.value == null -> stringResource(
+            !geolocIsOnPath -> stringResource(
                 R.string.auto_geoloc_not_on_path
             )
 

@@ -14,7 +14,6 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.material3.ShapeDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -24,19 +23,17 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.mtdevelopment.core.model.DeliveryPath
-import com.mtdevelopment.checkout.presentation.viewmodel.DeliveryViewModel
 
 @Composable
 fun DeliveryPathPickerComposable(
-    checkoutViewModel: DeliveryViewModel,
+    selectedPath: DeliveryPath?,
+    onPathSelected: (DeliveryPath) -> Unit = {},
     onDismiss: () -> Unit = {}
 ) {
-    val previouslySelectedPath = checkoutViewModel.selectedPath.collectAsState()
-
     val radioOptions = DeliveryPath.entries
     val (selectedOption, onOptionSelected) = remember {
         mutableStateOf(
-            previouslySelectedPath.value ?: radioOptions[0]
+            selectedPath ?: radioOptions[0]
         )
     }
 
@@ -66,7 +63,7 @@ fun DeliveryPathPickerComposable(
                 Button(
                     modifier = Modifier.padding(8.dp).align(Alignment.CenterHorizontally),
                     onClick = {
-                        checkoutViewModel.setSelectedPath(selectedOption)
+                        onPathSelected(selectedOption)
                         onDismiss()
                     }
                 ) {

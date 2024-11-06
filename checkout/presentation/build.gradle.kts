@@ -85,6 +85,8 @@ dependencies {
     implementation(libs.location)
     implementation(libs.accompanist.permissions)
 
+    implementation(libs.contentment)
+
     implementation(libs.play.service.wallet)
     implementation(libs.google.pay.compose)
 }

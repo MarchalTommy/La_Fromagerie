@@ -23,7 +23,7 @@ import com.mtdevelopment.core.model.DeliveryPath
 
 @Composable
 fun LocalisationTypePicker(
-    selectedPath: State<DeliveryPath?>?,
+    selectedPath: DeliveryPath?,
     localisationSuccess: Boolean,
     showDeliverySelection: () -> Unit,
     shouldAskLocalisationPermission: () -> Unit = {}
@@ -33,7 +33,7 @@ fun LocalisationTypePicker(
         horizontalArrangement = Arrangement.SpaceAround,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        if (selectedPath?.value == null && !localisationSuccess && Geocoder.isPresent()) {
+        if (selectedPath == null && !localisationSuccess && Geocoder.isPresent()) {
             TextButton(
                 modifier = Modifier.padding(horizontal = 8.dp).weight(1f),
                 onClick = {

@@ -1,5 +1,7 @@
 package com.mtdevelopment.checkout.presentation.state
 
+import com.mtdevelopment.core.model.DeliveryPath
+
 data class DeliveryUiDataState(
     val shouldDatePickerBeClickable: Boolean = false,
     val datePickerVisibility: Boolean = false,
@@ -10,4 +12,9 @@ data class DeliveryUiDataState(
     val localisationSuccess: Boolean = false,
     val userLocationOnPath: Boolean = false,
     val showDeliveryPathPicker: Boolean = false,
+    val isLoading: Boolean = false,
+
+    val userCity: String = "",
+    val userCityLocation: Pair<Double, Double> = Pair(0.0, 0.0),
+    val selectedPath: DeliveryPath? = null
 )

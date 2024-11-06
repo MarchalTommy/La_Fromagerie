@@ -1,11 +1,9 @@
 package com.mtdevelopment.checkout.presentation.screen
 
 import android.annotation.SuppressLint
-import android.content.ContentValues.TAG
 import android.location.Address
 import android.location.Geocoder
 import android.os.Build
-import android.util.Log
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -28,7 +26,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -57,16 +54,11 @@ import com.mtdevelopment.checkout.presentation.model.ShippingDefaultSelectableDa
 import com.mtdevelopment.checkout.presentation.model.ShippingSelectableMetaDates
 import com.mtdevelopment.checkout.presentation.model.ShippingSelectablePontarlierDates
 import com.mtdevelopment.checkout.presentation.model.ShippingSelectableSalinDates
-import com.mtdevelopment.checkout.presentation.model.UserInfo
 import com.mtdevelopment.checkout.presentation.viewmodel.DeliveryViewModel
 import com.mtdevelopment.core.model.DeliveryPath
 import com.mtdevelopment.core.presentation.composable.RiveAnimation
 import com.mtdevelopment.core.util.ScreenSize
 import com.mtdevelopment.core.util.rememberScreenSize
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 import java.io.IOException
 
@@ -96,9 +88,6 @@ fun DeliveryOptionScreen(
     val scrollState = rememberScrollState()
     val columnScrollingEnabled = remember { mutableStateOf(true) }
 
-    val isLoading = remember { mutableStateOf(false) }
-    val shouldShowLoading = remember { mutableStateOf(false) }
-
     fun getLastLocation(
         onGetLastLocationSuccess: (Pair<Double, Double>) -> Unit,
         onGetLastLocationFailed: (Exception) -> Unit
@@ -120,10 +109,8 @@ fun DeliveryOptionScreen(
         MapboxOptions.accessToken = MAPBOX_PUBLIC_TOKEN
     }
 
-    val selectedPath = deliveryViewModel?.selectedPath?.collectAsState()
-
     val datePickerState =
-        when (selectedPath?.value) {
+        when (state.selectedPath) {
 
             DeliveryPath.PATH_META -> {
                 getDatePickerState(ShippingSelectableMetaDates())
@@ -146,13 +133,12 @@ fun DeliveryOptionScreen(
         Rive.init(context)
     }
 
-    LaunchedEffect(selectedPath?.value) {
-        deliveryViewModel.setIsDatePickerClickable(selectedPath?.value != null)
+    LaunchedEffect(state.selectedPath) {
+        deliveryViewModel.setIsDatePickerClickable(state.selectedPath != null)
         deliveryViewModel.setDateFieldText("")
     }
 
-    val userCity = remember { mutableStateOf("") }
-    val userCityLocation = remember { mutableStateOf<Pair<Double, Double>?>(null) }
+//    val userCity = remember { mutableStateOf("") }
 
     fun getCityFromGeocoder(addressesList: List<Address>?) {
         val foundAddress = addressesList?.find { address ->
@@ -164,7 +150,7 @@ fun DeliveryOptionScreen(
                 }
             if (correctPath != null) {
                 deliveryViewModel.updateUserLocationOnPath(true)
-                deliveryViewModel.setSelectedPath(correctPath)
+                deliveryViewModel.updateSelectedPath(correctPath)
                 true
             } else {
                 deliveryViewModel.updateUserLocationOnPath(false)
@@ -172,7 +158,7 @@ fun DeliveryOptionScreen(
             }
         }
         foundAddress?.locality?.let { locality ->
-            userCity.value = locality
+            deliveryViewModel.updateUserCity(locality)
         }
     }
 
@@ -188,7 +174,7 @@ fun DeliveryOptionScreen(
                         LocationServices.getFusedLocationProviderClient(context)
                     getLastLocation(onGetLastLocationSuccess = {
                         deliveryViewModel.updateLocalisationState(true)
-                        userCityLocation.value = it
+                        deliveryViewModel.updateUserCityLocation(it)
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                             geocoder.getFromLocation(
                                 it.first,
@@ -210,7 +196,7 @@ fun DeliveryOptionScreen(
                     },
                         onGetLastLocationFailed = {
                             deliveryViewModel.updateLocalisationState(false)
-                            userCity.value = "Unknown"
+                            deliveryViewModel.updateUserCity("Unknown")
                         })
                 },
                 onPermissionDenied = {
@@ -226,12 +212,17 @@ fun DeliveryOptionScreen(
 
         Column(modifier = Modifier.fillMaxSize().padding(8.dp)) {
 
+            // TODO: Fix recomposition HELL
             // Map Card
             MapBoxComposable(
-                userLocation = userCityLocation,
-                chosenPath = selectedPath,
-                columnScrollingEnabled = columnScrollingEnabled,
-                isLoading = isLoading
+                userLocation = state.userCityLocation,
+                chosenPath = state.selectedPath,
+                setIsLoading = {
+//                    deliveryViewModel.setIsLoading(it)
+                },
+                setColumnScrollingEnabled = {
+//                    columnScrollingEnabled.value = it
+                }
             )
 
             // Localisation Type Picker
@@ -239,18 +230,18 @@ fun DeliveryOptionScreen(
                 showDeliverySelection = {
                     deliveryViewModel.updateShowDeliveryPathPicker(true)
                 },
-                selectedPath = selectedPath,
+                selectedPath = state.selectedPath,
                 localisationSuccess = state.localisationSuccess,
                 shouldAskLocalisationPermission = {
                     deliveryViewModel.updateShouldShowLocalisationPermission(true)
                 }
             )
 
-            if (state.localisationSuccess || selectedPath?.value != null || state.userLocationOnPath) {
+            if (state.localisationSuccess || state.selectedPath != null || state.userLocationOnPath) {
                 LocalisationTextComposable(
-                    selectedPath = selectedPath,
+                    selectedPath = state.selectedPath,
                     geolocIsOnPath = state.userLocationOnPath,
-                    userCity = userCity
+                    userCity = state.userCity
                 )
             }
 
@@ -308,12 +299,9 @@ fun DeliveryOptionScreen(
                 elevation = ButtonDefaults.elevatedButtonElevation(),
                 shape = RoundedCornerShape(8.dp),
                 onClick = {
-                    deliveryViewModel.setUserInfo(
-                        UserInfo(
-                            state.userNameFieldText,
-                            state.userAddressFieldText
-                        )
-                    )
+                    deliveryViewModel.saveUserInfo(onError = {
+                        // TODO: Manage error
+                    })
                     datePickerState.selectedDateMillis?.let {
                         deliveryViewModel.saveSelectedDate(
                             date = it
@@ -325,24 +313,7 @@ fun DeliveryOptionScreen(
             }
         }
 
-        LaunchedEffect(isLoading.value) {
-            val currentValue = isLoading.value
-            val showUpDelay = 200L
-            val removeDelay = 1000L
-            CoroutineScope(Dispatchers.Default).launch {
-                delay(if (isLoading.value) showUpDelay else removeDelay)
-                // Should show loading only if state hasn't change in last 200ms
-                if (isLoading.value == currentValue && isLoading.value) {
-                    Log.i(TAG, "DeliveryOptionScreen: SHOWING LOADER")
-                    shouldShowLoading.value = true
-                } else if (isLoading.value == currentValue && !isLoading.value) {
-                    Log.i(TAG, "DeliveryOptionScreen: REMOVING LOADER")
-                    shouldShowLoading.value = false
-                }
-            }
-        }
-
-        if (shouldShowLoading.value) {
+        if (state.isLoading) {
             RiveAnimation(
                 modifier = Modifier.fillMaxSize(),
                 resId = R.raw.goat_loading,
@@ -363,9 +334,13 @@ fun DeliveryOptionScreen(
         }
 
         if (state.showDeliveryPathPicker) {
-            DeliveryPathPickerComposable(deliveryViewModel) {
-                deliveryViewModel.updateShowDeliveryPathPicker(false)
-            }
+            DeliveryPathPickerComposable(selectedPath = state.selectedPath,
+                onPathSelected = {
+                    deliveryViewModel.updateSelectedPath(it)
+                },
+                onDismiss = {
+                    deliveryViewModel.updateShowDeliveryPathPicker(false)
+                })
         }
     }
 }
