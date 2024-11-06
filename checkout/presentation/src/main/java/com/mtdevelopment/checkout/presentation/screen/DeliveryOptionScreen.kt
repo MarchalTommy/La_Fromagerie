@@ -1,9 +1,7 @@
 package com.mtdevelopment.checkout.presentation.screen
 
 import android.annotation.SuppressLint
-import android.location.Address
 import android.location.Geocoder
-import android.os.Build
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -36,7 +34,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import app.rive.runtime.kotlin.core.Rive
 import com.google.android.gms.location.FusedLocationProviderClient
-import com.google.android.gms.location.LocationServices
 import com.mapbox.android.core.permissions.PermissionsManager.Companion.areLocationPermissionsGranted
 import com.mapbox.common.MapboxOptions
 import com.mtdevelopment.checkout.presentation.BuildConfig.MAPBOX_PUBLIC_TOKEN
@@ -47,7 +44,7 @@ import com.mtdevelopment.checkout.presentation.composable.DeliveryPathPickerComp
 import com.mtdevelopment.checkout.presentation.composable.LocalisationTextComposable
 import com.mtdevelopment.checkout.presentation.composable.LocalisationTypePicker
 import com.mtdevelopment.checkout.presentation.composable.MapBoxComposable
-import com.mtdevelopment.checkout.presentation.composable.RequestLocationPermission
+import com.mtdevelopment.checkout.presentation.composable.PermissionManagerComposable
 import com.mtdevelopment.checkout.presentation.composable.UserInfoComposable
 import com.mtdevelopment.checkout.presentation.composable.getDatePickerState
 import com.mtdevelopment.checkout.presentation.model.ShippingDefaultSelectableDates
@@ -60,7 +57,6 @@ import com.mtdevelopment.core.presentation.composable.RiveAnimation
 import com.mtdevelopment.core.util.ScreenSize
 import com.mtdevelopment.core.util.rememberScreenSize
 import org.koin.androidx.compose.koinViewModel
-import java.io.IOException
 
 @SuppressLint("MissingPermission")
 @OptIn(ExperimentalMaterial3Api::class)
@@ -80,30 +76,10 @@ fun DeliveryOptionScreen(
 
     val deliveryViewModel = koinViewModel<DeliveryViewModel>()
     val context = LocalContext.current
-    val geocoder = Geocoder(context)
 
     val state = deliveryViewModel.deliveryUiDataState
-
-    lateinit var fusedLocationProviderClient: FusedLocationProviderClient
     val scrollState = rememberScrollState()
     val columnScrollingEnabled = remember { mutableStateOf(true) }
-
-    fun getLastLocation(
-        onGetLastLocationSuccess: (Pair<Double, Double>) -> Unit,
-        onGetLastLocationFailed: (Exception) -> Unit
-    ) {
-        if (areLocationPermissionsGranted(context)) {
-            fusedLocationProviderClient.lastLocation
-                .addOnSuccessListener { location ->
-                    location?.let {
-                        onGetLastLocationSuccess(Pair(it.latitude, it.longitude))
-                    }
-                }
-                .addOnFailureListener { exception ->
-                    onGetLastLocationFailed(exception)
-                }
-        }
-    }
 
     if (MapboxOptions.accessToken != MAPBOX_PUBLIC_TOKEN) {
         MapboxOptions.accessToken = MAPBOX_PUBLIC_TOKEN
@@ -111,7 +87,6 @@ fun DeliveryOptionScreen(
 
     val datePickerState =
         when (state.selectedPath) {
-
             DeliveryPath.PATH_META -> {
                 getDatePickerState(ShippingSelectableMetaDates())
             }
@@ -138,74 +113,30 @@ fun DeliveryOptionScreen(
         deliveryViewModel.setDateFieldText("")
     }
 
-//    val userCity = remember { mutableStateOf("") }
-
-    fun getCityFromGeocoder(addressesList: List<Address>?) {
-        val foundAddress = addressesList?.find { address ->
-            val correctPath =
-                DeliveryPath.entries.find { path ->
-                    path.availableCities.contains(
-                        address.locality
-                    )
-                }
-            if (correctPath != null) {
-                deliveryViewModel.updateUserLocationOnPath(true)
-                deliveryViewModel.updateSelectedPath(correctPath)
-                true
-            } else {
-                deliveryViewModel.updateUserLocationOnPath(false)
-                false
-            }
-        }
-        foundAddress?.locality?.let { locality ->
-            deliveryViewModel.updateUserCity(locality)
-        }
-    }
-
     Surface(
         modifier = Modifier.fillMaxSize()
             .verticalScroll(state = scrollState, enabled = columnScrollingEnabled.value)
     ) {
         // Localisation permission
         if (state.shouldShowLocalisationPermission) {
-            RequestLocationPermission(
-                onPermissionGranted = {
-                    fusedLocationProviderClient =
-                        LocationServices.getFusedLocationProviderClient(context)
-                    getLastLocation(onGetLastLocationSuccess = {
-                        deliveryViewModel.updateLocalisationState(true)
-                        deliveryViewModel.updateUserCityLocation(it)
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                            geocoder.getFromLocation(
-                                it.first,
-                                it.second,
-                                1
-                            ) { addressesList ->
-                                getCityFromGeocoder(addressesList)
-                            }
-                        } else {
-                            val addressesList =
-                                try {
-                                    // TODO: Loader + async ?
-                                    geocoder.getFromLocation(it.first, it.second, 1)
-                                } catch (e: IOException) {
-                                    null
-                                }
-                            getCityFromGeocoder(addressesList)
-                        }
-                    },
-                        onGetLastLocationFailed = {
-                            deliveryViewModel.updateLocalisationState(false)
-                            deliveryViewModel.updateUserCity("Unknown")
-                        })
+            PermissionManagerComposable(
+                onUpdateUserCity = {
+                    deliveryViewModel.updateUserCity(it)
                 },
-                onPermissionDenied = {
-                    deliveryViewModel.updateLocalisationState(false)
-                    deliveryViewModel.updateShouldShowLocalisationPermission(false)
+                onUpdateSelectedPath = {
+                    deliveryViewModel.updateSelectedPath(it)
                 },
-                onPermissionsRevoked = {
-                    deliveryViewModel.updateLocalisationState(false)
-                    deliveryViewModel.updateShouldShowLocalisationPermission(false)
+                onUpdateUserIsOnPath = {
+                    deliveryViewModel.updateUserLocationOnPath(it)
+                },
+                onUpdateUserCityLocation = {
+                    deliveryViewModel.updateUserCityLocation(it)
+                },
+                onUpdateLocalisationState = {
+                    deliveryViewModel.updateLocalisationState(it)
+                },
+                onUpdateShouldShowLocalisationPermission = {
+                    deliveryViewModel.updateShouldShowLocalisationPermission(it)
                 }
             )
         }
