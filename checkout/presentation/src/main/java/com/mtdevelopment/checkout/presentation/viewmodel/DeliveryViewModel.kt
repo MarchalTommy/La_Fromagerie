@@ -72,6 +72,15 @@ class DeliveryViewModel(
     }
 
     fun setIsDatePickerClickable(isClickable: Boolean) {
-        this.deliveryUiDataState = this.deliveryUiDataState.copy(shouldDatePickerBeClickable = isClickable)
+        deliveryUiDataState =
+            deliveryUiDataState.copy(shouldDatePickerBeClickable = isClickable)
+    }
+
+    fun setIsDatePickerShown(isShown: Boolean) {
+        deliveryUiDataState = deliveryUiDataState.copy(datePickerVisibility = isShown)
+    }
+
+    fun setDateFieldText(text: String) {
+        deliveryUiDataState = deliveryUiDataState.copy(dateFieldText = text)
     }
 }

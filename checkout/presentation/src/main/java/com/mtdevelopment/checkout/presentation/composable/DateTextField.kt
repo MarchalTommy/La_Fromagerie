@@ -15,8 +15,6 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.ShapeDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.MutableState
-import androidx.compose.runtime.State
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
@@ -27,15 +25,15 @@ import com.mtdevelopment.checkout.presentation.R
 @Composable
 fun DateTextField(
     shouldBeClickable: Boolean,
-    datePickerVisibility: MutableState<Boolean>,
     datePickerState: DatePickerState,
-    dateFieldText: MutableState<String>,
-    shouldRemoveDatePicker: () -> Unit = {}
+    dateFieldText: String,
+    shouldShowDatePicker: () -> Unit = {},
+    newDateFieldText: (String) -> Unit = {}
 ) {
     OutlinedTextField(
         modifier = if (shouldBeClickable) {
             Modifier.clickable {
-                shouldRemoveDatePicker.invoke()
+                shouldShowDatePicker.invoke()
             }.padding(horizontal = 8.dp).fillMaxWidth()
         } else {
             Modifier.padding(horizontal = 8.dp).fillMaxWidth()
@@ -44,12 +42,12 @@ fun DateTextField(
                 datePickerState.selectedDateMillis ?: 0L
             )
         ) {
-            dateFieldText.value
+            dateFieldText
         } else {
             ""
         },
         onValueChange = { newValue ->
-            dateFieldText.value = newValue
+            newDateFieldText.invoke(newValue)
         },
         enabled = false,
         label = {

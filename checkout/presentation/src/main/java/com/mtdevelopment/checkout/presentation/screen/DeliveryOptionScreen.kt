@@ -145,9 +145,7 @@ fun DeliveryOptionScreen(
             }
         }
 
-//    val shouldDatePickerBeClickable = remember { mutableStateOf(false) }
-    val datePickerVisibility = remember { mutableStateOf(false) }
-    val dateFieldText = remember { mutableStateOf("") }
+//    val dateFieldText = remember { mutableStateOf("") }
     val userNameFieldText = remember { mutableStateOf("") }
     val userAddressFieldText = remember { mutableStateOf("") }
 
@@ -167,7 +165,7 @@ fun DeliveryOptionScreen(
 
     LaunchedEffect(selectedPath?.value) {
         deliveryViewModel.setIsDatePickerClickable(selectedPath?.value != null)
-        dateFieldText.value = ""
+        deliveryViewModel.setDateFieldText("")
     }
 
     val userCity = remember { mutableStateOf("") }
@@ -276,12 +274,13 @@ fun DeliveryOptionScreen(
 
             DateTextField(
                 shouldBeClickable = state.shouldDatePickerBeClickable,
-                datePickerVisibility = datePickerVisibility,
-                dateFieldText = dateFieldText,
+                dateFieldText = state.dateFieldText,
                 datePickerState = datePickerState,
-                shouldRemoveDatePicker = {
-                    deliveryViewModel
-                    datePickerVisibility.value = false
+                shouldShowDatePicker = {
+                    deliveryViewModel.setIsDatePickerShown(true)
+                },
+                newDateFieldText = {
+                    deliveryViewModel.setDateFieldText(it)
                 }
             )
 
@@ -358,11 +357,15 @@ fun DeliveryOptionScreen(
             )
         }
 
-        if (datePickerVisibility.value) {
+        if (state.datePickerVisibility) {
             DatePickerComposable(
-                datePickerVisibility = datePickerVisibility,
-                dateFieldText = dateFieldText,
-                datePickerState = datePickerState
+                datePickerState = datePickerState,
+                shouldRemoveDatePicker = {
+                    deliveryViewModel.setIsDatePickerShown(false)
+                },
+                newDateFieldText = {
+                    deliveryViewModel.setDateFieldText(it)
+                }
             )
         }
 
