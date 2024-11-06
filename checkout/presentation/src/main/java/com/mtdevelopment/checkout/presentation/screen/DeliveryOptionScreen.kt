@@ -145,10 +145,6 @@ fun DeliveryOptionScreen(
             }
         }
 
-//    val dateFieldText = remember { mutableStateOf("") }
-    val userNameFieldText = remember { mutableStateOf("") }
-    val userAddressFieldText = remember { mutableStateOf("") }
-
     val localisationPermissionState = remember { mutableStateOf(false) }
 
     val localisationSuccess = remember { mutableStateOf(false) }
@@ -285,15 +281,21 @@ fun DeliveryOptionScreen(
             )
 
             UserInfoComposable(
-                userNameFieldText,
-                "Nom complet"
+                state.userNameFieldText,
+                "Nom complet",
+                updateText = {
+                    deliveryViewModel.setUserNameFieldText(it)
+                }
             ) {
                 Icon(Icons.Rounded.Person, "")
             }
 
             UserInfoComposable(
-                userAddressFieldText,
-                "Adresse exacte"
+                state.userAddressFieldText,
+                "Adresse exacte",
+                updateText = {
+                    deliveryViewModel.setUserAddressFieldText(it)
+                }
             ) {
                 Icon(Icons.Rounded.Place, "")
             }
@@ -317,8 +319,8 @@ fun DeliveryOptionScreen(
                 onClick = {
                     deliveryViewModel.setUserInfo(
                         UserInfo(
-                            userNameFieldText.value,
-                            userAddressFieldText.value
+                            state.userNameFieldText,
+                            state.userAddressFieldText
                         )
                     )
                     datePickerState.selectedDateMillis?.let {

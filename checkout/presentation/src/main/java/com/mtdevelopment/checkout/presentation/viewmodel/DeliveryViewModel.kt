@@ -83,4 +83,12 @@ class DeliveryViewModel(
     fun setDateFieldText(text: String) {
         deliveryUiDataState = deliveryUiDataState.copy(dateFieldText = text)
     }
+
+    fun setUserNameFieldText(name: String) {
+        deliveryUiDataState = deliveryUiDataState.copy(userNameFieldText = name)
+    }
+
+    fun setUserAddressFieldText(address: String) {
+        deliveryUiDataState = deliveryUiDataState.copy(userAddressFieldText = name)
+    }
 }
