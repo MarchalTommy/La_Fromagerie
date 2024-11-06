@@ -6,8 +6,8 @@ data class DeliveryUiDataState(
     val dateFieldText: String = "",
     val userNameFieldText: String = "",
     val userAddressFieldText: String = "",
-    val localisationPermissionState: Boolean = false,
+    val shouldShowLocalisationPermission: Boolean = false,
     val localisationSuccess: Boolean = false,
-    val geolocIsOnPath: Boolean = false,
-    val showDeliveryPathPicker: Boolean = false
+    val userLocationOnPath: Boolean = false,
+    val showDeliveryPathPicker: Boolean = false,
 )

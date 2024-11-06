@@ -89,6 +89,23 @@ class DeliveryViewModel(
     }
 
     fun setUserAddressFieldText(address: String) {
-        deliveryUiDataState = deliveryUiDataState.copy(userAddressFieldText = name)
+        deliveryUiDataState = deliveryUiDataState.copy(userAddressFieldText = address)
     }
+
+    fun updateShouldShowLocalisationPermission(isGranted: Boolean) {
+        deliveryUiDataState = deliveryUiDataState.copy(shouldShowLocalisationPermission = isGranted)
+    }
+
+    fun updateLocalisationState(isAcquired: Boolean) {
+        deliveryUiDataState = deliveryUiDataState.copy(localisationSuccess = isAcquired)
+    }
+
+    fun updateUserLocationOnPath(isOnPath: Boolean) {
+        deliveryUiDataState = deliveryUiDataState.copy(userLocationOnPath = isOnPath)
+    }
+
+    fun updateShowDeliveryPathPicker(shouldShow: Boolean) {
+        deliveryUiDataState = deliveryUiDataState.copy(showDeliveryPathPicker = shouldShow)
+    }
+
 }

@@ -23,21 +23,21 @@ import com.mtdevelopment.core.model.DeliveryPath
 
 @Composable
 fun LocalisationTypePicker(
-    localisationPermissionState: MutableState<Boolean>,
-    showDeliverySelection: () -> Unit,
     selectedPath: State<DeliveryPath?>?,
-    localisationSuccess: State<Boolean>
+    localisationSuccess: Boolean,
+    showDeliverySelection: () -> Unit,
+    shouldAskLocalisationPermission: () -> Unit = {}
 ) {
     Row(
         modifier = Modifier.padding(horizontal = 8.dp).fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceAround,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        if (selectedPath?.value == null && !localisationSuccess.value && Geocoder.isPresent()) {
+        if (selectedPath?.value == null && !localisationSuccess && Geocoder.isPresent()) {
             TextButton(
                 modifier = Modifier.padding(horizontal = 8.dp).weight(1f),
                 onClick = {
-                    localisationPermissionState.value = true
+                    shouldAskLocalisationPermission.invoke()
                 },
                 content = {
                     Text(

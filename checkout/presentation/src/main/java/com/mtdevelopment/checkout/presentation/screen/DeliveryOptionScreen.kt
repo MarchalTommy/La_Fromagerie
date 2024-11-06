@@ -82,18 +82,15 @@ fun DeliveryOptionScreen(
 
     // TODO: FIX AUTO-GEOLOC ->
     // Double click for it to geoloc
-    // Never seems to work on emulator ?! What about real world then...
     // TODO: FIX LOADER ->
     // Is still blocked by UI thread breaking when Geocoder bug. Place geocoder in custom thread ?
     // Removes itself just after the delay, not after boolean set to false OR delay. Bad brain of me.
 
     val deliveryViewModel = koinViewModel<DeliveryViewModel>()
+    val context = LocalContext.current
+    val geocoder = Geocoder(context)
 
     val state = deliveryViewModel.deliveryUiDataState
-
-    val context = LocalContext.current
-
-    val geocoder = Geocoder(context)
 
     lateinit var fusedLocationProviderClient: FusedLocationProviderClient
     val scrollState = rememberScrollState()
@@ -145,16 +142,6 @@ fun DeliveryOptionScreen(
             }
         }
 
-    val localisationPermissionState = remember { mutableStateOf(false) }
-
-    val localisationSuccess = remember { mutableStateOf(false) }
-    val geolocIsOnPath = remember { mutableStateOf(false) }
-
-    val showDeliveryPathPicker = remember { mutableStateOf(false) }
-    fun showDeliverySelection() {
-        showDeliveryPathPicker.value = true
-    }
-
     LaunchedEffect(Unit) {
         Rive.init(context)
     }
@@ -176,11 +163,11 @@ fun DeliveryOptionScreen(
                     )
                 }
             if (correctPath != null) {
-                geolocIsOnPath.value = true
-                deliveryViewModel?.setSelectedPath(correctPath)
+                deliveryViewModel.updateUserLocationOnPath(true)
+                deliveryViewModel.setSelectedPath(correctPath)
                 true
             } else {
-                geolocIsOnPath.value = false
+                deliveryViewModel.updateUserLocationOnPath(false)
                 false
             }
         }
@@ -194,13 +181,13 @@ fun DeliveryOptionScreen(
             .verticalScroll(state = scrollState, enabled = columnScrollingEnabled.value)
     ) {
         // Localisation permission
-        if (localisationPermissionState.value) {
+        if (state.shouldShowLocalisationPermission) {
             RequestLocationPermission(
                 onPermissionGranted = {
                     fusedLocationProviderClient =
                         LocationServices.getFusedLocationProviderClient(context)
                     getLastLocation(onGetLastLocationSuccess = {
-                        localisationSuccess.value = true
+                        deliveryViewModel.updateLocalisationState(true)
                         userCityLocation.value = it
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                             geocoder.getFromLocation(
@@ -222,17 +209,17 @@ fun DeliveryOptionScreen(
                         }
                     },
                         onGetLastLocationFailed = {
-                            localisationSuccess.value = false
+                            deliveryViewModel.updateLocalisationState(false)
                             userCity.value = "Unknown"
                         })
                 },
                 onPermissionDenied = {
-                    localisationSuccess.value = false
-                    localisationPermissionState.value = false
+                    deliveryViewModel.updateLocalisationState(false)
+                    deliveryViewModel.updateShouldShowLocalisationPermission(false)
                 },
                 onPermissionsRevoked = {
-                    localisationSuccess.value = false
-                    localisationPermissionState.value = false
+                    deliveryViewModel.updateLocalisationState(false)
+                    deliveryViewModel.updateShouldShowLocalisationPermission(false)
                 }
             )
         }
@@ -249,16 +236,20 @@ fun DeliveryOptionScreen(
 
             // Localisation Type Picker
             LocalisationTypePicker(
-                localisationPermissionState = localisationPermissionState,
-                showDeliverySelection = { showDeliverySelection() },
+                showDeliverySelection = {
+                    deliveryViewModel.updateShowDeliveryPathPicker(true)
+                },
                 selectedPath = selectedPath,
-                localisationSuccess = localisationSuccess
+                localisationSuccess = state.localisationSuccess,
+                shouldAskLocalisationPermission = {
+                    deliveryViewModel.updateShouldShowLocalisationPermission(true)
+                }
             )
 
-            if (localisationSuccess.value || selectedPath?.value != null || geolocIsOnPath.value) {
+            if (state.localisationSuccess || selectedPath?.value != null || state.userLocationOnPath) {
                 LocalisationTextComposable(
                     selectedPath = selectedPath,
-                    geolocIsOnPath = geolocIsOnPath,
+                    geolocIsOnPath = state.userLocationOnPath,
                     userCity = userCity
                 )
             }
@@ -371,9 +362,9 @@ fun DeliveryOptionScreen(
             )
         }
 
-        if (showDeliveryPathPicker.value) {
+        if (state.showDeliveryPathPicker) {
             DeliveryPathPickerComposable(deliveryViewModel) {
-                showDeliveryPathPicker.value = false
+                deliveryViewModel.updateShowDeliveryPathPicker(false)
             }
         }
     }
