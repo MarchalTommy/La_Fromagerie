@@ -94,6 +94,10 @@ class DeliveryViewModel(
         deliveryUiDataState = deliveryUiDataState.copy(isLoading = isLoading)
     }
 
+    fun setColumnScrollingEnabled(isEnabled: Boolean) {
+        deliveryUiDataState = deliveryUiDataState.copy(columnScrollingEnabled = isEnabled)
+    }
+
     fun updateUserCityLocation(location: Pair<Double, Double>) {
         deliveryUiDataState = deliveryUiDataState.copy(userCityLocation = location)
     }

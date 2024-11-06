@@ -1,7 +1,6 @@
 package com.mtdevelopment.checkout.presentation.screen
 
 import android.annotation.SuppressLint
-import android.location.Geocoder
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -24,7 +23,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -33,8 +32,6 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import app.rive.runtime.kotlin.core.Rive
-import com.google.android.gms.location.FusedLocationProviderClient
-import com.mapbox.android.core.permissions.PermissionsManager.Companion.areLocationPermissionsGranted
 import com.mapbox.common.MapboxOptions
 import com.mtdevelopment.checkout.presentation.BuildConfig.MAPBOX_PUBLIC_TOKEN
 import com.mtdevelopment.checkout.presentation.R
@@ -78,8 +75,9 @@ fun DeliveryOptionScreen(
     val context = LocalContext.current
 
     val state = deliveryViewModel.deliveryUiDataState
+    val isScrollingEnabled = remember { derivedStateOf { state.columnScrollingEnabled } }
+    val isLoading = remember { derivedStateOf { state.isLoading } }
     val scrollState = rememberScrollState()
-    val columnScrollingEnabled = remember { mutableStateOf(true) }
 
     if (MapboxOptions.accessToken != MAPBOX_PUBLIC_TOKEN) {
         MapboxOptions.accessToken = MAPBOX_PUBLIC_TOKEN
@@ -115,7 +113,7 @@ fun DeliveryOptionScreen(
 
     Surface(
         modifier = Modifier.fillMaxSize()
-            .verticalScroll(state = scrollState, enabled = columnScrollingEnabled.value)
+            .verticalScroll(state = scrollState, enabled = isScrollingEnabled.value)
     ) {
         // Localisation permission
         if (state.shouldShowLocalisationPermission) {
@@ -149,10 +147,10 @@ fun DeliveryOptionScreen(
                 userLocation = state.userCityLocation,
                 chosenPath = state.selectedPath,
                 setIsLoading = {
-//                    deliveryViewModel.setIsLoading(it)
+                    deliveryViewModel.setIsLoading(it)
                 },
                 setColumnScrollingEnabled = {
-//                    columnScrollingEnabled.value = it
+                    deliveryViewModel.setColumnScrollingEnabled(it)
                 }
             )
 
@@ -244,7 +242,7 @@ fun DeliveryOptionScreen(
             }
         }
 
-        if (state.isLoading) {
+        if (isLoading.value) {
             RiveAnimation(
                 modifier = Modifier.fillMaxSize(),
                 resId = R.raw.goat_loading,
