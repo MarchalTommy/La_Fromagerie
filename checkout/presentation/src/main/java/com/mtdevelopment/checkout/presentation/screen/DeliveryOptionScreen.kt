@@ -89,6 +89,8 @@ fun DeliveryOptionScreen(
 
     val deliveryViewModel = koinViewModel<DeliveryViewModel>()
 
+    val state = deliveryViewModel.deliveryUiDataState
+
     val context = LocalContext.current
 
     val geocoder = Geocoder(context)
@@ -143,7 +145,7 @@ fun DeliveryOptionScreen(
             }
         }
 
-    val shouldDatePickerBeClickable = remember { mutableStateOf(false) }
+//    val shouldDatePickerBeClickable = remember { mutableStateOf(false) }
     val datePickerVisibility = remember { mutableStateOf(false) }
     val dateFieldText = remember { mutableStateOf("") }
     val userNameFieldText = remember { mutableStateOf("") }
@@ -164,7 +166,7 @@ fun DeliveryOptionScreen(
     }
 
     LaunchedEffect(selectedPath?.value) {
-        shouldDatePickerBeClickable.value = selectedPath?.value != null
+        deliveryViewModel.setIsDatePickerClickable(selectedPath?.value != null)
         dateFieldText.value = ""
     }
 
@@ -273,10 +275,14 @@ fun DeliveryOptionScreen(
             )
 
             DateTextField(
-                shouldBeClickable = shouldDatePickerBeClickable,
+                shouldBeClickable = state.shouldDatePickerBeClickable,
                 datePickerVisibility = datePickerVisibility,
                 dateFieldText = dateFieldText,
-                datePickerState = datePickerState
+                datePickerState = datePickerState,
+                shouldRemoveDatePicker = {
+                    deliveryViewModel
+                    datePickerVisibility.value = false
+                }
             )
 
             UserInfoComposable(

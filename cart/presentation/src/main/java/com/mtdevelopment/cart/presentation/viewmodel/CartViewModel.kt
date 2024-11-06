@@ -1,8 +1,12 @@
 package com.mtdevelopment.cart.presentation.viewmodel
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mtdevelopment.cart.presentation.model.UiBasketObject
+import com.mtdevelopment.cart.presentation.state.CartUiState
 import com.mtdevelopment.core.model.CartItem
 import com.mtdevelopment.core.model.CartItems
 import com.mtdevelopment.core.presentation.sharedModels.UiProductObject
@@ -10,15 +14,8 @@ import com.mtdevelopment.core.usecase.GetIsNetworkConnectedUseCase
 import com.mtdevelopment.core.usecase.SaveToDatastoreUseCase
 import com.mtdevelopment.core.util.toCentsLong
 import com.mtdevelopment.core.util.toUiPrice
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.flow.last
-import kotlinx.coroutines.flow.single
 import kotlinx.coroutines.launch
 import org.koin.core.component.KoinComponent
-import kotlin.random.Random
 
 class CartViewModel(
     getIsNetworkConnectedUseCase: GetIsNetworkConnectedUseCase,
@@ -30,119 +27,126 @@ class CartViewModel(
 
     val isConnected = getIsNetworkConnectedUseCase()
 
-    private val _cartObjects =
-        MutableStateFlow(
-            UiBasketObject(
-                Random.nextLong().toString(),
-                flowOf(emptyList()),
-                flowOf("0,00€")
-            )
+    var cartUiState by mutableStateOf(CartUiState())
+        private set
+
+    private fun setCartObject(value: UiBasketObject) {
+        cartUiState = cartUiState.copy(
+            cartObject = value
         )
-    val cartObjects: StateFlow<UiBasketObject> = _cartObjects.asStateFlow()
+    }
+
+    fun setCartVisibility(value: Boolean) {
+        cartUiState = cartUiState.copy(
+            isCartVisible = value
+        )
+    }
 
     fun addCartObject(value: UiProductObject) {
         viewModelScope.launch {
 
-            var mutableContent = _cartObjects.value.content.last() as? MutableList
-            val selectedItem = mutableContent?.find { it.id == value.id }
+            var mutableContent = (cartUiState.cartObject.content as? MutableList) ?: mutableListOf()
+            val selectedItem = mutableContent.find { it.id == value.id }
             if (selectedItem != null) {
                 selectedItem.quantity++
-            } else if (mutableContent?.isNotEmpty() == true) {
+            } else if (mutableContent.isNotEmpty()) {
                 mutableContent.add(value.apply { quantity = 1 })
             } else {
                 mutableContent = mutableListOf(value.apply { quantity = 1 })
             }
 
-            val newCartObject = _cartObjects.value.copy(
-                content = flowOf(mutableContent as List<UiProductObject>),
-                totalPrice = flowOf(
-                    mutableContent.sumOf { (it.priceInCents * it.quantity) }.toUiPrice()
-                )
+            val newCartObject = cartUiState.cartObject.copy(
+                content = mutableContent,
+                totalPrice =
+                mutableContent.sumOf { (it.priceInCents * it.quantity) }.toUiPrice()
             )
 
             saveToDatastoreUseCase.invoke(
                 CartItems(
-                    newCartObject.content.last().map {
+                    newCartObject.content.map {
                         CartItem(
                             name = it.name,
                             price = it.priceInCents,
                             quantity = it.quantity
                         )
                     },
-                    newCartObject.totalPrice.last().replace(",", ".").replace("€", "").toDouble()
+                    newCartObject.totalPrice
+                        .replace(",", ".")
+                        .replace("€", "")
+                        .toDouble()
                         .toCentsLong()
                 )
             )
 
-            _cartObjects.emit(newCartObject)
+            setCartObject(newCartObject)
         }
     }
 
     fun removeCartObject(value: UiProductObject) {
         viewModelScope.launch {
-            val mutableContent = _cartObjects.value.content.single() as MutableList
+            val mutableContent = (cartUiState.cartObject.content as? MutableList) ?: mutableListOf()
             val selectedItem = mutableContent.find { it.id == value.id }
             if (selectedItem != null && selectedItem.quantity > 1) {
                 selectedItem.quantity--
             }
 
-            val newCartObject = _cartObjects.value.copy(
-                content = flowOf(mutableContent),
-                totalPrice = flowOf(
-                    mutableContent.sumOf { (it.priceInCents * it.quantity) }.toUiPrice()
-                )
+            val newCartObject = cartUiState.cartObject.copy(
+                content = mutableContent,
+                totalPrice =
+                mutableContent.sumOf { (it.priceInCents * it.quantity) }.toUiPrice()
             )
 
             saveToDatastoreUseCase.invoke(
                 CartItems(
-                    newCartObject.content.last().map {
+                    newCartObject.content.map {
                         CartItem(
                             name = it.name,
                             price = it.priceInCents,
                             quantity = it.quantity
                         )
                     },
-                    newCartObject.totalPrice.last().replace(",", ".").replace("€", "").toDouble()
+                    newCartObject.totalPrice
+                        .replace(",", ".")
+                        .replace("€", "")
+                        .toDouble()
                         .toCentsLong()
                 )
             )
 
-            _cartObjects.emit(
-                newCartObject
-            )
+            setCartObject(newCartObject)
         }
     }
 
     fun totallyRemoveObject(value: UiProductObject) {
         viewModelScope.launch {
 
-            val cleanedList = (_cartObjects.value.content.single() as MutableList)
+            val cleanedList = (cartUiState.cartObject.content as? MutableList) ?: mutableListOf()
             cleanedList.remove(value)
 
-            val newCartObject = _cartObjects.value.copy(
-                content = (flowOf(cleanedList)),
-                totalPrice = flowOf(
-                    cleanedList.sumOf { (it.priceInCents * it.quantity) }.toUiPrice()
-                )
+            val newCartObject = cartUiState.cartObject.copy(
+                content = cleanedList,
+                totalPrice =
+                cleanedList.sumOf { (it.priceInCents * it.quantity) }.toUiPrice()
             )
 
             saveToDatastoreUseCase.invoke(
                 CartItems(
-                    newCartObject.content.last().map {
+                    newCartObject.content.map {
                         CartItem(
                             name = it.name,
                             price = it.priceInCents,
                             quantity = it.quantity
                         )
                     },
-                    newCartObject.totalPrice.last().replace(",", ".").replace("€", "").toDouble()
+                    newCartObject.totalPrice
+                        .replace(",", ".")
+                        .replace("€", "")
+                        .toDouble()
                         .toCentsLong()
                 )
             )
 
-            _cartObjects.emit(
-                newCartObject
-            )
+            setCartObject(newCartObject)
         }
     }
 }

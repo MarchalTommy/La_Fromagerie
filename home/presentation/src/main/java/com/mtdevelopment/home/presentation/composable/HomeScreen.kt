@@ -20,12 +20,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -35,6 +31,7 @@ import com.mtdevelopment.cart.presentation.model.UiBasketObject
 import com.mtdevelopment.cart.presentation.viewmodel.CartViewModel
 import com.mtdevelopment.core.presentation.sharedModels.UiProductObject
 import com.mtdevelopment.core.presentation.testList
+import com.mtdevelopment.core.util.koinViewModel
 import com.mtdevelopment.home.presentation.composable.cart.CartView
 import kotlinx.coroutines.launch
 
@@ -46,11 +43,9 @@ fun HomeScreen(
 ) {
     val coroutineScope = rememberCoroutineScope()
 
-    var showBottomSheet by remember { mutableStateOf(false) }
     val scaleCart = remember { Animatable(1f) }
 
-    val cartContent =
-        cartViewModel.cartObjects.collectAsState().value.content.collectAsState(emptyList())
+    val state = cartViewModel.cartUiState
 
     fun animateAddingToCart() {
         coroutineScope.launch {
@@ -101,12 +96,12 @@ fun HomeScreen(
                 }
                 .padding(32.dp),
             badge = {
-                if ((cartContent.value.size) > 0) {
+                if ((state.cartObject.content.size) > 0) {
                     Badge(
                         containerColor = Color.Red,
                         contentColor = Color.White
                     ) {
-                        val cartItemsQuantity = cartContent.value.sumOf { it.quantity }
+                        val cartItemsQuantity = state.cartObject.content.sumOf { it.quantity }
                         Text("$cartItemsQuantity")
                     }
                 }
@@ -122,18 +117,18 @@ fun HomeScreen(
                 containerColor = MaterialTheme.colorScheme.tertiaryContainer,
                 contentColor = MaterialTheme.colorScheme.tertiary,
                 onClick = {
-                    showBottomSheet = true
+                    cartViewModel.setCartVisibility(true)
                 }
             ) {
                 Icon(imageVector = Icons.Default.ShoppingCart, contentDescription = "Cart")
             }
         }
 
-        if (showBottomSheet) {
+        if (state.isCartVisible) {
             CartView(cartViewModel = cartViewModel, {
-                showBottomSheet = false
+                cartViewModel.setCartVisibility(false)
             }, {
-                cartViewModel.cartObjects.value.let { navigateToDelivery.invoke(it) }
+                state.cartObject.let { navigateToDelivery.invoke(it) }
             })
         }
     }

@@ -1,8 +1,12 @@
 package com.mtdevelopment.checkout.presentation.viewmodel
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mtdevelopment.checkout.presentation.model.UserInfo
+import com.mtdevelopment.checkout.presentation.state.DeliveryUiDataState
 import com.mtdevelopment.core.model.DeliveryPath
 import com.mtdevelopment.core.model.UserInformation
 import com.mtdevelopment.core.usecase.GetIsNetworkConnectedUseCase
@@ -25,6 +29,9 @@ class DeliveryViewModel(
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = false
     )
+
+    var deliveryUiDataState by mutableStateOf(DeliveryUiDataState())
+        private set
 
     private val _selectedPath = MutableStateFlow<DeliveryPath?>(null)
     val selectedPath: StateFlow<DeliveryPath?> = _selectedPath.asStateFlow()
@@ -62,5 +69,9 @@ class DeliveryViewModel(
         viewModelScope.launch {
             saveToDatastoreUseCase.invoke(deliveryDate = date)
         }
+    }
+
+    fun setIsDatePickerClickable(isClickable: Boolean) {
+        this.deliveryUiDataState = this.deliveryUiDataState.copy(shouldDatePickerBeClickable = isClickable)
     }
 }

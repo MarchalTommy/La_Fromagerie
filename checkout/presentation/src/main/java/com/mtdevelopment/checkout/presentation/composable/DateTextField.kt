@@ -26,15 +26,16 @@ import com.mtdevelopment.checkout.presentation.R
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DateTextField(
-    shouldBeClickable: State<Boolean>,
+    shouldBeClickable: Boolean,
     datePickerVisibility: MutableState<Boolean>,
     datePickerState: DatePickerState,
-    dateFieldText: MutableState<String>
+    dateFieldText: MutableState<String>,
+    shouldRemoveDatePicker: () -> Unit = {}
 ) {
     OutlinedTextField(
-        modifier = if (shouldBeClickable.value) {
+        modifier = if (shouldBeClickable) {
             Modifier.clickable {
-                datePickerVisibility.value = true
+                shouldRemoveDatePicker.invoke()
             }.padding(horizontal = 8.dp).fillMaxWidth()
         } else {
             Modifier.padding(horizontal = 8.dp).fillMaxWidth()
@@ -53,7 +54,7 @@ fun DateTextField(
         enabled = false,
         label = {
             Text(
-                if (shouldBeClickable.value) {
+                if (shouldBeClickable) {
                     stringResource(R.string.delivery_date_label)
                 } else {
                     "Sélectionnez un parcours pour choisir une date"

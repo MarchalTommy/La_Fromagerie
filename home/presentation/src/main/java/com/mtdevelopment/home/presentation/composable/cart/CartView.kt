@@ -45,9 +45,7 @@ fun CartView(
         skipPartiallyExpanded = false,
     )
 
-    val cartItems = cartViewModel?.cartObjects?.collectAsState()
-    val cartItemsContent = cartItems?.value?.content?.collectAsState(emptyList())
-    val cartTotalPrice = cartItems?.value?.totalPrice?.collectAsState(initial = "")
+    val state = cartViewModel?.cartUiState
 
     ModalBottomSheet(
         modifier = Modifier.fillMaxHeight(),
@@ -81,13 +79,13 @@ fun CartView(
                 }
 
                 AnimatedVisibility(
-                    visible = cartItemsContent?.value?.isEmpty() == true,
+                    visible = state?.cartObject?.content?.isEmpty() == true,
                     enter = fadeIn(animationSpec = tween(800))
                 ) {
                     CartEmptyMessage(alphaAnimation = alphaAnimation)
                 }
             }
-            items(items = cartItemsContent?.value ?: emptyList(), key = { it.id }) {
+            items(items = state?.cartObject?.content ?: emptyList(), key = { it.id }) {
                 val itemVisibility = remember {
                     Animatable(1f)
                 }
@@ -126,8 +124,8 @@ fun CartView(
                             animationSpec = tween(300)
                         )
                         .fillMaxWidth(),
-                    totalAmount = cartTotalPrice?.value ?: "",
-                    hasItems = cartItemsContent?.value?.isNotEmpty() == true,
+                    totalAmount = state?.cartObject?.totalPrice ?: "",
+                    hasItems = state?.cartObject?.content?.isNotEmpty() == true,
                     canShowDelivery = isNetworkConnected?.value ?: false
                 ) {
                     coroutineScope.launch {

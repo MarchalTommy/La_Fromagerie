@@ -32,7 +32,6 @@ import androidx.compose.material3.ShapeDefaults
 import androidx.compose.material3.Shapes
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
@@ -76,8 +75,7 @@ fun DetailScreen(
 
     val context = LocalContext.current
 
-    val cartContent =
-        viewModel.cartObjects.collectAsState().value.content.collectAsState(emptyList())
+    val state = viewModel.cartUiState
     val scaleCart = remember { Animatable(1f) }
 
     val product: UiProductObject = detailProductObject
@@ -320,13 +318,13 @@ fun DetailScreen(
                 }
                 .padding(32.dp),
             badge = {
-                if (cartContent.value.find { it.id == product.id } != null) {
+                if (state.cartObject.content.find { it.id == product.id } != null) {
                     Badge(
                         containerColor = Color.Red,
                         contentColor = Color.White
                     ) {
                         val cartItemsQuantity =
-                            cartContent.value.find { it.id == product.id }?.quantity
+                            state.cartObject.content.find { it.id == product.id }?.quantity
                         Text("$cartItemsQuantity")
                     }
                 }
