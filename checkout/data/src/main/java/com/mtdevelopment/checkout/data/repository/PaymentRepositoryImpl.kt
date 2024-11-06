@@ -171,21 +171,11 @@ class PaymentRepositoryImpl(
                 currency = "EUR",
                 id = "${reference.hashCode()}",
                 personalDetails = PersonalDetails(
-                    email = "marchal.tommy@gmail.com",
-                    firstName = "Tommy",
-                    lastName = "Marchal",
-                    address = Address(
-                        city = "Boujailles",
-                        country = "France",
-                        firstLine = "8 La Vessoye",
-                        postalCode = "25560"
-                    )
+                    TODO("ADD CUSTOMER INFO")
                 ),
                 purpose = CHECKOUT_CREATION_BODY_PURPOSE.CHECKOUT,
-
-//                payToEmail = "gilles.marchal25560@gmail.com",
-//                merchantCode = "MFHN73AC",
-                merchantCode = "MCL9SMEE"
+//                merchantCode = "BuildConfig.SUMUP_MERCHANT_ID",
+                merchantCode = BuildConfig.SUMUP_TEST_MERCHANT_ID
             )
         ).transform { value -> value.data?.toNewCheckoutResult() }
     }

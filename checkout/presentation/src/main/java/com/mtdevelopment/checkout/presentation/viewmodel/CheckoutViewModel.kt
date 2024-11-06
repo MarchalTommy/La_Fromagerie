@@ -81,7 +81,7 @@ class CheckoutViewModel(
     init {
         viewModelScope.launch {
             verifyGooglePayReadiness()
-            createCheckout()
+//            createCheckout()
         }
     }
 
