@@ -1,5 +1,6 @@
 package com.mtdevelopment.checkout.presentation.composable
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.location.Address
 import android.location.Geocoder
@@ -10,6 +11,9 @@ import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import com.mapbox.android.core.permissions.PermissionsManager.Companion.areLocationPermissionsGranted
 import com.mtdevelopment.core.model.DeliveryPath
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import java.io.IOException
 
 @Composable
@@ -19,7 +23,8 @@ fun PermissionManagerComposable(
     onUpdateLocalisationState: (Boolean) -> Unit,
     onUpdateSelectedPath: (DeliveryPath) -> Unit,
     onUpdateUserCityLocation: (Pair<Double, Double>) -> Unit,
-    onUpdateShouldShowLocalisationPermission: (Boolean) -> Unit
+    onUpdateShouldShowLocalisationPermission: (Boolean) -> Unit,
+    setIsLoading: (Boolean) -> Unit
 ) {
 
     lateinit var fusedLocationProviderClient: FusedLocationProviderClient
@@ -51,23 +56,33 @@ fun PermissionManagerComposable(
                                 })
                         }
                     } else {
-                        val addressesList =
-                            try {
+                        CoroutineScope(Dispatchers.IO).launch {
+                            val addressesList = try {
                                 // TODO: Loader + async ?
-                                geocoder.getFromLocation(lastLocation.first, lastLocation.second, 1)
+                                setIsLoading(true)
+                                geocoder.getFromLocation(
+                                    lastLocation.first,
+                                    lastLocation.second,
+                                    1
+                                )
                             } catch (e: IOException) {
                                 null
                             }
-                        getCityFromGeocoder(
-                            addressesList,
-                            onUpdateUserIsOnPath = {
-                                onUpdateUserIsOnPath.invoke(it)
-                            }, onUpdateUserCity = {
-                                onUpdateUserCity.invoke(it)
-                            }, onUpdateSelectedPath = {
-                                onUpdateSelectedPath.invoke(it)
-                            }
-                        )
+                            getCityFromGeocoder(
+                                addressesList,
+                                onUpdateUserIsOnPath = {
+                                    onUpdateUserIsOnPath.invoke(it)
+                                }, onUpdateUserCity = {
+                                    onUpdateUserCity.invoke(it)
+                                }, onUpdateSelectedPath = {
+                                    onUpdateSelectedPath.invoke(it)
+                                }
+                            )
+
+                        }.invokeOnCompletion {
+                            setIsLoading(false)
+                            onUpdateShouldShowLocalisationPermission.invoke(false)
+                        }
                     }
                 },
                 onGetLastLocationFailed = {
@@ -113,6 +128,7 @@ fun getCityFromGeocoder(
     }
 }
 
+@SuppressLint("MissingPermission")
 fun getLastLocation(
     context: Context,
     fusedLocationProviderClient: FusedLocationProviderClient,

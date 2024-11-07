@@ -23,7 +23,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -68,22 +67,20 @@ fun DeliveryOptionScreen(
     // TODO: FIX AUTO-GEOLOC ->
     // Double click for it to geoloc
     // TODO: FIX LOADER ->
-    // Is still blocked by UI thread breaking when Geocoder bug. Place geocoder in custom thread ?
-    // Removes itself just after the delay, not after boolean set to false OR delay. Bad brain of me.
+    // Make it appear ONLY if it has time to show for 200ms. Else do not show, to avoid flicker
 
     val deliveryViewModel = koinViewModel<DeliveryViewModel>()
     val context = LocalContext.current
 
     val state = deliveryViewModel.deliveryUiDataState
-    val isScrollingEnabled = remember { derivedStateOf { state.columnScrollingEnabled } }
-    val isLoading = remember { derivedStateOf { state.isLoading } }
+
     val scrollState = rememberScrollState()
 
     if (MapboxOptions.accessToken != MAPBOX_PUBLIC_TOKEN) {
         MapboxOptions.accessToken = MAPBOX_PUBLIC_TOKEN
     }
 
-    val datePickerState =
+    val datePickerState = remember {
         when (state.selectedPath) {
             DeliveryPath.PATH_META -> {
                 getDatePickerState(ShippingSelectableMetaDates())
@@ -101,6 +98,7 @@ fun DeliveryOptionScreen(
                 getDatePickerState(ShippingDefaultSelectableDates())
             }
         }
+    }
 
     LaunchedEffect(Unit) {
         Rive.init(context)
@@ -113,35 +111,11 @@ fun DeliveryOptionScreen(
 
     Surface(
         modifier = Modifier.fillMaxSize()
-            .verticalScroll(state = scrollState, enabled = isScrollingEnabled.value)
+            .verticalScroll(state = scrollState, enabled = state.columnScrollingEnabled)
     ) {
-        // Localisation permission
-        if (state.shouldShowLocalisationPermission) {
-            PermissionManagerComposable(
-                onUpdateUserCity = {
-                    deliveryViewModel.updateUserCity(it)
-                },
-                onUpdateSelectedPath = {
-                    deliveryViewModel.updateSelectedPath(it)
-                },
-                onUpdateUserIsOnPath = {
-                    deliveryViewModel.updateUserLocationOnPath(it)
-                },
-                onUpdateUserCityLocation = {
-                    deliveryViewModel.updateUserCityLocation(it)
-                },
-                onUpdateLocalisationState = {
-                    deliveryViewModel.updateLocalisationState(it)
-                },
-                onUpdateShouldShowLocalisationPermission = {
-                    deliveryViewModel.updateShouldShowLocalisationPermission(it)
-                }
-            )
-        }
 
         Column(modifier = Modifier.fillMaxSize().padding(8.dp)) {
 
-            // TODO: Fix recomposition HELL
             // Map Card
             MapBoxComposable(
                 userLocation = state.userCityLocation,
@@ -242,7 +216,35 @@ fun DeliveryOptionScreen(
             }
         }
 
-        if (isLoading.value) {
+        // Localisation permission
+        if (state.shouldShowLocalisationPermission) {
+            PermissionManagerComposable(
+                onUpdateUserCity = {
+                    deliveryViewModel.updateUserCity(it)
+                },
+                onUpdateSelectedPath = {
+                    deliveryViewModel.updateSelectedPath(it)
+                },
+                onUpdateUserIsOnPath = {
+                    deliveryViewModel.updateUserLocationOnPath(it)
+                },
+                onUpdateUserCityLocation = {
+                    deliveryViewModel.updateUserCityLocation(it)
+                },
+                onUpdateLocalisationState = {
+                    deliveryViewModel.updateLocalisationState(it)
+                },
+                onUpdateShouldShowLocalisationPermission = {
+                    deliveryViewModel.updateShouldShowLocalisationPermission(it)
+                },
+                setIsLoading = {
+                    deliveryViewModel.setIsLoading(it)
+                }
+            )
+        }
+
+        // Loading animation
+        if (state.isLoading) {
             RiveAnimation(
                 modifier = Modifier.fillMaxSize(),
                 resId = R.raw.goat_loading,
@@ -263,7 +265,8 @@ fun DeliveryOptionScreen(
         }
 
         if (state.showDeliveryPathPicker) {
-            DeliveryPathPickerComposable(selectedPath = state.selectedPath,
+            DeliveryPathPickerComposable(
+                selectedPath = state.selectedPath,
                 onPathSelected = {
                     deliveryViewModel.updateSelectedPath(it)
                 },
