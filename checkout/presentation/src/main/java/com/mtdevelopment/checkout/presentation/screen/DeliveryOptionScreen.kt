@@ -66,7 +66,7 @@ fun DeliveryOptionScreen(
 ) {
 
     // TODO: FIX AUTO-GEOLOC ->
-    // Double click for it to geoloc
+    // Double click for it to geoloc + now not moving map...
     // TODO: FIX LOADER ->
     // Make it appear ONLY if it has time to show for 200ms. Else do not show, to avoid flicker
 

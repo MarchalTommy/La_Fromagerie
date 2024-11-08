@@ -13,7 +13,7 @@ data class DeliveryUiDataState(
     val userLocationOnPath: Boolean = false,
     val showDeliveryPathPicker: Boolean = false,
     val isLoading: Boolean = false,
-    val columnScrollingEnabled: Boolean = false,
+    val columnScrollingEnabled: Boolean = true,
 
     val userCity: String = "",
     val userCityLocation: Pair<Double, Double> = Pair(0.0, 0.0),
