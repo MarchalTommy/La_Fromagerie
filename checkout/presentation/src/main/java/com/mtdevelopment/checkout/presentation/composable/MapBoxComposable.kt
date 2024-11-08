@@ -89,6 +89,7 @@ fun MapBoxComposable(
     var pointAnnotationManager: PointAnnotationManager? by remember {
         mutableStateOf(null)
     }
+    val hasBeenGeoloked = remember { mutableStateOf(false) }
 
     val point = remember {
         mutableStateOf<Point>(
@@ -104,6 +105,7 @@ fun MapBoxComposable(
             // Is here only to assure loader goes away after animating has started,
             // which means style has loaded
             setIsLoading.invoke(false)
+            hasBeenGeoloked.value = true
         }
 
         override fun onAnimationEnd(p0: Animator) {
@@ -264,7 +266,10 @@ fun MapBoxComposable(
             userLocation.first
         )
 
-        if (point.value.latitude() != 0.0 && point.value.longitude() != 0.0) {
+        if (point.value.latitude() != 0.0 &&
+            point.value.longitude() != 0.0 &&
+            !hasBeenGeoloked.value
+        ) {
             pointAnnotationManager?.let {
                 it.deleteAll()
                 val pointAnnotationOptions =
