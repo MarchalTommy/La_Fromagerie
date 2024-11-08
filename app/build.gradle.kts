@@ -38,7 +38,7 @@ android {
     }
     defaultConfig {
         applicationId = "com.mtdevelopment.lafromagerie"
-        minSdk = 24
+        minSdk = 26
         targetSdk = 34
         versionCode = 3
         versionName = "1.1.0"

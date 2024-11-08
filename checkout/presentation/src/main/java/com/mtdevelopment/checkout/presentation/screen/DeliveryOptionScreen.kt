@@ -5,6 +5,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -23,10 +24,10 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -73,6 +74,10 @@ fun DeliveryOptionScreen(
     val context = LocalContext.current
 
     val state = deliveryViewModel.deliveryUiDataState
+    val isButtonEnabled = state.userAddressFieldText.isNotBlank() &&
+            state.userNameFieldText.isNotBlank() &&
+            state.dateFieldText.isNotBlank()
+
 
     val scrollState = rememberScrollState()
 
@@ -80,7 +85,7 @@ fun DeliveryOptionScreen(
         MapboxOptions.accessToken = MAPBOX_PUBLIC_TOKEN
     }
 
-    val datePickerState = remember {
+    val datePickerState =
         when (state.selectedPath) {
             DeliveryPath.PATH_META -> {
                 getDatePickerState(ShippingSelectableMetaDates())
@@ -98,7 +103,6 @@ fun DeliveryOptionScreen(
                 getDatePickerState(ShippingDefaultSelectableDates())
             }
         }
-    }
 
     LaunchedEffect(Unit) {
         Rive.init(context)
@@ -185,22 +189,38 @@ fun DeliveryOptionScreen(
                 Icon(Icons.Rounded.Place, "")
             }
 
+            if (!isButtonEnabled) {
+                Text(
+                    modifier = Modifier.padding(top = 8.dp, start = 16.dp, end = 16.dp)
+                        .fillMaxWidth(),
+                    text = "Veuillez remplir les champs ci-dessus pour pouvoir aller plus loin.",
+                    style = MaterialTheme.typography.displaySmall,
+                    color = MaterialTheme.colorScheme.onBackground,
+                    textAlign = TextAlign.Center
+                )
+            }
+
             Button(modifier = Modifier
                 .align(Alignment.CenterHorizontally)
-                .padding(16.dp),
+                .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 16.dp),
                 contentPadding = PaddingValues(16.dp),
                 border = BorderStroke(
                     width = 2.dp,
-                    color = MaterialTheme.colorScheme.secondary
+                    color = if (isButtonEnabled) {
+                        MaterialTheme.colorScheme.secondary
+                    } else {
+                        MaterialTheme.colorScheme.inverseSurface
+                    }
                 ),
                 colors = ButtonColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
                     contentColor = MaterialTheme.colorScheme.secondary,
-                    disabledContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                    disabledContentColor = MaterialTheme.colorScheme.secondary
+                    disabledContainerColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    disabledContentColor = MaterialTheme.colorScheme.onSurface
                 ),
                 elevation = ButtonDefaults.elevatedButtonElevation(),
                 shape = RoundedCornerShape(8.dp),
+                enabled = isButtonEnabled,
                 onClick = {
                     deliveryViewModel.saveUserInfo(onError = {
                         // TODO: Manage error

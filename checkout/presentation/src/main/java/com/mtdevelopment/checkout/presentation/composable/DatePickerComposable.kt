@@ -11,8 +11,10 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.SelectableDates
 import androidx.compose.material3.ShapeDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
@@ -69,12 +71,13 @@ fun DatePickerComposable(
     )
 }
 
+@Composable
 @OptIn(ExperimentalMaterial3Api::class)
 fun getDatePickerState(
     shippingSelectableDates: SelectableDates
 ): DatePickerState {
 
-    val nextSelectableDatesList = mutableStateListOf<Long>()
+    val nextSelectableDatesList = remember { mutableStateListOf<Long>() }
 
     val calendar = Calendar.getInstance()
     val nextJanuary = Calendar.getInstance()
@@ -97,7 +100,7 @@ fun getDatePickerState(
             }
         }
 
-        DatePickerState(
+        rememberDatePickerState(
             initialSelectedDateMillis = nextSelectableDatesList.firstOrNull(),
             yearRange = if (calendar.before(nextJanuary) && calendar.after(thisDecember)) {
                 IntRange(calendar.get(Calendar.YEAR), calendar.get(Calendar.YEAR) + 1)
@@ -105,12 +108,11 @@ fun getDatePickerState(
                 IntRange(calendar.get(Calendar.YEAR), calendar.get(Calendar.YEAR))
             },
             initialDisplayMode = DisplayMode.Picker,
-            selectableDates = shippingSelectableDates,
-            locale = Locale.FRANCE
+            selectableDates = shippingSelectableDates
         )
     } else {
         tomorrow.set(Calendar.DAY_OF_YEAR, (calendar.get(Calendar.DAY_OF_YEAR) + 1))
-        DatePickerState(
+        rememberDatePickerState(
             initialSelectedDateMillis = tomorrow.timeInMillis,
             yearRange = if (calendar.before(nextJanuary) && calendar.after(thisDecember)) {
                 IntRange(calendar.get(Calendar.YEAR), calendar.get(Calendar.YEAR) + 1)
@@ -118,8 +120,7 @@ fun getDatePickerState(
                 IntRange(calendar.get(Calendar.YEAR), calendar.get(Calendar.YEAR))
             },
             initialDisplayMode = DisplayMode.Picker,
-            selectableDates = ShippingDefaultSelectableDates(),
-            locale = Locale.FRANCE
+            selectableDates = ShippingDefaultSelectableDates()
         )
     }
 }
