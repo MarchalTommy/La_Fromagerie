@@ -7,6 +7,7 @@ import android.location.Geocoder
 import android.os.Build
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
+import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import com.mapbox.android.core.permissions.PermissionsManager.Companion.areLocationPermissionsGranted
@@ -16,6 +17,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.io.IOException
 
+@OptIn(ExperimentalPermissionsApi::class)
 @Composable
 fun PermissionManagerComposable(
     onUpdateUserCity: (String) -> Unit,
@@ -91,10 +93,6 @@ fun PermissionManagerComposable(
                 })
         },
         onPermissionDenied = {
-            onUpdateLocalisationState.invoke(false)
-            onUpdateShouldShowLocalisationPermission.invoke(false)
-        },
-        onPermissionsRevoked = {
             onUpdateLocalisationState.invoke(false)
             onUpdateShouldShowLocalisationPermission.invoke(false)
         }

@@ -17,7 +17,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonColors
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -29,7 +28,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import app.rive.runtime.kotlin.core.Rive
 import com.mapbox.common.MapboxOptions
@@ -59,8 +57,6 @@ fun DeliveryOptionScreen(
     navigateToCheckout: () -> Unit = {}
 ) {
 
-    // TODO: FIX AUTO-GEOLOC ->
-    // Double click for it to geoloc + now not moving map...
     // TODO: FIX LOADER ->
     // Make it appear ONLY if it has time to show for 200ms. Else do not show, to avoid flicker
 
@@ -126,11 +122,6 @@ fun DeliveryOptionScreen(
                     userCity = state.userCity
                 )
             }
-
-            HorizontalDivider(
-                modifier = Modifier.padding(8.dp),
-                thickness = Dp.Hairline
-            )
 
             DateTextField(
                 shouldBeClickable = state.shouldDatePickerBeClickable,
