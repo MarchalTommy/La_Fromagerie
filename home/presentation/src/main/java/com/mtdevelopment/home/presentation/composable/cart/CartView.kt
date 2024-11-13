@@ -57,7 +57,6 @@ fun CartView(
             onDismiss.invoke()
         }
     ) {
-
         Text(
             "Ici, c'est votre panier !",
             modifier = Modifier
