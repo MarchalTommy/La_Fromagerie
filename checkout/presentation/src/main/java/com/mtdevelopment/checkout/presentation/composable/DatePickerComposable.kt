@@ -8,17 +8,18 @@ import androidx.compose.material3.DatePickerDefaults
 import androidx.compose.material3.DatePickerState
 import androidx.compose.material3.DisplayMode
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.SelectableDates
 import androidx.compose.material3.ShapeDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
 import com.mtdevelopment.checkout.presentation.model.ShippingDefaultSelectableDates
+import com.mtdevelopment.checkout.presentation.model.ShippingSelectableMetaDates
+import com.mtdevelopment.checkout.presentation.model.ShippingSelectablePontarlierDates
+import com.mtdevelopment.checkout.presentation.model.ShippingSelectableSalinDates
+import com.mtdevelopment.core.model.DeliveryPath
 import java.util.Calendar
 import java.util.Locale
 
@@ -28,6 +29,7 @@ fun DatePickerComposable(
     datePickerState: DatePickerState,
     shouldRemoveDatePicker: () -> Unit,
     newDateFieldText: (String) -> Unit,
+    onDateSelected: (Long) -> Unit = {}
 ) {
     androidx.compose.material3.DatePickerDialog(
         modifier = Modifier,
@@ -39,6 +41,7 @@ fun DatePickerComposable(
                 newDateFieldText.invoke(datePickerState.selectedDateMillis?.let {
                     SimpleDateFormat("dd/MM/yyyy", Locale.FRANCE).format(it)
                 } ?: "")
+                onDateSelected.invoke(datePickerState.selectedDateMillis ?: 0)
                 shouldRemoveDatePicker.invoke()
             })
         },
@@ -71,13 +74,30 @@ fun DatePickerComposable(
     )
 }
 
-@Composable
 @OptIn(ExperimentalMaterial3Api::class)
 fun getDatePickerState(
-    shippingSelectableDates: SelectableDates
+    selectedPath: DeliveryPath?
 ): DatePickerState {
 
-    val nextSelectableDatesList = remember { mutableStateListOf<Long>() }
+    val shippingSelectableDates = when (selectedPath) {
+        DeliveryPath.PATH_META -> {
+            ShippingSelectableMetaDates()
+        }
+
+        DeliveryPath.PATH_SALIN -> {
+            ShippingSelectableSalinDates()
+        }
+
+        DeliveryPath.PATH_PON -> {
+            ShippingSelectablePontarlierDates()
+        }
+
+        else -> {
+            ShippingDefaultSelectableDates()
+        }
+    }
+
+    val nextSelectableDatesList = mutableStateListOf<Long>()
 
     val calendar = Calendar.getInstance()
     val nextJanuary = Calendar.getInstance()
@@ -100,7 +120,7 @@ fun getDatePickerState(
             }
         }
 
-        rememberDatePickerState(
+        DatePickerState(
             initialSelectedDateMillis = nextSelectableDatesList.firstOrNull(),
             yearRange = if (calendar.before(nextJanuary) && calendar.after(thisDecember)) {
                 IntRange(calendar.get(Calendar.YEAR), calendar.get(Calendar.YEAR) + 1)
@@ -108,11 +128,13 @@ fun getDatePickerState(
                 IntRange(calendar.get(Calendar.YEAR), calendar.get(Calendar.YEAR))
             },
             initialDisplayMode = DisplayMode.Picker,
-            selectableDates = shippingSelectableDates
+            selectableDates = shippingSelectableDates,
+            locale = Locale.FRANCE
+
         )
     } else {
         tomorrow.set(Calendar.DAY_OF_YEAR, (calendar.get(Calendar.DAY_OF_YEAR) + 1))
-        rememberDatePickerState(
+        DatePickerState(
             initialSelectedDateMillis = tomorrow.timeInMillis,
             yearRange = if (calendar.before(nextJanuary) && calendar.after(thisDecember)) {
                 IntRange(calendar.get(Calendar.YEAR), calendar.get(Calendar.YEAR) + 1)
@@ -120,7 +142,9 @@ fun getDatePickerState(
                 IntRange(calendar.get(Calendar.YEAR), calendar.get(Calendar.YEAR))
             },
             initialDisplayMode = DisplayMode.Picker,
-            selectableDates = ShippingDefaultSelectableDates()
+            selectableDates = ShippingDefaultSelectableDates(),
+            locale = Locale.FRANCE
         )
+
     }
 }

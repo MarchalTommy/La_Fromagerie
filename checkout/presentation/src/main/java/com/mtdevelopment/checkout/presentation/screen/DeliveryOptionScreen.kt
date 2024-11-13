@@ -44,12 +44,7 @@ import com.mtdevelopment.checkout.presentation.composable.MapBoxComposable
 import com.mtdevelopment.checkout.presentation.composable.PermissionManagerComposable
 import com.mtdevelopment.checkout.presentation.composable.UserInfoComposable
 import com.mtdevelopment.checkout.presentation.composable.getDatePickerState
-import com.mtdevelopment.checkout.presentation.model.ShippingDefaultSelectableDates
-import com.mtdevelopment.checkout.presentation.model.ShippingSelectableMetaDates
-import com.mtdevelopment.checkout.presentation.model.ShippingSelectablePontarlierDates
-import com.mtdevelopment.checkout.presentation.model.ShippingSelectableSalinDates
 import com.mtdevelopment.checkout.presentation.viewmodel.DeliveryViewModel
-import com.mtdevelopment.core.model.DeliveryPath
 import com.mtdevelopment.core.presentation.composable.RiveAnimation
 import com.mtdevelopment.core.util.ScreenSize
 import com.mtdevelopment.core.util.rememberScreenSize
@@ -61,7 +56,6 @@ import org.koin.androidx.compose.koinViewModel
 @Composable
 fun DeliveryOptionScreen(
     screenSize: ScreenSize = rememberScreenSize(),
-    navigateToHome: () -> Unit = {},
     navigateToCheckout: () -> Unit = {}
 ) {
 
@@ -74,35 +68,16 @@ fun DeliveryOptionScreen(
     val context = LocalContext.current
 
     val state = deliveryViewModel.deliveryUiDataState
+    val datePickerState = getDatePickerState(state.selectedPath)
     val isButtonEnabled = state.userAddressFieldText.isNotBlank() &&
             state.userNameFieldText.isNotBlank() &&
             state.dateFieldText.isNotBlank()
-
 
     val scrollState = rememberScrollState()
 
     if (MapboxOptions.accessToken != MAPBOX_PUBLIC_TOKEN) {
         MapboxOptions.accessToken = MAPBOX_PUBLIC_TOKEN
     }
-
-    val datePickerState =
-        when (state.selectedPath) {
-            DeliveryPath.PATH_META -> {
-                getDatePickerState(ShippingSelectableMetaDates())
-            }
-
-            DeliveryPath.PATH_SALIN -> {
-                getDatePickerState(ShippingSelectableSalinDates())
-            }
-
-            DeliveryPath.PATH_PON -> {
-                getDatePickerState(ShippingSelectablePontarlierDates())
-            }
-
-            else -> {
-                getDatePickerState(ShippingDefaultSelectableDates())
-            }
-        }
 
     LaunchedEffect(Unit) {
         Rive.init(context)
@@ -225,11 +200,6 @@ fun DeliveryOptionScreen(
                     deliveryViewModel.saveUserInfo(onError = {
                         // TODO: Manage error
                     })
-                    datePickerState.selectedDateMillis?.let {
-                        deliveryViewModel.saveSelectedDate(
-                            date = it
-                        )
-                    }
                     navigateToCheckout.invoke()
                 }) {
                 Text("Valider et passer au paiement")
@@ -280,6 +250,9 @@ fun DeliveryOptionScreen(
                 },
                 newDateFieldText = {
                     deliveryViewModel.setDateFieldText(it)
+                },
+                onDateSelected = {
+                    deliveryViewModel.saveSelectedDate(it)
                 }
             )
         }
