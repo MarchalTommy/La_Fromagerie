@@ -23,11 +23,17 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarColors
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -40,15 +46,19 @@ import com.google.android.gms.common.api.CommonStatusCodes
 import com.google.android.gms.wallet.contract.TaskResultContracts
 import com.mtdevelopment.cart.presentation.viewmodel.CartViewModel
 import com.mtdevelopment.checkout.presentation.viewmodel.CheckoutViewModel
+import com.mtdevelopment.core.presentation.MainViewModel
 import com.mtdevelopment.core.presentation.theme.ui.AppTheme
 import com.mtdevelopment.lafromagerie.navigation.HomeScreen
 import com.mtdevelopment.lafromagerie.navigation.NavGraph
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
 import org.koin.androidx.viewmodel.ext.android.viewModel
 
 class MainActivity : ComponentActivity() {
 
     private val checkoutViewModel: CheckoutViewModel by viewModel()
     private val cartViewModel: CartViewModel by viewModel()
+    private val mainViewModel: MainViewModel by viewModel()
 
     val paymentDataLauncher =
         registerForActivityResult(TaskResultContracts.GetPaymentDataResult()) { taskResult ->
@@ -73,9 +83,34 @@ class MainActivity : ComponentActivity() {
         setContent {
             AppTheme {
                 val navController: NavHostController = rememberNavController()
-
                 val currentBackStackEntry = navController.currentBackStackEntryAsState()
                 var homeEntry: NavDestination? = null
+
+                val coroutineScope: CoroutineScope = rememberCoroutineScope()
+
+                val errorState = mainViewModel.errorState
+
+                val snackHostState = remember {
+                    SnackbarHostState()
+                }
+
+                LaunchedEffect(errorState.shouldShowError) {
+                    if (errorState.shouldShowError) {
+                        coroutineScope.launch {
+                            val result = snackHostState.showSnackbar(
+                                message = errorState.message,
+                                actionLabel = errorState.actionLabel,
+                                duration = if (errorState.actionLabel == null) SnackbarDuration.Short else SnackbarDuration.Indefinite,
+                                withDismissAction = errorState.duration == SnackbarDuration.Indefinite && errorState.actionLabel == null
+                            )
+
+                            when (result) {
+                                SnackbarResult.Dismissed -> mainViewModel.clearError()
+                                SnackbarResult.ActionPerformed -> errorState.action()
+                            }
+                        }
+                    }
+                }
 
                 Scaffold(
                     modifier = Modifier.fillMaxSize(),
@@ -113,7 +148,11 @@ class MainActivity : ComponentActivity() {
                                 IconButton(
                                     modifier = Modifier.size(64.dp),
                                     onClick = {
-                                        TODO("Navigate To Notifications Screen, or Open a Modal Sheet with notifications")
+                                        mainViewModel.setError(
+                                            "Pas encore implémenté ! Un peu de patience :)",
+                                            actionLabel = "Je comprends",
+                                            action = { mainViewModel.clearError() })
+//                                        TODO("Navigate To Notifications Screen, or Open a Modal Sheet with notifications")
                                     },
                                     content = {
                                         BadgedBox(
@@ -144,9 +183,16 @@ class MainActivity : ComponentActivity() {
                     snackbarHost = {
                         SnackbarHost(
                             modifier = Modifier.wrapContentSize(Alignment.BottomCenter),
-                            hostState = SnackbarHostState(),
+                            hostState = snackHostState,
                             snackbar = { data ->
-
+                                if (errorState.message.isNotEmpty()) {
+                                    errorState.message
+                                    Snackbar(
+                                        snackbarData = data,
+                                        modifier = Modifier.padding(16.dp),
+                                        shape = MaterialTheme.shapes.medium
+                                    )
+                                }
                             }
                         )
                     }
@@ -164,8 +210,6 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
-
-
     }
 
     private fun requestPayment(priceCents: Long) {
