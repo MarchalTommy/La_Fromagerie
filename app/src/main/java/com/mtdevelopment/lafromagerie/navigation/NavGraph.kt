@@ -11,7 +11,6 @@ import androidx.navigation.toRoute
 import com.mtdevelopment.cart.presentation.viewmodel.CartViewModel
 import com.mtdevelopment.checkout.presentation.screen.CheckoutScreen
 import com.mtdevelopment.checkout.presentation.screen.DeliveryOptionScreen
-import com.mtdevelopment.core.presentation.sharedModels.UiProductObject
 import com.mtdevelopment.core.presentation.theme.ui.ScaleTransitionDirection
 import com.mtdevelopment.core.presentation.theme.ui.scaleIntoContainer
 import com.mtdevelopment.core.presentation.theme.ui.scaleOutOfContainer
@@ -35,8 +34,8 @@ fun NavGraph(
         composable<HomeScreen> {
             HomeScreen(
                 cartViewModel = cartViewModel,
-                navigateToDetail = { product ->
-                    navController.navigate(DetailDestination(product))
+                navigateToDetail = {
+                    navController.navigate(DetailDestination)
                 }, navigateToDelivery = {
                     navController.navigate(
                         DeliveryOptionScreen
@@ -45,7 +44,6 @@ fun NavGraph(
         }
 
         composable<DetailDestination>(
-            typeMap = UiProductObject.typeMap,
             enterTransition = {
                 scaleIntoContainer()
             },
@@ -61,8 +59,7 @@ fun NavGraph(
         ) {
             val args = it.toRoute<DetailDestination>()
             DetailScreen(
-                viewModel = cartViewModel,
-                detailProductObject = args.productObject
+                viewModel = cartViewModel
             )
         }
 

@@ -149,4 +149,10 @@ class CartViewModel(
             setCartObject(newCartObject)
         }
     }
+
+    fun saveClickedItem(value: UiProductObject) {
+        cartUiState = cartUiState.copy(
+            currentItem = value
+        )
+    }
 }

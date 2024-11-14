@@ -8,9 +8,7 @@ import kotlinx.serialization.Serializable
 object HomeScreen
 
 @Serializable
-data class DetailDestination(
-    val productObject: UiProductObject
-)
+object DetailDestination
 
 @Serializable
 object DeliveryOptionScreen

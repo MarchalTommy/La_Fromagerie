@@ -1,6 +1,7 @@
 package com.mtdevelopment.cart.presentation.state
 
 import com.mtdevelopment.cart.presentation.model.UiBasketObject
+import com.mtdevelopment.core.presentation.sharedModels.UiProductObject
 import java.util.UUID
 
 data class CartUiState(
@@ -10,6 +11,5 @@ data class CartUiState(
         emptyList(),
         "0,00€"
     ),
-
-
+    val currentItem: UiProductObject? = null
     )

@@ -1,6 +1,8 @@
 plugins {
     alias(libs.plugins.androidLibrary)
     alias(libs.plugins.kotlinAndroid)
+    alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.google.service)
 }
 
 android {
@@ -23,13 +25,15 @@ android {
             )
         }
     }
-    
+
     kotlin {
         jvmToolchain(17)
     }
 }
 
 dependencies {
+    implementation(project(":home:domain"))
+    implementation(project(":core:presentation"))
 
     implementation(libs.core.ktx)
     implementation(libs.androidx.appcompat)
@@ -37,4 +41,16 @@ dependencies {
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.test.ext.junit)
     androidTestImplementation(libs.espresso.core)
+    implementation(libs.kotlinx.serialization.json)
+
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.common)
+    implementation(libs.firebase.crashlytics)
+    implementation(libs.firebase.analytics)
+    implementation(libs.firebase.auth)
+    implementation(libs.firebase.firestore)
+
+    annotationProcessor(libs.room.compiler)
+    implementation(libs.room.ktx)
+    implementation(libs.room.runtime)
 }

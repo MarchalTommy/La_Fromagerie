@@ -1,5 +1,8 @@
 package com.mtdevelopment.lafromagerie.di
 
+import com.google.firebase.Firebase
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.firestore
 import com.mtdevelopment.cart.presentation.viewmodel.CartViewModel
 import com.mtdevelopment.checkout.data.local.CheckoutDatastorePreferenceImpl
 import com.mtdevelopment.checkout.data.remote.model.Constants
@@ -26,6 +29,15 @@ import com.mtdevelopment.core.usecase.ClearDatastoreUseCase
 import com.mtdevelopment.core.usecase.ClearOrderUseCase
 import com.mtdevelopment.core.usecase.GetIsNetworkConnectedUseCase
 import com.mtdevelopment.core.usecase.SaveToDatastoreUseCase
+import com.mtdevelopment.home.data.repository.FirebaseRepositoryImpl
+import com.mtdevelopment.home.data.source.remote.FirestoreDatabase
+import com.mtdevelopment.home.domain.repository.FirebaseRepository
+import com.mtdevelopment.home.domain.usecase.AddNewProductUseCase
+import com.mtdevelopment.home.domain.usecase.DeleteProductUseCase
+import com.mtdevelopment.home.domain.usecase.GetAllCheesesUseCase
+import com.mtdevelopment.home.domain.usecase.GetAllProductsUseCase
+import com.mtdevelopment.home.domain.usecase.UpdateProductUseCase
+import com.mtdevelopment.home.presentation.viewmodel.HomeViewModel
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.plugins.DefaultRequest
@@ -42,13 +54,15 @@ import org.koin.androidx.viewmodel.dsl.viewModelOf
 import org.koin.dsl.module
 
 fun appModule() = listOf(
-    mainAppModule, provideDatastore, provideHttpClientModule
+    mainAppModule, provideDatastore, provideHttpClientModule, provideFirebaseDatabase
 )
 
 val mainAppModule = module {
     single { SumUpDataSource(get()) }
     single<NetworkRepository> { NetworkRepositoryImpl(get()) }
     single<PaymentRepository> { PaymentRepositoryImpl(get(), get()) }
+
+    single<FirebaseRepository> { FirebaseRepositoryImpl(get()) }
 
     factory { GetCheckoutDataUseCase(get()) }
     factory { SaveToDatastoreUseCase(get()) }
@@ -66,7 +80,14 @@ val mainAppModule = module {
     factory { ProcessSumUpCheckoutUseCase(get()) }
     factory { SaveCheckoutReferenceUseCase(get()) }
 
+    factory { GetAllProductsUseCase(get()) }
+    factory { GetAllCheesesUseCase(get()) }
+    factory { UpdateProductUseCase(get()) }
+    factory { AddNewProductUseCase(get()) }
+    factory { DeleteProductUseCase(get()) }
+
     viewModelOf(::CartViewModel)
+    viewModelOf(::HomeViewModel)
     viewModelOf(::DeliveryViewModel)
     viewModelOf(::CheckoutViewModel)
 }
@@ -99,4 +120,10 @@ val provideHttpClientModule = module {
 val provideDatastore = module {
     single<CheckoutDatastorePreference> { CheckoutDatastorePreferenceImpl(get()) }
     single<SharedDatastore> { SharedDatastoreImpl(get()) }
+}
+
+val provideFirebaseDatabase = module {
+    single<FirebaseFirestore> { Firebase.firestore }
+    single<FirestoreDatabase> { FirestoreDatabase(get()) }
+
 }

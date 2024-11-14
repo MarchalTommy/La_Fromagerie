@@ -114,7 +114,7 @@ fun ProductItem(
                     .height(128.dp)
                     .clip(RoundedCornerShape(8.dp)),
                 imageModel = {
-                    product?.imageUrl ?: product?.imageRes
+                    product?.imageUrl
                     ?: com.mtdevelopment.core.presentation.R.drawable.placeholder
                 },
                 imageOptions = ImageOptions(contentScale = ContentScale.Crop),

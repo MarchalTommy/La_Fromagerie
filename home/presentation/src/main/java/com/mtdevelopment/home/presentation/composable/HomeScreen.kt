@@ -30,22 +30,25 @@ import androidx.compose.ui.unit.dp
 import com.mtdevelopment.cart.presentation.model.UiBasketObject
 import com.mtdevelopment.cart.presentation.viewmodel.CartViewModel
 import com.mtdevelopment.core.presentation.sharedModels.UiProductObject
-import com.mtdevelopment.core.presentation.testList
-import com.mtdevelopment.core.util.koinViewModel
 import com.mtdevelopment.home.presentation.composable.cart.CartView
+import com.mtdevelopment.home.presentation.viewmodel.HomeViewModel
 import kotlinx.coroutines.launch
+import org.koin.androidx.compose.koinViewModel
 
 @Composable
 fun HomeScreen(
     cartViewModel: CartViewModel,
-    navigateToDetail: (UiProductObject) -> Unit = {},
+    navigateToDetail: () -> Unit = {},
     navigateToDelivery: (UiBasketObject) -> Unit = {}
 ) {
     val coroutineScope = rememberCoroutineScope()
 
+    val homeViewModel = koinViewModel<HomeViewModel>()
+
     val scaleCart = remember { Animatable(1f) }
 
-    val state = cartViewModel.cartUiState
+    val cartState = cartViewModel.cartUiState
+    val homeState = homeViewModel.homeUiState
 
     fun animateAddingToCart() {
         coroutineScope.launch {
@@ -74,11 +77,12 @@ fun HomeScreen(
                 .padding(horizontal = 8.dp),
             columns = GridCells.Adaptive(minSize = 168.dp)
         ) {
-            items(items = testList, key = { it.id }) { productListItem ->
+            items(items = homeState.products, key = { it.id }) { productListItem ->
                 ProductItem(
                     product = productListItem,
                     onDetailClick = {
-                        navigateToDetail.invoke(it)
+                        cartViewModel.saveClickedItem(it)
+                        navigateToDetail.invoke()
                     }
                 ) {
                     cartViewModel.addCartObject(productListItem)
@@ -96,12 +100,12 @@ fun HomeScreen(
                 }
                 .padding(32.dp),
             badge = {
-                if ((state.cartObject.content.size) > 0) {
+                if ((cartState.cartObject.content.size) > 0) {
                     Badge(
                         containerColor = Color.Red,
                         contentColor = Color.White
                     ) {
-                        val cartItemsQuantity = state.cartObject.content.sumOf { it.quantity }
+                        val cartItemsQuantity = cartState.cartObject.content.sumOf { it.quantity }
                         Text("$cartItemsQuantity")
                     }
                 }
@@ -124,11 +128,11 @@ fun HomeScreen(
             }
         }
 
-        if (state.isCartVisible) {
+        if (cartState.isCartVisible) {
             CartView(cartViewModel = cartViewModel, {
                 cartViewModel.setCartVisibility(false)
             }, {
-                state.cartObject.let { navigateToDelivery.invoke(it) }
+                cartState.cartObject.let { navigateToDelivery.invoke(it) }
             })
         }
     }

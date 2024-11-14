@@ -85,6 +85,8 @@ dependencies {
     implementation(project(":core:data"))
     implementation(project(":cart:presentation"))
     implementation(project(":home:presentation"))
+    implementation(project(":home:domain"))
+    implementation(project(":home:data"))
     implementation(project(":details:presentation"))
     implementation(project(":checkout:presentation"))
     implementation(project(":checkout:domain"))
@@ -132,6 +134,17 @@ dependencies {
     implementation(libs.ktor.serialization.json)
 
     implementation(libs.datastore.preferences)
+
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.common)
+    implementation(libs.firebase.crashlytics)
+    implementation(libs.firebase.analytics)
+    implementation(libs.firebase.auth)
+    implementation(libs.firebase.firestore)
+
+    annotationProcessor(libs.room.compiler)
+    implementation(libs.room.ktx)
+    implementation(libs.room.runtime)
 }
 
 class Version(code: Int, version: String) {

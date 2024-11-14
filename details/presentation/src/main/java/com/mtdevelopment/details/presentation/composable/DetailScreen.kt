@@ -32,6 +32,7 @@ import androidx.compose.material3.ShapeDefaults
 import androidx.compose.material3.Shapes
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
@@ -68,7 +69,6 @@ import kotlinx.coroutines.launch
 @Composable
 fun DetailScreen(
     viewModel: CartViewModel,
-    detailProductObject: UiProductObject,
     screenSize: ScreenSize = rememberScreenSize()
 ) {
     val coroutineScope = rememberCoroutineScope()
@@ -77,8 +77,6 @@ fun DetailScreen(
 
     val state = viewModel.cartUiState
     val scaleCart = remember { Animatable(1f) }
-
-    val product: UiProductObject = detailProductObject
 
     val nameWidth = remember { mutableFloatStateOf(0f) }
     val nameHeightDp = remember { mutableIntStateOf(0) }
@@ -116,7 +114,7 @@ fun DetailScreen(
                     .fillMaxWidth()
                     .fillMaxHeight(0.3f),
                 imageModel = {
-                    product.imageUrl ?: product.imageRes
+                    state.currentItem?.imageUrl
                     ?: com.mtdevelopment.core.presentation.R.drawable.placeholder
                 },
                 imageOptions = ImageOptions(contentScale = ContentScale.FillWidth),
@@ -172,19 +170,21 @@ fun DetailScreen(
                     )
                 }
 
-                Text(
-                    modifier = Modifier
-                        .align(Alignment.CenterStart)
-                        .padding(horizontal = 16.dp),
-                    text = product.name,
-                    style = MaterialTheme.typography.titleLarge,
-                    color = Color.White,
-                    onTextLayout = { textLayoutResult ->
-                        nameWidth.floatValue = textLayoutResult.size.toIntRect().size.toSize().width
-                        nameHeightDp.intValue =
-                            textLayoutResult.size.toIntRect().size.height
-                    }
-                )
+                state.currentItem?.name?.let {
+                    Text(
+                        modifier = Modifier
+                            .align(Alignment.CenterStart)
+                            .padding(horizontal = 16.dp),
+                        text = it,
+                        style = MaterialTheme.typography.titleLarge,
+                        color = Color.White,
+                        onTextLayout = { textLayoutResult ->
+                            nameWidth.floatValue = textLayoutResult.size.toIntRect().size.toSize().width
+                            nameHeightDp.intValue =
+                                textLayoutResult.size.toIntRect().size.height
+                        }
+                    )
+                }
             }
         }
 
@@ -220,23 +220,25 @@ fun DetailScreen(
                     )
                 }
 
-                Text(
-                    modifier = Modifier
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                    text = product.priceInCents.toUiPrice(),
-                    style = MaterialTheme.typography.titleLarge,
-                    color = MaterialTheme.colorScheme.onBackground,
-                    onTextLayout = { textLayoutResult ->
-                        priceWidth.floatValue =
-                            textLayoutResult.size.toIntRect().size.toSize().width
-                        priceHeightDp.intValue =
-                            textLayoutResult.size.toIntRect().size.height
-                    }
-                )
+                state.currentItem?.priceInCents?.toUiPrice()?.let {
+                    Text(
+                        modifier = Modifier
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                        text = it,
+                        style = MaterialTheme.typography.titleLarge,
+                        color = MaterialTheme.colorScheme.onBackground,
+                        onTextLayout = { textLayoutResult ->
+                            priceWidth.floatValue =
+                                textLayoutResult.size.toIntRect().size.toSize().width
+                            priceHeightDp.intValue =
+                                textLayoutResult.size.toIntRect().size.height
+                        }
+                    )
+                }
             }
         }
 
-        if (product.description.isNotBlank()) {
+        if (state.currentItem?.description?.isBlank() == false) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -252,11 +254,13 @@ fun DetailScreen(
                         .verticalScroll(state = scrollState, enabled = true)
                         .padding(8.dp)
                 ) {
-                    Text(
-                        modifier = Modifier.fillMaxWidth(0.85f),
-                        text = product.description,
-                        style = MaterialTheme.typography.bodyMedium
-                    )
+                    state.currentItem?.description?.let {
+                        Text(
+                            modifier = Modifier.fillMaxWidth(0.85f),
+                            text = it,
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
                 }
 
                 Column(
@@ -292,7 +296,7 @@ fun DetailScreen(
             }
         }
 
-        if (!product.allergens.isNullOrEmpty()) {
+        if (!state.currentItem?.allergens.isNullOrEmpty()) {
             Text(
                 modifier = Modifier.padding(start = 16.dp, top = 16.dp),
                 text = "Liste des allèrgenes :",
@@ -302,7 +306,7 @@ fun DetailScreen(
 
             Text(
                 modifier = Modifier.padding(start = 16.dp, top = 4.dp),
-                text = product.allergens?.joinToString(", ") ?: "Aucun !",
+                text = state.currentItem?.allergens?.joinToString(", ") ?: "Aucun !",
                 style = MaterialTheme.typography.bodyMedium,
                 maxLines = 2
             )
@@ -311,20 +315,20 @@ fun DetailScreen(
         BadgedBox(
             modifier = Modifier
                 .align(Alignment.CenterHorizontally)
-                .padding(vertical = if (product.allergens.isNullOrEmpty()) 32.dp else 8.dp)
+                .padding(vertical = if (state.currentItem?.allergens.isNullOrEmpty()) 32.dp else 8.dp)
                 .graphicsLayer {
                     scaleX = scaleCart.value
                     scaleY = scaleCart.value
                 }
                 .padding(32.dp),
             badge = {
-                if (state.cartObject.content.find { it.id == product.id } != null) {
+                if (state.cartObject.content.find { it.id == state.currentItem?.id } != null) {
                     Badge(
                         containerColor = Color.Red,
                         contentColor = Color.White
                     ) {
                         val cartItemsQuantity =
-                            state.cartObject.content.find { it.id == product.id }?.quantity
+                            state.cartObject.content.find { it.id == state.currentItem?.id }?.quantity
                         Text("$cartItemsQuantity")
                     }
                 }
@@ -335,7 +339,7 @@ fun DetailScreen(
                 onClick = {
                     vibratePhoneClick(context = context)
                     animateAddingToCart()
-                    viewModel.addCartObject(product)
+                    state.currentItem?.let { viewModel.addCartObject(it) }
                 },
                 shape = Shapes().medium
             ) {
