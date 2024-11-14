@@ -29,7 +29,6 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
 import com.mtdevelopment.cart.presentation.model.UiBasketObject
 import com.mtdevelopment.cart.presentation.viewmodel.CartViewModel
-import com.mtdevelopment.core.presentation.sharedModels.UiProductObject
 import com.mtdevelopment.home.presentation.composable.cart.CartView
 import com.mtdevelopment.home.presentation.viewmodel.HomeViewModel
 import kotlinx.coroutines.launch
@@ -74,11 +73,19 @@ fun HomeScreen(
         LazyVerticalGrid(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 8.dp),
+                .padding(start = 8.dp, end = 8.dp),
             columns = GridCells.Adaptive(minSize = 168.dp)
         ) {
             items(items = homeState.products, key = { it.id }) { productListItem ->
+
                 ProductItem(
+                    modifier = if (productListItem.id == homeState.products.last().id) {
+                        Modifier.padding(
+                            bottom = 64.dp
+                        )
+                    } else {
+                        Modifier
+                    },
                     product = productListItem,
                     onDetailClick = {
                         cartViewModel.saveClickedItem(it)
