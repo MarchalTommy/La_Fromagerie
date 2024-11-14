@@ -22,6 +22,7 @@ import com.mtdevelopment.checkout.domain.usecase.SaveCheckoutReferenceUseCase
 import com.mtdevelopment.checkout.presentation.viewmodel.CheckoutViewModel
 import com.mtdevelopment.checkout.presentation.viewmodel.DeliveryViewModel
 import com.mtdevelopment.core.local.SharedDatastoreImpl
+import com.mtdevelopment.core.presentation.MainViewModel
 import com.mtdevelopment.core.repository.NetworkRepository
 import com.mtdevelopment.core.repository.NetworkRepositoryImpl
 import com.mtdevelopment.core.repository.SharedDatastore
@@ -88,6 +89,7 @@ val mainAppModule = module {
 
     viewModelOf(::CartViewModel)
     viewModelOf(::HomeViewModel)
+    viewModelOf(::MainViewModel)
     viewModelOf(::DeliveryViewModel)
     viewModelOf(::CheckoutViewModel)
 }
