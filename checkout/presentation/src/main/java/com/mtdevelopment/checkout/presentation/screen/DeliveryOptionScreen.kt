@@ -36,7 +36,6 @@ import androidx.compose.ui.unit.dp
 import app.rive.runtime.kotlin.core.Rive
 import com.mapbox.common.MapboxOptions
 import com.mtdevelopment.checkout.presentation.BuildConfig.MAPBOX_PUBLIC_TOKEN
-import com.mtdevelopment.checkout.presentation.R
 import com.mtdevelopment.checkout.presentation.composable.DatePickerComposable
 import com.mtdevelopment.checkout.presentation.composable.DateTextField
 import com.mtdevelopment.checkout.presentation.composable.DeliveryPathPickerComposable
@@ -60,9 +59,6 @@ fun DeliveryOptionScreen(
     screenSize: ScreenSize = rememberScreenSize(),
     navigateToCheckout: () -> Unit = {}
 ) {
-
-    // TODO: FIX LOADER ->
-    // Make it appear ONLY if it has time to show for 200ms. Else do not show, to avoid flicker
 
     val deliveryViewModel = koinViewModel<DeliveryViewModel>()
     val context = LocalContext.current
@@ -241,13 +237,11 @@ fun DeliveryOptionScreen(
         }
 
         // Loading animation
-        if (state.isLoading) {
-            RiveAnimation(
-                modifier = Modifier.fillMaxSize(),
-                resId = R.raw.goat_loading,
-                contentDescription = "Loading animation"
-            )
-        }
+        RiveAnimation(
+            isLoading = state.isLoading,
+            modifier = Modifier.fillMaxSize(),
+            contentDescription = "Loading animation"
+        )
 
         if (state.datePickerVisibility) {
             DatePickerComposable(
