@@ -8,9 +8,7 @@ import androidx.lifecycle.ViewModel
 import com.mtdevelopment.core.presentation.sharedModels.ErrorState
 import org.koin.core.component.KoinComponent
 
-class MainViewModel(
-
-) : ViewModel(), KoinComponent {
+class MainViewModel() : ViewModel(), KoinComponent {
 
     var errorState by mutableStateOf(ErrorState())
         private set

@@ -24,7 +24,7 @@ class HomeViewModel(
     private val updateProductUseCase: UpdateProductUseCase,
     private val deleteProductUseCase: DeleteProductUseCase,
     private val addNewProductUseCase: AddNewProductUseCase,
-    private val getIsNetworkConnectedUseCase: GetIsNetworkConnectedUseCase
+    getIsNetworkConnectedUseCase: GetIsNetworkConnectedUseCase
 ) : ViewModel(), KoinComponent {
 
     val isConnected = getIsNetworkConnectedUseCase()
@@ -39,8 +39,9 @@ class HomeViewModel(
         }
     }
 
-    private fun getAllProducts() {
+    private suspend fun getAllProducts() {
         getAllProductsUseCase.invoke(
+            scope = viewModelScope,
             onSuccess = { products ->
                 homeUiState = homeUiState.copy(
                     products = products.map { it.toUiProductObject() },
@@ -52,7 +53,6 @@ class HomeViewModel(
                     isLoading = false,
                     isError = "Chargement des produits impossible"
                 )
-                // TODO: HANDLE ERROR
             }
         )
     }

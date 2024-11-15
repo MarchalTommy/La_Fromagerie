@@ -60,7 +60,8 @@ class SharedDatastoreImpl(private val context: Context) : SharedDatastore {
     override val userInformationFlow: Flow<UserInformation?>
         get() = context.dataStore.data.map { preferences ->
             try {
-                gson.fromJson(preferences[USER_INFORMATION_KEY], UserInformationData::class.java).toUserInformation()
+                gson.fromJson(preferences[USER_INFORMATION_KEY], UserInformationData::class.java)
+                    .toUserInformation()
             } catch (e: Exception) {
                 Log.e(TAG, "userInformationFlow:", e)
                 null
@@ -108,6 +109,18 @@ class SharedDatastoreImpl(private val context: Context) : SharedDatastore {
         context.dataStore.edit {
             it.remove(CART_ITEMS_KEY)
             it.remove(DELIVERY_DATE_KEY)
+        }
+    }
+
+    private val LAST_FIRESTORE_UPDATE_TIMESTAMP = longPreferencesKey("firestore_update_timestamp")
+    override val lastFirestoreUpdateTimeStamp: Flow<Long>
+        get() = context.dataStore.data.map {
+            it[LAST_FIRESTORE_UPDATE_TIMESTAMP] ?: 0L
+        }
+
+    override suspend fun lastFirestoreUpdateTimestamp(timestamp: Long) {
+        context.dataStore.edit {
+            it[LAST_FIRESTORE_UPDATE_TIMESTAMP] = timestamp
         }
     }
 

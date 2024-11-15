@@ -1,6 +1,7 @@
 package com.mtdevelopment.home.data.source.remote
 
 import com.google.firebase.Firebase
+import com.google.firebase.Timestamp
 import com.google.firebase.crashlytics.crashlytics
 import com.google.firebase.firestore.FirebaseFirestore
 import com.mtdevelopment.home.data.model.ProductData
@@ -17,7 +18,7 @@ class FirestoreDatabase(
         firestore.collection("products")
             .get()
             .addOnSuccessListener { snapshot ->
-                onSuccess(snapshot.documents.map { item ->
+                onSuccess.invoke(snapshot.documents.map { item ->
                     ProductData(
                         id = item.id,
                         name = item.data?.get("name").toString(),
@@ -30,7 +31,7 @@ class FirestoreDatabase(
                 })
             }.addOnFailureListener {
                 Firebase.crashlytics.recordException(it)
-                onFailure()
+                onFailure.invoke()
             }
     }
 
@@ -39,12 +40,12 @@ class FirestoreDatabase(
             .whereEqualTo("type", "cheese")
             .get()
             .addOnSuccessListener { snapshot ->
-                onSuccess(snapshot.documents.map { item ->
+                onSuccess.invoke(snapshot.documents.map { item ->
                     item.toObject(ProductData::class.java)
                 })
             }.addOnFailureListener {
                 Firebase.crashlytics.recordException(it)
-                onFailure()
+                onFailure.invoke()
             }
     }
 
@@ -63,5 +64,25 @@ class FirestoreDatabase(
         firestore.collection("products")
             .document(product.id)
             .delete()
+    }
+
+    fun getLastDatabaseUpdate(onSuccess: (Timestamp) -> Unit, onFailure: () -> Unit) {
+        firestore.collection("database_update")
+            .document("last_database_update")
+            .get()
+            .addOnSuccessListener { snapshot ->
+                onSuccess.invoke(
+                    snapshot.data?.get("timestamp") as? Timestamp ?: Timestamp(0L, 0)
+                )
+            }.addOnFailureListener {
+                onFailure.invoke()
+            }
+    }
+
+    fun saveNewDatabaseUpdate(timestamp: Long) {
+        firestore.collection("database_update")
+            .document("last_database_update")
+            .set(mapOf("timestamp" to timestamp))
+
     }
 }

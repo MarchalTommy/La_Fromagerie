@@ -9,6 +9,7 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.google.service)
     alias(libs.plugins.firebase.crashlytics.plugin)
+    alias(libs.plugins.ksp)
 }
 
 android {
@@ -142,7 +143,7 @@ dependencies {
     implementation(libs.firebase.auth)
     implementation(libs.firebase.firestore)
 
-    annotationProcessor(libs.room.compiler)
+    ksp(libs.room.compiler)
     implementation(libs.room.ktx)
     implementation(libs.room.runtime)
 }

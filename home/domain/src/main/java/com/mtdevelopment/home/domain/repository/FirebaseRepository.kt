@@ -16,4 +16,8 @@ interface FirebaseRepository {
 
     fun deleteProduct(product: Product)
 
+    fun getLastDatabaseUpdate(onSuccess: (Long) -> Unit, onFailure: () -> Unit)
+
+    fun saveNewDatabaseUpdate(timestamp: Long)
+
 }
