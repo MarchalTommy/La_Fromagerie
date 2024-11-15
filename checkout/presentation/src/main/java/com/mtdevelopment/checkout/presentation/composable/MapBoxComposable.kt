@@ -91,7 +91,7 @@ fun MapBoxComposable(
     }
     val hasBeenGeoloked = remember { mutableStateOf(false) }
 
-    val point = remember {
+    val userPoint = remember {
         mutableStateOf<Point>(
             Point.fromLngLat(
                 userLocation?.second ?: 0.0,
@@ -204,15 +204,14 @@ fun MapBoxComposable(
                     MapboxStandardStyle(
                         styleImportsContent = {},
                         styleTransition = TransitionOptions.Builder().duration(2000).build(),
-                        middleSlot = {
-
-                        },
+                        middleSlot = {},
                         init = {
                             styleImportsConfig {
                                 mutableMapOf(
                                     Pair(
                                         "Basic",
-                                        "mapbox://styles/marchaldevelopment/cm1s77ihq00m301pl7w12c0kc"
+                                        chosenPath?.mapStyle
+                                            ?: "mapbox://styles/marchaldevelopment/cm1s77ihq00m301pl7w12c0kc"
                                     )
                                 )
                             }
@@ -248,7 +247,8 @@ fun MapBoxComposable(
                     setIsLoading.invoke(true)
                     if (mapView.mapboxMap.style == null) {
                         mapView.mapboxMap.loadStyle(
-                            "mapbox://styles/marchaldevelopment/cm1s77ihq00m301pl7w12c0kc"
+                            chosenPath?.mapStyle
+                                ?: "mapbox://styles/marchaldevelopment/cm1s77ihq00m301pl7w12c0kc"
                         ) {
                             setIsLoading.invoke(false)
                         }
@@ -260,20 +260,20 @@ fun MapBoxComposable(
         }
     }
 
-    if (userLocation != null) {
-        point.value = Point.fromLngLat(
+    if (userLocation != null && chosenPath == null) {
+        userPoint.value = Point.fromLngLat(
             userLocation.second,
             userLocation.first
         )
 
-        if (point.value.latitude() != 0.0 &&
-            point.value.longitude() != 0.0 &&
+        if (userPoint.value.latitude() != 0.0 &&
+            userPoint.value.longitude() != 0.0 &&
             !hasBeenGeoloked.value
         ) {
             pointAnnotationManager?.let {
                 it.deleteAll()
                 val pointAnnotationOptions =
-                    PointAnnotationOptions().withPoint(point.value)
+                    PointAnnotationOptions().withPoint(userPoint.value)
 
                 it.create(pointAnnotationOptions)
             }
@@ -281,7 +281,7 @@ fun MapBoxComposable(
             map.value?.camera?.flyTo(
                 cameraOptions = CameraOptions.Builder()
                     .center(
-                        point.value
+                        userPoint.value
                     )
                     .zoom(10.0)
                     .build(),

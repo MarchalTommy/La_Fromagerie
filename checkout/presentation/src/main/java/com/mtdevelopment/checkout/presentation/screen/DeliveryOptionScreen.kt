@@ -23,9 +23,13 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -70,6 +74,10 @@ fun DeliveryOptionScreen(
             state.dateFieldText.isNotBlank()
 
     val scrollState = rememberScrollState()
+    val focusRequester = remember {
+        FocusRequester()
+    }
+    val focusManager = LocalFocusManager.current
 
     if (MapboxOptions.accessToken != MAPBOX_PUBLIC_TOKEN) {
         MapboxOptions.accessToken = MAPBOX_PUBLIC_TOKEN
@@ -136,24 +144,32 @@ fun DeliveryOptionScreen(
             )
 
             UserInfoComposable(
-                state.userNameFieldText,
-                "Nom complet",
+                fieldText = state.userNameFieldText,
+                label = "Nom complet",
+                imeAction = ImeAction.Next,
+                focusRequester = focusRequester,
+                focusManager = focusManager,
                 updateText = {
                     deliveryViewModel.setUserNameFieldText(it)
+                },
+                leadingIcon = {
+                    Icon(Icons.Rounded.Person, "")
                 }
-            ) {
-                Icon(Icons.Rounded.Person, "")
-            }
+            )
 
             UserInfoComposable(
-                state.userAddressFieldText,
-                "Adresse exacte",
+                fieldText = state.userAddressFieldText,
+                label = "Adresse exacte",
+                imeAction = ImeAction.Done,
+                focusRequester = focusRequester,
+                focusManager = focusManager,
                 updateText = {
                     deliveryViewModel.setUserAddressFieldText(it)
+                },
+                leadingIcon = {
+                    Icon(Icons.Rounded.Place, "")
                 }
-            ) {
-                Icon(Icons.Rounded.Place, "")
-            }
+            )
 
             if (!isButtonEnabled) {
                 Text(

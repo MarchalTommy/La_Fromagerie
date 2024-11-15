@@ -5,6 +5,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.mtdevelopment.checkout.domain.usecase.GetUserInfoFromDatastoreUseCase
 import com.mtdevelopment.checkout.presentation.state.DeliveryUiDataState
 import com.mtdevelopment.core.model.DeliveryPath
 import com.mtdevelopment.core.model.UserInformation
@@ -12,13 +13,15 @@ import com.mtdevelopment.core.usecase.GetIsNetworkConnectedUseCase
 import com.mtdevelopment.core.usecase.SaveToDatastoreUseCase
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import org.koin.core.component.KoinComponent
 
 class DeliveryViewModel(
     getIsConnectedUseCase: GetIsNetworkConnectedUseCase,
-    private val saveToDatastoreUseCase: SaveToDatastoreUseCase,
+    getUserInfoFromDatastoreUseCase: GetUserInfoFromDatastoreUseCase,
+    private val saveToDatastoreUseCase: SaveToDatastoreUseCase
 ) : ViewModel(), KoinComponent {
 
     val isConnected: StateFlow<Boolean> = getIsConnectedUseCase.invoke().stateIn(
@@ -29,6 +32,18 @@ class DeliveryViewModel(
 
     var deliveryUiDataState by mutableStateOf(DeliveryUiDataState())
         private set
+
+    init {
+        viewModelScope.launch {
+            val userInfo = getUserInfoFromDatastoreUseCase.invoke().first()
+
+            deliveryUiDataState = deliveryUiDataState.copy(
+                userAddressFieldText = userInfo?.address ?: "",
+                userNameFieldText = userInfo?.name ?: "",
+                selectedPath = userInfo?.lastSelectedPath
+            )
+        }
+    }
 
     // TODO: Manage error state
     fun saveUserInfo(onError: () -> Unit = {}) {
