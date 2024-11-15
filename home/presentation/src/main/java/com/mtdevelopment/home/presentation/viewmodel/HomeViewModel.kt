@@ -33,6 +33,7 @@ class HomeViewModel(
         private set
 
     init {
+        homeUiState = homeUiState.copy(isLoading = true)
         viewModelScope.launch {
             getAllProducts()
         }
@@ -41,9 +42,16 @@ class HomeViewModel(
     private fun getAllProducts() {
         getAllProductsUseCase.invoke(
             onSuccess = { products ->
-                homeUiState = homeUiState.copy(products = products.map { it.toUiProductObject() })
+                homeUiState = homeUiState.copy(
+                    products = products.map { it.toUiProductObject() },
+                    isLoading = false
+                )
             },
             onFailure = {
+                homeUiState = homeUiState.copy(
+                    isLoading = false,
+                    isError = "Chargement des produits impossible"
+                )
                 // TODO: HANDLE ERROR
             }
         )

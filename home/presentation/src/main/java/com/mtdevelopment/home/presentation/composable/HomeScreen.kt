@@ -20,15 +20,19 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import app.rive.runtime.kotlin.core.Rive
 import com.mtdevelopment.cart.presentation.model.UiBasketObject
 import com.mtdevelopment.cart.presentation.viewmodel.CartViewModel
+import com.mtdevelopment.core.presentation.composable.RiveAnimation
 import com.mtdevelopment.home.presentation.composable.cart.CartView
 import com.mtdevelopment.home.presentation.viewmodel.HomeViewModel
 import kotlinx.coroutines.launch
@@ -41,6 +45,7 @@ fun HomeScreen(
     navigateToDelivery: (UiBasketObject) -> Unit = {}
 ) {
     val coroutineScope = rememberCoroutineScope()
+    val context = LocalContext.current
 
     val homeViewModel = koinViewModel<HomeViewModel>()
 
@@ -68,8 +73,11 @@ fun HomeScreen(
         }
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    LaunchedEffect(Unit) {
+        Rive.init(context)
+    }
 
+    Box(modifier = Modifier.fillMaxSize()) {
         LazyVerticalGrid(
             modifier = Modifier
                 .fillMaxSize()
@@ -142,5 +150,12 @@ fun HomeScreen(
                 cartState.cartObject.let { navigateToDelivery.invoke(it) }
             })
         }
+
+        // Loading animation
+        RiveAnimation(
+            isLoading = homeState.isLoading,
+            modifier = Modifier.fillMaxSize(),
+            contentDescription = "Loading animation"
+        )
     }
 }

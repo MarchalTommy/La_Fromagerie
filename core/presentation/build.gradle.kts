@@ -65,4 +65,5 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
 
     implementation(libs.rive.android)
+    implementation(libs.contentment)
 }

@@ -30,12 +30,14 @@ import app.rive.runtime.kotlin.core.Fit
 import app.rive.runtime.kotlin.core.Loop
 import app.rive.runtime.kotlin.core.PlayableInstance
 import com.mtdevelopment.core.presentation.R
+import me.rmyhal.contentment.ContentLoadingIndicator
 
 @Suppress("LongMethod")
 @Composable
 fun RiveAnimation(
     modifier: Modifier = Modifier,
-    @RawRes resId: Int,
+    isLoading: Boolean = false,
+    @RawRes resId: Int = R.raw.goat_loading,
     autoplay: Boolean = true,
     artboardName: String? = null,
     animationName: String? = null,
@@ -52,104 +54,110 @@ fun RiveAnimation(
     update: (RiveAnimationView) -> Unit = { _ -> }
 ) {
 
-    var riveAnimationView: RiveAnimationView? = null
-    val listener: RiveFileController.Listener?
-    val lifecycleOwner = LocalLifecycleOwner.current
+    ContentLoadingIndicator(
+        loading = isLoading,
+        minShowTimeMillis = 750,
+        delayMillis = 200
+    ) {
+        var riveAnimationView: RiveAnimationView? = null
+        val listener: RiveFileController.Listener?
+        val lifecycleOwner = LocalLifecycleOwner.current
 
-    if (LocalInspectionMode.current) { // For Developing only,
-        Box(modifier = Modifier) {
-            Surface(
-                modifier = modifier
-                    .background(Color.Black)
-                    .alpha(0.2f)
-                    .fillMaxSize(),
-            ) {}
-            Image(
-                modifier = modifier.size(100.dp),
-                painter = painterResource(id = R.drawable.cheese_afh), //any image
-                contentDescription = contentDescription
-            )
-        }
-    } else {
-        val semantics = if (contentDescription != null) {
-            Modifier.semantics {
-                this.contentDescription = contentDescription
-                this.role = Role.Image
+        if (LocalInspectionMode.current) { // For Developing only,
+            Box(modifier = Modifier) {
+                Surface(
+                    modifier = modifier
+                        .background(Color.Black)
+                        .alpha(0.2f)
+                        .fillMaxSize(),
+                ) {}
+                Image(
+                    modifier = modifier.size(100.dp),
+                    painter = painterResource(id = R.drawable.cheese_afh), //any image
+                    contentDescription = contentDescription
+                )
             }
         } else {
-            Modifier
-        }
-        listener = object : RiveFileController.Listener {
-            override fun notifyLoop(animation: PlayableInstance) {
-                notifyLoop?.invoke(animation)
-            }
-
-            override fun notifyPause(animation: PlayableInstance) {
-                notifyPause?.invoke(animation)
-            }
-
-            override fun notifyPlay(animation: PlayableInstance) {
-                notifyPlay?.invoke(animation)
-            }
-
-            override fun notifyStateChanged(
-                stateMachineName: String,
-                stateName: String
-            ) {
-                notifyStateChanged?.invoke(stateMachineName, stateName)
-            }
-
-            override fun notifyStop(animation: PlayableInstance) {
-                notifyStop?.invoke(animation)
-            }
-        }.takeIf {
-            (notifyLoop != null) || (notifyPause != null) ||
-                    (notifyPlay != null) || (notifyStateChanged != null) ||
-                    (notifyStop != null)
-        }
-
-        Box(
-            modifier = Modifier,
-            contentAlignment = androidx.compose.ui.Alignment.Center
-        ) {
-            Box(
-                Modifier
-                    .matchParentSize()
-                    .background(Color.Black.copy(alpha = 0.8f))
-            )
-
-            AndroidView(
-                modifier = modifier
-                    .then(semantics)
-                    .clipToBounds(),
-                factory = { context ->
-                    riveAnimationView = RiveAnimationView(context).apply {
-                        setRiveResource(
-                            resId,
-                            artboardName,
-                            animationName,
-                            stateMachineName,
-                            autoplay,
-                            fit,
-                            alignment,
-                            loop
-                        )
-                    }
-                    listener?.let {
-                        riveAnimationView?.registerListener(it)
-                    }
-                    riveAnimationView!!
-                },
-                update = {
-                    update.invoke(it)
+            val semantics = if (contentDescription != null) {
+                Modifier.semantics {
+                    this.contentDescription = contentDescription
+                    this.role = Role.Image
                 }
-            )
-        }
+            } else {
+                Modifier
+            }
+            listener = object : RiveFileController.Listener {
+                override fun notifyLoop(animation: PlayableInstance) {
+                    notifyLoop?.invoke(animation)
+                }
 
-        DisposableEffect(lifecycleOwner) {
-            onDispose {
-                listener?.let {
-                    riveAnimationView?.unregisterListener(it)
+                override fun notifyPause(animation: PlayableInstance) {
+                    notifyPause?.invoke(animation)
+                }
+
+                override fun notifyPlay(animation: PlayableInstance) {
+                    notifyPlay?.invoke(animation)
+                }
+
+                override fun notifyStateChanged(
+                    stateMachineName: String,
+                    stateName: String
+                ) {
+                    notifyStateChanged?.invoke(stateMachineName, stateName)
+                }
+
+                override fun notifyStop(animation: PlayableInstance) {
+                    notifyStop?.invoke(animation)
+                }
+            }.takeIf {
+                (notifyLoop != null) || (notifyPause != null) ||
+                        (notifyPlay != null) || (notifyStateChanged != null) ||
+                        (notifyStop != null)
+            }
+
+            Box(
+                modifier = Modifier,
+                contentAlignment = androidx.compose.ui.Alignment.Center
+            ) {
+                Box(
+                    Modifier
+                        .matchParentSize()
+                        .background(Color.Black.copy(alpha = 0.8f))
+                )
+
+                AndroidView(
+                    modifier = modifier
+                        .then(semantics)
+                        .clipToBounds(),
+                    factory = { context ->
+                        riveAnimationView = RiveAnimationView(context).apply {
+                            setRiveResource(
+                                resId,
+                                artboardName,
+                                animationName,
+                                stateMachineName,
+                                autoplay,
+                                fit,
+                                alignment,
+                                loop
+                            )
+                        }
+                        listener?.let {
+                            riveAnimationView?.registerListener(it)
+                        }
+                        riveAnimationView!!
+                    },
+                    update = {
+                        update.invoke(it)
+                    }
+                )
+            }
+
+            DisposableEffect(lifecycleOwner) {
+                onDispose {
+                    listener?.let {
+                        riveAnimationView?.unregisterListener(it)
+                    }
                 }
             }
         }
@@ -161,6 +169,7 @@ fun RiveAnimation(
 @Preview(showSystemUi = true)
 fun RiveComposablePreview() {
     RiveAnimation(
+        isLoading = true,
         resId = R.raw.goat_loading,
         autoplay = true,
         animationName = "Bouncing",
