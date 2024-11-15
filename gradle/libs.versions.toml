@@ -34,6 +34,7 @@ crashlytics = "3.0.2"
 google-service = "4.4.2"
 wallet = "19.4.0"
 wallet-button = "1.0.0"
+ksp = "2.0.21-1.0.27"
 
 [libraries]
 core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "core-ktx" }
@@ -154,4 +155,5 @@ androidLibrary = { id = "com.android.library", version.ref = "agp" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 firebase-crashlytics-plugin = { id = "com.google.firebase.crashlytics", version.ref = "crashlytics" }
 google-service = { id = "com.google.gms.google-services", version.ref = "google-service" }
+ksp = {id = "com.google.devtools.ksp", version.ref = "ksp"}
 

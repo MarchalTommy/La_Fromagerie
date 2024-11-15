@@ -1,5 +1,7 @@
 package com.mtdevelopment.lafromagerie.di
 
+import android.app.Application
+import androidx.room.Room
 import com.google.firebase.Firebase
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.firestore
@@ -32,14 +34,20 @@ import com.mtdevelopment.core.usecase.ClearOrderUseCase
 import com.mtdevelopment.core.usecase.GetIsNetworkConnectedUseCase
 import com.mtdevelopment.core.usecase.SaveToDatastoreUseCase
 import com.mtdevelopment.home.data.repository.FirebaseRepositoryImpl
+import com.mtdevelopment.home.data.repository.RoomRepositoryImpl
+import com.mtdevelopment.home.data.source.local.HomeDatabaseDatasource
+import com.mtdevelopment.home.data.source.local.dao.HomeDao
 import com.mtdevelopment.home.data.source.remote.FirestoreDatabase
 import com.mtdevelopment.home.domain.repository.FirebaseRepository
+import com.mtdevelopment.home.domain.repository.RoomRepository
 import com.mtdevelopment.home.domain.usecase.AddNewProductUseCase
 import com.mtdevelopment.home.domain.usecase.DeleteProductUseCase
 import com.mtdevelopment.home.domain.usecase.GetAllCheesesUseCase
 import com.mtdevelopment.home.domain.usecase.GetAllProductsUseCase
+import com.mtdevelopment.home.domain.usecase.GetLastDatabaseUpdateUseCase
 import com.mtdevelopment.home.domain.usecase.UpdateProductUseCase
 import com.mtdevelopment.home.presentation.viewmodel.HomeViewModel
+import com.mtdevelopment.lafromagerie.FromagerieDatabase
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.plugins.DefaultRequest
@@ -56,7 +64,11 @@ import org.koin.androidx.viewmodel.dsl.viewModelOf
 import org.koin.dsl.module
 
 fun appModule() = listOf(
-    mainAppModule, provideDatastore, provideHttpClientModule, provideFirebaseDatabase
+    mainAppModule,
+    provideDatastore,
+    provideHttpClientModule,
+    provideFirebaseDatabase,
+    provideRoomFromagerieDatabase
 )
 
 val mainAppModule = module {
@@ -65,6 +77,7 @@ val mainAppModule = module {
     single<PaymentRepository> { PaymentRepositoryImpl(get(), get()) }
 
     single<FirebaseRepository> { FirebaseRepositoryImpl(get()) }
+    single<RoomRepository> { RoomRepositoryImpl(get()) }
 
     factory { GetCheckoutDataUseCase(get()) }
     factory { SaveToDatastoreUseCase(get()) }
@@ -83,11 +96,14 @@ val mainAppModule = module {
     factory { ProcessSumUpCheckoutUseCase(get()) }
     factory { SaveCheckoutReferenceUseCase(get()) }
 
-    factory { GetAllProductsUseCase(get()) }
+    factory { GetAllProductsUseCase(get(), get(), get()) }
+    factory { GetLastDatabaseUpdateUseCase(get()) }
     factory { GetAllCheesesUseCase(get()) }
     factory { UpdateProductUseCase(get()) }
     factory { AddNewProductUseCase(get()) }
     factory { DeleteProductUseCase(get()) }
+
+    factory { HomeDatabaseDatasource(get()) }
 
     viewModelOf(::CartViewModel)
     viewModelOf(::HomeViewModel)
@@ -129,5 +145,17 @@ val provideDatastore = module {
 val provideFirebaseDatabase = module {
     single<FirebaseFirestore> { Firebase.firestore }
     single<FirestoreDatabase> { FirestoreDatabase(get()) }
-
 }
+
+val provideRoomFromagerieDatabase = module {
+    single { provideDataBase(get()) }
+    single { provideDao(get()) }
+}
+
+fun provideDao(db: FromagerieDatabase): HomeDao = db.dao
+fun provideDataBase(application: Application): FromagerieDatabase =
+    Room.databaseBuilder(
+        application,
+        FromagerieDatabase::class.java,
+        "table_post"
+    ).fallbackToDestructiveMigration().build()

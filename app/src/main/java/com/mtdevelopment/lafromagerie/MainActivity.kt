@@ -56,6 +56,9 @@ import org.koin.androidx.viewmodel.ext.android.viewModel
 
 class MainActivity : ComponentActivity() {
 
+    // TODO: Add splashscreen
+    // TODO: Add app Icon
+
     private val checkoutViewModel: CheckoutViewModel by viewModel()
     private val cartViewModel: CartViewModel by viewModel()
     private val mainViewModel: MainViewModel by viewModel()
