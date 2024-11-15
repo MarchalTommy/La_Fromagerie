@@ -17,6 +17,7 @@ import com.mtdevelopment.checkout.domain.usecase.GetCanUseGooglePayUseCase
 import com.mtdevelopment.checkout.domain.usecase.GetCheckoutDataUseCase
 import com.mtdevelopment.checkout.domain.usecase.GetIsReadyToPayUseCase
 import com.mtdevelopment.checkout.domain.usecase.GetPaymentDataRequestUseCase
+import com.mtdevelopment.checkout.domain.usecase.GetUserInfoFromDatastoreUseCase
 import com.mtdevelopment.checkout.domain.usecase.ProcessSumUpCheckoutUseCase
 import com.mtdevelopment.checkout.domain.usecase.SaveCheckoutReferenceUseCase
 import com.mtdevelopment.checkout.presentation.viewmodel.CheckoutViewModel
@@ -67,6 +68,7 @@ val mainAppModule = module {
 
     factory { GetCheckoutDataUseCase(get()) }
     factory { SaveToDatastoreUseCase(get()) }
+    factory { GetUserInfoFromDatastoreUseCase(get()) }
     factory { ClearDatastoreUseCase(get()) }
     factory { ClearOrderUseCase(get()) }
 
