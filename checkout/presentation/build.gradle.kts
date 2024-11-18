@@ -70,6 +70,10 @@ dependencies {
     debugImplementation(libs.androidx.ui.test.manifest)
     implementation(libs.kotlinx.serialization.json)
 
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.common)
+    implementation(libs.firebase.crashlytics)
+
     implementation(libs.landscapist)
     implementation(libs.rive.android)
 
