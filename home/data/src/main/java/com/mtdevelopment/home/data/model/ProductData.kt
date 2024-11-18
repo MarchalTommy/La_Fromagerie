@@ -34,7 +34,7 @@ fun ProductData.toProduct(): Product {
         priceInCents = this.priceInCents,
         imageUrl = this.imageUrl ?: "",
         type = this.type.name,
-        description = this.description,
+        description = this.description.replace("\\n", "\n"),
         allergens = this.allergens,
     )
 }
@@ -46,7 +46,7 @@ fun Product.toProductData(): ProductData {
         priceInCents = this.priceInCents,
         imageUrl = this.imageUrl,
         type = ProductType.valueOf(this.type),
-        description = this.description,
+        description = this.description.replace("\n", "\\n"),
         allergens = this.allergens,
     )
 }
