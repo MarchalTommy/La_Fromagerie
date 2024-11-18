@@ -28,6 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInteropFilter
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import com.google.firebase.crashlytics.FirebaseCrashlytics
 import com.mapbox.android.gestures.MoveGestureDetector
 import com.mapbox.geojson.Point
 import com.mapbox.maps.CameraOptions
@@ -72,12 +73,12 @@ fun MapBoxComposable(
     val cameraBasePoint =
         remember { mutableStateOf(Point.fromLngLat(FRASNE_LONGITUDE, FRASNE_LATITUDE)) }
 
-    val selectedPathZoomPoint = remember {
+    val selectedPathNW = remember {
         mutableStateOf<Point?>(
             null
         )
     }
-    val selectedPathZoomPoint2 = remember {
+    val selectedPathSE = remember {
         mutableStateOf<Point?>(
             null
         )
@@ -134,18 +135,21 @@ fun MapBoxComposable(
                 chosenPath,
                 geocoder,
                 setIsLoading,
-                selectedPathZoomPoint,
-                selectedPathZoomPoint2
+                onNWfound = {
+                    selectedPathNW.value = it
+                },
+                onSEfound = {
+                    selectedPathSE.value = it
+                }
             )
-
             if (map.value?.mapboxMap?.style?.styleURI != chosenPath.mapStyle) {
                 map.value?.mapboxMap?.loadStyle(
                     chosenPath.mapStyle
                 ) {
                     zoomOnSelectedPathMainCity(
                         map,
-                        selectedPathZoomPoint,
-                        selectedPathZoomPoint2,
+                        selectedPathNW,
+                        selectedPathSE,
                         animatorListener
                     )
                 }
@@ -329,54 +333,63 @@ fun getCameraLocalisationFromPath(
     path: DeliveryPath,
     geocoder: Geocoder,
     setIsLoading: (Boolean) -> Unit,
-    selectedPathZoomPoint: MutableState<Point?>,
-    selectedPathZoomPoint2: MutableState<Point?>,
+    onNWfound: (Point) -> Unit,
+    onSEfound: (Point) -> Unit
 ) {
     setIsLoading.invoke(true)
 
-    var northWestCity: Address? = null
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
         geocoder.getFromLocationName(selectNorthWestCityFromPath(path), 1) { addressList ->
-            northWestCity = addressList.firstOrNull()
+            onNWfound.invoke(
+                Point.fromLngLat(
+                    addressList.firstOrNull()?.longitude ?: 0.0,
+                    addressList.firstOrNull()?.latitude ?: 0.0
+                )
+            )
         }
     } else {
-        northWestCity = try {
-            geocoder.getFromLocationName(
+        try {
+            val address = geocoder.getFromLocationName(
                 selectNorthWestCityFromPath(path), 1
             )?.firstOrNull()
+
+            onNWfound.invoke(
+                Point.fromLngLat(
+                    address?.longitude ?: 0.0,
+                    address?.latitude ?: 0.0
+                )
+            )
         } catch (e: IOException) {
-            null
+            FirebaseCrashlytics.getInstance().recordException(e)
         }
     }
 
-    var southEastCity: Address? = null
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
         geocoder.getFromLocationName(
             selectSouthEastCityFromPath(path),
             1
         ) { addressList ->
-            southEastCity = addressList.firstOrNull()
+            onSEfound.invoke(
+                Point.fromLngLat(
+                    addressList.firstOrNull()?.longitude ?: 0.0,
+                    addressList.firstOrNull()?.latitude ?: 0.0
+                )
+            )
         }
     } else {
-        southEastCity = try {
-            geocoder.getFromLocationName(
+        try {
+            val address = geocoder.getFromLocationName(
                 selectSouthEastCityFromPath(path), 1
             )?.firstOrNull()
+            onSEfound.invoke(
+                Point.fromLngLat(
+                    address?.longitude ?: 0.0,
+                    address?.latitude ?: 0.0
+                )
+            )
         } catch (e: IOException) {
-            null
+            FirebaseCrashlytics.getInstance().recordException(e)
         }
-    }
-
-    northWestCity?.let {
-        selectedPathZoomPoint.value = Point.fromLngLat(
-            it.longitude, it.latitude
-        )
-    }
-
-    southEastCity?.let {
-        selectedPathZoomPoint2.value = Point.fromLngLat(
-            it.longitude, it.latitude
-        )
     }
 }
 
@@ -444,16 +457,16 @@ fun getBaseCameraLocation(
 
 fun zoomOnSelectedPathMainCity(
     map: MutableState<MapView?>,
-    selectedPathZoomPoint: MutableState<Point?>,
-    selectedPathZoomPoint2: MutableState<Point?>,
+    selectedPathNW: MutableState<Point?>,
+    selectedPathSE: MutableState<Point?>,
     animatorListener: AnimatorListener
 ) {
     val long =
-        (selectedPathZoomPoint.value?.longitude()
-            ?.plus(selectedPathZoomPoint2.value?.longitude() ?: 0.0))?.div(2)
+        (selectedPathNW.value?.longitude()
+            ?.plus(selectedPathSE.value?.longitude() ?: 0.0))?.div(2)
 
-    val lat = selectedPathZoomPoint.value?.latitude()
-        ?.plus(selectedPathZoomPoint2.value?.latitude() ?: 0.0)?.div(2)
+    val lat = selectedPathNW.value?.latitude()
+        ?.plus(selectedPathSE.value?.latitude() ?: 0.0)?.div(2)
 
     map.value?.camera?.flyTo(
         cameraOptions = CameraOptions.Builder()
