@@ -65,12 +65,10 @@ android {
     productFlavors {
         create("client") {
             dimension = "version"
-            applicationIdSuffix = ".client"
             versionNameSuffix = "-client"
         }
         create("admin") {
             dimension = "version"
-            applicationIdSuffix = ".admin"
             versionNameSuffix = "-admin"
         }
     }
