@@ -1,7 +1,3 @@
-import kotlin.text.lowercase
-import kotlin.text.removePrefix
-import kotlin.text.removeSuffix
-
 plugins {
     alias(libs.plugins.androidApplication)
     alias(libs.plugins.kotlinAndroid)
@@ -62,6 +58,18 @@ android {
                 "proguard-rules.pro"
             )
             signingConfig = signingConfigs.getByName("release")
+        }
+    }
+
+    flavorDimensions += "version"
+    productFlavors {
+        create("client") {
+            dimension = "version"
+            versionNameSuffix = "-client"
+        }
+        create("admin") {
+            dimension = "version"
+            versionNameSuffix = "-admin"
         }
     }
 
@@ -210,7 +218,10 @@ tasks.addRule("Pattern: bump<TYPE>Version") {
 
                 // Update version properties in buildFile
                 val updated = buildFile.readText()
-                    .replaceFirst("versionName = \"$oldVersionName\"", "versionName = \"$newVersionName\"")
+                    .replaceFirst(
+                        "versionName = \"$oldVersionName\"",
+                        "versionName = \"$newVersionName\""
+                    )
                     .replaceFirst("versionCode = $oldVersionCode", "versionCode = $newVersionCode")
                 buildFile.writeText(updated)
             }
