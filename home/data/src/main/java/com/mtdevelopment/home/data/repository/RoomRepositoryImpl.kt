@@ -1,9 +1,10 @@
 package com.mtdevelopment.home.data.repository
 
-import com.mtdevelopment.home.data.model.toProduct
+import com.mtdevelopment.core.model.toProduct
 import com.mtdevelopment.home.data.model.toProductEntity
 import com.mtdevelopment.home.data.source.local.HomeDatabaseDatasource
-import com.mtdevelopment.home.domain.model.Product
+import com.mtdevelopment.core.model.Product
+import com.mtdevelopment.home.data.model.toProduct
 import com.mtdevelopment.home.domain.repository.RoomRepository
 import kotlinx.coroutines.Dispatchers.IO
 import kotlinx.coroutines.flow.first

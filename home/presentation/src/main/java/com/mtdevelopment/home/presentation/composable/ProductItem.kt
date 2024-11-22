@@ -59,7 +59,7 @@ fun ProductItem(
     product: UiProductObject? = null,
     onDetailClick: (UiProductObject) -> Unit = {},
     onAddClick: () -> Unit = {},
-    onEditClick: () -> Unit = {}
+    onEditClick: (UiProductObject) -> Unit = {}
 ) {
 
     val coroutineScope = rememberCoroutineScope()
@@ -179,7 +179,7 @@ fun ProductItem(
                             .height(32.dp),
                         onClick = {
                             vibratePhoneClick(context)
-                            onEditClick.invoke()
+                            onEditClick.invoke(product!!)
                         },
                         colors = ButtonColors(
                             containerColor = MaterialTheme.colorScheme.secondary,

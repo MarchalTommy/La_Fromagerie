@@ -1,15 +1,15 @@
 package com.mtdevelopment.home.domain.usecase
 
 import com.mtdevelopment.core.repository.SharedDatastore
-import com.mtdevelopment.home.domain.model.Product
-import com.mtdevelopment.home.domain.repository.FirebaseRepository
+import com.mtdevelopment.core.model.Product
+import com.mtdevelopment.home.domain.repository.FirebaseHomeRepository
 import com.mtdevelopment.home.domain.repository.RoomRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 class GetAllProductsUseCase(
-    private val firebaseRepository: FirebaseRepository,
+    private val firebaseHomeRepository: FirebaseHomeRepository,
     private val roomRepository: RoomRepository,
     private val sharedDatastore: SharedDatastore
 ) {
@@ -22,7 +22,7 @@ class GetAllProductsUseCase(
 
         val lastFirestoreUpdateTimestamp = sharedDatastore.lastFirestoreUpdateTimeStamp.first()
 
-        firebaseRepository.getLastDatabaseUpdate(onSuccess = {
+        firebaseHomeRepository.getLastDatabaseUpdate(onSuccess = {
             /**
              * Update last firestore database change in local datastore to compare later on
              */
@@ -35,7 +35,7 @@ class GetAllProductsUseCase(
              * Else, fetch from room.
              */
             if (lastFirestoreUpdateTimestamp != it || it == 0L) {
-                firebaseRepository.getAllProducts(onSuccess = { productsList ->
+                firebaseHomeRepository.getAllProducts(onSuccess = { productsList ->
                     /**
                      * Persist all products from firebase to room
                      */

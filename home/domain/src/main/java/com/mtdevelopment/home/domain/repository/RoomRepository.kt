@@ -1,6 +1,6 @@
 package com.mtdevelopment.home.domain.repository
 
-import com.mtdevelopment.home.domain.model.Product
+import com.mtdevelopment.core.model.Product
 
 interface RoomRepository {
     suspend fun persistProduct(product: Product)

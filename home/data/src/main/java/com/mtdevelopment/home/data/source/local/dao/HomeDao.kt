@@ -6,7 +6,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
-import com.mtdevelopment.core.presentation.sharedModels.ProductType
+import com.mtdevelopment.core.model.ProductType
 import com.mtdevelopment.home.data.model.ProductEntity
 import kotlinx.coroutines.flow.Flow
 

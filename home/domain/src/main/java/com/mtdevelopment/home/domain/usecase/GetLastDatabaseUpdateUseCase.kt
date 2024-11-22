@@ -1,11 +1,11 @@
 package com.mtdevelopment.home.domain.usecase
 
-import com.mtdevelopment.home.domain.repository.FirebaseRepository
+import com.mtdevelopment.home.domain.repository.FirebaseHomeRepository
 
 class GetLastDatabaseUpdateUseCase(
-    private val firebaseRepository: FirebaseRepository
+    private val firebaseHomeRepository: FirebaseHomeRepository
 ) {
     operator fun invoke(onSuccess: (Long) -> Unit, onFailure: () -> Unit) {
-        firebaseRepository.getLastDatabaseUpdate(onSuccess, onFailure)
+        firebaseHomeRepository.getLastDatabaseUpdate(onSuccess, onFailure)
     }
 }

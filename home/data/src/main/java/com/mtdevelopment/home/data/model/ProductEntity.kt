@@ -1,7 +1,7 @@
 package com.mtdevelopment.home.data.model
 
 import androidx.room.Entity
-import com.mtdevelopment.home.domain.model.Product
+import com.mtdevelopment.core.model.Product
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 

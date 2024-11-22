@@ -29,6 +29,10 @@ fun Long.toUiPrice(): String {
         .replace(".", ",") + "€"
 }
 
+fun String.toLongPrice(): Long {
+    return (this.replace("€", "").replace(",", ".").trim().toDouble() * 100).toLong()
+}
+
 fun vibratePhoneClick(context: Context) {
     if (Build.VERSION.SDK_INT < 34) {
         val vibrator = context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator

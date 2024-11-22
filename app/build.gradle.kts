@@ -100,6 +100,9 @@ dependencies {
     implementation(project(":checkout:presentation"))
     implementation(project(":checkout:domain"))
     implementation(project(":checkout:data"))
+    implementation(project(":admin:data"))
+    implementation(project(":admin:domain"))
+    implementation(project(":admin:presentation"))
 
     implementation(libs.core.ktx)
     implementation(libs.lifecycle.runtime.ktx)

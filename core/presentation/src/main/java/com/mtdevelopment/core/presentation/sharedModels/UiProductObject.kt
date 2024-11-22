@@ -1,5 +1,7 @@
 package com.mtdevelopment.core.presentation.sharedModels
 
+import com.mtdevelopment.core.model.Product
+import com.mtdevelopment.core.model.ProductType
 import com.mtdevelopment.core.util.serializableType
 import kotlinx.serialization.Serializable
 import kotlin.reflect.typeOf
@@ -20,4 +22,25 @@ data class UiProductObject(
     companion object {
         val typeMap = mapOf(typeOf<UiProductObject>() to serializableType<UiProductObject>())
     }
+
 }
+
+fun Product.toUiProductObject() = UiProductObject(
+    id = id,
+    name = name,
+    priceInCents = priceInCents,
+    imageUrl = imageUrl,
+    type = ProductType.valueOf(type),
+    description = description,
+    allergens = allergens
+)
+
+fun UiProductObject.toDomainProduct() = Product(
+    id = id,
+    name = name,
+    priceInCents = priceInCents,
+    imageUrl = imageUrl!!,
+    type = type.name,
+    description = description,
+    allergens = allergens
+)

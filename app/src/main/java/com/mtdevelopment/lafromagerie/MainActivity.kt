@@ -48,7 +48,7 @@ import com.mtdevelopment.cart.presentation.viewmodel.CartViewModel
 import com.mtdevelopment.checkout.presentation.viewmodel.CheckoutViewModel
 import com.mtdevelopment.core.presentation.MainViewModel
 import com.mtdevelopment.core.presentation.theme.ui.AppTheme
-import com.mtdevelopment.lafromagerie.navigation.HomeScreen
+import com.mtdevelopment.lafromagerie.navigation.HomeScreenDestination
 import com.mtdevelopment.lafromagerie.navigation.NavGraph
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -57,7 +57,6 @@ import org.koin.androidx.viewmodel.ext.android.viewModel
 class MainActivity : ComponentActivity() {
 
     // TODO: Add splashscreen
-    // TODO: Add app Icon
 
     private val checkoutViewModel: CheckoutViewModel by viewModel()
     private val cartViewModel: CartViewModel by viewModel()
@@ -203,13 +202,14 @@ class MainActivity : ComponentActivity() {
                     NavGraph(
                         paddingValues = paddingValues,
                         navController = navController,
+                        mainViewModel = mainViewModel,
                         cartViewModel = cartViewModel,
                         onGooglePayButtonClick = { priceCents ->
                             Log.e("PAYMENT", "BUTTON CLICKED")
                             requestPayment(priceCents)
                         }
                     )
-                    homeEntry = navController.getBackStackEntry(HomeScreen).destination
+                    homeEntry = navController.getBackStackEntry(HomeScreenDestination()).destination
                 }
             }
         }

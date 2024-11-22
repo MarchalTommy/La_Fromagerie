@@ -11,6 +11,7 @@ import androidx.navigation.toRoute
 import com.mtdevelopment.cart.presentation.viewmodel.CartViewModel
 import com.mtdevelopment.checkout.presentation.screen.CheckoutScreen
 import com.mtdevelopment.checkout.presentation.screen.DeliveryOptionScreen
+import com.mtdevelopment.core.presentation.MainViewModel
 import com.mtdevelopment.core.presentation.theme.ui.ScaleTransitionDirection
 import com.mtdevelopment.core.presentation.theme.ui.scaleIntoContainer
 import com.mtdevelopment.core.presentation.theme.ui.scaleOutOfContainer
@@ -23,27 +24,31 @@ fun NavGraph(
     paddingValues: PaddingValues,
     navController: NavHostController,
     cartViewModel: CartViewModel,
+    mainViewModel: MainViewModel,
     onGooglePayButtonClick: (priceCents: Long) -> Unit = {}
 ) {
     NavHost(
         navController = navController,
-        startDestination = HomeScreen,
+        startDestination = HomeScreenDestination(),
         modifier = Modifier.padding(paddingValues)
     ) {
 
-        composable<HomeScreen> {
+        composable<HomeScreenDestination> {
+            val args = it.toRoute<HomeScreenDestination>()
             HomeScreen(
+                mainViewModel = mainViewModel,
                 cartViewModel = cartViewModel,
+                shouldRefresh = args.shouldRefresh,
                 navigateToDetail = {
-                    navController.navigate(DetailDestination)
+                    navController.navigate(DetailScreenDestination)
                 }, navigateToDelivery = {
                     navController.navigate(
-                        DeliveryOptionScreen
+                        DeliveryOptionScreenDestination
                     )
                 })
         }
 
-        composable<DetailDestination>(
+        composable<DetailScreenDestination>(
             enterTransition = {
                 scaleIntoContainer()
             },
@@ -57,13 +62,19 @@ fun NavGraph(
                 scaleOutOfContainer()
             }
         ) {
-            val args = it.toRoute<DetailDestination>()
             DetailScreen(
-                viewModel = cartViewModel
+                viewModel = cartViewModel,
+                mainViewModel = mainViewModel,
+                onProductEdited = {
+                    navController.navigate(HomeScreenDestination(shouldRefresh = true))
+                },
+                onProductDeleted = {
+                    navController.navigate(HomeScreenDestination(shouldRefresh = true))
+                }
             )
         }
 
-        composable<DeliveryOptionScreen>(
+        composable<DeliveryOptionScreenDestination>(
             enterTransition = {
                 scaleIntoContainer()
             },
@@ -79,12 +90,12 @@ fun NavGraph(
         ) {
             DeliveryOptionScreen(navigateToCheckout = {
                 navController.navigate(
-                    CheckoutScreen
+                    CheckoutScreenDestination
                 )
             })
         }
 
-        composable<CheckoutScreen>(
+        composable<CheckoutScreenDestination>(
             enterTransition = {
                 scaleIntoContainer()
             },

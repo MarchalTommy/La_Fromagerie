@@ -52,10 +52,11 @@ android {
 
 dependencies {
 
+    implementation(project(":home:domain"))
     implementation(project(":core:presentation"))
     implementation(project(":core:domain"))
     implementation(project(":cart:presentation"))
-    implementation(project(":home:domain"))
+    implementation(project(":admin:presentation"))
 
     implementation(libs.core.ktx)
     implementation(libs.lifecycle.runtime.ktx)
