@@ -98,11 +98,15 @@ fun HomeScreen(
                     onDetailClick = {
                         cartViewModel.saveClickedItem(it)
                         navigateToDetail.invoke()
+                    },
+                    onAddClick = {
+                        cartViewModel.addCartObject(productListItem)
+                        animateAddingToCart()
+                    },
+                    onEditClick = {
+                        // TODO: ADD A DIALOG TO EDIT THE PRODUCT
                     }
-                ) {
-                    cartViewModel.addCartObject(productListItem)
-                    animateAddingToCart()
-                }
+                )
             }
         }
 
