@@ -1,23 +1,25 @@
 package com.mtdevelopment.core.model
 
-import kotlinx.serialization.SerialName
+import androidx.annotation.Keep
+import com.google.gson.annotations.SerializedName
 import kotlinx.serialization.Serializable
 
+@Keep
 @Serializable
 data class ProductData(
-    @SerialName("id")
+    @SerializedName("id")
     val id: String = "",
-    @SerialName("name")
+    @SerializedName("name")
     val name: String = "Unknown Cheese",
-    @SerialName("priceCents")
+    @SerializedName("priceCents")
     val priceCents: Long = 0L,
-    @SerialName("imgUrl")
+    @SerializedName("imgUrl")
     val imgUrl: String? = null,
-    @SerialName("type")
+    @SerializedName("type")
     val type: ProductType = ProductType.FROMAGE,
-    @SerialName("description")
+    @SerializedName("description")
     val description: String = "",
-    @SerialName("allergens")
+    @SerializedName("allergens")
     val allergens: List<String>? = null,
 )
 

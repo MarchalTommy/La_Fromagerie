@@ -19,15 +19,27 @@ class FirestoreDatabase(
             .get()
             .addOnSuccessListener { snapshot ->
                 onSuccess.invoke(snapshot.documents.map { item ->
-                    ProductData(
-                        id = item.id,
-                        name = item.data?.get("name").toString(),
-                        priceCents = item.data?.get("priceCents") as? Long ?: 0L,
-                        imgUrl = item.data?.get("imgUrl").toString(),
-                        type = item.data?.get("type").toString().toProductType(),
-                        description = item.data?.get("description").toString(),
-                        allergens = item.data?.get("allergens") as? List<String> ?: emptyList(),
-                    )
+                    if (item.data?.get("name") == null) {
+                        ProductData(
+                            id = item.id,
+                            name = item.data?.get("b").toString(),
+                            priceCents = item.data?.get("c") as? Long ?: 0L,
+                            imgUrl = item.data?.get("d").toString(),
+                            type = item.data?.get("e").toString().toProductType(),
+                            description = item.data?.get("f").toString(),
+                            allergens = item.data?.get("g") as? List<String> ?: emptyList(),
+                        )
+                    } else {
+                        ProductData(
+                            id = item.id,
+                            name = item.data?.get("name").toString(),
+                            priceCents = item.data?.get("priceCents") as? Long ?: 0L,
+                            imgUrl = item.data?.get("imgUrl").toString(),
+                            type = item.data?.get("type").toString().toProductType(),
+                            description = item.data?.get("description").toString(),
+                            allergens = item.data?.get("allergens") as? List<String> ?: emptyList(),
+                        )
+                    }
                 })
             }.addOnFailureListener {
                 Firebase.crashlytics.recordException(it)

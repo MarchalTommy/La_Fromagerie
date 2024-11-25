@@ -88,11 +88,13 @@ fun NavGraph(
                 scaleOutOfContainer()
             }
         ) {
-            DeliveryOptionScreen(navigateToCheckout = {
-                navController.navigate(
-                    CheckoutScreenDestination
-                )
-            })
+            DeliveryOptionScreen(
+                mainViewModel = mainViewModel,
+                navigateToCheckout = {
+                    navController.navigate(
+                        CheckoutScreenDestination
+                    )
+                })
         }
 
         composable<CheckoutScreenDestination>(

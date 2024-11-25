@@ -1,10 +1,16 @@
 package com.mtdevelopment.core.model
 
+import androidx.annotation.Keep
+import com.google.gson.annotations.SerializedName
 import kotlinx.serialization.Serializable
 
 @Serializable
+@Keep
 data class CartItemsData(
+    @SerializedName("cartItems")
     val cartItems: List<CartItemData>,
+
+    @SerializedName("totalPrice")
     val totalPrice: Long
 )
 

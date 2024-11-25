@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -23,7 +24,9 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -31,7 +34,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import app.rive.runtime.kotlin.core.Rive
 import com.mapbox.common.MapboxOptions
@@ -46,16 +48,19 @@ import com.mtdevelopment.checkout.presentation.composable.PermissionManagerCompo
 import com.mtdevelopment.checkout.presentation.composable.UserInfoComposable
 import com.mtdevelopment.checkout.presentation.composable.getDatePickerState
 import com.mtdevelopment.checkout.presentation.viewmodel.DeliveryViewModel
+import com.mtdevelopment.core.presentation.MainViewModel
 import com.mtdevelopment.core.presentation.composable.RiveAnimation
 import com.mtdevelopment.core.util.ScreenSize
 import com.mtdevelopment.core.util.rememberScreenSize
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 
 @SuppressLint("MissingPermission")
 @OptIn(ExperimentalMaterial3Api::class)
-@Preview
 @Composable
 fun DeliveryOptionScreen(
+    mainViewModel: MainViewModel,
     screenSize: ScreenSize = rememberScreenSize(),
     navigateToCheckout: () -> Unit = {}
 ) {
@@ -68,12 +73,14 @@ fun DeliveryOptionScreen(
     val isButtonEnabled = state.userAddressFieldText.isNotBlank() &&
             state.userNameFieldText.isNotBlank() &&
             state.dateFieldText.isNotBlank()
+    val isConnected = deliveryViewModel.isConnected.collectAsState()
 
     val scrollState = rememberScrollState()
     val focusRequester = remember {
         FocusRequester()
     }
     val focusManager = LocalFocusManager.current
+    val scope = rememberCoroutineScope()
 
     if (MapboxOptions.accessToken != MAPBOX_PUBLIC_TOKEN) {
         MapboxOptions.accessToken = MAPBOX_PUBLIC_TOKEN
@@ -91,19 +98,25 @@ fun DeliveryOptionScreen(
     Surface(
         modifier = Modifier.fillMaxSize()
             .verticalScroll(state = scrollState, enabled = state.columnScrollingEnabled)
+            .imePadding()
     ) {
 
-        Column(modifier = Modifier.fillMaxSize().padding(8.dp)) {
-
+        Column(
+            modifier = Modifier.fillMaxSize().padding(8.dp)
+        ) {
             // Map Card
             MapBoxComposable(
                 userLocation = state.userCityLocation,
                 chosenPath = state.selectedPath,
+                isConnectedToInternet = isConnected.value,
                 setIsLoading = {
                     deliveryViewModel.setIsLoading(it)
                 },
                 setColumnScrollingEnabled = {
                     deliveryViewModel.setColumnScrollingEnabled(it)
+                },
+                onError = {
+                    mainViewModel.setError(it)
                 }
             )
 
@@ -150,6 +163,14 @@ fun DeliveryOptionScreen(
                 },
                 leadingIcon = {
                     Icon(Icons.Rounded.Person, "")
+                },
+                onFocusChange = {
+                    if (it) {
+                        scope.launch {
+                            delay(300)
+                            scrollState.animateScrollTo(scrollState.maxValue)
+                        }
+                    }
                 }
             )
 
@@ -164,6 +185,14 @@ fun DeliveryOptionScreen(
                 },
                 leadingIcon = {
                     Icon(Icons.Rounded.Place, "")
+                },
+                onFocusChange = {
+                    if (it) {
+                        scope.launch {
+                            delay(300)
+                            scrollState.animateScrollTo(scrollState.maxValue)
+                        }
+                    }
                 }
             )
 
