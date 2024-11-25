@@ -6,7 +6,7 @@ plugins {
 
 android {
     namespace = "com.mtdevelopment.checkout.data"
-    compileSdk = 34
+    compileSdk = 35
     android.buildFeatures.buildConfig = true
 
     defaultConfig {

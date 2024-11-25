@@ -10,7 +10,7 @@ plugins {
 
 android {
     namespace = "com.mtdevelopment.lafromagerie"
-    compileSdk = 34
+    compileSdk = 35
 
     signingConfigs {
         create("release") {
@@ -36,7 +36,7 @@ android {
     defaultConfig {
         applicationId = "com.mtdevelopment.lafromagerie"
         minSdk = 26
-        targetSdk = 34
+        targetSdk = 35
         versionCode = 6
         versionName = "1.3.0"
 
