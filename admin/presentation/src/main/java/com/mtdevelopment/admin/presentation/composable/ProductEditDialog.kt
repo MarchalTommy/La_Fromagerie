@@ -3,18 +3,19 @@ package com.mtdevelopment.admin.presentation.composable
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
-import androidx.compose.foundation.gestures.Orientation
-import androidx.compose.foundation.gestures.scrollable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.Card
@@ -42,6 +43,7 @@ import com.mtdevelopment.core.presentation.theme.ui.black70
 import com.mtdevelopment.core.util.toLongPrice
 import com.mtdevelopment.core.util.toUiPrice
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ProductEditDialog(
     onValidate: (UiProductObject) -> Unit,
@@ -56,7 +58,6 @@ fun ProductEditDialog(
     val focusManager = LocalFocusManager.current
 
     val scrollState = rememberScrollState()
-
     val deleteFirstClick = remember {
         mutableStateOf(false)
     }
@@ -87,16 +88,15 @@ fun ProductEditDialog(
             modifier = Modifier
                 .fillMaxWidth()
                 .wrapContentHeight()
+                .imePadding()
                 .padding(48.dp)
         ) {
             Column(
                 modifier = Modifier
-                    .scrollable(
-                        state = scrollState,
-                        orientation = Orientation.Vertical
-                    )
-                    .wrapContentHeight(align = Alignment.CenterVertically)
-                    .focusable(true)
+                    .verticalScroll(scrollState)
+                    .wrapContentHeight()
+                    .focusable(true),
+                verticalArrangement = Arrangement.Center
             ) {
                 ProductEditField(
                     title = "Nom du produit",
@@ -222,8 +222,6 @@ fun ProductEditDialog(
                     }
                 }
             }
-
-
         }
     }
 }
