@@ -1,6 +1,9 @@
 package com.mtdevelopment.checkout.presentation.viewmodel
 
 import android.util.Log
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.android.gms.common.api.ApiException
@@ -54,10 +57,9 @@ class CheckoutViewModel(
         initialValue = false
     )
 
-    val checkoutScreenObject: StateFlow<LocalCheckoutInformation?> =
-        getCheckoutDataUseCase.invoke().stateIn(
-            viewModelScope, SharingStarted.WhileSubscribed(5000), null
-        )
+    var checkoutUiState by mutableStateOf(LocalCheckoutInformation())
+        private set
+
 
     private val _paymentUiState: MutableStateFlow<PaymentUiState> =
         MutableStateFlow(PaymentUiState.NotStarted)
@@ -80,8 +82,23 @@ class CheckoutViewModel(
 
     init {
         viewModelScope.launch {
+            updateUiState()
             verifyGooglePayReadiness()
 //            createCheckout()
+        }
+    }
+
+    private suspend fun updateUiState() {
+        getCheckoutDataUseCase.invoke().collect {
+            if (it != null) {
+                checkoutUiState = checkoutUiState.copy(
+                    buyerName = it.buyerName,
+                    buyerAddress = it.buyerAddress,
+                    totalPrice = it.totalPrice,
+                    deliveryDate = it.deliveryDate,
+                    cartItems = it.cartItems
+                )
+            }
         }
     }
 
@@ -132,7 +149,7 @@ class CheckoutViewModel(
         val checkoutRef = kotlin.random.Random.nextLong().toString()
         saveCheckoutReferenceUseCase.invoke(checkoutRef)
         createNewCheckoutUseCase.invoke(
-            amount = checkoutScreenObject.value?.totalPrice?.toPriceDouble() ?: 0.0,
+            amount = checkoutUiState.totalPrice?.toPriceDouble() ?: 0.0,
             reference = checkoutRef
         ).collect {
             _createCheckoutState.update { it }

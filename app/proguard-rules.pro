@@ -14,8 +14,17 @@
 
 # Uncomment this to preserve the line number information for
 # debugging stack traces.
-#-keepattributes SourceFile,LineNumberTable
+-keepattributes SourceFile,LineNumberTable
 
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+-printmapping mapping.txt
+
+-keep class com.mtdevelopment.core.local.SharedDatastoreImpl { *; }
+-keepclassmembers class com.mtdevelopment.core.local.SharedDatastoreImpl { *; }
+
+-keep class com.mtdevelopment.checkout.data.local.CheckoutDatastorePreferenceImpl { *; }
+-keepclassmembers class com.mtdevelopment.checkout.data.local.CheckoutDatastorePreferenceImpl { *; }
+
+-keep class androidx.datastore.*.** {*;}

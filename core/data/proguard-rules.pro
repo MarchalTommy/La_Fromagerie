@@ -19,3 +19,17 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+
+-keep class com.mtdevelopment.core.model.ProductData { *; }
+-keep class com.mtdevelopment.core.model.CartItems { *; }
+-keep class com.mtdevelopment.core.model.CartItem { *; }
+-keepnames class com.mtdevelopment.core.model.ProductData { *; }
+-keepclassmembers class com.mtdevelopment.core.model.ProductData {
+  *;
+}
+
+
+-keep class com.mtdevelopment.core.local.SharedDatastoreImpl { *; }
+-keepclassmembers class com.mtdevelopment.core.local.SharedDatastoreImpl { *; }
+
+-keep class androidx.datastore.*.** {*;}

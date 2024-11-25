@@ -21,8 +21,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -30,17 +33,24 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import app.rive.runtime.kotlin.core.Rive
+import com.mtdevelopment.admin.presentation.composable.ProductEditDialog
+import com.mtdevelopment.admin.presentation.viewmodel.AdminViewModel
 import com.mtdevelopment.cart.presentation.model.UiBasketObject
 import com.mtdevelopment.cart.presentation.viewmodel.CartViewModel
+import com.mtdevelopment.core.presentation.MainViewModel
 import com.mtdevelopment.core.presentation.composable.RiveAnimation
+import com.mtdevelopment.core.presentation.sharedModels.UiProductObject
 import com.mtdevelopment.home.presentation.composable.cart.CartView
 import com.mtdevelopment.home.presentation.viewmodel.HomeViewModel
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
+import org.koin.compose.koinInject
 
 @Composable
 fun HomeScreen(
+    mainViewModel: MainViewModel,
     cartViewModel: CartViewModel,
+    shouldRefresh: Boolean,
     navigateToDetail: () -> Unit = {},
     navigateToDelivery: (UiBasketObject) -> Unit = {}
 ) {
@@ -48,11 +58,14 @@ fun HomeScreen(
     val context = LocalContext.current
 
     val homeViewModel = koinViewModel<HomeViewModel>()
+    val adminViewModel = koinInject<AdminViewModel>()
 
     val scaleCart = remember { Animatable(1f) }
 
     val cartState = cartViewModel.cartUiState
     val homeState = homeViewModel.homeUiState
+    var showEditDialog by remember { mutableStateOf(false) }
+    var editedProduct by remember { mutableStateOf<UiProductObject?>(null) }
 
     fun animateAddingToCart() {
         coroutineScope.launch {
@@ -77,6 +90,10 @@ fun HomeScreen(
         Rive.init(context)
     }
 
+    LaunchedEffect(shouldRefresh) {
+        homeViewModel.refreshProducts()
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
         LazyVerticalGrid(
             modifier = Modifier
@@ -98,11 +115,16 @@ fun HomeScreen(
                     onDetailClick = {
                         cartViewModel.saveClickedItem(it)
                         navigateToDetail.invoke()
+                    },
+                    onAddClick = {
+                        cartViewModel.addCartObject(productListItem)
+                        animateAddingToCart()
+                    },
+                    onEditClick = {
+                        showEditDialog = true
+                        editedProduct = it
                     }
-                ) {
-                    cartViewModel.addCartObject(productListItem)
-                    animateAddingToCart()
-                }
+                )
             }
         }
 
@@ -157,5 +179,23 @@ fun HomeScreen(
             modifier = Modifier.fillMaxSize(),
             contentDescription = "Loading animation"
         )
+
+        if (showEditDialog && editedProduct != null) {
+            ProductEditDialog(
+                product = editedProduct!!,
+                onDismiss = { showEditDialog = false },
+                onValidate = {
+                    adminViewModel.updateProduct(product = it)
+                    homeViewModel.refreshProducts()
+                },
+                onDelete = {
+                    adminViewModel.deleteProduct(product = it)
+                },
+                onError = {
+                    mainViewModel.setError(
+                        it
+                    )
+                })
+        }
     }
 }

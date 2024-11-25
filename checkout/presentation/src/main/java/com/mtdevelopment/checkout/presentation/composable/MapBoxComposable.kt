@@ -18,7 +18,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.contentColorFor
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -54,8 +53,11 @@ import com.mtdevelopment.core.util.ScreenSize
 import com.mtdevelopment.core.util.rememberScreenSize
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import java.io.IOException
+import kotlin.coroutines.resume
+import kotlin.coroutines.suspendCoroutine
 
 const val FRASNE_LATITUDE = 46.854022
 const val FRASNE_LONGITUDE = 6.156132
@@ -65,24 +67,16 @@ const val FRASNE_LONGITUDE = 6.156132
 fun MapBoxComposable(
     userLocation: Pair<Double, Double>?,
     chosenPath: DeliveryPath?,
+    isConnectedToInternet: Boolean,
     setIsLoading: (Boolean) -> Unit,
     setColumnScrollingEnabled: (Boolean) -> Unit,
+    onError: (String) -> Unit = {}
 ) {
 
     val context = LocalContext.current
     val cameraBasePoint =
         remember { mutableStateOf(Point.fromLngLat(FRASNE_LONGITUDE, FRASNE_LATITUDE)) }
 
-    val selectedPathNW = remember {
-        mutableStateOf<Point?>(
-            null
-        )
-    }
-    val selectedPathSE = remember {
-        mutableStateOf<Point?>(
-            null
-        )
-    }
     val geocoder = Geocoder(context)
     val screenSize: ScreenSize = rememberScreenSize()
     val map = remember { mutableStateOf<MapView?>(null) }
@@ -131,28 +125,31 @@ fun MapBoxComposable(
 
     LaunchedEffect(chosenPath) {
         if (chosenPath != null) {
-            getCameraLocalisationFromPath(
-                chosenPath,
-                geocoder,
-                setIsLoading,
-                onNWfound = {
-                    selectedPathNW.value = it
-                },
-                onSEfound = {
-                    selectedPathSE.value = it
-                }
-            )
-            if (map.value?.mapboxMap?.style?.styleURI != chosenPath.mapStyle) {
-                map.value?.mapboxMap?.loadStyle(
-                    chosenPath.mapStyle
-                ) {
-                    zoomOnSelectedPathMainCity(
-                        map,
-                        selectedPathNW,
-                        selectedPathSE,
-                        animatorListener
-                    )
-                }
+            if (isConnectedToInternet) {
+                getCameraLocalisationFromPath(
+                    chosenPath,
+                    geocoder,
+                    setIsLoading,
+                    onBothPointFound = { nw, se ->
+                        if (map.value?.mapboxMap?.style?.styleURI != chosenPath.mapStyle) {
+                            map.value?.mapboxMap?.loadStyle(
+                                chosenPath.mapStyle
+                            ) {
+                                zoomOnSelectedPathMainCity(
+                                    map.value,
+                                    nw,
+                                    se,
+                                    animatorListener
+                                )
+                            }
+                        }
+                    }
+                )
+            } else {
+                zoomOnSelectedPathOffline(
+                    map.value,
+                    animatorListener
+                )
             }
         } else {
             if (map.value?.mapboxMap?.style == null) {
@@ -333,60 +330,66 @@ fun getCameraLocalisationFromPath(
     path: DeliveryPath,
     geocoder: Geocoder,
     setIsLoading: (Boolean) -> Unit,
-    onNWfound: (Point) -> Unit,
-    onSEfound: (Point) -> Unit
+    onBothPointFound: (pointNW: Point, pointSE: Point) -> Unit
 ) {
     setIsLoading.invoke(true)
-
+    val scope = CoroutineScope(Dispatchers.Main)
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-        geocoder.getFromLocationName(selectNorthWestCityFromPath(path), 1) { addressList ->
-            onNWfound.invoke(
-                Point.fromLngLat(
-                    addressList.firstOrNull()?.longitude ?: 0.0,
-                    addressList.firstOrNull()?.latitude ?: 0.0
-                )
-            )
+        scope.launch {
+            val pointNW = async {
+                suspendCoroutine {
+                    geocoder.getFromLocationName(
+                        selectNorthWestCityFromPath(path),
+                        1
+                    ) { addressList ->
+                        it.resume(
+                            Point.fromLngLat(
+                                addressList.firstOrNull()?.longitude ?: 0.0,
+                                addressList.firstOrNull()?.latitude ?: 0.0
+                            )
+                        )
+                    }
+                }
+            }.await()
+
+            val pointSE = async {
+                suspendCoroutine {
+                    geocoder.getFromLocationName(
+                        selectSouthEastCityFromPath(path),
+                        1
+                    ) { addressList ->
+                        it.resume(
+                            Point.fromLngLat(
+                                addressList.firstOrNull()?.longitude ?: 0.0,
+                                addressList.firstOrNull()?.latitude ?: 0.0
+                            )
+                        )
+                    }
+                }
+            }.await()
+
+            setIsLoading.invoke(false)
+            onBothPointFound.invoke(pointNW, pointSE)
         }
     } else {
         try {
-            val address = geocoder.getFromLocationName(
+            val addressNW = geocoder.getFromLocationName(
                 selectNorthWestCityFromPath(path), 1
             )?.firstOrNull()
-
-            onNWfound.invoke(
-                Point.fromLngLat(
-                    address?.longitude ?: 0.0,
-                    address?.latitude ?: 0.0
-                )
+            val pointNW = Point.fromLngLat(
+                addressNW?.longitude ?: 0.0,
+                addressNW?.latitude ?: 0.0
             )
-        } catch (e: IOException) {
-            FirebaseCrashlytics.getInstance().recordException(e)
-        }
-    }
 
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-        geocoder.getFromLocationName(
-            selectSouthEastCityFromPath(path),
-            1
-        ) { addressList ->
-            onSEfound.invoke(
-                Point.fromLngLat(
-                    addressList.firstOrNull()?.longitude ?: 0.0,
-                    addressList.firstOrNull()?.latitude ?: 0.0
-                )
-            )
-        }
-    } else {
-        try {
-            val address = geocoder.getFromLocationName(
+            val addressSE = geocoder.getFromLocationName(
                 selectSouthEastCityFromPath(path), 1
             )?.firstOrNull()
-            onSEfound.invoke(
-                Point.fromLngLat(
-                    address?.longitude ?: 0.0,
-                    address?.latitude ?: 0.0
-                )
+            val pointSE = Point.fromLngLat(
+                addressSE?.longitude ?: 0.0,
+                addressSE?.latitude ?: 0.0
             )
+
+            onBothPointFound.invoke(pointNW, pointSE)
         } catch (e: IOException) {
             FirebaseCrashlytics.getInstance().recordException(e)
         }
@@ -456,19 +459,19 @@ fun getBaseCameraLocation(
 }
 
 fun zoomOnSelectedPathMainCity(
-    map: MutableState<MapView?>,
-    selectedPathNW: MutableState<Point?>,
-    selectedPathSE: MutableState<Point?>,
+    map: MapView?,
+    selectedPathNW: Point?,
+    selectedPathSE: Point?,
     animatorListener: AnimatorListener
 ) {
     val long =
-        (selectedPathNW.value?.longitude()
-            ?.plus(selectedPathSE.value?.longitude() ?: 0.0))?.div(2)
+        (selectedPathNW?.longitude()
+            ?.plus(selectedPathSE?.longitude() ?: 0.0))?.div(2)
 
-    val lat = selectedPathNW.value?.latitude()
-        ?.plus(selectedPathSE.value?.latitude() ?: 0.0)?.div(2)
+    val lat = selectedPathNW?.latitude()
+        ?.plus(selectedPathSE?.latitude() ?: 0.0)?.div(2)
 
-    map.value?.camera?.flyTo(
+    map?.camera?.flyTo(
         cameraOptions = CameraOptions.Builder()
             .center(
                 Point.fromLngLat(
@@ -477,6 +480,29 @@ fun zoomOnSelectedPathMainCity(
                 )
             )
             .zoom(if (lat != null && long != null) 9.5 else 8.5)
+            .build(),
+        animationOptions = MapAnimationOptions.mapAnimationOptions {
+            duration(1500)
+        },
+        animatorListener = animatorListener
+    )
+}
+
+// TODO: Draw paths in local to allow for an offline working map.
+// TODO: Save paths on firebase, fetch them when changed, and allow admin to update them (still needs to find how)
+fun zoomOnSelectedPathOffline(
+    map: MapView?,
+    animatorListener: AnimatorListener
+) {
+    map?.camera?.flyTo(
+        cameraOptions = CameraOptions.Builder()
+            .center(
+                Point.fromLngLat(
+                    FRASNE_LONGITUDE,
+                    FRASNE_LATITUDE,
+                )
+            )
+            .zoom(8.5)
             .build(),
         animationOptions = MapAnimationOptions.mapAnimationOptions {
             duration(1500)

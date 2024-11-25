@@ -3,6 +3,7 @@ package com.mtdevelopment.core.local
 import android.content.ContentValues.TAG
 import android.content.Context
 import android.util.Log
+import androidx.annotation.Keep
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
@@ -22,6 +23,7 @@ import com.mtdevelopment.core.repository.SharedDatastore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
+@Keep
 class SharedDatastoreImpl(private val context: Context) : SharedDatastore {
 
     private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "shared_settings")

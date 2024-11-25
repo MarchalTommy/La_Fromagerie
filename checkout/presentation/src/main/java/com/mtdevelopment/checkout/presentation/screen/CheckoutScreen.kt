@@ -43,7 +43,7 @@ fun CheckoutScreen(
 
     val screenSize: ScreenSize = rememberScreenSize()
     val checkoutViewModel = koinViewModel<CheckoutViewModel>()
-    val uiData = checkoutViewModel.checkoutScreenObject.collectAsState()
+    val uiData = checkoutViewModel.checkoutUiState
 
     fun onPricingError() {
         logE(TAG, "Pricing error")
@@ -73,7 +73,7 @@ fun CheckoutScreen(
                     .padding(start = 16.dp, end = 16.dp, bottom = 16.dp, top = 8.dp)
             ) {
                 items(
-                    items = uiData.value?.cartItems?.cartItems ?: emptyList(),
+                    items = uiData.cartItems?.cartItems ?: emptyList(),
                     key = { it.name.hashCode() }
                 ) {
                     Row(
@@ -96,7 +96,7 @@ fun CheckoutScreen(
                 }
 
                 item {
-                    uiData.value?.deliveryDate?.let {
+                    uiData.deliveryDate?.let {
                         UserInfoFormComposable(
                             field = "Date de livraison",
                             value = SimpleDateFormat("dd/MM/yyyy", Locale.FRANCE).format(
@@ -130,13 +130,13 @@ fun CheckoutScreen(
                     .padding(start = 16.dp, end = 16.dp, bottom = 16.dp, top = 8.dp)
             ) {
                 Text(
-                    text = "${uiData.value?.buyerName},",
+                    text = "${uiData.buyerName},",
                     style = MaterialTheme.typography.bodyMedium,
                     fontSize = 20.sp
                 )
                 Text(
                     modifier = Modifier.padding(top = 4.dp),
-                    text = "${uiData.value?.buyerAddress}",
+                    text = "${uiData.buyerAddress}",
                     style = MaterialTheme.typography.bodyMedium,
                     fontSize = 20.sp
                 )
@@ -147,7 +147,7 @@ fun CheckoutScreen(
 
         Text(
             modifier = Modifier.padding(16.dp),
-            text = "Montant Total : ${uiData.value?.totalPrice?.toUiPrice()}",
+            text = "Montant Total : ${uiData.totalPrice?.toUiPrice()}",
             style = MaterialTheme.typography.displaySmall,
             fontWeight = FontWeight.Bold,
             fontSize = 26.sp
@@ -159,7 +159,7 @@ fun CheckoutScreen(
                 .fillMaxWidth()
                 .padding(horizontal = 32.dp, vertical = 16.dp),
             onClick = {
-                uiData.value?.totalPrice?.let { onGooglePayButtonClick.invoke(it) } ?: run {
+                uiData.totalPrice?.let { onGooglePayButtonClick.invoke(it) } ?: run {
                     onPricingError()
                 }
             },

@@ -1,17 +1,18 @@
 package com.mtdevelopment.lafromagerie.navigation
 
-import com.mtdevelopment.core.presentation.sharedModels.UiProductObject
 import kotlinx.serialization.Serializable
 
 
 @Serializable
-object HomeScreen
+data class HomeScreenDestination(
+    val shouldRefresh: Boolean = false
+)
 
 @Serializable
-object DetailDestination
+object DetailScreenDestination
 
 @Serializable
-object DeliveryOptionScreen
+object DeliveryOptionScreenDestination
 
 @Serializable
-object CheckoutScreen
+object CheckoutScreenDestination

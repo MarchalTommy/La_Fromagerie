@@ -7,7 +7,7 @@ plugins {
 
 android {
     namespace = "com.mtdevelopment.checkout.presentation"
-    compileSdk = 34
+    compileSdk = 35
     android.buildFeatures.buildConfig = true
 
     defaultConfig {
@@ -79,6 +79,8 @@ dependencies {
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
     implementation(libs.kotlinx.serialization.json)
+    implementation(libs.kotlinx.coroutines)
+    implementation(libs.kotlinx.coroutines.service)
 
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.common)

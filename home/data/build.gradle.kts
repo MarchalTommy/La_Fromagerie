@@ -7,7 +7,7 @@ plugins {
 
 android {
     namespace = "com.mtdevelopment.home.data"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         minSdk = 26
@@ -44,6 +44,8 @@ android {
 dependencies {
     implementation(project(":home:domain"))
     implementation(project(":core:presentation"))
+    implementation(project(":core:data"))
+    implementation(project(":core:domain"))
 
     implementation(libs.core.ktx)
     implementation(libs.androidx.appcompat)

@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.ShoppingCart
@@ -32,11 +33,13 @@ import androidx.compose.material3.ShapeDefaults
 import androidx.compose.material3.Shapes
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -56,8 +59,11 @@ import com.bumptech.glide.Glide
 import com.bumptech.glide.load.engine.DiskCacheStrategy
 import com.bumptech.glide.load.resource.bitmap.BitmapTransitionOptions.withCrossFade
 import com.bumptech.glide.request.RequestOptions
+import com.mtdevelopment.admin.presentation.viewmodel.AdminViewModel
 import com.mtdevelopment.cart.presentation.viewmodel.CartViewModel
-import com.mtdevelopment.core.presentation.sharedModels.UiProductObject
+import com.mtdevelopment.core.presentation.MainViewModel
+import com.mtdevelopment.admin.presentation.composable.ProductEditDialog
+import com.mtdevelopment.core.presentation.util.VARIANT
 import com.mtdevelopment.core.util.ScreenSize
 import com.mtdevelopment.core.util.rememberScreenSize
 import com.mtdevelopment.core.util.toUiPrice
@@ -65,15 +71,20 @@ import com.mtdevelopment.core.util.vibratePhoneClick
 import com.skydoves.landscapist.ImageOptions
 import com.skydoves.landscapist.glide.GlideImage
 import kotlinx.coroutines.launch
+import org.koin.compose.koinInject
 
 @Composable
 fun DetailScreen(
     viewModel: CartViewModel,
+    mainViewModel: MainViewModel,
+    onProductEdited: () -> Unit = {},
+    onProductDeleted: () -> Unit = {},
     screenSize: ScreenSize = rememberScreenSize()
 ) {
     val coroutineScope = rememberCoroutineScope()
 
     val context = LocalContext.current
+    val adminViewModel = koinInject<AdminViewModel>()
 
     val state = viewModel.cartUiState
     val scaleCart = remember { Animatable(1f) }
@@ -85,6 +96,8 @@ fun DetailScreen(
     val nameBackgroundTint = MaterialTheme.colorScheme.primaryContainer
 
     val scrollState = rememberScrollState()
+
+    var showEditDialog by remember { mutableStateOf(false) }
 
     fun animateAddingToCart() {
         coroutineScope.launch {
@@ -115,7 +128,7 @@ fun DetailScreen(
                     .fillMaxHeight(0.3f),
                 imageModel = {
                     state.currentItem?.imageUrl
-                    ?: com.mtdevelopment.core.presentation.R.drawable.placeholder
+                        ?: com.mtdevelopment.core.presentation.R.drawable.placeholder
                 },
                 imageOptions = ImageOptions(contentScale = ContentScale.FillWidth),
                 requestBuilder = {
@@ -179,7 +192,8 @@ fun DetailScreen(
                         style = MaterialTheme.typography.titleLarge,
                         color = Color.White,
                         onTextLayout = { textLayoutResult ->
-                            nameWidth.floatValue = textLayoutResult.size.toIntRect().size.toSize().width
+                            nameWidth.floatValue =
+                                textLayoutResult.size.toIntRect().size.toSize().width
                             nameHeightDp.intValue =
                                 textLayoutResult.size.toIntRect().size.height
                         }
@@ -312,47 +326,92 @@ fun DetailScreen(
             )
         }
 
-        BadgedBox(
-            modifier = Modifier
-                .align(Alignment.CenterHorizontally)
-                .padding(vertical = if (state.currentItem?.allergens.isNullOrEmpty()) 32.dp else 8.dp)
-                .graphicsLayer {
-                    scaleX = scaleCart.value
-                    scaleY = scaleCart.value
-                }
-                .padding(32.dp),
-            badge = {
-                if (state.cartObject.content.find { it.id == state.currentItem?.id } != null) {
-                    Badge(
-                        containerColor = Color.Red,
-                        contentColor = Color.White
-                    ) {
-                        val cartItemsQuantity =
-                            state.cartObject.content.find { it.id == state.currentItem?.id }?.quantity
-                        Text("$cartItemsQuantity")
-                    }
-                }
-            }
-        ) {
+        if (VARIANT == "admin") {
             Button(
-                modifier = Modifier,
+                modifier = Modifier
+                    .align(Alignment.CenterHorizontally)
+                    .padding(vertical = if (state.currentItem?.allergens.isNullOrEmpty()) 32.dp else 8.dp)
+                    .padding(32.dp),
                 onClick = {
                     vibratePhoneClick(context = context)
-                    animateAddingToCart()
-                    state.currentItem?.let { viewModel.addCartObject(it) }
+                    showEditDialog = true
                 },
                 shape = Shapes().medium
             ) {
-                Icon(imageVector = Icons.Default.ShoppingCart, contentDescription = "Cart")
+                Icon(imageVector = Icons.Default.Edit, contentDescription = "Edit")
 
                 Text(
                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                    text = "Ajouter au panier"
+                    text = "Modifier le produit"
                 )
+            }
+        } else {
+            BadgedBox(
+                modifier = Modifier
+                    .align(Alignment.CenterHorizontally)
+                    .padding(
+                        vertical = if (state.currentItem?.allergens.isNullOrEmpty()) {
+                            32.dp
+                        } else {
+                            8.dp
+                        }
+                    )
+                    .graphicsLayer {
+                        scaleX = scaleCart.value
+                        scaleY = scaleCart.value
+                    }
+                    .padding(32.dp),
+                badge = {
+                    if (state.cartObject.content.find { it.id == state.currentItem?.id } != null) {
+                        Badge(
+                            containerColor = Color.Red,
+                            contentColor = Color.White
+                        ) {
+                            val cartItemsQuantity =
+                                state.cartObject.content.find { it.id == state.currentItem?.id }?.quantity
+                            Text("$cartItemsQuantity")
+                        }
+                    }
+                }
+            ) {
+                Button(
+                    modifier = Modifier,
+                    onClick = {
+                        vibratePhoneClick(context = context)
+                        animateAddingToCart()
+                        state.currentItem?.let { viewModel.addCartObject(it) }
+                    },
+                    shape = Shapes().medium
+                ) {
+                    Icon(imageVector = Icons.Default.ShoppingCart, contentDescription = "Cart")
+
+                    Text(
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        text = "Ajouter au panier"
+                    )
+                }
             }
         }
 
+    }
 
+    if (showEditDialog) {
+        ProductEditDialog(
+            product = state.currentItem!!,
+            onDismiss = { showEditDialog = false },
+            onValidate = {
+                adminViewModel.updateProduct(it)
+                onProductEdited.invoke()
+            },
+            onDelete = {
+                adminViewModel.deleteProduct(it)
+                onProductDeleted.invoke()
+            },
+            onError = {
+                mainViewModel.setError(
+                    it
+                )
+            })
     }
 
 }

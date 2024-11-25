@@ -4,8 +4,8 @@ import com.google.firebase.Firebase
 import com.google.firebase.Timestamp
 import com.google.firebase.crashlytics.crashlytics
 import com.google.firebase.firestore.FirebaseFirestore
-import com.mtdevelopment.home.data.model.ProductData
-import com.mtdevelopment.home.data.model.toProductType
+import com.mtdevelopment.core.model.ProductData
+import com.mtdevelopment.core.model.toProductType
 
 class FirestoreDatabase(
     private val firestore: FirebaseFirestore
@@ -19,15 +19,27 @@ class FirestoreDatabase(
             .get()
             .addOnSuccessListener { snapshot ->
                 onSuccess.invoke(snapshot.documents.map { item ->
-                    ProductData(
-                        id = item.id,
-                        name = item.data?.get("name").toString(),
-                        priceInCents = item.data?.get("priceCents") as? Long ?: 0L,
-                        imageUrl = item.data?.get("imgUrl").toString(),
-                        type = item.data?.get("type").toString().toProductType(),
-                        description = item.data?.get("description").toString(),
-                        allergens = item.data?.get("allergens") as? List<String> ?: emptyList(),
-                    )
+                    if (item.data?.get("name") == null) {
+                        ProductData(
+                            id = item.id,
+                            name = item.data?.get("b").toString(),
+                            priceCents = item.data?.get("c") as? Long ?: 0L,
+                            imgUrl = item.data?.get("d").toString(),
+                            type = item.data?.get("e").toString().toProductType(),
+                            description = item.data?.get("f").toString(),
+                            allergens = item.data?.get("g") as? List<String> ?: emptyList(),
+                        )
+                    } else {
+                        ProductData(
+                            id = item.id,
+                            name = item.data?.get("name").toString(),
+                            priceCents = item.data?.get("priceCents") as? Long ?: 0L,
+                            imgUrl = item.data?.get("imgUrl").toString(),
+                            type = item.data?.get("type").toString().toProductType(),
+                            description = item.data?.get("description").toString(),
+                            allergens = item.data?.get("allergens") as? List<String> ?: emptyList(),
+                        )
+                    }
                 })
             }.addOnFailureListener {
                 Firebase.crashlytics.recordException(it)
@@ -49,23 +61,6 @@ class FirestoreDatabase(
             }
     }
 
-    fun addNewProduct(product: ProductData) {
-        firestore.collection("products")
-            .add(product)
-    }
-
-    fun updateProduct(product: ProductData) {
-        firestore.collection("products")
-            .document(product.id)
-            .set(product)
-    }
-
-    fun deleteProduct(product: ProductData) {
-        firestore.collection("products")
-            .document(product.id)
-            .delete()
-    }
-
     fun getLastDatabaseUpdate(onSuccess: (Timestamp) -> Unit, onFailure: () -> Unit) {
         firestore.collection("database_update")
             .document("last_database_update")
@@ -77,12 +72,5 @@ class FirestoreDatabase(
             }.addOnFailureListener {
                 onFailure.invoke()
             }
-    }
-
-    fun saveNewDatabaseUpdate(timestamp: Long) {
-        firestore.collection("database_update")
-            .document("last_database_update")
-            .set(mapOf("timestamp" to timestamp))
-
     }
 }

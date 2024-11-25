@@ -5,6 +5,13 @@ import androidx.room.Room
 import com.google.firebase.Firebase
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.firestore
+import com.mtdevelopment.admin.data.repository.FirebaseAdminRepositoryImpl
+import com.mtdevelopment.admin.data.source.FirestoreAdminDatasource
+import com.mtdevelopment.admin.domain.repository.FirebaseAdminRepository
+import com.mtdevelopment.admin.domain.usecase.AddNewProductUseCase
+import com.mtdevelopment.admin.domain.usecase.DeleteProductUseCase
+import com.mtdevelopment.admin.domain.usecase.UpdateProductUseCase
+import com.mtdevelopment.admin.presentation.viewmodel.AdminViewModel
 import com.mtdevelopment.cart.presentation.viewmodel.CartViewModel
 import com.mtdevelopment.checkout.data.local.CheckoutDatastorePreferenceImpl
 import com.mtdevelopment.checkout.data.remote.model.Constants
@@ -33,19 +40,16 @@ import com.mtdevelopment.core.usecase.ClearDatastoreUseCase
 import com.mtdevelopment.core.usecase.ClearOrderUseCase
 import com.mtdevelopment.core.usecase.GetIsNetworkConnectedUseCase
 import com.mtdevelopment.core.usecase.SaveToDatastoreUseCase
-import com.mtdevelopment.home.data.repository.FirebaseRepositoryImpl
+import com.mtdevelopment.home.data.repository.FirebaseHomeRepositoryImpl
 import com.mtdevelopment.home.data.repository.RoomRepositoryImpl
 import com.mtdevelopment.home.data.source.local.HomeDatabaseDatasource
 import com.mtdevelopment.home.data.source.local.dao.HomeDao
 import com.mtdevelopment.home.data.source.remote.FirestoreDatabase
-import com.mtdevelopment.home.domain.repository.FirebaseRepository
+import com.mtdevelopment.home.domain.repository.FirebaseHomeRepository
 import com.mtdevelopment.home.domain.repository.RoomRepository
-import com.mtdevelopment.home.domain.usecase.AddNewProductUseCase
-import com.mtdevelopment.home.domain.usecase.DeleteProductUseCase
 import com.mtdevelopment.home.domain.usecase.GetAllCheesesUseCase
 import com.mtdevelopment.home.domain.usecase.GetAllProductsUseCase
 import com.mtdevelopment.home.domain.usecase.GetLastDatabaseUpdateUseCase
-import com.mtdevelopment.home.domain.usecase.UpdateProductUseCase
 import com.mtdevelopment.home.presentation.viewmodel.HomeViewModel
 import com.mtdevelopment.lafromagerie.FromagerieDatabase
 import io.ktor.client.HttpClient
@@ -76,8 +80,10 @@ val mainAppModule = module {
     single<NetworkRepository> { NetworkRepositoryImpl(get()) }
     single<PaymentRepository> { PaymentRepositoryImpl(get(), get()) }
 
-    single<FirebaseRepository> { FirebaseRepositoryImpl(get()) }
+    single<FirebaseHomeRepository> { FirebaseHomeRepositoryImpl(get()) }
     single<RoomRepository> { RoomRepositoryImpl(get()) }
+
+    single<FirebaseAdminRepository> { FirebaseAdminRepositoryImpl(get()) }
 
     factory { GetCheckoutDataUseCase(get()) }
     factory { SaveToDatastoreUseCase(get()) }
@@ -110,6 +116,7 @@ val mainAppModule = module {
     viewModelOf(::MainViewModel)
     viewModelOf(::DeliveryViewModel)
     viewModelOf(::CheckoutViewModel)
+    single { AdminViewModel(get(), get(), get()) }
 }
 
 val provideHttpClientModule = module {
@@ -145,6 +152,7 @@ val provideDatastore = module {
 val provideFirebaseDatabase = module {
     single<FirebaseFirestore> { Firebase.firestore }
     single<FirestoreDatabase> { FirestoreDatabase(get()) }
+    single<FirestoreAdminDatasource> { FirestoreAdminDatasource(get()) }
 }
 
 val provideRoomFromagerieDatabase = module {

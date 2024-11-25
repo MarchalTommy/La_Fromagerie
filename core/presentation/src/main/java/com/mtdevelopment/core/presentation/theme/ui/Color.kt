@@ -1,6 +1,8 @@
 package com.mtdevelopment.core.presentation.theme.ui
 import androidx.compose.ui.graphics.Color
 
+val black70 = Color(0xb3000000)
+
 val primaryLight = Color(0xFF7D570E)
 val onPrimaryLight = Color(0xFFFFFFFF)
 val primaryContainerLight = Color(0xFFFFDEAD)
@@ -216,10 +218,3 @@ val surfaceContainerLowDarkHighContrast = Color(0xFF201B13)
 val surfaceContainerDarkHighContrast = Color(0xFF241F17)
 val surfaceContainerHighDarkHighContrast = Color(0xFF2F2921)
 val surfaceContainerHighestDarkHighContrast = Color(0xFF3A342B)
-
-
-
-
-
-
-

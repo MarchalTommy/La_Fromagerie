@@ -10,7 +10,7 @@ plugins {
 
 android {
     namespace = "com.mtdevelopment.lafromagerie"
-    compileSdk = 34
+    compileSdk = 35
 
     signingConfigs {
         create("release") {
@@ -36,9 +36,9 @@ android {
     defaultConfig {
         applicationId = "com.mtdevelopment.lafromagerie"
         minSdk = 26
-        targetSdk = 34
-        versionCode = 3
-        versionName = "1.1.0"
+        targetSdk = 35
+        versionCode = 6
+        versionName = "1.3.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -52,6 +52,7 @@ android {
         }
 
         release {
+            isDebuggable = true
             isMinifyEnabled = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
@@ -100,6 +101,9 @@ dependencies {
     implementation(project(":checkout:presentation"))
     implementation(project(":checkout:domain"))
     implementation(project(":checkout:data"))
+    implementation(project(":admin:data"))
+    implementation(project(":admin:domain"))
+    implementation(project(":admin:presentation"))
 
     implementation(libs.core.ktx)
     implementation(libs.lifecycle.runtime.ktx)

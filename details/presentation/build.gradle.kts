@@ -7,7 +7,7 @@ plugins {
 
 android {
     namespace = "com.mtd.presentation"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         minSdk = 26
@@ -50,6 +50,7 @@ dependencies {
 
     implementation(project(":core:presentation"))
     implementation(project(":cart:presentation"))
+    implementation(project(":admin:presentation"))
 
     implementation(libs.core.ktx)
     implementation(libs.lifecycle.runtime.ktx)

@@ -1,9 +1,11 @@
 package com.mtdevelopment.core.repository
 
+import androidx.annotation.Keep
 import com.mtdevelopment.core.model.CartItems
 import com.mtdevelopment.core.model.UserInformation
 import kotlinx.coroutines.flow.Flow
 
+@Keep
 interface SharedDatastore {
 
     val cartItemsFlow: Flow<CartItems?>
