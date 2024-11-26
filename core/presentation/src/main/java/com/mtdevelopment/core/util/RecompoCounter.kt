@@ -4,6 +4,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -15,7 +16,7 @@ import androidx.compose.ui.unit.dp
 
 @Composable
 fun Modifier.trackRecompositions(): Modifier {
-    val recompositionCount = remember { mutableStateOf(0) }
+    val recompositionCount = remember { mutableIntStateOf(0) }
 
     // Use SideEffect to track recompositions (increments only once per recomposition)
     SideEffect {

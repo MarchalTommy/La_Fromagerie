@@ -42,12 +42,14 @@ import androidx.navigation.NavDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.toRoute
 import com.google.android.gms.common.api.CommonStatusCodes
 import com.google.android.gms.wallet.contract.TaskResultContracts
 import com.mtdevelopment.cart.presentation.viewmodel.CartViewModel
 import com.mtdevelopment.checkout.presentation.viewmodel.CheckoutViewModel
 import com.mtdevelopment.core.presentation.MainViewModel
 import com.mtdevelopment.core.presentation.theme.ui.AppTheme
+import com.mtdevelopment.lafromagerie.navigation.DeliveryOptionScreenDestination
 import com.mtdevelopment.lafromagerie.navigation.HomeScreenDestination
 import com.mtdevelopment.lafromagerie.navigation.NavGraph
 import kotlinx.coroutines.CoroutineScope
@@ -209,7 +211,11 @@ class MainActivity : ComponentActivity() {
                             requestPayment(priceCents)
                         }
                     )
-                    homeEntry = navController.getBackStackEntry(HomeScreenDestination()).destination
+                    try {
+                        homeEntry = navController.getBackStackEntry(HomeScreenDestination()).destination
+                    } catch (e: IllegalArgumentException) {
+                        homeEntry = null
+                    }
                 }
             }
         }
