@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
@@ -25,6 +26,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
@@ -50,8 +52,6 @@ import com.mtdevelopment.checkout.presentation.composable.getDatePickerState
 import com.mtdevelopment.checkout.presentation.viewmodel.DeliveryViewModel
 import com.mtdevelopment.core.presentation.MainViewModel
 import com.mtdevelopment.core.presentation.composable.RiveAnimation
-import com.mtdevelopment.core.util.ScreenSize
-import com.mtdevelopment.core.util.rememberScreenSize
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
@@ -61,18 +61,34 @@ import org.koin.androidx.compose.koinViewModel
 @Composable
 fun DeliveryOptionScreen(
     mainViewModel: MainViewModel,
-    screenSize: ScreenSize = rememberScreenSize(),
     navigateToCheckout: () -> Unit = {}
 ) {
 
     val deliveryViewModel = koinViewModel<DeliveryViewModel>()
     val context = LocalContext.current
 
-    val state = deliveryViewModel.deliveryUiDataState
-    val datePickerState = getDatePickerState(state.selectedPath)
-    val isButtonEnabled = state.userAddressFieldText.isNotBlank() &&
-            state.userNameFieldText.isNotBlank() &&
-            state.dateFieldText.isNotBlank()
+    val state = remember(deliveryViewModel.deliveryUiDataState) {
+        derivedStateOf {
+            deliveryViewModel.deliveryUiDataState
+        }
+    }
+
+    val isButtonEnabled = remember(
+        state.value.userNameFieldText,
+        state.value.userAddressFieldText,
+        state.value.dateFieldText
+    ) {
+        state.value.userNameFieldText.isNotBlank()
+                && state.value.userAddressFieldText.isNotBlank()
+                && state.value.dateFieldText.isNotBlank()
+    }
+
+    val datePickerState = remember(state.value.selectedPath) {
+        derivedStateOf {
+            getDatePickerState(state.value.selectedPath)
+        }
+    }
+
     val isConnected = deliveryViewModel.isConnected.collectAsState()
 
     val scrollState = rememberScrollState()
@@ -90,24 +106,26 @@ fun DeliveryOptionScreen(
         Rive.init(context)
     }
 
-    LaunchedEffect(state.selectedPath) {
-        deliveryViewModel.setIsDatePickerClickable(state.selectedPath != null)
+    LaunchedEffect(state.value.selectedPath) {
+        deliveryViewModel.setIsDatePickerClickable(state.value.selectedPath != null)
         deliveryViewModel.setDateFieldText("")
     }
 
     Surface(
-        modifier = Modifier.fillMaxSize()
-            .verticalScroll(state = scrollState, enabled = state.columnScrollingEnabled)
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(state = scrollState, enabled = state.value.columnScrollingEnabled)
             .imePadding()
     ) {
-
         Column(
-            modifier = Modifier.fillMaxSize().padding(8.dp)
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(8.dp)
         ) {
             // Map Card
             MapBoxComposable(
-                userLocation = state.userCityLocation,
-                chosenPath = state.selectedPath,
+                userLocation = state.value.userCityLocation,
+                chosenPath = state.value.selectedPath,
                 isConnectedToInternet = isConnected.value,
                 setIsLoading = {
                     deliveryViewModel.setIsLoading(it)
@@ -125,25 +143,25 @@ fun DeliveryOptionScreen(
                 showDeliverySelection = {
                     deliveryViewModel.updateShowDeliveryPathPicker(true)
                 },
-                selectedPath = state.selectedPath,
-                localisationSuccess = state.localisationSuccess,
+                selectedPath = state.value.selectedPath,
+                localisationSuccess = state.value.localisationSuccess,
                 shouldAskLocalisationPermission = {
                     deliveryViewModel.updateShouldShowLocalisationPermission(true)
                 }
             )
 
-            if (state.localisationSuccess || state.selectedPath != null || state.userLocationOnPath) {
+            if (state.value.localisationSuccess || state.value.selectedPath != null || state.value.userLocationOnPath) {
                 LocalisationTextComposable(
-                    selectedPath = state.selectedPath,
-                    geolocIsOnPath = state.userLocationOnPath,
-                    userCity = state.userCity
+                    selectedPath = state.value.selectedPath,
+                    geolocIsOnPath = state.value.userLocationOnPath,
+                    userCity = state.value.userCity
                 )
             }
 
             DateTextField(
-                shouldBeClickable = state.shouldDatePickerBeClickable,
-                dateFieldText = state.dateFieldText,
-                datePickerState = datePickerState,
+                shouldBeClickable = state.value.shouldDatePickerBeClickable,
+                dateFieldText = state.value.dateFieldText,
+                datePickerState = datePickerState.value,
                 shouldShowDatePicker = {
                     deliveryViewModel.setIsDatePickerShown(true)
                 },
@@ -153,7 +171,7 @@ fun DeliveryOptionScreen(
             )
 
             UserInfoComposable(
-                fieldText = state.userNameFieldText,
+                fieldText = state.value.userNameFieldText,
                 label = "Nom complet",
                 imeAction = ImeAction.Next,
                 focusRequester = focusRequester,
@@ -167,7 +185,7 @@ fun DeliveryOptionScreen(
                 onFocusChange = {
                     if (it) {
                         scope.launch {
-                            delay(300)
+                            delay(500)
                             scrollState.animateScrollTo(scrollState.maxValue)
                         }
                     }
@@ -175,7 +193,7 @@ fun DeliveryOptionScreen(
             )
 
             UserInfoComposable(
-                fieldText = state.userAddressFieldText,
+                fieldText = state.value.userAddressFieldText,
                 label = "Adresse exacte",
                 imeAction = ImeAction.Done,
                 focusRequester = focusRequester,
@@ -189,7 +207,7 @@ fun DeliveryOptionScreen(
                 onFocusChange = {
                     if (it) {
                         scope.launch {
-                            delay(300)
+                            delay(500)
                             scrollState.animateScrollTo(scrollState.maxValue)
                         }
                     }
@@ -198,7 +216,8 @@ fun DeliveryOptionScreen(
 
             if (!isButtonEnabled) {
                 Text(
-                    modifier = Modifier.padding(top = 8.dp, start = 16.dp, end = 16.dp)
+                    modifier = Modifier
+                        .padding(top = 8.dp, start = 16.dp, end = 16.dp)
                         .fillMaxWidth(),
                     text = "Veuillez remplir les champs ci-dessus pour pouvoir aller plus loin.",
                     style = MaterialTheme.typography.displaySmall,
@@ -230,16 +249,18 @@ fun DeliveryOptionScreen(
                 enabled = isButtonEnabled,
                 onClick = {
                     deliveryViewModel.saveUserInfo(onError = {
-                        // TODO: Manage error
+                        mainViewModel.setError("Erreur lors de la sauvegarde des informations")
                     })
                     navigateToCheckout.invoke()
                 }) {
                 Text("Valider et passer au paiement")
             }
+
+            Spacer(modifier = Modifier.imePadding())
         }
 
         // Localisation permission
-        if (state.shouldShowLocalisationPermission) {
+        if (state.value.shouldShowLocalisationPermission) {
             PermissionManagerComposable(
                 onUpdateUserCity = {
                     deliveryViewModel.updateUserCity(it)
@@ -267,14 +288,14 @@ fun DeliveryOptionScreen(
 
         // Loading animation
         RiveAnimation(
-            isLoading = state.isLoading,
+            isLoading = state.value.isLoading,
             modifier = Modifier.fillMaxSize(),
             contentDescription = "Loading animation"
         )
 
-        if (state.datePickerVisibility) {
+        if (state.value.datePickerVisibility) {
             DatePickerComposable(
-                datePickerState = datePickerState,
+                datePickerState = datePickerState.value,
                 shouldRemoveDatePicker = {
                     deliveryViewModel.setIsDatePickerShown(false)
                 },
@@ -287,9 +308,9 @@ fun DeliveryOptionScreen(
             )
         }
 
-        if (state.showDeliveryPathPicker) {
+        if (state.value.showDeliveryPathPicker) {
             DeliveryPathPickerComposable(
-                selectedPath = state.selectedPath,
+                selectedPath = state.value.selectedPath,
                 onPathSelected = {
                     deliveryViewModel.updateSelectedPath(it)
                 },

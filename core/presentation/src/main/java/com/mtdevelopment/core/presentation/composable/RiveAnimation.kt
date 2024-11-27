@@ -73,7 +73,7 @@ fun RiveAnimation(
                 ) {}
                 Image(
                     modifier = modifier.size(100.dp),
-                    painter = painterResource(id = R.drawable.cheese_bru), //any image
+                    painter = painterResource(id = R.drawable.placeholder), //any image
                     contentDescription = contentDescription
                 )
             }
