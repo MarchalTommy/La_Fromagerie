@@ -67,6 +67,8 @@ fun HomeScreen(
     var showEditDialog by remember { mutableStateOf(false) }
     var editedProduct by remember { mutableStateOf<UiProductObject?>(null) }
 
+    var hasLoadedFirstPic by remember { mutableStateOf(false) }
+
     fun animateAddingToCart() {
         coroutineScope.launch {
             scaleCart.animateTo(
@@ -86,12 +88,20 @@ fun HomeScreen(
         }
     }
 
+    LaunchedEffect(hasLoadedFirstPic) {
+        if (hasLoadedFirstPic) {
+            mainViewModel.setCanRemoveSplash()
+        }
+    }
+
     LaunchedEffect(Unit) {
         Rive.init(context)
     }
 
     LaunchedEffect(shouldRefresh) {
-        homeViewModel.refreshProducts()
+        if (shouldRefresh) {
+            homeViewModel.refreshProducts()
+        }
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -123,6 +133,11 @@ fun HomeScreen(
                     onEditClick = {
                         showEditDialog = true
                         editedProduct = it
+                    },
+                    isLoadingFinished = {
+                        if (!hasLoadedFirstPic) {
+                            hasLoadedFirstPic = true
+                        }
                     }
                 )
             }

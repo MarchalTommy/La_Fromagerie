@@ -4,6 +4,7 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -29,8 +30,12 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -59,13 +64,24 @@ fun ProductItem(
     product: UiProductObject? = null,
     onDetailClick: (UiProductObject) -> Unit = {},
     onAddClick: () -> Unit = {},
-    onEditClick: (UiProductObject) -> Unit = {}
+    onEditClick: (UiProductObject) -> Unit = {},
+    isLoadingFinished: () -> Unit = {}
 ) {
 
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
 
     val scaleItemTile = remember { Animatable(1f) }
+
+    var hasLoaded by remember { mutableStateOf(false) }
+
+    LaunchedEffect(hasLoaded) {
+        if (hasLoaded) {
+            coroutineScope.launch {
+                isLoadingFinished.invoke()
+            }
+        }
+    }
 
     fun animateAddToCart() {
         coroutineScope.launch {
@@ -141,6 +157,16 @@ fun ProductItem(
                 },
                 failure = {
                     Text(text = "image request failed.")
+                    hasLoaded = true
+                },
+                success = { data, painter ->
+                    Image(
+                        painter = painter,
+                        contentDescription = "product Image",
+                        contentScale = ContentScale.Crop,
+                        alignment = Alignment.Center
+                    )
+                    hasLoaded = true
                 })
 
             Spacer(modifier = Modifier.height(16.dp))

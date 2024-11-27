@@ -6,12 +6,22 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import com.mtdevelopment.core.presentation.sharedModels.ErrorState
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import org.koin.core.component.KoinComponent
 
 class MainViewModel() : ViewModel(), KoinComponent {
 
+    private var _canRemoveSplash: MutableStateFlow<Boolean> = MutableStateFlow(false)
+    val canRemoveSplash: StateFlow<Boolean> = _canRemoveSplash.asStateFlow()
+
     var errorState by mutableStateOf(ErrorState())
         private set
+
+    fun setCanRemoveSplash() {
+        _canRemoveSplash.tryEmit(true)
+    }
 
     fun setError(
         msg: String,

@@ -106,6 +106,7 @@ dependencies {
     implementation(project(":admin:presentation"))
 
     implementation(libs.core.ktx)
+    implementation(libs.splashscreen)
     implementation(libs.lifecycle.runtime.ktx)
     implementation(libs.activity.compose)
     implementation(platform(libs.androidx.compose.bom))

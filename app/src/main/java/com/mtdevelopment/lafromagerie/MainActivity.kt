@@ -1,7 +1,11 @@
 package com.mtdevelopment.lafromagerie
 
+import android.animation.ObjectAnimator
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
+import android.view.View
+import android.view.animation.OvershootInterpolator
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -38,27 +42,28 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.core.animation.doOnEnd
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import androidx.navigation.toRoute
 import com.google.android.gms.common.api.CommonStatusCodes
 import com.google.android.gms.wallet.contract.TaskResultContracts
 import com.mtdevelopment.cart.presentation.viewmodel.CartViewModel
 import com.mtdevelopment.checkout.presentation.viewmodel.CheckoutViewModel
 import com.mtdevelopment.core.presentation.MainViewModel
 import com.mtdevelopment.core.presentation.theme.ui.AppTheme
-import com.mtdevelopment.lafromagerie.navigation.DeliveryOptionScreenDestination
 import com.mtdevelopment.lafromagerie.navigation.HomeScreenDestination
 import com.mtdevelopment.lafromagerie.navigation.NavGraph
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.koin.androidx.viewmodel.ext.android.viewModel
 
 class MainActivity : ComponentActivity() {
-
-    // TODO: Add splashscreen
 
     private val checkoutViewModel: CheckoutViewModel by viewModel()
     private val cartViewModel: CartViewModel by viewModel()
@@ -83,7 +88,75 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            installSplashScreen().apply {
+                setOnExitAnimationListener { screen ->
+                    val zoomX = ObjectAnimator.ofFloat(
+                        screen.iconView,
+                        View.SCALE_X,
+                        1.0f,
+                        0.0f
+                    )
+                    val zoomY = ObjectAnimator.ofFloat(
+                        screen.iconView,
+                        View.SCALE_Y,
+                        1.0f,
+                        0.0f
+                    )
+                    zoomX.interpolator = OvershootInterpolator()
+                    zoomY.interpolator = OvershootInterpolator()
+                    zoomX.duration = 500L
+                    zoomY.duration = 500L
 
+                    val screenAnimX = ObjectAnimator.ofFloat(
+                        screen.view,
+                        View.SCALE_X,
+                        1.0f,
+                        0.0f
+                    )
+                    val screenAnimY = ObjectAnimator.ofFloat(
+                        screen.view,
+                        View.SCALE_Y,
+                        1.0f,
+                        0.0f
+                    )
+                    screenAnimX.interpolator = OvershootInterpolator()
+                    screenAnimY.interpolator = OvershootInterpolator()
+                    screenAnimX.duration = 500L
+                    screenAnimY.duration = 500L
+
+                    fun removeScreen(coroutineScope: CoroutineScope) {
+                        zoomX.doOnEnd {
+                            screen.remove()
+                            coroutineScope.cancel()
+                        }
+                        zoomX.start()
+                        zoomY.start()
+                        screenAnimX.start()
+                        screenAnimY.start()
+                    }
+
+                    lifecycleScope.launch {
+                        mainViewModel.canRemoveSplash.collect {
+                            if (it) {
+                                removeScreen(this)
+                                return@collect
+                            }
+
+                            lifecycleScope.launch {
+                                delay(5000)
+                                if (!mainViewModel.canRemoveSplash.value) {
+                                    mainViewModel.setError("Nous avons du mal à charger les fromages...")
+                                }
+                                removeScreen(this)
+                            }
+                        }
+                    }
+                }
+            }
+        } else {
+            setTheme(R.style.Theme_LaFromagerie)
+        }
         setContent {
             AppTheme {
                 val navController: NavHostController = rememberNavController()
@@ -212,7 +285,8 @@ class MainActivity : ComponentActivity() {
                         }
                     )
                     try {
-                        homeEntry = navController.getBackStackEntry(HomeScreenDestination()).destination
+                        homeEntry =
+                            navController.getBackStackEntry(HomeScreenDestination()).destination
                     } catch (e: IllegalArgumentException) {
                         homeEntry = null
                     }
