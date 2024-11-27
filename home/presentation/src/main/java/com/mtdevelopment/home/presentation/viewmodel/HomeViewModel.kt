@@ -25,7 +25,6 @@ class HomeViewModel(
         private set
 
     init {
-        homeUiState = homeUiState.copy(isLoading = true)
         viewModelScope.launch {
             getAllProducts()
         }

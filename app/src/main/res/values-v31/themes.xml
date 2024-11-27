@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+        <style name="Theme.LaFromagerie" parent="android:Theme.Material.Light.NoActionBar" />
+
+        <style name="Theme.LaFromagerie.Splash" parent="Theme.SplashScreen.IconBackground">
+                <item name="android:windowActionBar">false</item>
+                <item name="android:windowNoTitle">true</item>
+                <item name="postSplashScreenTheme">@style/Theme.LaFromagerie</item>
+                <item name="android:windowSplashScreenBehavior">icon_preferred</item>
+                <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_animation
+                </item>
+                <item name="android:windowSplashScreenBackground">
+                        @android:color/system_accent1_200
+                </item>
+        </style>
+</resources>
