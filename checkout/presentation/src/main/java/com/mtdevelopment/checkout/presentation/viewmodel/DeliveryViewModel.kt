@@ -5,7 +5,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.mtdevelopment.checkout.domain.usecase.GetAllDeliveryPathsUseCase
+import com.mtdevelopment.checkout.domain.usecase.GetDeliveryPathUseCase
 import com.mtdevelopment.checkout.domain.usecase.GetUserInfoFromDatastoreUseCase
+import com.mtdevelopment.checkout.presentation.model.toUiDeliveryPath
 import com.mtdevelopment.checkout.presentation.state.DeliveryUiDataState
 import com.mtdevelopment.core.model.DeliveryPath
 import com.mtdevelopment.core.model.UserInformation
@@ -21,7 +24,9 @@ import org.koin.core.component.KoinComponent
 class DeliveryViewModel(
     getIsConnectedUseCase: GetIsNetworkConnectedUseCase,
     getUserInfoFromDatastoreUseCase: GetUserInfoFromDatastoreUseCase,
-    private val saveToDatastoreUseCase: SaveToDatastoreUseCase
+    private val saveToDatastoreUseCase: SaveToDatastoreUseCase,
+    private val getDeliveryPathsUseCase: GetDeliveryPathUseCase,
+    private val getAllDeliveryPathsUseCase: GetAllDeliveryPathsUseCase
 ) : ViewModel(), KoinComponent {
 
     val isConnected: StateFlow<Boolean> = getIsConnectedUseCase.invoke().stateIn(
@@ -36,12 +41,13 @@ class DeliveryViewModel(
     init {
         viewModelScope.launch {
             val userInfo = getUserInfoFromDatastoreUseCase.invoke().first()
-
             deliveryUiDataState = deliveryUiDataState.copy(
                 userAddressFieldText = userInfo?.address ?: "",
                 userNameFieldText = userInfo?.name ?: "",
                 selectedPath = userInfo?.lastSelectedPath
             )
+
+            getAllDeliveryPaths()
         }
     }
 
@@ -67,6 +73,21 @@ class DeliveryViewModel(
             saveToDatastoreUseCase.invoke(deliveryDate = date)
         }
     }
+
+    private suspend fun getAllDeliveryPaths() {
+        val deliveryPaths = getAllDeliveryPathsUseCase.invoke(scope = viewModelScope,
+            onSuccess = { pathsList ->
+                deliveryUiDataState = deliveryUiDataState.copy(
+                    deliveryPaths = pathsList.mapNotNull { path ->
+                        path?.toUiDeliveryPath()
+                    }
+                )
+            },
+            onFailure = {
+                // TODO: Manage error state
+            })
+    }
+
 
     ///////////////////////////////////////////////////////////////////////////
     // DELIVERY STATE

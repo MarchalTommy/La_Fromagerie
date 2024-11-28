@@ -29,6 +29,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.google.firebase.crashlytics.FirebaseCrashlytics
 import com.mapbox.android.gestures.MoveGestureDetector
+import com.mapbox.geojson.Feature
 import com.mapbox.geojson.Point
 import com.mapbox.maps.CameraOptions
 import com.mapbox.maps.MapView
@@ -38,6 +39,10 @@ import com.mapbox.maps.extension.compose.MapboxMap
 import com.mapbox.maps.extension.compose.animation.viewport.rememberMapViewportState
 import com.mapbox.maps.extension.compose.style.standard.MapboxStandardStyle
 import com.mapbox.maps.extension.compose.style.styleImportsConfig
+import com.mapbox.maps.extension.style.layers.generated.lineLayer
+import com.mapbox.maps.extension.style.layers.properties.generated.LineCap
+import com.mapbox.maps.extension.style.layers.properties.generated.LineJoin
+import com.mapbox.maps.extension.style.sources.generated.geoJsonSource
 import com.mapbox.maps.logI
 import com.mapbox.maps.plugin.animation.MapAnimationOptions
 import com.mapbox.maps.plugin.animation.camera
@@ -135,6 +140,24 @@ fun MapBoxComposable(
                             map.value?.mapboxMap?.loadStyle(
                                 chosenPath.mapStyle
                             ) {
+                                // TODO: Get GeoJSON from OPEN_ROUTE and split it to individual Feature json
+
+//                                it.addGeoJSONSourceFeatures(
+//                                    "test",
+//                                    "asset://from_crema_to_council_crest.geojson",
+//                                    listOf(
+////                                        Feature.fromJson()
+//                                    )
+//                                )
+//
+//
+//                                lineLayer("linelayer", "test") {
+//                                    lineCap(LineCap.ROUND)
+//                                    lineJoin(LineJoin.ROUND)
+//                                    lineOpacity(0.7)
+//                                    lineWidth(8.0)
+//                                    lineColor("#888")
+//                                }
                                 zoomOnSelectedPathMainCity(
                                     map.value,
                                     nw,
@@ -142,6 +165,7 @@ fun MapBoxComposable(
                                     animatorListener
                                 )
                             }
+
                         }
                     }
                 )
@@ -163,8 +187,11 @@ fun MapBoxComposable(
     }
 
     Card(
-        modifier = Modifier.heightIn(min = 0.dp, max = (screenSize.height / 5) * 2)
-            .fillMaxWidth().padding(4.dp).focusable(true),
+        modifier = Modifier
+            .heightIn(min = 0.dp, max = (screenSize.height / 5) * 2)
+            .fillMaxWidth()
+            .padding(4.dp)
+            .focusable(true),
         colors = CardColors(
             containerColor = MaterialTheme.colorScheme.primaryContainer,
             contentColor = MaterialTheme.colorScheme.contentColorFor(MaterialTheme.colorScheme.primaryContainer),
@@ -174,7 +201,9 @@ fun MapBoxComposable(
         elevation = CardDefaults.elevatedCardElevation()
     ) {
         Card(
-            modifier = Modifier.padding(8.dp).fillMaxSize(),
+            modifier = Modifier
+                .padding(8.dp)
+                .fillMaxSize(),
             elevation = CardDefaults.elevatedCardElevation()
         ) {
             MapboxMap(

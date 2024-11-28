@@ -65,6 +65,30 @@ import org.koin.androidx.viewmodel.ext.android.viewModel
 
 class MainActivity : ComponentActivity() {
 
+    // TODO: MOVE GEOCODER TO DOMAIN, OR EVEN DATA ! NOTHING TO DO IN PRESENTATION...
+
+    // TODO: First launch ->
+    /**
+     * At first launch, default path are into firestore, so app sync with it when reaching delivery,
+     * and use them to call for Open Route to get the geoJson of the path.
+     * App stores it to be able to use it from delivery screen.
+     *
+     * We NEED to store a timestamp from database update time
+     */
+
+    // TODO: Next launches ->
+    /**
+     * As long as database path timestamp has not moved, no fetch.
+     * when reaching delivery, call Room to get saved paths and draw the geoJson associated with them
+     */
+
+    // TODO: If update ->
+    /**
+     * IF timstamp changed,
+     * when reaching delivery, update paths from firestore again, and do like first launch
+     */
+
+
     private val checkoutViewModel: CheckoutViewModel by viewModel()
     private val cartViewModel: CartViewModel by viewModel()
     private val mainViewModel: MainViewModel by viewModel()

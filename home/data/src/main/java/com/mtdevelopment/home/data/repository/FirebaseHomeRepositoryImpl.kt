@@ -1,9 +1,8 @@
 package com.mtdevelopment.home.data.repository
 
-import com.mtdevelopment.core.model.toProduct
-import com.mtdevelopment.core.model.toProductData
-import com.mtdevelopment.home.data.source.remote.FirestoreDatabase
 import com.mtdevelopment.core.model.Product
+import com.mtdevelopment.core.model.toProduct
+import com.mtdevelopment.home.data.source.remote.FirestoreDatabase
 import com.mtdevelopment.home.domain.repository.FirebaseHomeRepository
 
 class FirebaseHomeRepositoryImpl(
@@ -22,10 +21,14 @@ class FirebaseHomeRepositoryImpl(
         }, onFailure)
     }
 
-    override fun getLastDatabaseUpdate(onSuccess: (Long) -> Unit, onFailure: () -> Unit) {
+    override fun getLastDatabaseUpdate(
+        onSuccess: (products: Long, paths: Long) -> Unit,
+        onFailure: () -> Unit
+    ) {
         firestore.getLastDatabaseUpdate(onSuccess = { timestamp ->
-            val result = timestamp.toInstant().toEpochMilli()
-            onSuccess.invoke(result)
+            val productResult = timestamp.productsTimestamp
+            val pathResult = timestamp.pathsTimestamp
+            onSuccess(productResult, pathResult)
         }, onFailure = {
             onFailure.invoke()
         })
