@@ -1,9 +1,12 @@
 package com.mtdevelopment.home.domain.usecase
 
+import android.content.ContentValues.TAG
+import android.util.Log
 import com.mtdevelopment.core.repository.SharedDatastore
 import com.mtdevelopment.home.domain.repository.FirebaseHomeRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 
 class GetLastFirestoreDatabaseUpdateUseCase(
     private val firebaseHomeRepository: FirebaseHomeRepository,
@@ -29,31 +32,36 @@ class GetLastFirestoreDatabaseUpdateUseCase(
             }, onFailure
         )
 
-        lastProductUpdate.combine(lastPathUpdate) { product, path ->
-            Pair(product, path)
+        newProductUpdateTimestamp.combine(newPathUpdateTimestamp) { newProductTimestamp, newPathTimestamp ->
+            Pair(newProductTimestamp, newPathTimestamp)
         }.collect { pair ->
-            val product = pair.first
-            val path = pair.second
+            val productTimestamp = pair.first
+            val pathTimestamp = pair.second
 
-            // IF NOT SAME AS PREVIOUS ONES, SET REFRESH FLAG
-            if (product != newProductUpdateTimestamp.value || product == 0L) {
-                shouldRefreshProducts.tryEmit(true)
+            if (newProductUpdateTimestamp.value != 0L && newPathUpdateTimestamp.value != 0L) {
+                // IF NOT SAME AS PREVIOUS ONES, SET REFRESH FLAG
+                if (lastProductUpdate.first() != productTimestamp || lastProductUpdate.first() == 0L) {
+                    shouldRefreshProducts.tryEmit(true)
+                }
+
+                if (lastPathUpdate.first() != pathTimestamp || lastPathUpdate.first() == 0L) {
+                    shouldRefreshPaths.tryEmit(true)
+                }
+
+                // UPDATE REFRESH FLAGS
+                sharedDatastore.setShouldRefreshProducts(shouldRefreshProducts.value)
+                sharedDatastore.setShouldRefreshPaths(shouldRefreshProducts.value)
+
+                // UPDATE SAVED TIMESTAMPS
+                sharedDatastore.lastFirestoreProductsUpdate(newProductUpdateTimestamp.value)
+                sharedDatastore.lastFirestorePathsUpdate(newPathUpdateTimestamp.value)
+
+                Log.i(
+                    TAG,
+                    "SHOULD UPDATE PRODUCT : ${shouldRefreshProducts.value}\nSHOULD UPDATE PATH : ${shouldRefreshPaths.value}"
+                )
+                onSuccess.invoke()
             }
-
-            if (path != newPathUpdateTimestamp.value || path == 0L) {
-                shouldRefreshPaths.tryEmit(true)
-            }
-
-            // UPDATE REFRESH FLAGS
-            sharedDatastore.setShouldRefreshProducts(shouldRefreshProducts.value)
-            sharedDatastore.setShouldRefreshPaths(shouldRefreshProducts.value)
-
-            // UPDATE SAVED TIMESTAMPS
-            sharedDatastore.lastFirestoreProductsUpdate(newProductUpdateTimestamp.value)
-            sharedDatastore.lastFirestorePathsUpdate(newPathUpdateTimestamp.value)
-
-            onSuccess.invoke()
         }
-
     }
 }
