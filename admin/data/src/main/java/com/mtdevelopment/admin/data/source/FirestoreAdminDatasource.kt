@@ -1,8 +1,10 @@
 package com.mtdevelopment.admin.data.source
 
+import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FirebaseFirestore
 import com.mtdevelopment.admin.data.model.DataDeliveryPath
-import com.mtdevelopment.core.model.*
+import com.mtdevelopment.core.model.ProductData
+import java.time.Instant
 
 class FirestoreAdminDatasource(
     private val firestore: FirebaseFirestore
@@ -28,10 +30,11 @@ class FirestoreAdminDatasource(
             .delete()
     }
 
+    // TODO: FIX THAT HELL
     fun saveNewDatabaseProductUpdate(timestamp: Long) {
         firestore.collection("database_update")
-            .document("last_database_update")
-            .set(mapOf("products_timestamp" to timestamp))
+            .document("products_timestamp")
+            .set(mapOf("last_update" to Timestamp(Instant.ofEpochMilli(timestamp))))
     }
 
 
@@ -49,9 +52,10 @@ class FirestoreAdminDatasource(
             .set(path)
     }
 
+    // TODO: FIX THAT HELL
     fun saveNewDatabasePathsUpdate(timestamp: Long) {
         firestore.collection("database_update")
-            .document("last_database_update")
-            .set(mapOf("path_timestamp" to timestamp))
+            .document("path_timestamp")
+            .set(mapOf("last_update" to Timestamp(Instant.ofEpochMilli(timestamp))))
     }
 }

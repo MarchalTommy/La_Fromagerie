@@ -64,17 +64,25 @@ class FirestoreDatabase(
 
     fun getLastDatabaseUpdate(onSuccess: (FirestoreUpdateData) -> Unit, onFailure: () -> Unit) {
         firestore.collection("database_update")
-            .document("last_database_update")
             .get()
             .addOnSuccessListener { snapshot ->
-                onSuccess.invoke(
-                    FirestoreUpdateData(
-                        productsTimestamp = (snapshot.data?.get("products_timestamp") as? Timestamp)?.toInstant()
-                            ?.toEpochMilli()
-                            ?: 0L,
-                        pathsTimestamp = (snapshot.data?.get("path_timestamp") as? Timestamp)?.toInstant()
+                var productTimestamp = 0L
+                var pathTimestamp = 0L
+                snapshot.documents.map { document ->
+                    if (document.id == "products_timestamp") productTimestamp =
+                        (document.data?.get("last_update") as? Timestamp)?.toInstant()
                             ?.toEpochMilli()
                             ?: 0L
+
+                    if (document.id == "path_timestamp") pathTimestamp =
+                        (document.data?.get("last_update") as? Timestamp)?.toInstant()
+                            ?.toEpochMilli()
+                            ?: 0L
+                }
+                onSuccess.invoke(
+                    FirestoreUpdateData(
+                        productsTimestamp = productTimestamp,
+                        pathsTimestamp = pathTimestamp
                     )
                 )
             }.addOnFailureListener {

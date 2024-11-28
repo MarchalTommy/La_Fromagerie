@@ -47,6 +47,7 @@ class DeliveryViewModel(
                 selectedPath = userInfo?.lastSelectedPath
             )
 
+            // TODO: manage loading during delivery path fetching + geocoding + drawing
             getAllDeliveryPaths()
         }
     }
