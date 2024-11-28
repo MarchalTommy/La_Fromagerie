@@ -65,8 +65,6 @@ import org.koin.androidx.viewmodel.ext.android.viewModel
 
 class MainActivity : ComponentActivity() {
 
-    // TODO: Repair the cart. Visuals do not update when adding or removing products
-
     private val checkoutViewModel: CheckoutViewModel by viewModel()
     private val cartViewModel: CartViewModel by viewModel()
     private val mainViewModel: MainViewModel by viewModel()

@@ -6,6 +6,7 @@ import android.util.Log
 import androidx.annotation.Keep
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
@@ -114,15 +115,51 @@ class SharedDatastoreImpl(private val context: Context) : SharedDatastore {
         }
     }
 
-    private val LAST_FIRESTORE_UPDATE_TIMESTAMP = longPreferencesKey("firestore_update_timestamp")
-    override val lastFirestoreUpdateTimeStamp: Flow<Long>
+    private val LAST_FIRESTORE_PRODUCT_UPDATE = longPreferencesKey("firestore_product_update")
+    override val lastFirestoreProductsUpdate: Flow<Long>
         get() = context.dataStore.data.map {
-            it[LAST_FIRESTORE_UPDATE_TIMESTAMP] ?: 0L
+            it[LAST_FIRESTORE_PRODUCT_UPDATE] ?: 0L
         }
 
-    override suspend fun lastFirestoreUpdateTimestamp(timestamp: Long) {
+    override suspend fun lastFirestoreProductsUpdate(timestamp: Long) {
         context.dataStore.edit {
-            it[LAST_FIRESTORE_UPDATE_TIMESTAMP] = timestamp
+            it[LAST_FIRESTORE_PRODUCT_UPDATE] = timestamp
+        }
+    }
+
+    private val LAST_FIRESTORE_PATH_UPDATE = longPreferencesKey("firestore_path_update")
+    override val lastFirestorePathsUpdate: Flow<Long>
+        get() = context.dataStore.data.map {
+            it[LAST_FIRESTORE_PATH_UPDATE] ?: 0L
+        }
+
+    override suspend fun lastFirestorePathsUpdate(timestamp: Long) {
+        context.dataStore.edit {
+            it[LAST_FIRESTORE_PATH_UPDATE] = timestamp
+        }
+    }
+
+    private val SHOULD_REFRESH_PRODUCTS = booleanPreferencesKey("should_refresh_products")
+    override val shouldRefreshProducts: Flow<Boolean>
+        get() = context.dataStore.data.map {
+            it[SHOULD_REFRESH_PRODUCTS] ?: true
+        }
+
+    override suspend fun setShouldRefreshProducts(shouldRefresh: Boolean) {
+        context.dataStore.edit {
+            it[SHOULD_REFRESH_PRODUCTS] = shouldRefresh
+        }
+    }
+
+    private val SHOULD_REFRESH_PATHS = booleanPreferencesKey("should_refresh_paths")
+    override val shouldRefreshPaths: Flow<Boolean>
+        get() = context.dataStore.data.map {
+            it[SHOULD_REFRESH_PATHS] ?: true
+        }
+
+    override suspend fun setShouldRefreshPaths(shouldRefresh: Boolean) {
+        context.dataStore.edit {
+            it[SHOULD_REFRESH_PATHS] = shouldRefresh
         }
     }
 

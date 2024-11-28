@@ -3,7 +3,7 @@ package com.mtdevelopment.home.data.source.local
 import com.mtdevelopment.home.data.model.ProductEntity
 import com.mtdevelopment.home.data.source.local.dao.HomeDao
 
-class HomeDatabaseDatasource(
+class HomeDatabase(
     private val dao: HomeDao
 ) {
 
