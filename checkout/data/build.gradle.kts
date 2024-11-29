@@ -38,6 +38,11 @@ android {
         val GOOGLE_PAY_ID = System.getenv("GOOGLE_PAY_ID") ?: project.findProperty("GOOGLE_PAY_ID")
             ?.toString()
         buildConfigField("String", "GOOGLE_PAY_ID", "\"$GOOGLE_PAY_ID\"")
+
+        val OPEN_ROUTE_TOKEN =
+            System.getenv("OPEN_ROUTE_TOKEN") ?: project.findProperty("OPEN_ROUTE_TOKEN")
+        buildConfigField("String", "OPEN_ROUTE_TOKEN", "\"$OPEN_ROUTE_TOKEN\"")
+
     }
 
     buildTypes {
@@ -96,6 +101,8 @@ dependencies {
     implementation(libs.ktor.client.auth)
     implementation(libs.ktor.content.negociation)
     implementation(libs.ktor.serialization.json)
+
+    implementation(libs.mapbox.geojson)
 
     implementation(libs.datastore.preferences)
     implementation(platform(libs.firebase.bom))

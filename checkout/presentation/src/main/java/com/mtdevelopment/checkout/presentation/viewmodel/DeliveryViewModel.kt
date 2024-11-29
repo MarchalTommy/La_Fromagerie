@@ -40,6 +40,9 @@ class DeliveryViewModel(
 
     init {
         viewModelScope.launch {
+            // TODO: manage loading during delivery path fetching + geocoding + drawing
+            getAllDeliveryPaths()
+
             val userInfo = getUserInfoFromDatastoreUseCase.invoke().first()
             deliveryUiDataState = deliveryUiDataState.copy(
                 userAddressFieldText = userInfo?.address ?: "",
@@ -47,8 +50,6 @@ class DeliveryViewModel(
                 selectedPath = userInfo?.lastSelectedPath
             )
 
-            // TODO: manage loading during delivery path fetching + geocoding + drawing
-            getAllDeliveryPaths()
         }
     }
 
@@ -76,7 +77,7 @@ class DeliveryViewModel(
     }
 
     private suspend fun getAllDeliveryPaths() {
-        val deliveryPaths = getAllDeliveryPathsUseCase.invoke(scope = viewModelScope,
+        getAllDeliveryPathsUseCase.invoke(scope = viewModelScope,
             onSuccess = { pathsList ->
                 deliveryUiDataState = deliveryUiDataState.copy(
                     deliveryPaths = pathsList.mapNotNull { path ->
