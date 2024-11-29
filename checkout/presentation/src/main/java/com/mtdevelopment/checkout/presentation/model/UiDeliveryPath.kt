@@ -1,13 +1,13 @@
 package com.mtdevelopment.checkout.presentation.model
 
-import kotlinx.serialization.json.Json
-import org.json.JSONObject
+import com.mapbox.geojson.GeoJson
+import com.mapbox.geojson.gson.GeometryGeoJson
 
 data class UiDeliveryPath(
     val id: String,
     val name: String,
     val cities: List<String>,
-    val geoJson: JSONObject
+    val geoJson: GeoJson
 )
 
 fun com.mtdevelopment.checkout.domain.model.DeliveryPath.toUiDeliveryPath(): UiDeliveryPath {
@@ -15,6 +15,6 @@ fun com.mtdevelopment.checkout.domain.model.DeliveryPath.toUiDeliveryPath(): UiD
         id = this.pathName,
         name = this.pathName,
         cities = this.availableCities.toList(),
-        geoJson = Json.decodeFromString<JSONObject>(geoJson)
+        geoJson = GeometryGeoJson.fromJson(this.geoJson)
     )
 }

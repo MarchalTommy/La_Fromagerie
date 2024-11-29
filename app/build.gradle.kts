@@ -49,11 +49,6 @@ android {
         vectorDrawables {
             useSupportLibrary = true
         }
-
-        val OPEN_ROUTE_TOKEN =
-            System.getenv("OPEN_ROUTE_TOKEN") ?: project.findProperty("OPEN_ROUTE_TOKEN")
-        buildConfigField("String", "OPEN_ROUTE_TOKEN", "\"$OPEN_ROUTE_TOKEN\"")
-
     }
 
     buildTypes {

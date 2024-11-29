@@ -1,11 +1,11 @@
 package com.mtdevelopment.lafromagerie.di
 
 import android.app.Application
+import android.location.Geocoder
 import androidx.room.Room
 import com.google.firebase.Firebase
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.firestore
-import com.mtdevelopment.admin.data.model.OPEN_ROUTE_BASE_URL
 import com.mtdevelopment.admin.data.repository.FirebaseAdminRepositoryImpl
 import com.mtdevelopment.admin.data.source.FirestoreAdminDatasource
 import com.mtdevelopment.admin.domain.repository.FirebaseAdminRepository
@@ -14,9 +14,12 @@ import com.mtdevelopment.admin.domain.usecase.DeleteProductUseCase
 import com.mtdevelopment.admin.domain.usecase.UpdateProductUseCase
 import com.mtdevelopment.admin.presentation.viewmodel.AdminViewModel
 import com.mtdevelopment.cart.presentation.viewmodel.CartViewModel
+import com.mtdevelopment.checkout.data.BuildConfig
 import com.mtdevelopment.checkout.data.local.CheckoutDatastorePreferenceImpl
-import com.mtdevelopment.checkout.data.remote.model.Constants
+import com.mtdevelopment.checkout.data.remote.model.Constants.OPEN_ROUTE_BASE_URL
+import com.mtdevelopment.checkout.data.remote.model.Constants.OPEN_ROUTE_BASE_URL_WITHOUT_HTTPS
 import com.mtdevelopment.checkout.data.remote.source.FirestoreDataSource
+import com.mtdevelopment.checkout.data.remote.source.OpenRouteDataSource
 import com.mtdevelopment.checkout.data.remote.source.SumUpDataSource
 import com.mtdevelopment.checkout.data.remote.source.local.DeliveryDatabase
 import com.mtdevelopment.checkout.data.remote.source.local.dao.DeliveryDao
@@ -61,7 +64,6 @@ import com.mtdevelopment.home.domain.usecase.GetAllCheesesUseCase
 import com.mtdevelopment.home.domain.usecase.GetAllProductsUseCase
 import com.mtdevelopment.home.domain.usecase.GetLastFirestoreDatabaseUpdateUseCase
 import com.mtdevelopment.home.presentation.viewmodel.HomeViewModel
-import com.mtdevelopment.lafromagerie.BuildConfig
 import com.mtdevelopment.lafromagerie.FromagerieDatabase
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
@@ -84,10 +86,11 @@ import org.koin.dsl.module
 fun appModule() = listOf(
     mainAppModule,
     provideDatastore,
-    provideSumUpHttpClientModule,
-    provideOpenRouteHttpClientModule,
+    provideHttpClientModule,
     provideFirebaseDatabase,
-    provideRoomFromagerieDatabase
+    provideRoomFromagerieDatabase,
+    provideGeocoder,
+    provideOpenRouteDatasource
 )
 
 val mainAppModule = module {
@@ -101,7 +104,7 @@ val mainAppModule = module {
 
     single<FirebaseAdminRepository> { FirebaseAdminRepositoryImpl(get()) }
 
-    single<FirestorePathRepository> { FirestorePathRepositoryImpl(get()) }
+    single<FirestorePathRepository> { FirestorePathRepositoryImpl(get(), get()) }
 
     factory { GetCheckoutDataUseCase(get()) }
     factory { SaveToDatastoreUseCase(get()) }
@@ -142,50 +145,15 @@ val mainAppModule = module {
     single { AdminViewModel(get(), get(), get()) }
 }
 
-val provideSumUpHttpClientModule = module {
+val provideHttpClientModule = module {
     single {
         // TODO: DETERMINE IF MANUAL HEADER IS NEEDED
         HttpClient(CIO) {
-            install(Logging) {
-                logger = Logger.ANDROID
-                level = LogLevel.ALL
-                sanitizeHeader { header -> header == HttpHeaders.Authorization }
-            }
             install(DefaultRequest) {
                 url {
                     protocol = URLProtocol.HTTPS
-                    host = Constants.BASE_URL_WITHOUT_HTTPS
+                    host = OPEN_ROUTE_BASE_URL_WITHOUT_HTTPS
                 }
-            }
-            install(ContentNegotiation) {
-                json(Json {
-                    prettyPrint = true
-                    isLenient = true
-                })
-            }
-        }
-    }
-}
-
-val provideOpenRouteHttpClientModule = module {
-    single {
-        HttpClient(CIO) {
-            install(Logging) {
-                logger = Logger.ANDROID
-                level = LogLevel.ALL
-                sanitizeHeader { header -> header == HttpHeaders.Authorization }
-            }
-            install(DefaultRequest) {
-                url {
-                    protocol = URLProtocol.HTTPS
-                    host = OPEN_ROUTE_BASE_URL
-                }
-            }
-            install(ContentNegotiation) {
-                json(Json {
-                    prettyPrint = true
-                    isLenient = true
-                })
             }
             install(Auth) {
                 bearer {
@@ -193,6 +161,17 @@ val provideOpenRouteHttpClientModule = module {
                         BearerTokens(BuildConfig.OPEN_ROUTE_TOKEN, null)
                     }
                 }
+            }
+            install(Logging) {
+                logger = Logger.ANDROID
+                level = LogLevel.ALL
+                sanitizeHeader { header -> header == HttpHeaders.Authorization }
+            }
+            install(ContentNegotiation) {
+                json(Json {
+                    prettyPrint = true
+                    isLenient = true
+                })
             }
         }
     }
@@ -208,6 +187,14 @@ val provideFirebaseDatabase = module {
     single<FirestoreDatabase> { FirestoreDatabase(get()) }
     single<FirestoreAdminDatasource> { FirestoreAdminDatasource(get()) }
     single<FirestoreDataSource> { FirestoreDataSource(get()) }
+}
+
+val provideOpenRouteDatasource = module {
+    single<OpenRouteDataSource> { OpenRouteDataSource(get(), get()) }
+}
+
+val provideGeocoder = module {
+    single { Geocoder(get()) }
 }
 
 val provideRoomFromagerieDatabase = module {

@@ -29,6 +29,7 @@ room = "2.6.1"
 serialization = "1.7.3"
 navigation-common-ktx = "2.8.4"
 mapbox = "11.6.1"
+mapbox-geojson = "7.3.1"
 location = "21.3.0"
 contentment = "2.0.1"
 crashlytics = "3.0.2"
@@ -135,6 +136,7 @@ androidx-navigation-common-ktx = { group = "androidx.navigation", name = "naviga
 ## Map
 mapbox = { module = "com.mapbox.maps:android", version.ref = "mapbox" }
 mapbox-extension = { module = "com.mapbox.extension:maps-compose", version.ref = "mapbox" }
+mapbox-geojson = { module = "com.mapbox.mapboxsdk:mapbox-sdk-geojson", version.ref = "mapbox-geojson" }
 
 
 ## Permissions
@@ -157,5 +159,5 @@ androidLibrary = { id = "com.android.library", version.ref = "agp" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 firebase-crashlytics-plugin = { id = "com.google.firebase.crashlytics", version.ref = "crashlytics" }
 google-service = { id = "com.google.gms.google-services", version.ref = "google-service" }
-ksp = {id = "com.google.devtools.ksp", version.ref = "ksp"}
+ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 

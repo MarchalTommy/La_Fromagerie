@@ -15,8 +15,8 @@ class FirestoreDataSource(
             .addOnSuccessListener {
                 onSuccess.invoke(it.documents.map { item ->
                     DataDeliveryPathsResponse(
-                        pathName = item.data?.get("pathName").toString(),
-                        availableCities = item.data?.get("availableCities") as? List<String>
+                        pathName = item.data?.get("path_name").toString(),
+                        availableCities = item.data?.get("cities") as? List<String>
                             ?: emptyList()
                     )
                 })
