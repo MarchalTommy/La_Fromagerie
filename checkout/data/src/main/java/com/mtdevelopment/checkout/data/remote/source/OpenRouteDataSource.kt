@@ -3,6 +3,7 @@ package com.mtdevelopment.checkout.data.remote.source
 import android.location.Geocoder
 import android.os.Build
 import com.mapbox.geojson.GeoJson
+import com.mapbox.geojson.gson.GeometryGeoJson
 import com.mtdevelopment.checkout.data.BuildConfig
 import com.mtdevelopment.checkout.data.remote.model.Constants.OPEN_ROUTE_BASE_URL_WITHOUT_HTTPS
 import com.mtdevelopment.checkout.data.remote.model.request.OpenRouteRequest
@@ -14,15 +15,18 @@ import io.ktor.client.plugins.DefaultRequest
 import io.ktor.client.plugins.auth.Auth
 import io.ktor.client.plugins.auth.providers.BearerTokens
 import io.ktor.client.plugins.auth.providers.bearer
+import io.ktor.client.request.header
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.http.ContentType
+import io.ktor.http.HttpHeaders
 import io.ktor.http.URLProtocol
 import io.ktor.http.contentType
 import io.ktor.http.path
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 import kotlin.coroutines.resume
@@ -54,22 +58,24 @@ class OpenRouteDataSource(
         cities: List<String>,
         onSuccess: (NetWorkResult<GeoJson>) -> Unit
     ) {
+        // TODO: FIX ISSUES ON NEW API ->
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             CoroutineScope(Dispatchers.IO).launch {
                 val pairs = listOf(
                     async {
                         suspendCoroutine { coroutine ->
-                            cities.forEach {
-                                geocoder.getFromLocationName(it, 1) { response ->
+                            cities.forEach { city ->
+                                geocoder.getFromLocationName(city, 1) { response ->
                                     coroutine.resume(
-                                        Pair(response.first().longitude, response.first().latitude)
+                                        Pair(response.first().latitude, response.first().longitude)
                                     )
                                 }
                             }
                         }
-                    }.await()
+                    }
                 )
-                getGeoJsonForLngLatList(pairs).collect {
+                val allPairs = pairs.awaitAll()
+                getGeoJsonForLngLatList(allPairs).collect {
                     if (it is NetWorkResult.Success) {
                         onSuccess.invoke(
                             it
@@ -78,6 +84,7 @@ class OpenRouteDataSource(
                 }
             }
         } else {
+            // TODO: THIS WORKS (ALMOST)
             try {
                 val listOfAddresses = cities.map {
                     geocoder.getFromLocationName(
@@ -104,20 +111,25 @@ class OpenRouteDataSource(
         }
     }
 
-    // TODO: FIX ISSUES CAUSED BY [0.0,0.0] and by wrong found cities (like bonnevaux).
+    // TODO: FIX ISSUES CAUSED BY wrong found cities (like bonnevaux).
     //  To check, use this body in the website while logged in:
     /**
      * {"coordinates": [ [0.748823, 47.812453000000005],[6.250878,46.810742],[6.289816999999999,46.826462899999996],[6.331523,46.854427],[6.303637999999999,46.81365400000001],[6.282316,46.774381],[0.0,0.0],[6.3505519999999995,46.773705],[6.316812,46.753914],[6.293718999999999,46.745706999999996],[6.192737999999999,46.710085899999996],[6.1265719999999995,46.791678999999995]]}
      */
     private fun getGeoJsonForLngLatList(lngLatList: List<Pair<Double, Double>>): Flow<NetWorkResult<GeoJson>> {
-        val listOfList = lngLatList.map { pairs ->
-            listOf(pairs.second, pairs.first)
+        val filteredList = lngLatList.filter { it.first != 0.0 || it.second != 0.0 }
+        val listOfList = filteredList.map { pair ->
+            listOf(pair.second, pair.first)
         }
         return toResultFlow {
             val response = httpClient.post {
                 url {
                     protocol = URLProtocol.HTTPS
                     host = OPEN_ROUTE_BASE_URL_WITHOUT_HTTPS
+                    header(
+                        HttpHeaders.Accept,
+                        "application/json, application/geo+json, application/gpx+xml, img/png; charset=utf-8"
+                    )
                     path(
                         "/v2/directions/driving-car/geojson"
                     )
@@ -126,8 +138,8 @@ class OpenRouteDataSource(
                         OpenRouteRequest(coordinates = listOfList)
                     )
                 }
-            }.body<GeoJson?>()
-            NetWorkResult.Success(response)
+            }.body<String?>()
+            NetWorkResult.Success(GeometryGeoJson.fromJson(response ?: ""))
         }
     }
 }
