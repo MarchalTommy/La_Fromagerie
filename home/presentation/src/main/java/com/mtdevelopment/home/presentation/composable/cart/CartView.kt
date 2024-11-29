@@ -89,15 +89,15 @@ fun CartView(
                     Animatable(1f)
                 }
                 CartItem(
-                    Modifier
+                    modifier = Modifier
                         .animateItemPlacement(
                             animationSpec = tween(800)
                         )
                         .alpha(itemVisibility.value),
-                    it,
+                    item = it.copy(quantity = state?.cartObject?.content?.find { searched -> searched.id == it.id }?.quantity!!),
                     onAddMore = {
                         vibratePhoneClick(context)
-                        cartViewModel?.addCartObject(it)
+                        cartViewModel.addCartObject(it)
                     },
                     onRemoveOne = {
                         vibratePhoneClick(context)
@@ -107,9 +107,9 @@ fun CartView(
                                     targetValue = 0f,
                                     animationSpec = tween(200)
                                 )
-                                cartViewModel?.totallyRemoveObject(it)
+                                cartViewModel.totallyRemoveObject(it)
                             } else {
-                                cartViewModel?.removeCartObject(it)
+                                cartViewModel.removeCartObject(it)
                             }
                         }
                     }
