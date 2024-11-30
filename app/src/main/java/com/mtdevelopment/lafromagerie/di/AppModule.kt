@@ -85,6 +85,7 @@ import org.koin.dsl.module
 
 fun appModule() = listOf(
     mainAppModule,
+    provideJson,
     provideDatastore,
     provideHttpClientModule,
     provideFirebaseDatabase,
@@ -177,6 +178,15 @@ val provideHttpClientModule = module {
     }
 }
 
+val provideJson = module {
+    single<Json> {
+        Json {
+            encodeDefaults = true
+            ignoreUnknownKeys = true
+        }
+    }
+}
+
 val provideDatastore = module {
     single<CheckoutDatastorePreference> { CheckoutDatastorePreferenceImpl(get()) }
     single<SharedDatastore> { SharedDatastoreImpl(get()) }
@@ -190,7 +200,7 @@ val provideFirebaseDatabase = module {
 }
 
 val provideOpenRouteDatasource = module {
-    single<OpenRouteDataSource> { OpenRouteDataSource(get(), get()) }
+    single<OpenRouteDataSource> { OpenRouteDataSource(get(), get(), get()) }
 }
 
 val provideGeocoder = module {

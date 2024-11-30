@@ -3,6 +3,7 @@ package com.mtdevelopment.checkout.data.repository
 import com.mtdevelopment.checkout.data.remote.source.FirestoreDataSource
 import com.mtdevelopment.checkout.data.remote.source.OpenRouteDataSource
 import com.mtdevelopment.checkout.domain.model.DeliveryPath
+import com.mtdevelopment.checkout.domain.model.GeoJsonFeatureCollection
 import com.mtdevelopment.checkout.domain.repository.FirestorePathRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -52,7 +53,7 @@ class FirestorePathRepositoryImpl(
                                                 id = path.id,
                                                 pathName = path.pathName,
                                                 availableCities = path.availableCities,
-                                                geoJson = geoJsonResult.data.toString()
+                                                geoJson = geoJsonResult.data
                                             )
                                         )
                                     }
@@ -85,7 +86,7 @@ class FirestorePathRepositoryImpl(
                             id = path.id,
                             pathName = path.pathName,
                             availableCities = path.availableCities,
-                            geoJson = ""
+                            geoJson = null
                         )
                     )
                 } else {
