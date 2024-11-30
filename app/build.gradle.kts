@@ -16,21 +16,25 @@ android {
         create("release") {
             keyAlias = System.getenv("KEYSTORE_ALIAS") ?: project.findProperty("KEYSTORE_ALIAS")
                 ?.toString()
-            println(keyAlias)
+            println("Alias hidden, go to code and uncomment to find it back")
+//            println(keyAlias)
             keyPassword =
                 System.getenv("KEYSTORE_ALIAS_PASS") ?: project.findProperty("KEYSTORE_ALIAS_PASS")
                     ?.toString()
-            println(keyPassword)
+            println("Alias Pass hidden, go to code and uncomment to find it back")
+//            println(keyPassword)
             storeFile =
                 (System.getenv("KEYSTORE_PATH") ?: project.findProperty("KEYSTORE_PATH"))?.let {
                     file(
                         it
                     )
                 }
-            println(storeFile)
+            println("StoreFile Hidden, go to code and uncomment to find it back")
+//            println(storeFile)
             storePassword =
                 System.getenv("KEYSTORE_PASS") ?: (project.findProperty("KEYSTORE_PASS") as? String)
-            println(storePassword)
+            println("Keystore pass hidden, go to code and uncomment to find it back")
+//            println(storePassword)
         }
     }
     defaultConfig {
