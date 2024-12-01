@@ -41,6 +41,7 @@ import com.mtdevelopment.cart.presentation.viewmodel.CartViewModel
 import com.mtdevelopment.core.presentation.MainViewModel
 import com.mtdevelopment.core.presentation.composable.RiveAnimation
 import com.mtdevelopment.core.presentation.sharedModels.UiProductObject
+import com.mtdevelopment.core.presentation.util.VARIANT
 import com.mtdevelopment.home.presentation.composable.cart.CartView
 import com.mtdevelopment.home.presentation.viewmodel.HomeViewModel
 import kotlinx.coroutines.launch
@@ -182,22 +183,24 @@ fun HomeScreen(
             }
         }
 
-        FloatingActionButton(
-            modifier = Modifier
-                .padding(32.dp)
-                .align(Alignment.BottomStart)
-                .border(
-                    3.dp,
-                    color = MaterialTheme.colorScheme.tertiary,
-                    shape = RoundedCornerShape(16.dp)
-                ),
-            containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-            contentColor = MaterialTheme.colorScheme.tertiary,
-            onClick = {
-                showAddNewProductDialog = true
+        if (VARIANT == "admin") {
+            FloatingActionButton(
+                modifier = Modifier
+                    .padding(32.dp)
+                    .align(Alignment.BottomStart)
+                    .border(
+                        3.dp,
+                        color = MaterialTheme.colorScheme.tertiary,
+                        shape = RoundedCornerShape(16.dp)
+                    ),
+                containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                contentColor = MaterialTheme.colorScheme.tertiary,
+                onClick = {
+                    showAddNewProductDialog = true
+                }
+            ) {
+                Icon(imageVector = Icons.Default.Add, contentDescription = "Add a product")
             }
-        ) {
-            Icon(imageVector = Icons.Default.Add, contentDescription = "Add a product")
         }
 
         if (cartState.isCartVisible) {

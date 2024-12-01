@@ -6,6 +6,7 @@ import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -24,6 +25,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -99,6 +101,41 @@ fun ProductEditDialog(
                     .focusable(true),
                 verticalArrangement = Arrangement.Center
             ) {
+
+                if (onDelete != null) {
+                    Row(
+                        modifier = Modifier
+                            .clickable {
+                                if (!deleteFirstClick.value) {
+                                    deleteFirstClick.value = true
+                                } else {
+                                    onDelete.invoke(product!!)
+                                    onDismiss.invoke()
+                                }
+                            },
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            modifier = Modifier.padding(start = 8.dp),
+                            imageVector = Icons.Default.Delete,
+                            contentDescription = "Delete Product",
+                            tint = MaterialTheme.colorScheme.error
+                        )
+                        Text(
+                            modifier = Modifier
+                                .padding(top = 16.dp, end = 8.dp, bottom = 16.dp),
+                            text = if (!deleteFirstClick.value) {
+                                "SUPPRIMER"
+                            } else {
+                                "CONFIRMER ?"
+                            },
+                            maxLines = 2,
+                            softWrap = false,
+                            fontWeight = FontWeight.Black,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                }
                 ProductEditField(
                     title = "Nom du produit",
                     value = tempProduct.value.name,
@@ -166,62 +203,42 @@ fun ProductEditDialog(
                     modifier = Modifier,
                     horizontalArrangement = Arrangement.Start
                 ) {
-                    if (onDelete != null) {
-                        Row(
-                            modifier = Modifier
-                                .clickable {
-                                    if (!deleteFirstClick.value) {
-                                        deleteFirstClick.value = true
-                                    } else {
-                                        onDelete.invoke(product!!)
-                                        onDismiss.invoke()
-                                    }
-                                },
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                modifier = Modifier.padding(start = 8.dp),
-                                imageVector = Icons.Default.Delete,
-                                contentDescription = "Delete Product",
-                                tint = MaterialTheme.colorScheme.error
-                            )
-                            Text(
-                                modifier = Modifier
-                                    .padding(top = 16.dp, end = 8.dp, bottom = 16.dp),
-                                text = if (!deleteFirstClick.value) {
-                                    "SUPPRIMER"
-                                } else {
-                                    "CONFIRMER ?"
-                                },
-                                maxLines = 2,
-                                softWrap = false,
-                                fontWeight = FontWeight.Black,
-                                color = MaterialTheme.colorScheme.error
-                            )
-                        }
-                    }
                     Row(
                         modifier = Modifier
                             .fillMaxWidth(),
                         horizontalArrangement = Arrangement.End
                     ) {
-                        Text("Valider",
-                            Modifier
-                                .clickable {
-                                    if (tempProduct.value != product) {
-                                        onValidate.invoke(tempProduct.value)
-                                    }
-                                    onDismiss.invoke()
+                        TextButton(
+                            modifier = Modifier
+                                .padding(top = 8.dp, end = 8.dp, start = 8.dp),
+                            enabled = (tempProduct.value.name.isNotBlank() && tempProduct.value.priceInCents in 50..3000),
+                            shape = MaterialTheme.shapes.large,
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 16.dp),
+                            onClick = {
+                                if (tempProduct.value != product) {
+                                    onValidate.invoke(tempProduct.value)
                                 }
-                                .padding(vertical = 16.dp, horizontal = 8.dp)
-                        )
-                        Text("Annuler",
-                            Modifier
-                                .clickable {
-                                    onDismiss.invoke()
-                                }
-                                .padding(vertical = 16.dp, horizontal = 8.dp)
-                        )
+                                onDismiss.invoke()
+                            },
+                        ) {
+                            Text(
+                                "Valider"
+                            )
+                        }
+
+                        TextButton(
+                            modifier = Modifier
+                                .padding(top = 8.dp, end = 8.dp, start = 8.dp),
+                            shape = MaterialTheme.shapes.large,
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 16.dp),
+                            onClick = {
+                                onDismiss.invoke()
+                            },
+                        ) {
+                            Text(
+                                "Annuler"
+                            )
+                        }
                     }
                 }
             }
