@@ -12,6 +12,7 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
@@ -65,6 +66,7 @@ fun HomeScreen(
     val cartState = cartViewModel.cartUiState
     val homeState = homeViewModel.homeUiState
     var showEditDialog by remember { mutableStateOf(false) }
+    var showAddNewProductDialog by remember { mutableStateOf(false) }
     var editedProduct by remember { mutableStateOf<UiProductObject?>(null) }
 
     var hasLoadedFirstPic by remember { mutableStateOf(false) }
@@ -180,6 +182,24 @@ fun HomeScreen(
             }
         }
 
+        FloatingActionButton(
+            modifier = Modifier
+                .padding(32.dp)
+                .align(Alignment.BottomStart)
+                .border(
+                    3.dp,
+                    color = MaterialTheme.colorScheme.tertiary,
+                    shape = RoundedCornerShape(16.dp)
+                ),
+            containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+            contentColor = MaterialTheme.colorScheme.tertiary,
+            onClick = {
+                showAddNewProductDialog = true
+            }
+        ) {
+            Icon(imageVector = Icons.Default.Add, contentDescription = "Add a product")
+        }
+
         if (cartState.isCartVisible) {
             CartView(cartViewModel = cartViewModel, {
                 cartViewModel.setCartVisibility(false)
@@ -206,6 +226,22 @@ fun HomeScreen(
                 onDelete = {
                     adminViewModel.deleteProduct(product = it)
                 },
+                onError = {
+                    mainViewModel.setError(
+                        it
+                    )
+                })
+        }
+
+        if (showAddNewProductDialog) {
+            ProductEditDialog(
+                product = null,
+                onDismiss = { showAddNewProductDialog = false },
+                onValidate = {
+                    adminViewModel.addNewProduct(product = it)
+                    homeViewModel.refreshProducts()
+                },
+                onDelete = null,
                 onError = {
                     mainViewModel.setError(
                         it
