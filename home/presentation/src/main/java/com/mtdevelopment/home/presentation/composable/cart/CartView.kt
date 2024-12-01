@@ -27,6 +27,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.mtdevelopment.cart.presentation.viewmodel.CartViewModel
 import com.mtdevelopment.core.util.vibratePhoneClick
+import com.mtdevelopment.core.util.vibratePhoneClickBig
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
@@ -112,6 +113,10 @@ fun CartView(
                                 cartViewModel?.removeCartObject(it)
                             }
                         }
+                    },
+                    onRemoveAll = {
+                        vibratePhoneClickBig(context)
+                        cartViewModel?.totallyRemoveObject(it)
                     }
                 )
             }
