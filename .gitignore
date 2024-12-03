@@ -17,3 +17,8 @@ local.properties
 /app/debug/app-debug.aab
 /app/release/
 /fastlane/report.xml
+/app/client/release/
+/app/admin/release/
+/cart/build/
+/checkout/build/
+/admin/build/
