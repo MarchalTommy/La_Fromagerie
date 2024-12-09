@@ -158,7 +158,7 @@ class PaymentRepositoryImpl(
     }
 
     // TODO: Create checkout when clicking on google pay button
-    // TODO: Save checkout reference securely
+    // TODO: Save checkout reference securely, locally and remotely
     // TODO: CHECK WITH THESE IDIOTS WHY 404 ON CREATE CHECKOUT ?!
     override fun createNewCheckout(
         amount: Double,
@@ -171,11 +171,11 @@ class PaymentRepositoryImpl(
                 currency = "EUR",
                 id = "${reference.hashCode()}",
                 personalDetails = PersonalDetails(
-                    TODO("ADD CUSTOMER INFO")
+
                 ),
                 purpose = CHECKOUT_CREATION_BODY_PURPOSE.CHECKOUT,
 //                merchantCode = "BuildConfig.SUMUP_MERCHANT_ID",
-                merchantCode = BuildConfig.SUMUP_TEST_MERCHANT_ID
+                merchantCode = BuildConfig.SUMUP_MERCHANT_ID_TEST
             )
         ).transform { value -> value.data?.toNewCheckoutResult() }
     }
