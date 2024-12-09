@@ -20,6 +20,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.contentColorFor
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
@@ -32,6 +33,8 @@ import com.mtdevelopment.checkout.presentation.viewmodel.CheckoutViewModel
 import com.mtdevelopment.core.util.ScreenSize
 import com.mtdevelopment.core.util.rememberScreenSize
 import com.mtdevelopment.core.util.toUiPrice
+import kotlinx.coroutines.async
+import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 import java.util.Locale
 
@@ -39,6 +42,8 @@ import java.util.Locale
 fun CheckoutScreen(
     onGooglePayButtonClick: (priceCents: Long) -> Unit = {}
 ) {
+
+    val scope = rememberCoroutineScope()
 
     val screenSize: ScreenSize = rememberScreenSize()
     val checkoutViewModel = koinViewModel<CheckoutViewModel>()
@@ -164,8 +169,14 @@ fun CheckoutScreen(
                 .fillMaxWidth()
                 .padding(horizontal = 32.dp, vertical = 16.dp),
             onClick = {
-                uiData.totalPrice?.let { onGooglePayButtonClick.invoke(it) } ?: run {
-                    onPricingError()
+                scope.launch {
+                    val checkoutCreation = scope.async {
+                        checkoutViewModel.createCheckout()
+                    }
+                    checkoutCreation.await()
+                    uiData.totalPrice?.let { onGooglePayButtonClick.invoke(it) } ?: run {
+                        onPricingError()
+                    }
                 }
             },
             allowedPaymentMethods = checkoutViewModel.allowedPaymentMethods

@@ -37,6 +37,7 @@ import kotlinx.coroutines.launch
 import org.json.JSONException
 import org.json.JSONObject
 import org.koin.core.component.KoinComponent
+import java.util.Calendar
 
 class CheckoutViewModel(
     getIsConnectedUseCase: GetIsNetworkConnectedUseCase,
@@ -83,7 +84,6 @@ class CheckoutViewModel(
         viewModelScope.launch {
             updateUiState()
             verifyGooglePayReadiness()
-            createCheckout()
         }
     }
 
@@ -144,8 +144,10 @@ class CheckoutViewModel(
         Log.e("Google Pay API error", "Error code: $statusCode, Message: $message")
     }
 
-    private suspend fun createCheckout() {
-        val checkoutRef = kotlin.random.Random.nextLong().toString()
+    suspend fun createCheckout() {
+        val checkoutRef =
+            checkoutUiState.buyerName.toString().replace(" ", "-") + "_" + Calendar.getInstance().time.toInstant()
+                .toEpochMilli().toString()
         saveCheckoutReferenceUseCase.invoke(checkoutRef)
         createNewCheckoutUseCase.invoke(
             amount = checkoutUiState.totalPrice?.toPriceDouble() ?: 0.0,

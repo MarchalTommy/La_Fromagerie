@@ -1,11 +1,13 @@
 package com.mtdevelopment.checkout.data.remote.model.response.sumUp
 
 
+import androidx.annotation.Keep
 import com.mtdevelopment.checkout.domain.model.NewCheckoutResult
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
+@Keep
 data class NewCheckoutResponse(
     @SerialName("amount")
     val amount: Double?,
@@ -39,6 +41,7 @@ data class NewCheckoutResponse(
     val validUntil: String?
 ) {
     @Serializable
+    @Keep
     data class Mandate(
         @SerialName("merchant_code")
         val merchantCode: String?,
@@ -49,6 +52,7 @@ data class NewCheckoutResponse(
     )
 
     @Serializable
+    @Keep
     data class Transaction(
         @SerialName("amount")
         val amount: Double?,
