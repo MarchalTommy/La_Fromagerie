@@ -6,19 +6,19 @@ import kotlinx.serialization.Serializable
 @Keep
 @Serializable
 data class Properties(
-    val banId: String,
-    val city: String,
-    val citycode: String,
-    val context: String,
-    val id: String,
-    val importance: Double,
-    val label: String,
-    val municipality: String,
-    val name: String,
-    val population: Int,
-    val postcode: String,
-    val score: Double,
-    val type: String,
-    val x: Double,
-    val y: Double
+    val banId: String? = null,
+    val city: String? = null,
+    val citycode: String? = null,
+    val context: String? = null,
+    val id: String? = null,
+    val importance: Double? = null,
+    val label: String? = null,
+    val municipality: String? = null,
+    val name: String? = null,
+    val population: Int? = null,
+    val postcode: String? = null,
+    val score: Double? = null,
+    val type: String? = null,
+    val x: Double? = null,
+    val y: Double? = null
 )

@@ -6,12 +6,12 @@ import kotlinx.serialization.Serializable
 @Keep
 @Serializable
 data class AddressData(
-    val attribution: String,
+    val attribution: String? = null,
     val features: List<Feature>,
-    val filters: Filters,
-    val licence: String,
-    val limit: Int,
-    val query: String,
-    val type: String,
-    val version: String
+    val filters: Filters? = null,
+    val licence: String? = null,
+    val limit: Int? = null,
+    val query: String? = null,
+    val type: String? = null,
+    val version: String? = null
 )

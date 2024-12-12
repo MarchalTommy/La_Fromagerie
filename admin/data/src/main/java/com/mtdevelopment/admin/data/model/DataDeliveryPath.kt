@@ -12,5 +12,7 @@ data class DataDeliveryPath(
     @SerialName("path_name")
     val pathName: String? = null,
     @SerialName("cities")
-    val availableCities: List<String>? = null
+    val availableCities: List<String>? = null,
+    @SerialName("postcodes")
+    val postcodes: List<Int>? = null
 )

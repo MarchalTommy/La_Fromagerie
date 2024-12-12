@@ -10,7 +10,9 @@ data class DataDeliveryPathsResponse(
     @SerialName("id")
     val id: String = "",
     @SerialName("path_name")
-    val pathName: String? = null,
+    val path_name: String? = null,
     @SerialName("cities")
-    val availableCities: List<String>? = null
+    val cities: List<String>? = null,
+    @SerialName("postcodes")
+    val postcodes: List<Int>? = null
 )

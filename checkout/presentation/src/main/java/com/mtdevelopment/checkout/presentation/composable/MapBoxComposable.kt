@@ -81,7 +81,7 @@ fun MapBoxComposable(
     onError: (String) -> Unit = {}
 ) {
 
-    val test = FeatureCollection.fromJson("MyGeoJson")
+//    val test = FeatureCollection.fromJson("MyGeoJson")
 
     val context = LocalContext.current
     val cameraBasePoint =
@@ -147,19 +147,19 @@ fun MapBoxComposable(
                                 // TODO: Then, remove geocoder
                                 // TODO: Get GeoJSON from OPEN_ROUTE and map it to featureCollection like "test" var
                                 style(style = Style.STANDARD) {
-                                    +geoJsonSource("TESTSTAWERA") {
-                                        featureCollection(
-                                            test,
-                                            "asset://from_crema_to_council_crest.geojson"
-                                        )
-                                    }
-                                    +lineLayer("linelayer", "TESTSTAWERA") {
-                                        lineCap(LineCap.ROUND)
-                                        lineJoin(LineJoin.ROUND)
-                                        lineOpacity(0.9)
-                                        lineWidth(4.0)
-                                        lineColor("#eb16fa")
-                                    }
+//                                    +geoJsonSource("TESTSTAWERA") {
+//                                        featureCollection(
+//                                            test,
+//                                            "asset://from_crema_to_council_crest.geojson"
+//                                        )
+//                                    }
+//                                    +lineLayer("linelayer", "TESTSTAWERA") {
+//                                        lineCap(LineCap.ROUND)
+//                                        lineJoin(LineJoin.ROUND)
+//                                        lineOpacity(0.9)
+//                                        lineWidth(4.0)
+//                                        lineColor("#eb16fa")
+//                                    }
                                 }
                             ) {
                                 zoomOnSelectedPathMainCity(

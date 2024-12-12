@@ -16,16 +16,19 @@ import com.mtdevelopment.admin.presentation.viewmodel.AdminViewModel
 import com.mtdevelopment.cart.presentation.viewmodel.CartViewModel
 import com.mtdevelopment.checkout.data.BuildConfig
 import com.mtdevelopment.checkout.data.local.CheckoutDatastorePreferenceImpl
-import com.mtdevelopment.checkout.data.remote.model.Constants.OPEN_ROUTE_BASE_URL
+import com.mtdevelopment.checkout.data.remote.model.Constants.ADDRESS_API_BASE_URL_WITHOUT_HTTPS
 import com.mtdevelopment.checkout.data.remote.model.Constants.OPEN_ROUTE_BASE_URL_WITHOUT_HTTPS
+import com.mtdevelopment.checkout.data.remote.source.AddressApiDataSource
 import com.mtdevelopment.checkout.data.remote.source.FirestoreDataSource
 import com.mtdevelopment.checkout.data.remote.source.OpenRouteDataSource
 import com.mtdevelopment.checkout.data.remote.source.SumUpDataSource
 import com.mtdevelopment.checkout.data.remote.source.local.DeliveryDatabase
 import com.mtdevelopment.checkout.data.remote.source.local.dao.DeliveryDao
+import com.mtdevelopment.checkout.data.repository.AddressApiRepositoryImpl
 import com.mtdevelopment.checkout.data.repository.FirestorePathRepositoryImpl
 import com.mtdevelopment.checkout.data.repository.PaymentRepositoryImpl
 import com.mtdevelopment.checkout.data.repository.RoomDeliveryRepositoryImpl
+import com.mtdevelopment.checkout.domain.repository.AddressApiRepository
 import com.mtdevelopment.checkout.domain.repository.CheckoutDatastorePreference
 import com.mtdevelopment.checkout.domain.repository.FirestorePathRepository
 import com.mtdevelopment.checkout.domain.repository.PaymentRepository
@@ -91,13 +94,15 @@ fun appModule() = listOf(
     provideFirebaseDatabase,
     provideRoomFromagerieDatabase,
     provideGeocoder,
-    provideOpenRouteDatasource
+    provideOpenRouteDatasource,
+    provideAddressApiDataSource
 )
 
 val mainAppModule = module {
     single { SumUpDataSource(get()) }
     single<NetworkRepository> { NetworkRepositoryImpl(get()) }
     single<PaymentRepository> { PaymentRepositoryImpl(get(), get()) }
+    single<AddressApiRepository> { AddressApiRepositoryImpl(get()) }
 
     single<FirebaseHomeRepository> { FirebaseHomeRepositoryImpl(get()) }
     single<RoomHomeRepository> { RoomHomeRepositoryImpl(get()) }
@@ -105,7 +110,7 @@ val mainAppModule = module {
 
     single<FirebaseAdminRepository> { FirebaseAdminRepositoryImpl(get()) }
 
-    single<FirestorePathRepository> { FirestorePathRepositoryImpl(get(), get()) }
+    single<FirestorePathRepository> { FirestorePathRepositoryImpl(get(), get(), get()) }
 
     factory { GetCheckoutDataUseCase(get()) }
     factory { SaveToDatastoreUseCase(get()) }
@@ -200,7 +205,56 @@ val provideFirebaseDatabase = module {
 }
 
 val provideOpenRouteDatasource = module {
-    single<OpenRouteDataSource> { OpenRouteDataSource(get(), get(), get()) }
+    val client = HttpClient(CIO) {
+        install(DefaultRequest) {
+            url {
+                protocol = URLProtocol.HTTPS
+                host = OPEN_ROUTE_BASE_URL_WITHOUT_HTTPS
+            }
+        }
+        install(Auth) {
+            bearer {
+                loadTokens {
+                    BearerTokens(BuildConfig.OPEN_ROUTE_TOKEN, null)
+                }
+            }
+        }
+        install(Logging) {
+            logger = Logger.ANDROID
+            level = LogLevel.ALL
+            sanitizeHeader { header -> header == HttpHeaders.Authorization }
+        }
+        install(ContentNegotiation) {
+            json(Json {
+                prettyPrint = true
+                isLenient = true
+            })
+        }
+    }
+    single<OpenRouteDataSource> { OpenRouteDataSource(client, get()) }
+}
+
+val provideAddressApiDataSource = module {
+    val client = HttpClient(CIO) {
+        install(DefaultRequest) {
+            url {
+                protocol = URLProtocol.HTTPS
+                host = ADDRESS_API_BASE_URL_WITHOUT_HTTPS
+            }
+        }
+        install(Logging) {
+            logger = Logger.ANDROID
+            level = LogLevel.ALL
+            sanitizeHeader { header -> header == HttpHeaders.Authorization }
+        }
+        install(ContentNegotiation) {
+            json(Json {
+                prettyPrint = true
+                isLenient = true
+            })
+        }
+    }
+    single<AddressApiDataSource> { AddressApiDataSource(client, get()) }
 }
 
 val provideGeocoder = module {

@@ -2,72 +2,86 @@ package com.mtdevelopment.checkout.data.repository
 
 import com.mtdevelopment.checkout.data.remote.source.FirestoreDataSource
 import com.mtdevelopment.checkout.data.remote.source.OpenRouteDataSource
+import com.mtdevelopment.checkout.domain.model.CityInformation
 import com.mtdevelopment.checkout.domain.model.DeliveryPath
-import com.mtdevelopment.checkout.domain.model.GeoJsonFeatureCollection
+import com.mtdevelopment.checkout.domain.repository.AddressApiRepository
 import com.mtdevelopment.checkout.domain.repository.FirestorePathRepository
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.launch
-import kotlin.coroutines.resume
-import kotlin.coroutines.suspendCoroutine
 
 class FirestorePathRepositoryImpl(
     private val firestore: FirestoreDataSource,
-    private val openRouteService: OpenRouteDataSource
+    private val openRouteService: OpenRouteDataSource,
+    private val addressApiRepository: AddressApiRepository
 ) : FirestorePathRepository {
+
     override fun getAllDeliveryPaths(
         onSuccess: (List<DeliveryPath?>) -> Unit,
         onFailure: () -> Unit
     ) {
         /**
          * LET ME EXPLAIN !
-         * First, we get paths from firestore (we don't know their geojson yet, cause we don't store them)
+         * First, we get paths from firestore
          */
         firestore.getAllDeliveryPaths(onSuccess = { pathList ->
             CoroutineScope(Dispatchers.IO).launch {
-                /**
-                 * Then, we create a list of async job to get geojson for each path
-                 */
-                val deferredPaths = listOf(async {
-                    /**
-                     * This part here is to get geoJson "synchronously", but not really, wait and see
-                     */
-                    suspendCoroutine { coroutine ->
-                        /**
-                         * Here we operate on each path
-                         */
-                        pathList.forEach { path ->
-                            if (path.pathName?.isNotBlank() == true && path.availableCities != null) {
-                                /**
-                                 * We GET BACK in asynchronous mode to be able to call a ws and a GeoCoder
-                                 */
-                                CoroutineScope(Dispatchers.IO).launch {
-                                    openRouteService.getLngLatForCities(path.availableCities) { geoJsonResult ->
-                                        /**
-                                         * We send the response back to the first scope, to be able to get them out of here
-                                         */
-                                        coroutine.resume(
-                                            DeliveryPath(
-                                                id = path.id,
-                                                pathName = path.pathName,
-                                                availableCities = path.availableCities,
-                                                geoJson = geoJsonResult.data
-                                            )
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-                })
+
+                val listOfZipped = mutableListOf<List<Pair<String, Int>>>()
 
                 /**
-                 * Finally we await for all those async job to be done
+                 * We zip their cities with their cities-postcodes to have pairs
                  */
-                val finalPaths = deferredPaths.awaitAll()
+                pathList.forEach { path ->
+                    if (path.cities?.isNotEmpty() == true && path.postcodes?.isNotEmpty() == true) {
+                        listOfZipped.add(path.cities zip path.postcodes)
+                    }
+                }
+
+                /**
+                 * We call the reverse geocoding API
+                 */
+                val deferredCityInfoList = mutableListOf<List<Deferred<CityInformation?>>>()
+                listOfZipped.forEach { zipped ->
+                    deferredCityInfoList.add(zipped.map {
+                        async {
+                            addressApiRepository.reverseGeocodeCity(
+                                name = it.first,
+                                zip = it.second
+                            )
+                        }
+                    })
+                }
+
+                /**
+                 * We use their locations from reverse geocoding to call for the geoJson API
+                 */
+                val geoJsons = deferredCityInfoList.map { deferred ->
+                    val cities = deferred.map { it.await() }
+
+                    openRouteService.getGeoJsonForLngLatList(cities.map {
+                        Pair(
+                            it?.location?.latitude ?: 0.0,
+                            it?.location?.longitude ?: 0.0
+                        )
+                    }).data
+                }
+
+
+                val finalPaths = geoJsons.map { geoJson ->
+                    DeliveryPath(
+                        id = pathList[geoJsons.indexOf(geoJson)].id,
+                        pathName = pathList[geoJsons.indexOf(geoJson)].path_name ?: "",
+                        availableCities = pathList[geoJsons.indexOf(geoJson)].cities
+                            ?: listOf(),
+                        geoJson = geoJson
+                    )
+                }
+
                 onSuccess.invoke(finalPaths)
+
             }
         }, onFailure = onFailure)
     }
@@ -80,12 +94,12 @@ class FirestorePathRepositoryImpl(
         firestore.getDeliveryPath(
             pathName = pathName,
             onSuccess = { path ->
-                if (path.pathName?.isNotBlank() == true && path.id.isNotBlank() && path.availableCities != null) {
+                if (path.path_name?.isNotBlank() == true && path.id.isNotBlank() && path.cities != null) {
                     onSuccess.invoke(
                         DeliveryPath(
                             id = path.id,
-                            pathName = path.pathName,
-                            availableCities = path.availableCities,
+                            pathName = path.path_name,
+                            availableCities = path.cities,
                             geoJson = null
                         )
                     )

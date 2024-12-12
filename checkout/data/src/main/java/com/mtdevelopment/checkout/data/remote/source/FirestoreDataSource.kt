@@ -6,7 +6,10 @@ import com.mtdevelopment.checkout.data.remote.model.response.firestore.DataDeliv
 class FirestoreDataSource(
     private val firestore: FirebaseFirestore
 ) {
-    fun getAllDeliveryPaths(onSuccess: (List<DataDeliveryPathsResponse>) -> Unit, onFailure: () -> Unit) {
+    fun getAllDeliveryPaths(
+        onSuccess: (List<DataDeliveryPathsResponse>) -> Unit,
+        onFailure: () -> Unit
+    ) {
         firestore.collection("delivery_paths")
             .get()
             .addOnFailureListener {
@@ -14,11 +17,8 @@ class FirestoreDataSource(
             }
             .addOnSuccessListener {
                 onSuccess.invoke(it.documents.map { item ->
-                    DataDeliveryPathsResponse(
-                        pathName = item.data?.get("path_name").toString(),
-                        availableCities = item.data?.get("cities") as? List<String>
-                            ?: emptyList()
-                    )
+                    item.toObject(DataDeliveryPathsResponse::class.java)
+                        ?: DataDeliveryPathsResponse()
                 })
             }
     }

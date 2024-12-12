@@ -30,13 +30,11 @@ class FirestoreAdminDatasource(
             .delete()
     }
 
-    // TODO: FIX THAT HELL
     fun saveNewDatabaseProductUpdate(timestamp: Long) {
         firestore.collection("database_update")
             .document("products_timestamp")
             .set(mapOf("last_update" to Timestamp(Instant.ofEpochMilli(timestamp))))
     }
-
 
     ///////////////////////////////////////////////////////////////////////////
     // DELIVERY PATH
@@ -52,7 +50,6 @@ class FirestoreAdminDatasource(
             .set(path)
     }
 
-    // TODO: FIX THAT HELL
     fun saveNewDatabasePathsUpdate(timestamp: Long) {
         firestore.collection("database_update")
             .document("path_timestamp")
