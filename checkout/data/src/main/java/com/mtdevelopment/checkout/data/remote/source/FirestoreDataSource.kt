@@ -17,8 +17,13 @@ class FirestoreDataSource(
             }
             .addOnSuccessListener {
                 onSuccess.invoke(it.documents.map { item ->
-                    item.toObject(DataDeliveryPathsResponse::class.java)
-                        ?: DataDeliveryPathsResponse()
+                    DataDeliveryPathsResponse(
+                        id = item.id,
+                        path_name = item.data?.get("path_name").toString(),
+                        cities = item.data?.get("cities") as? List<String>,
+                        postcodes = item.data?.get("postcodes") as? List<Int>
+                            ?: emptyList()
+                    )
                 })
             }
     }
@@ -36,8 +41,13 @@ class FirestoreDataSource(
             }
             .addOnSuccessListener {
                 onSuccess.invoke(
-                    it.documents[0].toObject(DataDeliveryPathsResponse::class.java)
-                        ?: DataDeliveryPathsResponse()
+                    DataDeliveryPathsResponse(
+                        id = it.documents[0].id,
+                        path_name = it.documents[0].data?.get("path_name").toString(),
+                        cities = it.documents[0].data?.get("cities") as? List<String>,
+                        postcodes = it.documents[0].data?.get("postcodes") as? List<Int>
+                            ?: emptyList()
+                    )
                 )
             }
     }

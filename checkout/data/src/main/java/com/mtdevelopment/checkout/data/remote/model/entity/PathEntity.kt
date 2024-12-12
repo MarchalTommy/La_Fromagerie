@@ -1,6 +1,7 @@
 package com.mtdevelopment.checkout.data.remote.model.entity
 
 import androidx.room.Entity
+import com.mtdevelopment.checkout.data.remote.model.Coordinate
 import com.mtdevelopment.checkout.domain.model.DeliveryPath
 import com.mtdevelopment.checkout.domain.model.GeoJsonFeatureCollection
 import kotlinx.serialization.SerialName
@@ -17,6 +18,8 @@ data class PathEntity(
     val name: String = "",
     @SerialName("cities")
     val availableCities: List<String> = listOf(),
+    @SerialName("locations")
+    val locations: List<Coordinate>,
     @SerialName("geojson")
     val geojson: String = ""
 )
@@ -26,6 +29,9 @@ fun PathEntity.toPath(): DeliveryPath {
         id = this.id,
         pathName = this.name,
         availableCities = this.availableCities,
+        locations = locations.map {
+            Pair(it.latitude, it.longitude)
+        },
         geoJson = Json.decodeFromString<GeoJsonFeatureCollection>(this.geojson)
     )
 }
@@ -35,6 +41,12 @@ fun DeliveryPath.toPathEntity(): PathEntity {
         id = this.id,
         name = this.pathName,
         availableCities = this.availableCities,
+        locations = locations!!.map {
+            Coordinate(
+                latitude = it.first,
+                longitude = it.second
+            )
+        },
         geojson = Json.encodeToString(this.geoJson)
     )
 }

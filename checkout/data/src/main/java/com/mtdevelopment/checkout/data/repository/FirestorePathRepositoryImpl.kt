@@ -29,6 +29,8 @@ class FirestorePathRepositoryImpl(
         firestore.getAllDeliveryPaths(onSuccess = { pathList ->
             CoroutineScope(Dispatchers.IO).launch {
 
+                val idList = pathList.map { it.id }
+
                 val listOfZipped = mutableListOf<List<Pair<String, Int>>>()
 
                 /**
@@ -58,8 +60,16 @@ class FirestorePathRepositoryImpl(
                 /**
                  * We use their locations from reverse geocoding to call for the geoJson API
                  */
+                val locationsList = mutableListOf<List<Pair<Double, Double>>>()
                 val geoJsons = deferredCityInfoList.map { deferred ->
                     val cities = deferred.map { it.await() }
+
+                    locationsList.add(cities.mapNotNull {
+                        Pair(
+                            it?.location?.latitude ?: 0.0,
+                            it?.location?.longitude ?: 0.0
+                        )
+                    })
 
                     openRouteService.getGeoJsonForLngLatList(cities.map {
                         Pair(
@@ -72,10 +82,11 @@ class FirestorePathRepositoryImpl(
 
                 val finalPaths = geoJsons.map { geoJson ->
                     DeliveryPath(
-                        id = pathList[geoJsons.indexOf(geoJson)].id,
+                        id = idList[geoJsons.indexOf(geoJson)],
                         pathName = pathList[geoJsons.indexOf(geoJson)].path_name ?: "",
                         availableCities = pathList[geoJsons.indexOf(geoJson)].cities
                             ?: listOf(),
+                        locations = locationsList[geoJsons.indexOf(geoJson)],
                         geoJson = geoJson
                     )
                 }
@@ -100,7 +111,8 @@ class FirestorePathRepositoryImpl(
                             id = path.id,
                             pathName = path.path_name,
                             availableCities = path.cities,
-                            geoJson = null
+                            geoJson = null,
+                            locations = null
                         )
                     )
                 } else {

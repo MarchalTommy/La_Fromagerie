@@ -40,6 +40,7 @@ class DeliveryViewModel(
 
     init {
         viewModelScope.launch {
+            deliveryUiDataState = deliveryUiDataState.copy(isLoading = true)
             // TODO: manage loading during delivery path fetching + geocoding + drawing
             getAllDeliveryPaths()
 
@@ -82,10 +83,12 @@ class DeliveryViewModel(
                 deliveryUiDataState = deliveryUiDataState.copy(
                     deliveryPaths = pathsList.mapNotNull { path ->
                         path?.toUiDeliveryPath()
-                    }
+                    },
+                    isLoading = false
                 )
             },
             onFailure = {
+                deliveryUiDataState = deliveryUiDataState.copy(isLoading = false)
                 // TODO: Manage error state
             })
     }
