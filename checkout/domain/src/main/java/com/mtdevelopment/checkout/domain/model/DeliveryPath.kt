@@ -5,5 +5,6 @@ data class DeliveryPath(
     val pathName: String,
     val availableCities: List<String>,
     val locations: List<Pair<Double, Double>>?,
+    val deliveryDay: String,
     val geoJson: GeoJsonFeatureCollection?
 )

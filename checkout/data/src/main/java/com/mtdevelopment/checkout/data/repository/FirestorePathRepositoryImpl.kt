@@ -87,6 +87,7 @@ class FirestorePathRepositoryImpl(
                         availableCities = pathList[geoJsons.indexOf(geoJson)].cities
                             ?: listOf(),
                         locations = locationsList[geoJsons.indexOf(geoJson)],
+                        deliveryDay = pathList[geoJsons.indexOf(geoJson)].deliveryDay,
                         geoJson = geoJson
                     )
                 }
@@ -112,6 +113,7 @@ class FirestorePathRepositoryImpl(
                             pathName = path.path_name,
                             availableCities = path.cities,
                             geoJson = null,
+                            deliveryDay = "",
                             locations = null
                         )
                     )

@@ -21,6 +21,7 @@ class FirestoreDataSource(
                         id = item.id,
                         path_name = item.data?.get("path_name").toString(),
                         cities = item.data?.get("cities") as? List<String>,
+                        deliveryDay = item.data?.get("delivery_day").toString(),
                         postcodes = item.data?.get("postcodes") as? List<Int>
                             ?: emptyList()
                     )
@@ -45,6 +46,7 @@ class FirestoreDataSource(
                         id = it.documents[0].id,
                         path_name = it.documents[0].data?.get("path_name").toString(),
                         cities = it.documents[0].data?.get("cities") as? List<String>,
+                        deliveryDay = it.documents[0].data?.get("delivery_day").toString(),
                         postcodes = it.documents[0].data?.get("postcodes") as? List<Int>
                             ?: emptyList()
                     )

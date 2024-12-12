@@ -10,5 +10,5 @@ data class UserInformation(
     @SerializedName("address")
     val address: String,
     @SerializedName("lastSelectedPath")
-    val lastSelectedPath: DeliveryPath
+    val lastSelectedPath: String
 )

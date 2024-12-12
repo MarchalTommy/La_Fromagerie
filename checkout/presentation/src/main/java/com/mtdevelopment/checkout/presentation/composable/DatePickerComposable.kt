@@ -16,10 +16,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
 import com.mtdevelopment.checkout.presentation.model.ShippingDefaultSelectableDates
-import com.mtdevelopment.checkout.presentation.model.ShippingSelectableMetaDates
-import com.mtdevelopment.checkout.presentation.model.ShippingSelectablePontarlierDates
-import com.mtdevelopment.checkout.presentation.model.ShippingSelectableSalinDates
-import com.mtdevelopment.core.model.DeliveryPath
+import com.mtdevelopment.checkout.presentation.model.ShippingSelectableDatesTest
+import com.mtdevelopment.checkout.presentation.model.UiDeliveryPath
 import java.util.Calendar
 import java.util.Locale
 
@@ -37,18 +35,24 @@ fun DatePickerComposable(
             shouldRemoveDatePicker.invoke()
         },
         confirmButton = {
-            Text("OK", Modifier.padding(16.dp).clickable {
-                newDateFieldText.invoke(datePickerState.selectedDateMillis?.let {
-                    SimpleDateFormat("dd/MM/yyyy", Locale.FRANCE).format(it)
-                } ?: "")
-                onDateSelected.invoke(datePickerState.selectedDateMillis ?: 0)
-                shouldRemoveDatePicker.invoke()
-            })
+            Text("OK",
+                Modifier
+                    .padding(16.dp)
+                    .clickable {
+                        newDateFieldText.invoke(datePickerState.selectedDateMillis?.let {
+                            SimpleDateFormat("dd/MM/yyyy", Locale.FRANCE).format(it)
+                        } ?: "")
+                        onDateSelected.invoke(datePickerState.selectedDateMillis ?: 0)
+                        shouldRemoveDatePicker.invoke()
+                    })
         },
         dismissButton = {
-            Text("Annuler", Modifier.padding(16.dp).clickable {
-                shouldRemoveDatePicker.invoke()
-            })
+            Text("Annuler",
+                Modifier
+                    .padding(16.dp)
+                    .clickable {
+                        shouldRemoveDatePicker.invoke()
+                    })
         },
         shape = ShapeDefaults.Medium,
         tonalElevation = 24.dp,
@@ -76,25 +80,13 @@ fun DatePickerComposable(
 
 @OptIn(ExperimentalMaterial3Api::class)
 fun getDatePickerState(
-    selectedPath: DeliveryPath?
+    selectedPath: UiDeliveryPath?
 ): DatePickerState {
 
-    val shippingSelectableDates = when (selectedPath) {
-        DeliveryPath.PATH_META -> {
-            ShippingSelectableMetaDates()
-        }
-
-        DeliveryPath.PATH_SALIN -> {
-            ShippingSelectableSalinDates()
-        }
-
-        DeliveryPath.PATH_PON -> {
-            ShippingSelectablePontarlierDates()
-        }
-
-        else -> {
-            ShippingDefaultSelectableDates()
-        }
+    val shippingSelectableDates = if (selectedPath != null) {
+        ShippingSelectableDatesTest(selectedPath.deliveryDay)
+    } else {
+        ShippingDefaultSelectableDates()
     }
 
     val nextSelectableDatesList = mutableStateListOf<Long>()

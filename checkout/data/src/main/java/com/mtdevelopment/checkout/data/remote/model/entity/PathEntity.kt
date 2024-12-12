@@ -20,6 +20,8 @@ data class PathEntity(
     val availableCities: List<String> = listOf(),
     @SerialName("locations")
     val locations: List<Coordinate>,
+    @SerialName("delivery_day")
+    val deliveryDay: String = "",
     @SerialName("geojson")
     val geojson: String = ""
 )
@@ -32,6 +34,7 @@ fun PathEntity.toPath(): DeliveryPath {
         locations = locations.map {
             Pair(it.latitude, it.longitude)
         },
+        deliveryDay = deliveryDay,
         geoJson = Json.decodeFromString<GeoJsonFeatureCollection>(this.geojson)
     )
 }
@@ -47,6 +50,7 @@ fun DeliveryPath.toPathEntity(): PathEntity {
                 longitude = it.second
             )
         },
+        deliveryDay = deliveryDay,
         geojson = Json.encodeToString(this.geoJson)
     )
 }

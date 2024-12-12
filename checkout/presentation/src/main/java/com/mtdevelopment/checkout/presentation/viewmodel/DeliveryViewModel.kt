@@ -8,15 +8,16 @@ import androidx.lifecycle.viewModelScope
 import com.mtdevelopment.checkout.domain.usecase.GetAllDeliveryPathsUseCase
 import com.mtdevelopment.checkout.domain.usecase.GetDeliveryPathUseCase
 import com.mtdevelopment.checkout.domain.usecase.GetUserInfoFromDatastoreUseCase
+import com.mtdevelopment.checkout.presentation.model.UiDeliveryPath
 import com.mtdevelopment.checkout.presentation.model.toUiDeliveryPath
 import com.mtdevelopment.checkout.presentation.state.DeliveryUiDataState
-import com.mtdevelopment.core.model.DeliveryPath
 import com.mtdevelopment.core.model.UserInformation
 import com.mtdevelopment.core.usecase.GetIsNetworkConnectedUseCase
 import com.mtdevelopment.core.usecase.SaveToDatastoreUseCase
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import org.koin.core.component.KoinComponent
@@ -41,14 +42,12 @@ class DeliveryViewModel(
     init {
         viewModelScope.launch {
             deliveryUiDataState = deliveryUiDataState.copy(isLoading = true)
-            // TODO: manage loading during delivery path fetching + geocoding + drawing
             getAllDeliveryPaths()
-
-            val userInfo = getUserInfoFromDatastoreUseCase.invoke().first()
+            val userInfo = getUserInfoFromDatastoreUseCase.invoke().firstOrNull()
             deliveryUiDataState = deliveryUiDataState.copy(
                 userAddressFieldText = userInfo?.address ?: "",
                 userNameFieldText = userInfo?.name ?: "",
-                selectedPath = userInfo?.lastSelectedPath
+                selectedPath = deliveryUiDataState.deliveryPaths.firstOrNull { it.name == userInfo?.lastSelectedPath }
             )
 
         }
@@ -65,7 +64,7 @@ class DeliveryViewModel(
                 userInformation = UserInformation(
                     name = deliveryUiDataState.userNameFieldText,
                     address = deliveryUiDataState.userAddressFieldText,
-                    lastSelectedPath = deliveryUiDataState.selectedPath!!
+                    lastSelectedPath = deliveryUiDataState.selectedPath?.name ?: ""
                 )
             )
         }
@@ -138,7 +137,7 @@ class DeliveryViewModel(
         deliveryUiDataState = deliveryUiDataState.copy(userCity = city)
     }
 
-    fun updateSelectedPath(path: DeliveryPath) {
+    fun updateSelectedPath(path: UiDeliveryPath) {
         deliveryUiDataState = deliveryUiDataState.copy(selectedPath = path)
     }
 

@@ -18,7 +18,7 @@ data class DeliveryUiDataState(
 
     val userCity: String = "",
     val userCityLocation: Pair<Double, Double> = Pair(0.0, 0.0),
-    val selectedPath: DeliveryPath? = null,
+    val selectedPath: UiDeliveryPath? = null,
 
     val deliveryPaths: List<UiDeliveryPath> = emptyList()
 )

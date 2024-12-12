@@ -7,6 +7,7 @@ data class UiDeliveryPath(
     val name: String,
     val cities: List<String>,
     val locations: List<Pair<Double, Double>>?,
+    val deliveryDay: String,
     val geoJson: GeoJsonFeatureCollection?
 )
 
@@ -16,6 +17,7 @@ fun com.mtdevelopment.checkout.domain.model.DeliveryPath.toUiDeliveryPath(): UiD
         name = this.pathName,
         cities = this.availableCities,
         locations = this.locations,
+        deliveryDay = deliveryDay,
         geoJson = geoJson
     )
 }

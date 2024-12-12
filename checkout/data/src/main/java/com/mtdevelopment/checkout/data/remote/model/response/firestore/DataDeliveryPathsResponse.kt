@@ -13,6 +13,8 @@ data class DataDeliveryPathsResponse(
     val path_name: String? = null,
     @SerialName("cities")
     val cities: List<String>? = null,
+    @SerialName("delivery_day")
+    val deliveryDay: String = "",
     @SerialName("postcodes")
     val postcodes: List<Int>? = null
 )

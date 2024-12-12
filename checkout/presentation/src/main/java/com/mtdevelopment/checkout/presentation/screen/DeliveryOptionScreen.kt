@@ -126,6 +126,7 @@ fun DeliveryOptionScreen(
             MapBoxComposable(
                 userLocation = state.value.userCityLocation,
                 chosenPath = state.value.selectedPath,
+                allPaths = state.value.deliveryPaths,
                 isConnectedToInternet = isConnected.value,
                 setIsLoading = {
                     deliveryViewModel.setIsLoading(it)
@@ -262,6 +263,7 @@ fun DeliveryOptionScreen(
         // Localisation permission
         if (state.value.shouldShowLocalisationPermission) {
             PermissionManagerComposable(
+                allPaths = state.value.deliveryPaths,
                 onUpdateUserCity = {
                     deliveryViewModel.updateUserCity(it)
                 },
@@ -310,6 +312,7 @@ fun DeliveryOptionScreen(
 
         if (state.value.showDeliveryPathPicker) {
             DeliveryPathPickerComposable(
+                allPaths = state.value.deliveryPaths,
                 selectedPath = state.value.selectedPath,
                 onPathSelected = {
                     deliveryViewModel.updateSelectedPath(it)

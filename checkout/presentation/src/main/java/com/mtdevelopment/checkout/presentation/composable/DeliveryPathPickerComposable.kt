@@ -22,15 +22,16 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import com.mtdevelopment.core.model.DeliveryPath
+import com.mtdevelopment.checkout.presentation.model.UiDeliveryPath
 
 @Composable
 fun DeliveryPathPickerComposable(
-    selectedPath: DeliveryPath?,
-    onPathSelected: (DeliveryPath) -> Unit = {},
+    allPaths: List<UiDeliveryPath>,
+    selectedPath: UiDeliveryPath?,
+    onPathSelected: (UiDeliveryPath) -> Unit = {},
     onDismiss: () -> Unit = {}
 ) {
-    val radioOptions = DeliveryPath.entries
+    val radioOptions = allPaths
     val (selectedOption, onOptionSelected) = remember {
         mutableStateOf(
             selectedPath ?: radioOptions[0]
@@ -54,14 +55,18 @@ fun DeliveryPathPickerComposable(
             ) {
                 radioOptions.forEach {
                     PathCardComposable(
-                        it.pathName, it.availableCities,
+                        allPaths,
+                        it.name,
+                        it.cities.toTypedArray(),
                         selectedOption,
                         onOptionSelected
                     )
                 }
 
                 Button(
-                    modifier = Modifier.padding(8.dp).align(Alignment.CenterHorizontally),
+                    modifier = Modifier
+                        .padding(8.dp)
+                        .align(Alignment.CenterHorizontally),
                     onClick = {
                         onPathSelected(selectedOption)
                         onDismiss()
@@ -77,16 +82,19 @@ fun DeliveryPathPickerComposable(
 
 @Composable
 fun PathCardComposable(
+    allPaths: List<UiDeliveryPath>,
     pathName: String,
     availableCities: Array<out String>,
-    selectedOption: DeliveryPath,
-    onOptionSelected: (DeliveryPath) -> Unit
+    selectedOption: UiDeliveryPath?,
+    onOptionSelected: (UiDeliveryPath) -> Unit
 ) {
     Card(
-        modifier = Modifier.padding(8.dp).fillMaxWidth()
+        modifier = Modifier
+            .padding(8.dp)
+            .fillMaxWidth()
             .selectable(
-                selected = (selectedOption.pathName == pathName),
-                onClick = { onOptionSelected(DeliveryPath.entries.find { it.pathName == pathName }!!) },
+                selected = (selectedOption?.name == pathName),
+                onClick = { onOptionSelected(allPaths.find { it.name == pathName }!!) },
                 role = Role.RadioButton
             )
             .padding(16.dp),
@@ -95,7 +103,7 @@ fun PathCardComposable(
         Row(modifier = Modifier) {
             RadioButton(
                 modifier = Modifier.padding(end = 8.dp),
-                selected = (selectedOption.pathName == pathName),
+                selected = (selectedOption?.name == pathName),
                 onClick = null
             )
 
