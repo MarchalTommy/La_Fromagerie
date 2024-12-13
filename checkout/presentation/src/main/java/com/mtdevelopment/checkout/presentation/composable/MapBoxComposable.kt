@@ -15,6 +15,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.contentColorFor
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -35,6 +36,7 @@ import com.mapbox.maps.extension.compose.MapboxMap
 import com.mapbox.maps.extension.compose.animation.viewport.rememberMapViewportState
 import com.mapbox.maps.extension.compose.style.standard.MapboxStandardStyle
 import com.mapbox.maps.extension.compose.style.styleImportsConfig
+import com.mapbox.maps.extension.style.StyleContract
 import com.mapbox.maps.extension.style.layers.addLayer
 import com.mapbox.maps.extension.style.layers.generated.lineLayer
 import com.mapbox.maps.extension.style.layers.properties.generated.LineCap
@@ -61,6 +63,10 @@ import kotlin.random.Random
 
 const val FRASNE_LATITUDE = 46.854022
 const val FRASNE_LONGITUDE = 6.156132
+
+val pathsColors = mutableListOf(
+    "#FF6B6B", "#6BCEFF", "#ff9b54", "#4ECDC4", "#6B6BFF"
+)
 
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
@@ -136,21 +142,7 @@ fun MapBoxComposable(
                     chosenPath,
                     onBothPointFound = { nw, se ->
                         map.value?.mapboxMap?.loadStyle(
-                            style(style = Style.STANDARD) {
-                                +geoJsonSource("startingSource") {
-                                    featureCollection(
-                                        FeatureCollection.fromJson(Json.encodeToString(chosenPath.geoJson)),
-                                        "${chosenPath.hashCode()}_data"
-                                    )
-                                }
-                                +lineLayer("linelayer", "startingSource") {
-                                    lineCap(LineCap.ROUND)
-                                    lineJoin(LineJoin.ROUND)
-                                    lineOpacity(0.9)
-                                    lineWidth(4.0)
-                                    lineColor("#eb16fa")
-                                }
-                            }
+                            getStyleForPath(chosenPath, allPaths)
                         ) {
                             zoomOnSelectedPathMainCity(
                                 map.value,
@@ -171,23 +163,7 @@ fun MapBoxComposable(
         } else {
             if (map.value?.mapboxMap?.style == null && allPaths.isNotEmpty()) {
                 map.value?.mapboxMap?.loadStyle(
-                    style(style = Style.STANDARD) {
-                        allPaths.forEach {
-                            +geoJsonSource("${it.hashCode()}") {
-                                featureCollection(
-                                    FeatureCollection.fromJson(Json.encodeToString(it.geoJson)),
-                                    "${it.hashCode()}_data"
-                                )
-                            }
-                            +lineLayer("linelayer", "${it.hashCode()}") {
-                                lineCap(LineCap.ROUND)
-                                lineJoin(LineJoin.ROUND)
-                                lineOpacity(0.9)
-                                lineWidth(4.0)
-                                lineColor("#eb16fa")
-                            }
-                        }
-                    }
+                    getStyleForNoChosenPath(allPaths)
                 ) {
                     setIsLoading.invoke(false)
                 }
@@ -246,35 +222,7 @@ fun MapBoxComposable(
                         middleSlot = {},
                         init = {
                             styleImportsConfig {
-                                style(style = Style.STANDARD) {
-                                    allPaths.forEach { path ->
-
-                                        val sourceId =
-                                            path.hashCode().toString() + Random.nextInt().toString()
-                                        val layerId = "${sourceId}_layer"
-
-                                        map.value?.mapboxMap?.addSource(geoJsonSource(sourceId) {
-                                            featureCollection(
-                                                FeatureCollection.fromJson(
-                                                    Json.encodeToString(path.geoJson)
-                                                ),
-                                                "${sourceId}_data"
-                                            )
-                                        })
-
-                                        map.value?.mapboxMap?.addLayer(
-                                            lineLayer(
-                                                layerId,
-                                                sourceId
-                                            ) {
-                                                lineCap(LineCap.ROUND)
-                                                lineJoin(LineJoin.ROUND)
-                                                lineOpacity(0.9)
-                                                lineWidth(4.0)
-                                                lineColor("#eb16fa")
-                                            })
-                                    }
-                                }
+                                getStyleForInit(map, allPaths)
                             }
                         }
                     )
@@ -310,47 +258,9 @@ fun MapBoxComposable(
                         if (allPaths.isNotEmpty()) {
                             mapView.mapboxMap.loadStyle(
                                 if (chosenPath != null) {
-                                    style(style = Style.STANDARD) {
-                                        +geoJsonSource("startingSource") {
-                                            featureCollection(
-                                                FeatureCollection.fromJson(
-                                                    Json.encodeToString(
-                                                        chosenPath.geoJson
-                                                    )
-                                                ),
-                                                "${chosenPath.hashCode()}_data"
-                                            )
-                                        }
-                                        +lineLayer("linelayer", "startingSource") {
-                                            lineCap(LineCap.ROUND)
-                                            lineJoin(LineJoin.ROUND)
-                                            lineOpacity(0.9)
-                                            lineWidth(4.0)
-                                            lineColor("#eb16fa")
-                                        }
-                                    }
+                                    getStyleForPath(chosenPath, allPaths)
                                 } else {
-                                    style(style = Style.STANDARD) {
-                                        allPaths.forEach {
-                                            +geoJsonSource("${it.hashCode()}") {
-                                                featureCollection(
-                                                    FeatureCollection.fromJson(
-                                                        Json.encodeToString(
-                                                            it.geoJson
-                                                        )
-                                                    ),
-                                                    "${it.hashCode()}_data"
-                                                )
-                                            }
-                                            +lineLayer("linelayer", "${it.hashCode()}") {
-                                                lineCap(LineCap.ROUND)
-                                                lineJoin(LineJoin.ROUND)
-                                                lineOpacity(0.9)
-                                                lineWidth(4.0)
-                                                lineColor("#eb16fa")
-                                            }
-                                        }
-                                    }
+                                    getStyleForNoChosenPath(allPaths)
                                 }
                             ) {
                                 setIsLoading.invoke(false)
@@ -509,4 +419,82 @@ fun zoomOnSelectedPathOffline(
         },
         animatorListener = animatorListener
     )
+}
+
+fun getStyleForPath(
+    path: UiDeliveryPath,
+    allPaths: List<UiDeliveryPath>
+): StyleContract.StyleExtension {
+
+    return style(style = Style.STANDARD) {
+        +geoJsonSource("startingSource") {
+            featureCollection(
+                FeatureCollection.fromJson(Json.encodeToString(path.geoJson)),
+                "${path.hashCode()}_data"
+            )
+        }
+        +lineLayer("linelayer", "startingSource") {
+            lineCap(LineCap.ROUND)
+            lineJoin(LineJoin.ROUND)
+            lineOpacity(1.0)
+            lineWidth(6.0)
+            lineColor(pathsColors[allPaths.indexOf(path) % pathsColors.size])
+        }
+    }
+}
+
+fun getStyleForNoChosenPath(allPaths: List<UiDeliveryPath>): StyleContract.StyleExtension {
+
+    return style(style = Style.STANDARD) {
+        allPaths.forEach {
+            +geoJsonSource("${it.hashCode()}") {
+                featureCollection(
+                    FeatureCollection.fromJson(Json.encodeToString(it.geoJson)),
+                    "${it.hashCode()}_data"
+                )
+            }
+            +lineLayer("linelayer", "${it.hashCode()}") {
+                lineCap(LineCap.ROUND)
+                lineJoin(LineJoin.ROUND)
+                lineOpacity(1.0)
+                lineWidth(6.0)
+                lineColor(pathsColors[allPaths.indexOf(it) % pathsColors.size])
+            }
+        }
+    }
+}
+
+fun getStyleForInit(
+    map: MutableState<MapView?>,
+    allPaths: List<UiDeliveryPath>
+): StyleContract.StyleExtension {
+
+    return style(style = Style.STANDARD) {
+        allPaths.forEach { path ->
+            val sourceId =
+                path.hashCode().toString() + Random.nextInt().toString()
+            val layerId = "${sourceId}_layer"
+
+            map.value?.mapboxMap?.addSource(geoJsonSource(sourceId) {
+                featureCollection(
+                    FeatureCollection.fromJson(
+                        Json.encodeToString(path.geoJson)
+                    ),
+                    "${sourceId}_data"
+                )
+            })
+
+            map.value?.mapboxMap?.addLayer(
+                lineLayer(
+                    layerId,
+                    sourceId
+                ) {
+                    lineCap(LineCap.ROUND)
+                    lineJoin(LineJoin.ROUND)
+                    lineOpacity(1.0)
+                    lineWidth(6.0)
+                    lineColor(pathsColors[allPaths.indexOf(path) % pathsColors.size])
+                })
+        }
+    }
 }
