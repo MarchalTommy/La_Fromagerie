@@ -11,7 +11,7 @@ import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import com.mapbox.android.core.permissions.PermissionsManager.Companion.areLocationPermissionsGranted
-import com.mtdevelopment.core.model.DeliveryPath
+import com.mtdevelopment.checkout.presentation.model.UiDeliveryPath
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -20,10 +20,11 @@ import java.io.IOException
 @OptIn(ExperimentalPermissionsApi::class)
 @Composable
 fun PermissionManagerComposable(
+    allPaths: List<UiDeliveryPath>,
     onUpdateUserCity: (String) -> Unit,
     onUpdateUserIsOnPath: (Boolean) -> Unit,
     onUpdateLocalisationState: (Boolean) -> Unit,
-    onUpdateSelectedPath: (DeliveryPath) -> Unit,
+    onUpdateSelectedPath: (UiDeliveryPath) -> Unit,
     onUpdateUserCityLocation: (Pair<Double, Double>) -> Unit,
     onUpdateShouldShowLocalisationPermission: (Boolean) -> Unit,
     setIsLoading: (Boolean) -> Unit
@@ -48,7 +49,9 @@ fun PermissionManagerComposable(
                             lastLocation.second,
                             1
                         ) { addressesList ->
-                            getCityFromGeocoder(addressesList,
+                            getCityFromGeocoder(
+                                allPaths,
+                                addressesList,
                                 onUpdateUserIsOnPath = {
                                     onUpdateUserIsOnPath.invoke(it)
                                 }, onUpdateUserCity = {
@@ -71,6 +74,7 @@ fun PermissionManagerComposable(
                                 null
                             }
                             getCityFromGeocoder(
+                                allPaths,
                                 addressesList,
                                 onUpdateUserIsOnPath = {
                                     onUpdateUserIsOnPath.invoke(it)
@@ -100,15 +104,16 @@ fun PermissionManagerComposable(
 }
 
 fun getCityFromGeocoder(
+    allPaths: List<UiDeliveryPath>,
     addressesList: List<Address>?,
     onUpdateUserIsOnPath: (Boolean) -> Unit,
-    onUpdateSelectedPath: (DeliveryPath) -> Unit,
+    onUpdateSelectedPath: (UiDeliveryPath) -> Unit,
     onUpdateUserCity: (String) -> Unit
 ) {
     val foundAddress = addressesList?.find { address ->
         val correctPath =
-            DeliveryPath.entries.find { path ->
-                path.availableCities.contains(
+            allPaths.find { path ->
+                path.cities.contains(
                     address.locality
                 )
             }

@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.androidLibrary)
     alias(libs.plugins.kotlinAndroid)
     alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.ksp)
 }
 
 android {
@@ -14,26 +15,34 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles("consumer-rules.pro")
-
-        val SUMUP_PRIVATE_KEY = System.getenv("SUMUP_PRIVATE_KEY") ?: project.findProperty("SUMUP_PRIVATE_KEY")
-            ?.toString()
+        val SUMUP_PRIVATE_KEY =
+            System.getenv("SUMUP_PRIVATE_KEY") ?: project.findProperty("SUMUP_PRIVATE_KEY")
+                ?.toString()
         buildConfigField("String", "SUMUP_PRIVATE_KEY", "\"$SUMUP_PRIVATE_KEY\"")
-        
-        val SUMUP_PUBLIC_KEY = System.getenv("SUMUP_PUBLIC_KEY") ?: project.findProperty("SUMUP_PUBLIC_KEY")
-            ?.toString()
+
+        val SUMUP_PUBLIC_KEY =
+            System.getenv("SUMUP_PUBLIC_KEY") ?: project.findProperty("SUMUP_PUBLIC_KEY")
+                ?.toString()
         buildConfigField("String", "SUMUP_PUBLIC_KEY", "\"$SUMUP_PUBLIC_KEY\"")
 
-        val SUMUP_MERCHANT_ID = System.getenv("SUMUP_MERCHANT_ID") ?: project.findProperty("SUMUP_MERCHANT_ID")
-            ?.toString()
+        val SUMUP_MERCHANT_ID =
+            System.getenv("SUMUP_MERCHANT_ID") ?: project.findProperty("SUMUP_MERCHANT_ID")
+                ?.toString()
         buildConfigField("String", "SUMUP_MERCHANT_ID", "\"$SUMUP_MERCHANT_ID\"")
 
-        val SUMUP_TEST_MERCHANT_ID = System.getenv("SUMUP_TEST_MERCHANT_ID") ?: project.findProperty("SUMUP_TEST_MERCHANT_ID")
-            ?.toString()
+        val SUMUP_TEST_MERCHANT_ID = System.getenv("SUMUP_TEST_MERCHANT_ID")
+            ?: project.findProperty("SUMUP_TEST_MERCHANT_ID")
+                ?.toString()
         buildConfigField("String", "SUMUP_TEST_MERCHANT_ID", "\"$SUMUP_TEST_MERCHANT_ID\"")
 
         val GOOGLE_PAY_ID = System.getenv("GOOGLE_PAY_ID") ?: project.findProperty("GOOGLE_PAY_ID")
             ?.toString()
         buildConfigField("String", "GOOGLE_PAY_ID", "\"$GOOGLE_PAY_ID\"")
+
+        val OPEN_ROUTE_TOKEN =
+            System.getenv("OPEN_ROUTE_TOKEN") ?: project.findProperty("OPEN_ROUTE_TOKEN")
+        buildConfigField("String", "OPEN_ROUTE_TOKEN", "\"$OPEN_ROUTE_TOKEN\"")
+
     }
 
     buildTypes {
@@ -93,5 +102,13 @@ dependencies {
     implementation(libs.ktor.content.negociation)
     implementation(libs.ktor.serialization.json)
 
+    implementation(libs.mapbox.geojson)
+
     implementation(libs.datastore.preferences)
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.firestore)
+
+    implementation(libs.room.ktx)
+    implementation(libs.room.runtime)
+    annotationProcessor(libs.room.compiler)
 }

@@ -28,10 +28,21 @@ interface SharedDatastore {
 
     suspend fun clearOrder()
 
-    val lastFirestoreUpdateTimeStamp: Flow<Long>
+    val lastFirestoreProductsUpdate: Flow<Long>
 
-    suspend fun lastFirestoreUpdateTimestamp(timestamp: Long)
+    suspend fun lastFirestoreProductsUpdate(timestamp: Long)
+
+    val lastFirestorePathsUpdate: Flow<Long>
+
+    suspend fun lastFirestorePathsUpdate(timestamp: Long)
+
+    val shouldRefreshProducts: Flow<Boolean>
+
+    suspend fun setShouldRefreshProducts(shouldRefresh: Boolean)
+
+    val shouldRefreshPaths: Flow<Boolean>
+
+    suspend fun setShouldRefreshPaths(shouldRefresh: Boolean)
 
     suspend fun clearAllDatastore()
-
 }

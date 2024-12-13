@@ -9,6 +9,7 @@ import com.mtdevelopment.core.presentation.sharedModels.toUiProductObject
 import com.mtdevelopment.core.usecase.GetIsNetworkConnectedUseCase
 import com.mtdevelopment.home.domain.usecase.GetAllCheesesUseCase
 import com.mtdevelopment.home.domain.usecase.GetAllProductsUseCase
+import com.mtdevelopment.home.domain.usecase.GetLastFirestoreDatabaseUpdateUseCase
 import com.mtdevelopment.home.presentation.state.HomeUiState
 import kotlinx.coroutines.launch
 import org.koin.core.component.KoinComponent
@@ -16,6 +17,7 @@ import org.koin.core.component.KoinComponent
 class HomeViewModel(
     private val getAllProductsUseCase: GetAllProductsUseCase,
     private val getAllCheesesUseCase: GetAllCheesesUseCase,
+    private val getLastFirestoreDatabaseUpdateUseCase: GetLastFirestoreDatabaseUpdateUseCase,
     getIsNetworkConnectedUseCase: GetIsNetworkConnectedUseCase
 ) : ViewModel(), KoinComponent {
 
@@ -26,8 +28,21 @@ class HomeViewModel(
 
     init {
         viewModelScope.launch {
-            getAllProducts()
+            checkAndUpdateDatabase()
         }
+    }
+
+    private suspend fun checkAndUpdateDatabase() {
+        getLastFirestoreDatabaseUpdateUseCase.invoke(onSuccess = {
+            viewModelScope.launch {
+                getAllProducts()
+            }
+        }, onFailure = {
+            homeUiState = homeUiState.copy(
+                isLoading = false,
+                isError = "Mise à jour de la base de donnée impossible"
+            )
+        })
     }
 
     private suspend fun getAllProducts() {
@@ -51,7 +66,7 @@ class HomeViewModel(
     fun refreshProducts() {
         homeUiState = homeUiState.copy(isLoading = true)
         viewModelScope.launch {
-            getAllProducts()
+            checkAndUpdateDatabase()
         }
     }
 }

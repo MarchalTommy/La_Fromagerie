@@ -11,6 +11,7 @@ plugins {
 android {
     namespace = "com.mtdevelopment.lafromagerie"
     compileSdk = 35
+    android.buildFeatures.buildConfig = true
 
     signingConfigs {
         create("release") {

@@ -6,6 +6,7 @@ import com.google.firebase.crashlytics.crashlytics
 import com.google.firebase.firestore.FirebaseFirestore
 import com.mtdevelopment.core.model.ProductData
 import com.mtdevelopment.core.model.toProductType
+import com.mtdevelopment.home.data.model.FirestoreUpdateData
 
 class FirestoreDatabase(
     private val firestore: FirebaseFirestore
@@ -61,13 +62,28 @@ class FirestoreDatabase(
             }
     }
 
-    fun getLastDatabaseUpdate(onSuccess: (Timestamp) -> Unit, onFailure: () -> Unit) {
+    fun getLastDatabaseUpdate(onSuccess: (FirestoreUpdateData) -> Unit, onFailure: () -> Unit) {
         firestore.collection("database_update")
-            .document("last_database_update")
             .get()
             .addOnSuccessListener { snapshot ->
+                var productTimestamp = 0L
+                var pathTimestamp = 0L
+                snapshot.documents.map { document ->
+                    if (document.id == "products_timestamp") productTimestamp =
+                        (document.data?.get("last_update") as? Timestamp)?.toInstant()
+                            ?.toEpochMilli()
+                            ?: 0L
+
+                    if (document.id == "path_timestamp") pathTimestamp =
+                        (document.data?.get("last_update") as? Timestamp)?.toInstant()
+                            ?.toEpochMilli()
+                            ?: 0L
+                }
                 onSuccess.invoke(
-                    snapshot.data?.get("timestamp") as? Timestamp ?: Timestamp(0L, 0)
+                    FirestoreUpdateData(
+                        productsTimestamp = productTimestamp,
+                        pathsTimestamp = pathTimestamp
+                    )
                 )
             }.addOnFailureListener {
                 onFailure.invoke()

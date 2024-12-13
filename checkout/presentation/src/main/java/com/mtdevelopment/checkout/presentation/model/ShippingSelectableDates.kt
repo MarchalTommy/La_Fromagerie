@@ -11,7 +11,7 @@ import java.util.Calendar
 private val limitDate = LocalDate.now().plusDays(2)
 
 @OptIn(ExperimentalMaterial3Api::class)
-class ShippingSelectableMetaDates :
+class ShippingSelectableDatesTest(val selectedDay: String) :
     SelectableDates {
     override fun isSelectableDate(utcTimeMillis: Long): Boolean {
         val instant = Instant.ofEpochMilli(utcTimeMillis)
@@ -20,43 +20,9 @@ class ShippingSelectableMetaDates :
 
         val isInTimeLimit = targetDate.isAfter(limitDate) || targetDate.isEqual(limitDate)
 
-        return targetDate.dayOfWeek == DayOfWeek.TUESDAY && isInTimeLimit
-    }
+        val deliveryDay = DayOfWeek.valueOf(selectedDay)
 
-    override fun isSelectableYear(year: Int): Boolean {
-        return year <= Calendar.getInstance().get(Calendar.YEAR) + 1
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-class ShippingSelectableSalinDates :
-    SelectableDates {
-    override fun isSelectableDate(utcTimeMillis: Long): Boolean {
-        val instant = Instant.ofEpochMilli(utcTimeMillis)
-        val zonedDateTime = instant.atZone(ZoneId.systemDefault())
-        val targetDate = zonedDateTime.toLocalDate()
-
-        val isInTimeLimit = targetDate.isAfter(limitDate) || targetDate.isEqual(limitDate)
-
-        return targetDate.dayOfWeek == DayOfWeek.WEDNESDAY && isInTimeLimit
-    }
-
-    override fun isSelectableYear(year: Int): Boolean {
-        return year <= Calendar.getInstance().get(Calendar.YEAR) + 1
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-class ShippingSelectablePontarlierDates :
-    SelectableDates {
-    override fun isSelectableDate(utcTimeMillis: Long): Boolean {
-        val instant = Instant.ofEpochMilli(utcTimeMillis)
-        val zonedDateTime = instant.atZone(ZoneId.systemDefault())
-        val targetDate = zonedDateTime.toLocalDate()
-
-        val isInTimeLimit = targetDate.isAfter(limitDate) || targetDate.isEqual(limitDate)
-
-        return targetDate.dayOfWeek == DayOfWeek.FRIDAY && isInTimeLimit
+        return targetDate.dayOfWeek == deliveryDay && isInTimeLimit
     }
 
     override fun isSelectableYear(year: Int): Boolean {

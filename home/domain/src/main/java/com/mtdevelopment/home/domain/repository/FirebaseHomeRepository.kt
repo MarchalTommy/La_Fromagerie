@@ -10,6 +10,6 @@ interface FirebaseHomeRepository {
 
     fun getAllCheeses(onSuccess: (List<Product>) -> Unit, onFailure: () -> Unit)
 
-    fun getLastDatabaseUpdate(onSuccess: (Long) -> Unit, onFailure: () -> Unit)
+    fun getLastDatabaseUpdate(onSuccess: (products: Long, paths: Long) -> Unit, onFailure: () -> Unit)
 
 }

@@ -6,7 +6,7 @@ import kotlinx.serialization.Serializable
 data class UserInformationData(
     val name: String,
     val address: String,
-    val lastSelectedPath: DeliveryPath
+    val lastSelectedPath: String
 )
 
 // Data to domain

@@ -5,15 +5,19 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.mtdevelopment.checkout.domain.usecase.GetAllDeliveryPathsUseCase
+import com.mtdevelopment.checkout.domain.usecase.GetDeliveryPathUseCase
 import com.mtdevelopment.checkout.domain.usecase.GetUserInfoFromDatastoreUseCase
+import com.mtdevelopment.checkout.presentation.model.UiDeliveryPath
+import com.mtdevelopment.checkout.presentation.model.toUiDeliveryPath
 import com.mtdevelopment.checkout.presentation.state.DeliveryUiDataState
-import com.mtdevelopment.core.model.DeliveryPath
 import com.mtdevelopment.core.model.UserInformation
 import com.mtdevelopment.core.usecase.GetIsNetworkConnectedUseCase
 import com.mtdevelopment.core.usecase.SaveToDatastoreUseCase
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import org.koin.core.component.KoinComponent
@@ -21,7 +25,9 @@ import org.koin.core.component.KoinComponent
 class DeliveryViewModel(
     getIsConnectedUseCase: GetIsNetworkConnectedUseCase,
     getUserInfoFromDatastoreUseCase: GetUserInfoFromDatastoreUseCase,
-    private val saveToDatastoreUseCase: SaveToDatastoreUseCase
+    private val saveToDatastoreUseCase: SaveToDatastoreUseCase,
+    private val getDeliveryPathsUseCase: GetDeliveryPathUseCase,
+    private val getAllDeliveryPathsUseCase: GetAllDeliveryPathsUseCase
 ) : ViewModel(), KoinComponent {
 
     val isConnected: StateFlow<Boolean> = getIsConnectedUseCase.invoke().stateIn(
@@ -35,13 +41,15 @@ class DeliveryViewModel(
 
     init {
         viewModelScope.launch {
-            val userInfo = getUserInfoFromDatastoreUseCase.invoke().first()
-
+            deliveryUiDataState = deliveryUiDataState.copy(isLoading = true)
+            getAllDeliveryPaths()
+            val userInfo = getUserInfoFromDatastoreUseCase.invoke().firstOrNull()
             deliveryUiDataState = deliveryUiDataState.copy(
                 userAddressFieldText = userInfo?.address ?: "",
                 userNameFieldText = userInfo?.name ?: "",
-                selectedPath = userInfo?.lastSelectedPath
+                selectedPath = deliveryUiDataState.deliveryPaths.firstOrNull { it.name == userInfo?.lastSelectedPath }
             )
+
         }
     }
 
@@ -56,7 +64,7 @@ class DeliveryViewModel(
                 userInformation = UserInformation(
                     name = deliveryUiDataState.userNameFieldText,
                     address = deliveryUiDataState.userAddressFieldText,
-                    lastSelectedPath = deliveryUiDataState.selectedPath!!
+                    lastSelectedPath = deliveryUiDataState.selectedPath?.name ?: ""
                 )
             )
         }
@@ -67,6 +75,23 @@ class DeliveryViewModel(
             saveToDatastoreUseCase.invoke(deliveryDate = date)
         }
     }
+
+    private suspend fun getAllDeliveryPaths() {
+        getAllDeliveryPathsUseCase.invoke(scope = viewModelScope,
+            onSuccess = { pathsList ->
+                deliveryUiDataState = deliveryUiDataState.copy(
+                    deliveryPaths = pathsList.mapNotNull { path ->
+                        path?.toUiDeliveryPath()
+                    },
+                    isLoading = false
+                )
+            },
+            onFailure = {
+                deliveryUiDataState = deliveryUiDataState.copy(isLoading = false)
+                // TODO: Manage error state
+            })
+    }
+
 
     ///////////////////////////////////////////////////////////////////////////
     // DELIVERY STATE
@@ -112,7 +137,7 @@ class DeliveryViewModel(
         deliveryUiDataState = deliveryUiDataState.copy(userCity = city)
     }
 
-    fun updateSelectedPath(path: DeliveryPath) {
+    fun updateSelectedPath(path: UiDeliveryPath) {
         deliveryUiDataState = deliveryUiDataState.copy(selectedPath = path)
     }
 

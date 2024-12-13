@@ -2,9 +2,6 @@ package com.mtdevelopment.checkout.presentation.composable
 
 import android.animation.Animator
 import android.animation.Animator.AnimatorListener
-import android.location.Address
-import android.location.Geocoder
-import android.os.Build
 import android.view.MotionEvent
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.fillMaxSize
@@ -18,6 +15,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.contentColorFor
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -25,19 +23,27 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInteropFilter
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import com.google.firebase.crashlytics.FirebaseCrashlytics
 import com.mapbox.android.gestures.MoveGestureDetector
+import com.mapbox.geojson.FeatureCollection
 import com.mapbox.geojson.Point
 import com.mapbox.maps.CameraOptions
 import com.mapbox.maps.MapView
+import com.mapbox.maps.Style
 import com.mapbox.maps.TransitionOptions
 import com.mapbox.maps.extension.compose.MapEffect
 import com.mapbox.maps.extension.compose.MapboxMap
 import com.mapbox.maps.extension.compose.animation.viewport.rememberMapViewportState
 import com.mapbox.maps.extension.compose.style.standard.MapboxStandardStyle
 import com.mapbox.maps.extension.compose.style.styleImportsConfig
+import com.mapbox.maps.extension.style.StyleContract
+import com.mapbox.maps.extension.style.layers.addLayer
+import com.mapbox.maps.extension.style.layers.generated.lineLayer
+import com.mapbox.maps.extension.style.layers.properties.generated.LineCap
+import com.mapbox.maps.extension.style.layers.properties.generated.LineJoin
+import com.mapbox.maps.extension.style.sources.addSource
+import com.mapbox.maps.extension.style.sources.generated.geoJsonSource
+import com.mapbox.maps.extension.style.style
 import com.mapbox.maps.logI
 import com.mapbox.maps.plugin.animation.MapAnimationOptions
 import com.mapbox.maps.plugin.animation.camera
@@ -48,36 +54,35 @@ import com.mapbox.maps.plugin.annotation.generated.PointAnnotationOptions
 import com.mapbox.maps.plugin.annotation.generated.createPointAnnotationManager
 import com.mapbox.maps.plugin.gestures.OnMoveListener
 import com.mapbox.maps.plugin.gestures.addOnMoveListener
-import com.mtdevelopment.core.model.DeliveryPath
+import com.mtdevelopment.checkout.presentation.model.UiDeliveryPath
 import com.mtdevelopment.core.util.ScreenSize
 import com.mtdevelopment.core.util.rememberScreenSize
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.launch
-import java.io.IOException
-import kotlin.coroutines.resume
-import kotlin.coroutines.suspendCoroutine
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
+import kotlin.random.Random
 
 const val FRASNE_LATITUDE = 46.854022
 const val FRASNE_LONGITUDE = 6.156132
+
+val pathsColors = mutableListOf(
+    "#FF6B6B", "#6BCEFF", "#ff9b54", "#4ECDC4", "#6B6BFF"
+)
 
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun MapBoxComposable(
     userLocation: Pair<Double, Double>?,
-    chosenPath: DeliveryPath?,
+    chosenPath: UiDeliveryPath?,
+    allPaths: List<UiDeliveryPath>,
     isConnectedToInternet: Boolean,
     setIsLoading: (Boolean) -> Unit,
     setColumnScrollingEnabled: (Boolean) -> Unit,
     onError: (String) -> Unit = {}
 ) {
 
-    val context = LocalContext.current
     val cameraBasePoint =
-        remember { mutableStateOf(Point.fromLngLat(FRASNE_LONGITUDE, FRASNE_LATITUDE)) }
+        remember { mutableStateOf<Point?>(null) }
 
-    val geocoder = Geocoder(context)
     val screenSize: ScreenSize = rememberScreenSize()
     val map = remember { mutableStateOf<MapView?>(null) }
 
@@ -116,10 +121,17 @@ fun MapBoxComposable(
         }
     }
 
-    LaunchedEffect(Unit) {
-        getBaseCameraLocation(geocoder, setIsLoading = { setIsLoading.invoke(true) },
-            callback = {
-                cameraBasePoint.value = it
+    LaunchedEffect(allPaths) {
+        getBaseCameraLocation(allPaths = allPaths, setIsLoading = { setIsLoading.invoke(it) },
+            callback = { nw, se ->
+                setIsLoading.invoke(false)
+                zoomOnSelectedPathMainCity(
+                    map.value,
+                    nw,
+                    se,
+                    9.0,
+                    null
+                )
             })
     }
 
@@ -128,20 +140,17 @@ fun MapBoxComposable(
             if (isConnectedToInternet) {
                 getCameraLocalisationFromPath(
                     chosenPath,
-                    geocoder,
-                    setIsLoading,
                     onBothPointFound = { nw, se ->
-                        if (map.value?.mapboxMap?.style?.styleURI != chosenPath.mapStyle) {
-                            map.value?.mapboxMap?.loadStyle(
-                                chosenPath.mapStyle
-                            ) {
-                                zoomOnSelectedPathMainCity(
-                                    map.value,
-                                    nw,
-                                    se,
-                                    animatorListener
-                                )
-                            }
+                        map.value?.mapboxMap?.loadStyle(
+                            getStyleForPath(chosenPath, allPaths)
+                        ) {
+                            zoomOnSelectedPathMainCity(
+                                map.value,
+                                nw,
+                                se,
+                                null,
+                                animatorListener
+                            )
                         }
                     }
                 )
@@ -152,9 +161,9 @@ fun MapBoxComposable(
                 )
             }
         } else {
-            if (map.value?.mapboxMap?.style == null) {
+            if (map.value?.mapboxMap?.style == null && allPaths.isNotEmpty()) {
                 map.value?.mapboxMap?.loadStyle(
-                    "mapbox://styles/marchaldevelopment/cm1s77ihq00m301pl7w12c0kc"
+                    getStyleForNoChosenPath(allPaths)
                 ) {
                     setIsLoading.invoke(false)
                 }
@@ -163,8 +172,11 @@ fun MapBoxComposable(
     }
 
     Card(
-        modifier = Modifier.heightIn(min = 0.dp, max = (screenSize.height / 5) * 2)
-            .fillMaxWidth().padding(4.dp).focusable(true),
+        modifier = Modifier
+            .heightIn(min = 0.dp, max = (screenSize.height / 5) * 2)
+            .fillMaxWidth()
+            .padding(4.dp)
+            .focusable(true),
         colors = CardColors(
             containerColor = MaterialTheme.colorScheme.primaryContainer,
             contentColor = MaterialTheme.colorScheme.contentColorFor(MaterialTheme.colorScheme.primaryContainer),
@@ -174,7 +186,9 @@ fun MapBoxComposable(
         elevation = CardDefaults.elevatedCardElevation()
     ) {
         Card(
-            modifier = Modifier.padding(8.dp).fillMaxSize(),
+            modifier = Modifier
+                .padding(8.dp)
+                .fillMaxSize(),
             elevation = CardDefaults.elevatedCardElevation()
         ) {
             MapboxMap(
@@ -208,13 +222,7 @@ fun MapBoxComposable(
                         middleSlot = {},
                         init = {
                             styleImportsConfig {
-                                mutableMapOf(
-                                    Pair(
-                                        "Basic",
-                                        chosenPath?.mapStyle
-                                            ?: "mapbox://styles/marchaldevelopment/cm1s77ihq00m301pl7w12c0kc"
-                                    )
-                                )
+                                getStyleForInit(map, allPaths)
                             }
                         }
                     )
@@ -247,11 +255,16 @@ fun MapBoxComposable(
 
                     setIsLoading.invoke(true)
                     if (mapView.mapboxMap.style == null) {
-                        mapView.mapboxMap.loadStyle(
-                            chosenPath?.mapStyle
-                                ?: "mapbox://styles/marchaldevelopment/cm1s77ihq00m301pl7w12c0kc"
-                        ) {
-                            setIsLoading.invoke(false)
+                        if (allPaths.isNotEmpty()) {
+                            mapView.mapboxMap.loadStyle(
+                                if (chosenPath != null) {
+                                    getStyleForPath(chosenPath, allPaths)
+                                } else {
+                                    getStyleForNoChosenPath(allPaths)
+                                }
+                            ) {
+                                setIsLoading.invoke(false)
+                            }
                         }
                     } else {
                         setIsLoading.invoke(false)
@@ -294,167 +307,55 @@ fun MapBoxComposable(
     }
 }
 
-fun selectNorthWestCityFromPath(path: DeliveryPath): String {
-    return when (path) {
-        DeliveryPath.PATH_META -> {
-            "Censeau"
-        }
-
-        DeliveryPath.PATH_SALIN -> {
-            "Ivrey"
-        }
-
-        DeliveryPath.PATH_PON -> {
-            "Levier"
-        }
-    }
-}
-
-fun selectSouthEastCityFromPath(path: DeliveryPath): String {
-    return when (path) {
-        DeliveryPath.PATH_META -> {
-            "Jougne"
-        }
-
-        DeliveryPath.PATH_SALIN -> {
-            "Boujailles"
-        }
-
-        DeliveryPath.PATH_PON -> {
-            "La Cluse-et-Mijoux"
-        }
-    }
-}
-
 fun getCameraLocalisationFromPath(
-    path: DeliveryPath,
-    geocoder: Geocoder,
-    setIsLoading: (Boolean) -> Unit,
+    path: UiDeliveryPath,
     onBothPointFound: (pointNW: Point, pointSE: Point) -> Unit
 ) {
-    setIsLoading.invoke(true)
-    val scope = CoroutineScope(Dispatchers.Main)
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-        scope.launch {
-            val pointNW = async {
-                suspendCoroutine {
-                    geocoder.getFromLocationName(
-                        selectNorthWestCityFromPath(path),
-                        1
-                    ) { addressList ->
-                        it.resume(
-                            Point.fromLngLat(
-                                addressList.firstOrNull()?.longitude ?: 0.0,
-                                addressList.firstOrNull()?.latitude ?: 0.0
-                            )
-                        )
-                    }
-                }
-            }.await()
 
-            val pointSE = async {
-                suspendCoroutine {
-                    geocoder.getFromLocationName(
-                        selectSouthEastCityFromPath(path),
-                        1
-                    ) { addressList ->
-                        it.resume(
-                            Point.fromLngLat(
-                                addressList.firstOrNull()?.longitude ?: 0.0,
-                                addressList.firstOrNull()?.latitude ?: 0.0
-                            )
-                        )
-                    }
-                }
-            }.await()
+    val latitudes = path.locations?.map { it.first }
+    val maxLatitude = latitudes?.maxOf { it }
+    val minLatitude = latitudes?.minOf { it }
 
-            setIsLoading.invoke(false)
-            onBothPointFound.invoke(pointNW, pointSE)
-        }
-    } else {
-        try {
-            val addressNW = geocoder.getFromLocationName(
-                selectNorthWestCityFromPath(path), 1
-            )?.firstOrNull()
-            val pointNW = Point.fromLngLat(
-                addressNW?.longitude ?: 0.0,
-                addressNW?.latitude ?: 0.0
-            )
+    val longitude = path.locations?.map { it.second }
+    val maxLongitude = longitude?.maxOf { it }
+    val minLongitude = longitude?.minOf { it }
 
-            val addressSE = geocoder.getFromLocationName(
-                selectSouthEastCityFromPath(path), 1
-            )?.firstOrNull()
-            val pointSE = Point.fromLngLat(
-                addressSE?.longitude ?: 0.0,
-                addressSE?.latitude ?: 0.0
-            )
+    val northWestPoint = Point.fromLngLat(
+        minLongitude ?: 0.0, maxLatitude ?: 0.0
+    )
+    val southEastPoint = Point.fromLngLat(
+        maxLongitude ?: 0.0, minLatitude ?: 0.0
+    )
 
-            onBothPointFound.invoke(pointNW, pointSE)
-        } catch (e: IOException) {
-            FirebaseCrashlytics.getInstance().recordException(e)
-        }
-    }
+    onBothPointFound.invoke(northWestPoint, southEastPoint)
+
 }
 
 fun getBaseCameraLocation(
-    geocoder: Geocoder,
+    allPaths: List<UiDeliveryPath>,
     setIsLoading: (Boolean) -> Unit,
-    callback: (Point) -> Unit
+    callback: (nw: Point, se: Point) -> Unit
 ) {
     setIsLoading.invoke(true)
-    CoroutineScope(Dispatchers.IO).launch {
-        var northWestCity: Address? = null
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            geocoder.getFromLocationName(
-                "Ivrey",
-                1
-            ) { addressList ->
-                northWestCity = addressList.firstOrNull()
-            }
-        } else {
-            northWestCity = try {
-                geocoder.getFromLocationName(
-                    "Ivrey", 1
-                )?.firstOrNull()
-            } catch (e: IOException) {
-                null
-            }
-        }
+    if (allPaths.isNotEmpty()) {
+        val allCoordinates = allPaths.flatMap { it.locations!! }
 
-        var southEastCity: Address? = null
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            geocoder.getFromLocationName(
-                "Jougne",
-                1
-            ) { addressList ->
-                southEastCity = addressList.firstOrNull()
-            }
-        } else {
-            southEastCity = try {
-                geocoder.getFromLocationName(
-                    "Jougne", 1
-                )?.firstOrNull()
-            } catch (e: IOException) {
-                null
-            }
-        }
+        val latitudes = allCoordinates.map { it.first }
+        val maxLatitude = latitudes.maxOf { it }
+        val minLatitude = latitudes.minOf { it }
 
-        if (northWestCity == null || southEastCity == null) {
-            callback.invoke(Point.fromLngLat(FRASNE_LONGITUDE, FRASNE_LATITUDE))
-            return@launch
-        }
+        val longitude = allCoordinates.map { it.second }
+        val maxLongitude = longitude.maxOf { it }
+        val minLongitude = longitude.minOf { it }
 
         val northWestPoint = Point.fromLngLat(
-            (northWestCity as Address).longitude, northWestCity!!.latitude
+            minLongitude, maxLatitude
         )
         val southEastPoint = Point.fromLngLat(
-            (southEastCity as Address).longitude, southEastCity!!.latitude
+            maxLongitude, minLatitude
         )
 
-        val long = (southEastPoint.longitude() + northWestPoint.longitude()) / 2
-        val lat = (southEastPoint.latitude() + northWestPoint.latitude()) / 2
-
-        callback.invoke(Point.fromLngLat(long, lat))
+        callback.invoke(northWestPoint, southEastPoint)
     }
 }
 
@@ -462,7 +363,8 @@ fun zoomOnSelectedPathMainCity(
     map: MapView?,
     selectedPathNW: Point?,
     selectedPathSE: Point?,
-    animatorListener: AnimatorListener
+    zoom: Double? = null,
+    animatorListener: AnimatorListener?
 ) {
     val long =
         (selectedPathNW?.longitude()
@@ -479,7 +381,17 @@ fun zoomOnSelectedPathMainCity(
                     lat ?: FRASNE_LATITUDE,
                 )
             )
-            .zoom(if (lat != null && long != null) 9.5 else 8.5)
+            .zoom(
+                if (zoom != null) {
+                    zoom
+                } else {
+                    if (lat != null && long != null) {
+                        9.5
+                    } else {
+                        8.5
+                    }
+                },
+            )
             .build(),
         animationOptions = MapAnimationOptions.mapAnimationOptions {
             duration(1500)
@@ -488,8 +400,6 @@ fun zoomOnSelectedPathMainCity(
     )
 }
 
-// TODO: Draw paths in local to allow for an offline working map.
-// TODO: Save paths on firebase, fetch them when changed, and allow admin to update them (still needs to find how)
 fun zoomOnSelectedPathOffline(
     map: MapView?,
     animatorListener: AnimatorListener
@@ -509,4 +419,82 @@ fun zoomOnSelectedPathOffline(
         },
         animatorListener = animatorListener
     )
+}
+
+fun getStyleForPath(
+    path: UiDeliveryPath,
+    allPaths: List<UiDeliveryPath>
+): StyleContract.StyleExtension {
+
+    return style(style = Style.STANDARD) {
+        +geoJsonSource("startingSource") {
+            featureCollection(
+                FeatureCollection.fromJson(Json.encodeToString(path.geoJson)),
+                "${path.hashCode()}_data"
+            )
+        }
+        +lineLayer("linelayer", "startingSource") {
+            lineCap(LineCap.ROUND)
+            lineJoin(LineJoin.ROUND)
+            lineOpacity(1.0)
+            lineWidth(6.0)
+            lineColor(pathsColors[allPaths.indexOf(path) % pathsColors.size])
+        }
+    }
+}
+
+fun getStyleForNoChosenPath(allPaths: List<UiDeliveryPath>): StyleContract.StyleExtension {
+
+    return style(style = Style.STANDARD) {
+        allPaths.forEach {
+            +geoJsonSource("${it.hashCode()}") {
+                featureCollection(
+                    FeatureCollection.fromJson(Json.encodeToString(it.geoJson)),
+                    "${it.hashCode()}_data"
+                )
+            }
+            +lineLayer("linelayer", "${it.hashCode()}") {
+                lineCap(LineCap.ROUND)
+                lineJoin(LineJoin.ROUND)
+                lineOpacity(1.0)
+                lineWidth(6.0)
+                lineColor(pathsColors[allPaths.indexOf(it) % pathsColors.size])
+            }
+        }
+    }
+}
+
+fun getStyleForInit(
+    map: MutableState<MapView?>,
+    allPaths: List<UiDeliveryPath>
+): StyleContract.StyleExtension {
+
+    return style(style = Style.STANDARD) {
+        allPaths.forEach { path ->
+            val sourceId =
+                path.hashCode().toString() + Random.nextInt().toString()
+            val layerId = "${sourceId}_layer"
+
+            map.value?.mapboxMap?.addSource(geoJsonSource(sourceId) {
+                featureCollection(
+                    FeatureCollection.fromJson(
+                        Json.encodeToString(path.geoJson)
+                    ),
+                    "${sourceId}_data"
+                )
+            })
+
+            map.value?.mapboxMap?.addLayer(
+                lineLayer(
+                    layerId,
+                    sourceId
+                ) {
+                    lineCap(LineCap.ROUND)
+                    lineJoin(LineJoin.ROUND)
+                    lineOpacity(1.0)
+                    lineWidth(6.0)
+                    lineColor(pathsColors[allPaths.indexOf(path) % pathsColors.size])
+                })
+        }
+    }
 }

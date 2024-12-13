@@ -4,7 +4,7 @@ import com.mtdevelopment.core.model.Product
 
 interface FirebaseAdminRepository {
 
-    fun saveNewDatabaseUpdate(timestamp: Long)
+    fun saveNewDatabaseProductsUpdate(timestamp: Long)
 
     fun addNewProduct(product: Product)
 

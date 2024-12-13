@@ -5,26 +5,27 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.State
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.mtdevelopment.checkout.presentation.R
-import com.mtdevelopment.core.model.DeliveryPath
+import com.mtdevelopment.checkout.presentation.model.UiDeliveryPath
 
 @Composable
 fun LocalisationTextComposable(
-    selectedPath: DeliveryPath?,
+    selectedPath: UiDeliveryPath?,
     geolocIsOnPath: Boolean,
     userCity: String
 ) {
     Text(
-        modifier = Modifier.padding(horizontal = 8.dp).fillMaxWidth(),
+        modifier = Modifier
+            .padding(horizontal = 8.dp)
+            .fillMaxWidth(),
         text = when {
             selectedPath != null -> stringResource(
                 R.string.manual_path_chosen,
-                selectedPath.pathName
+                selectedPath.name
             )
 
             geolocIsOnPath -> stringResource(

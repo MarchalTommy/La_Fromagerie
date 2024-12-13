@@ -1,12 +1,18 @@
 package com.mtdevelopment.admin.data.source
 
+import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FirebaseFirestore
-import com.mtdevelopment.core.model.*
+import com.mtdevelopment.admin.data.model.DataDeliveryPath
+import com.mtdevelopment.core.model.ProductData
+import java.time.Instant
 
 class FirestoreAdminDatasource(
     private val firestore: FirebaseFirestore
 ) {
 
+    ///////////////////////////////////////////////////////////////////////////
+    // PRODUCTS
+    ///////////////////////////////////////////////////////////////////////////
     fun addNewProduct(product: ProductData) {
         firestore.collection("products")
             .add(product)
@@ -24,10 +30,29 @@ class FirestoreAdminDatasource(
             .delete()
     }
 
-    fun saveNewDatabaseUpdate(timestamp: Long) {
+    fun saveNewDatabaseProductUpdate(timestamp: Long) {
         firestore.collection("database_update")
-            .document("last_database_update")
-            .set(mapOf("timestamp" to timestamp))
+            .document("products_timestamp")
+            .set(mapOf("last_update" to Timestamp(Instant.ofEpochMilli(timestamp))))
+    }
 
+    ///////////////////////////////////////////////////////////////////////////
+    // DELIVERY PATH
+    ///////////////////////////////////////////////////////////////////////////
+    fun addNewDeliveryPath(path: DataDeliveryPath) {
+        firestore.collection("delivery_paths")
+            .add(path)
+    }
+
+    fun updateDeliveryPath(path: DataDeliveryPath) {
+        firestore.collection("delivery_paths")
+            .document(path.id)
+            .set(path)
+    }
+
+    fun saveNewDatabasePathsUpdate(timestamp: Long) {
+        firestore.collection("database_update")
+            .document("path_timestamp")
+            .set(mapOf("last_update" to Timestamp(Instant.ofEpochMilli(timestamp))))
     }
 }
