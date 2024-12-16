@@ -1,5 +1,6 @@
 package com.mtdevelopment.checkout.presentation.model
 
+import com.mtdevelopment.admin.presentation.model.AdminUiDeliveryPath
 import com.mtdevelopment.checkout.domain.model.GeoJsonFeatureCollection
 
 data class UiDeliveryPath(

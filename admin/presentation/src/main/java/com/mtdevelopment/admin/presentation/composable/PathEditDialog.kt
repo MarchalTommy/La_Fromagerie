@@ -5,7 +5,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -14,15 +13,12 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -31,29 +27,21 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.FocusDirection
-import androidx.compose.ui.focus.FocusManager
 import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import com.mtdevelopment.core.model.ProductType
-import com.mtdevelopment.core.presentation.sharedModels.UiProductObject
+import com.mtdevelopment.admin.presentation.model.AdminUiDeliveryPath
 import com.mtdevelopment.core.presentation.theme.ui.black70
-import com.mtdevelopment.core.util.toLongPrice
-import com.mtdevelopment.core.util.toUiPrice
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun ProductEditDialog(
-    onValidate: (UiProductObject) -> Unit,
-    onDelete: ((UiProductObject) -> Unit)?,
+fun PathEditDialog(
+    path: AdminUiDeliveryPath,
+    onValidate: (AdminUiDeliveryPath) -> Unit,
+    onDelete: ((AdminUiDeliveryPath) -> Unit)?,
     onDismiss: () -> Unit,
     onError: (String) -> Unit,
-    product: UiProductObject?
 ) {
     val focusRequester = remember {
         FocusRequester()
@@ -65,16 +53,13 @@ fun ProductEditDialog(
         mutableStateOf(false)
     }
 
-    val tempProduct = remember {
+    val tempPath = remember {
         mutableStateOf(
-            UiProductObject(
-                id = product?.id ?: "",
-                name = product?.name ?: "",
-                priceInCents = product?.priceInCents ?: 0L,
-                imageUrl = product?.imageUrl ?: "",
-                description = product?.description ?: "",
-                allergens = product?.allergens ?: listOf(),
-                type = product?.type ?: ProductType.FROMAGE
+            AdminUiDeliveryPath(
+                id = path.id,
+                name = path.name,
+                cities = path.cities,
+                deliveryDay = path.deliveryDay
             )
         )
     }
@@ -109,7 +94,7 @@ fun ProductEditDialog(
                                 if (!deleteFirstClick.value) {
                                     deleteFirstClick.value = true
                                 } else {
-                                    onDelete.invoke(product!!)
+                                    onDelete.invoke(tempPath.value)
                                     onDismiss.invoke()
                                 }
                             },
@@ -137,62 +122,43 @@ fun ProductEditDialog(
                     }
                 }
                 ProductEditField(
-                    title = "Nom du produit",
-                    value = tempProduct.value.name,
+                    title = "Nom du parcours",
+                    value = tempPath.value.name,
                     onValueChange = {
-                        tempProduct.value = tempProduct.value.copy(name = it)
+                        tempPath.value = tempPath.value.copy(name = it)
                     },
-                    isError = tempProduct.value.name.isEmpty(),
+                    isError = tempPath.value.name.isEmpty(),
                     imeAction = ImeAction.Next,
                     focusRequester = focusRequester,
                     focusManager = focusManager,
                 )
+                // TODO: Replace TextField with checkable tiles ? Or radio ? Try and see the design
                 ProductEditField(
-                    title = "Prix",
-                    value = if (tempProduct.value.priceInCents != 0L) {
-                        tempProduct.value.priceInCents.toUiPrice().replace("€", "")
-                    } else {
-                        ""
-                    },
-                    onValueChange = {
-                        try {
-                            if (it.toLongPrice() < 10000) {
-                                tempProduct.value =
-                                    tempProduct.value.copy(priceInCents = it.toLongPrice())
-                            }
-                        } catch (e: NumberFormatException) {
-                            focusManager.clearFocus()
-                            onError.invoke("Vous ne pouvez pas mettre plusieurs virgules / points")
+                    title = "Jour de livraison",
+                    value = tempPath.value.deliveryDay,
+                    onValueChange = { tempPath.value = tempPath.value.copy(deliveryDay = it) },
+                    isError = tempPath.value.deliveryDay.isBlank(),
+                    imeAction = ImeAction.Next,
+                    focusRequester = focusRequester,
+                    focusManager = focusManager,
+                )
+                // TODO: Do 2 columns to align city with postcode
+                ProductEditField(
+                    title = "Liste des villes désservies",
+                    value = tempPath.value.cities.joinToString(", "),
+                    onValueChange = { value ->
+                        val cities =
+                            value.split(",").map { it.trim() }.map { it.split("-").first() }
+                        val postcodes = cities.map { it.split("-").last() }
+                        val finalList = mutableListOf<Pair<String, Int>>()
+                        cities.zip(postcodes).forEach {
+                            finalList.add(it.first to it.second.toInt())
                         }
-
+                        tempPath.value = tempPath.value.copy(cities = finalList)
                     },
-                    isError = tempProduct.value.priceInCents == 0L,
-                    isNumberOnly = true,
-                    imeAction = ImeAction.Next,
-                    focusRequester = focusRequester,
-                    focusManager = focusManager,
-                )
-                ProductEditField(
-                    title = "Description",
-                    value = tempProduct.value.description,
-                    onValueChange = {
-                        tempProduct.value = tempProduct.value.copy(description = it)
-                    },
-                    isError = tempProduct.value.description.isEmpty(),
+                    isError = tempPath.value.cities.isEmpty(),
                     isBigText = true,
                     imeAction = ImeAction.Default,
-                    focusRequester = focusRequester,
-                    focusManager = focusManager,
-                )
-                ProductEditField(
-                    title = "Allergènes",
-                    value = tempProduct.value.allergens?.joinToString { it } ?: "",
-                    onValueChange = {
-                        tempProduct.value = tempProduct.value.copy(allergens =
-                        it.split(",")
-                        )
-                    },
-                    imeAction = ImeAction.Done,
                     focusRequester = focusRequester,
                     focusManager = focusManager,
                 )
@@ -208,12 +174,14 @@ fun ProductEditDialog(
                         TextButton(
                             modifier = Modifier
                                 .padding(top = 8.dp, end = 8.dp, start = 8.dp),
-                            enabled = (tempProduct.value.name.isNotBlank() && tempProduct.value.priceInCents in 50..3000),
+                            enabled = (tempPath.value.name.isNotBlank() &&
+                                    tempPath.value.cities.isNotEmpty() &&
+                                    tempPath.value.deliveryDay.isNotBlank()),
                             shape = MaterialTheme.shapes.large,
                             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 16.dp),
                             onClick = {
-                                if (tempProduct.value != product) {
-                                    onValidate.invoke(tempProduct.value)
+                                if (tempPath.value != path) {
+                                    onValidate.invoke(tempPath.value)
                                 }
                                 onDismiss.invoke()
                             },
@@ -241,55 +209,4 @@ fun ProductEditDialog(
             }
         }
     }
-}
-
-@Composable
-fun ProductEditField(
-    title: String,
-    value: String,
-    onValueChange: (String) -> Unit,
-    isError: Boolean = false,
-    isNumberOnly: Boolean = false,
-    isBigText: Boolean = false,
-    imeAction: ImeAction,
-    focusRequester: FocusRequester,
-    focusManager: FocusManager
-) {
-    OutlinedTextField(
-        modifier = Modifier
-            .padding(8.dp)
-            .fillMaxWidth()
-            .focusRequester(focusRequester),
-        value = value,
-        onValueChange = {
-            onValueChange.invoke(it)
-        },
-        label = {
-            Text(title)
-        },
-        prefix = {
-            if (isNumberOnly) {
-                Text("€")
-            }
-        },
-        singleLine = !isBigText,
-        maxLines = if (isBigText) Int.MAX_VALUE else 1,
-        isError = isError,
-        keyboardOptions = KeyboardOptions(
-            imeAction = imeAction,
-            keyboardType = if (isNumberOnly) {
-                KeyboardType.Number
-            } else {
-                KeyboardType.Text
-            },
-        ),
-        keyboardActions = KeyboardActions(
-            onNext = {
-                focusManager.moveFocus(FocusDirection.Down)
-            },
-            onDone = {
-                focusManager.clearFocus(force = true)
-            }
-        )
-    )
 }
