@@ -113,7 +113,7 @@ fun getCityFromGeocoder(
     val foundAddress = addressesList?.find { address ->
         val correctPath =
             allPaths.find { path ->
-                path.cities.contains(
+                path.cities.map { it.first }.contains(
                     address.locality
                 )
             }
