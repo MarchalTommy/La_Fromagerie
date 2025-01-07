@@ -11,13 +11,12 @@ import com.mtdevelopment.home.data.model.ProductEntity
 import com.mtdevelopment.home.data.source.local.dao.HomeDao
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.encodeToJsonElement
 
 @Database(
     entities = [ProductEntity::class, PathEntity::class],
-    version = 2,
+    version = 3,
 )
-@TypeConverters(Converters::class, CoordinatesConverter::class)
+@TypeConverters(Converters::class, CoordinatesConverter::class, MapConverter::class)
 abstract class FromagerieDatabase : RoomDatabase() {
     abstract val homeDao: HomeDao
     abstract val deliveryDao: DeliveryDao
@@ -37,4 +36,16 @@ class CoordinatesConverter {
 
     @TypeConverter
     fun toList(value: String) = Json.decodeFromString<List<Coordinate>>(value)
+}
+
+class MapConverter {
+    @TypeConverter
+    fun fromString(value: String): Map<String, Int> {
+        return Json.decodeFromString(value)
+    }
+
+    @TypeConverter
+    fun fromStringMap(map: Map<String, Int>): String {
+        return Json.encodeToString(map)
+    }
 }

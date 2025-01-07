@@ -34,6 +34,9 @@ import com.mtdevelopment.core.presentation.MainViewModel
 import com.mtdevelopment.core.presentation.composable.RiveAnimation
 import com.mtdevelopment.core.presentation.util.VARIANT
 import org.koin.androidx.compose.koinViewModel
+import com.mtdevelopment.admin.presentation.composable.PathEditDialog
+import androidx.compose.runtime.mutableStateOf
+import com.mtdevelopment.admin.presentation.model.AdminUiDeliveryPath
 
 @SuppressLint("MissingPermission")
 @OptIn(ExperimentalMaterial3Api::class)
@@ -60,6 +63,9 @@ fun DeliveryOptionScreen(
     val isConnected = deliveryViewModel.isConnected.collectAsState()
 
     val scrollState = rememberScrollState()
+
+    val showEditDialog = remember { mutableStateOf(false) }
+    val selectedPath = remember { mutableStateOf<AdminUiDeliveryPath?>(null) }
 
     if (MapboxOptions.accessToken != MAPBOX_PUBLIC_TOKEN) {
         MapboxOptions.accessToken = MAPBOX_PUBLIC_TOKEN
@@ -114,12 +120,14 @@ fun DeliveryOptionScreen(
             } else {
                 if (state.value.deliveryPaths.isNotEmpty()) {
                     AdminContent(
-                        pathList = state.value.deliveryPaths.map { it.toAdminUiDeliveryPath() }
+                        pathList = state.value.deliveryPaths.map { it.toAdminUiDeliveryPath() },
+                        onPathSelected = { path ->
+                            selectedPath.value = path
+                            showEditDialog.value = true
+                        }
                     )
                 }
             }
-
-
 
             Spacer(modifier = Modifier.imePadding())
         }
@@ -184,6 +192,24 @@ fun DeliveryOptionScreen(
                 onDismiss = {
                     deliveryViewModel.updateShowDeliveryPathPicker(false)
                 })
+        }
+
+        if (showEditDialog.value) {
+            PathEditDialog(
+                path = selectedPath.value,
+                onValidate = {
+                    showEditDialog.value = false
+                },
+                onDelete = {
+                    showEditDialog.value = false
+                },
+                onDismiss = {
+                    showEditDialog.value = false
+                },
+                onError = {
+                    mainViewModel.setError(it)
+                }
+            )
         }
     }
 }

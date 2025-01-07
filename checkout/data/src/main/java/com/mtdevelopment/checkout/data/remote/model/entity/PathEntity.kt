@@ -17,7 +17,7 @@ data class PathEntity(
     @SerialName("name")
     val name: String = "",
     @SerialName("cities")
-    val availableCities: List<String> = listOf(),
+    val availableCities: Map<String, Int> = emptyMap(),
     @SerialName("locations")
     val locations: List<Coordinate>,
     @SerialName("delivery_day")
@@ -30,7 +30,7 @@ fun PathEntity.toPath(): DeliveryPath {
     return DeliveryPath(
         id = this.id,
         pathName = this.name,
-        availableCities = this.availableCities,
+        availableCities = this.availableCities.map { Pair(it.key, it.value) },
         locations = locations.map {
             Pair(it.latitude, it.longitude)
         },
@@ -43,7 +43,7 @@ fun DeliveryPath.toPathEntity(): PathEntity {
     return PathEntity(
         id = this.id,
         name = this.pathName,
-        availableCities = this.availableCities,
+        availableCities = this.availableCities.toMap(),
         locations = locations!!.map {
             Coordinate(
                 latitude = it.first,

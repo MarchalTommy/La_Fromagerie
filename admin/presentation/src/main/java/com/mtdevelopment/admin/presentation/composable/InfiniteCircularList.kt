@@ -5,7 +5,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -66,34 +65,13 @@ fun <T> InfiniteCircularList(
     LazyRow(
         modifier = Modifier
             .fillMaxWidth()
-            .height(itemHeight * numberOfDisplayedItems),
+            .height(itemHeight),
         state = scrollState,
         flingBehavior = rememberSnapFlingBehavior(
             lazyListState = scrollState
-        )
+        ),
+        userScrollEnabled = true
     ) {
-//        item {
-//            Box(
-//                modifier = Modifier
-//                    .height(itemHeight)
-//                    .fillMaxWidth()
-//                    .onGloballyPositioned { coordinates ->
-//                        lastSelectedIndex.intValue = 0
-//                    }
-//                    .clickable(enabled = true, onClick = {
-//                        onItemSelected(0, null)
-//                    }),
-//                contentAlignment = Alignment.Center
-//            ) {
-//                Card(
-//                    modifier = Modifier
-//                        .fillMaxHeight()
-//                        .fillMaxWidth()
-//                ) {
-//                    Icon(imageVector = Icons.Filled.Add, contentDescription = null)
-//                }
-//            }
-//        }
         items(
             count = Int.MAX_VALUE,
             itemContent = { i ->
@@ -110,13 +88,11 @@ fun <T> InfiniteCircularList(
                 ) {
                     Card(
                         modifier = Modifier
-                            .fillMaxHeight()
-                            .fillMaxWidth()
+                            .height(itemHeight - 16.dp)
+                            .width(itemHeight - 16.dp)
                     ) {
                         Column(
-                            modifier = Modifier
-                                .padding(8.dp)
-                                .fillMaxHeight(),
+                            modifier = Modifier.padding(8.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Text(
@@ -124,23 +100,24 @@ fun <T> InfiniteCircularList(
                                 text = item.name,
                                 style = MaterialTheme.typography.titleLarge,
                                 color = textColor,
-                                fontSize = MaterialTheme.typography.titleLarge.fontSize
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                             Text(
                                 modifier = Modifier.padding(8.dp),
                                 text = item.deliveryDay,
                                 style = MaterialTheme.typography.bodySmall,
                                 color = textColor,
-                                fontSize = MaterialTheme.typography.bodySmall.fontSize
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                             Text(
                                 modifier = Modifier.padding(8.dp),
-                                text = item.cities.map { it.first.uppercase() }.joinToString(", "),
-                                softWrap = true,
-                                overflow = TextOverflow.Ellipsis,
+                                text = item.cities.joinToString(", ") { it.first.uppercase() },
                                 style = MaterialTheme.typography.bodyLarge,
                                 color = textColor,
-                                fontSize = MaterialTheme.typography.bodyLarge.fontSize
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
                     }

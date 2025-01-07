@@ -16,7 +16,7 @@ fun com.mtdevelopment.checkout.domain.model.DeliveryPath.toUiDeliveryPath(): UiD
     return UiDeliveryPath(
         id = this.pathName,
         name = this.pathName,
-        cities = this.availableCities.map { Pair(it, 0) },
+        cities = this.availableCities,
         locations = this.locations,
         deliveryDay = deliveryDay,
         geoJson = geoJson

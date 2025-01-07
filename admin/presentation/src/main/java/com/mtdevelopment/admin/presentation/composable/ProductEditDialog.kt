@@ -137,6 +137,7 @@ fun ProductEditDialog(
                     }
                 }
                 ProductEditField(
+                    modifier = Modifier,
                     title = "Nom du produit",
                     value = tempProduct.value.name,
                     onValueChange = {
@@ -148,6 +149,7 @@ fun ProductEditDialog(
                     focusManager = focusManager,
                 )
                 ProductEditField(
+                    modifier = Modifier,
                     title = "Prix",
                     value = if (tempProduct.value.priceInCents != 0L) {
                         tempProduct.value.priceInCents.toUiPrice().replace("€", "")
@@ -173,6 +175,7 @@ fun ProductEditDialog(
                     focusManager = focusManager,
                 )
                 ProductEditField(
+                    modifier = Modifier,
                     title = "Description",
                     value = tempProduct.value.description,
                     onValueChange = {
@@ -185,6 +188,7 @@ fun ProductEditDialog(
                     focusManager = focusManager,
                 )
                 ProductEditField(
+                    modifier = Modifier,
                     title = "Allergènes",
                     value = tempProduct.value.allergens?.joinToString { it } ?: "",
                     onValueChange = {
@@ -245,6 +249,7 @@ fun ProductEditDialog(
 
 @Composable
 fun ProductEditField(
+    modifier: Modifier = Modifier,
     title: String,
     value: String,
     onValueChange: (String) -> Unit,
@@ -256,9 +261,8 @@ fun ProductEditField(
     focusManager: FocusManager
 ) {
     OutlinedTextField(
-        modifier = Modifier
+        modifier = modifier
             .padding(8.dp)
-            .fillMaxWidth()
             .focusRequester(focusRequester),
         value = value,
         onValueChange = {
@@ -288,7 +292,7 @@ fun ProductEditField(
                 focusManager.moveFocus(FocusDirection.Down)
             },
             onDone = {
-                focusManager.clearFocus(force = true)
+                focusManager.clearFocus()
             }
         )
     )

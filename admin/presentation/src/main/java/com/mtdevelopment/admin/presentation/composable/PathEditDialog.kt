@@ -8,8 +8,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.wrapContentHeight
@@ -17,7 +19,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.Card
@@ -41,6 +42,8 @@ import androidx.compose.ui.unit.dp
 import com.mtdevelopment.admin.presentation.model.AdminUiDeliveryPath
 import com.mtdevelopment.core.presentation.theme.ui.black70
 import java.time.DayOfWeek
+import java.time.format.TextStyle
+import java.util.Locale
 import java.util.UUID
 
 @Composable
@@ -88,18 +91,16 @@ fun PathEditDialog(
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .wrapContentHeight()
+                .fillMaxHeight()
                 .imePadding()
                 .padding(48.dp)
         ) {
             Column(
                 modifier = Modifier
-                    .verticalScroll(scrollState)
                     .wrapContentHeight()
                     .focusable(true),
                 verticalArrangement = Arrangement.Center
             ) {
-
                 if (onDelete != null) {
                     Row(
                         modifier = Modifier
@@ -150,16 +151,21 @@ fun PathEditDialog(
                     modifier = Modifier.horizontalScroll(rememberScrollState())
                 ) {
                     for (i in DayOfWeek.entries) {
-                        FilterChip(
-                            modifier = Modifier,
-                            selected = tempPath.value.deliveryDay.contains(i.name),
-                            onClick = {
-                                tempPath.value = tempPath.value.copy(deliveryDay = i.name)
-                            },
-                            label = {
-                                i.name
-                            }
-                        )
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(i.getDisplayName(TextStyle.SHORT, Locale.FRANCE))
+                            FilterChip(
+                                modifier = Modifier,
+                                selected = tempPath.value.deliveryDay.contains(i.name),
+                                onClick = {
+                                    tempPath.value = tempPath.value.copy(deliveryDay = i.name)
+                                },
+                                label = {
+                                    i.name
+                                }
+                            )
+                        }
                     }
                 }
 
@@ -167,7 +173,7 @@ fun PathEditDialog(
                     modifier = Modifier
                         .padding(top = 8.dp)
                         .fillMaxWidth()
-                        .wrapContentHeight(),
+                        .heightIn(max = 300.dp),
                     state = LazyListState()
                 ) {
                     items(items = tempPath.value.cities, key = { it }) { city ->
@@ -292,10 +298,12 @@ fun CityFields(
 ) {
     Row(
         modifier = Modifier
-            .fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceAround
+            .fillMaxWidth()
+            .padding(horizontal = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         ProductEditField(
+            modifier = Modifier.weight(0.5f),
             title = "Ville",
             value = city?.first ?: "",
             onValueChange = {
@@ -307,6 +315,7 @@ fun CityFields(
         )
 
         ProductEditField(
+            modifier = Modifier.weight(0.5f),
             title = "Code postal",
             value = (city?.second ?: "").toString(),
             onValueChange = {

@@ -84,8 +84,7 @@ class FirestorePathRepositoryImpl(
                     DeliveryPath(
                         id = idList[geoJsons.indexOf(geoJson)],
                         pathName = pathList[geoJsons.indexOf(geoJson)].path_name ?: "",
-                        availableCities = pathList[geoJsons.indexOf(geoJson)].cities
-                            ?: listOf(),
+                        availableCities = listOfZipped[geoJsons.indexOf(geoJson)],
                         locations = locationsList[geoJsons.indexOf(geoJson)],
                         deliveryDay = pathList[geoJsons.indexOf(geoJson)].deliveryDay,
                         geoJson = geoJson
@@ -106,12 +105,18 @@ class FirestorePathRepositoryImpl(
         firestore.getDeliveryPath(
             pathName = pathName,
             onSuccess = { path ->
+
+                val listOfZipped = mutableListOf<List<Pair<String, Int>>>()
+                if (path.cities?.isNotEmpty() == true && path.postcodes?.isNotEmpty() == true) {
+                    listOfZipped.add(path.cities zip path.postcodes)
+                }
+
                 if (path.path_name?.isNotBlank() == true && path.id.isNotBlank() && path.cities != null) {
                     onSuccess.invoke(
                         DeliveryPath(
                             id = path.id,
                             pathName = path.path_name,
-                            availableCities = path.cities,
+                            availableCities = listOfZipped[0],
                             geoJson = null,
                             deliveryDay = "",
                             locations = null

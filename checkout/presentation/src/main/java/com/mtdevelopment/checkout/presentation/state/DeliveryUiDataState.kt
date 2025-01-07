@@ -1,6 +1,5 @@
 package com.mtdevelopment.checkout.presentation.state
 
-import com.mtdevelopment.core.model.DeliveryPath
 import com.mtdevelopment.checkout.presentation.model.UiDeliveryPath
 
 data class DeliveryUiDataState(
