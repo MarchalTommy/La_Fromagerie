@@ -1,24 +1,26 @@
 package com.mtdevelopment.admin.presentation.composable
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.focusable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.Card
@@ -33,12 +35,23 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusManager
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import com.gigamole.composescrollbars.Scrollbars
+import com.gigamole.composescrollbars.config.ScrollbarsConfig
+import com.gigamole.composescrollbars.config.ScrollbarsOrientation
+import com.gigamole.composescrollbars.config.layercontenttype.ScrollbarsLayerContentType
+import com.gigamole.composescrollbars.config.layersType.ScrollbarsLayersType
+import com.gigamole.composescrollbars.rememberScrollbarsState
+import com.gigamole.composescrollbars.scrolltype.ScrollbarsScrollType
+import com.gigamole.composescrollbars.scrolltype.knobtype.ScrollbarsStaticKnobType
 import com.mtdevelopment.admin.presentation.model.AdminUiDeliveryPath
 import com.mtdevelopment.core.presentation.theme.ui.black70
 import java.time.DayOfWeek
@@ -59,10 +72,10 @@ fun PathEditDialog(
     }
     val focusManager = LocalFocusManager.current
 
-    val scrollState = rememberScrollState()
     val deleteFirstClick = remember {
         mutableStateOf(false)
     }
+    val scrollState = rememberLazyListState(0)
 
     val tempPath = remember {
         mutableStateOf(
@@ -91,16 +104,16 @@ fun PathEditDialog(
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .fillMaxHeight()
+                .wrapContentHeight()
                 .imePadding()
-                .padding(48.dp)
+                .padding(24.dp)
         ) {
             Column(
                 modifier = Modifier
                     .wrapContentHeight()
-                    .focusable(true),
-                verticalArrangement = Arrangement.Center
+                    .imePadding()
             ) {
+                // Delete button
                 if (onDelete != null) {
                     Row(
                         modifier = Modifier
@@ -135,7 +148,9 @@ fun PathEditDialog(
                         )
                     }
                 }
+
                 ProductEditField(
+                    modifier = Modifier.fillMaxWidth(),
                     title = "Nom du parcours",
                     value = tempPath.value.name,
                     onValueChange = {
@@ -148,7 +163,9 @@ fun PathEditDialog(
                 )
 
                 Row(
-                    modifier = Modifier.horizontalScroll(rememberScrollState())
+                    modifier = Modifier
+                        .horizontalScroll(rememberScrollState())
+                        .padding(vertical = 8.dp)
                 ) {
                     for (i in DayOfWeek.entries) {
                         Column(
@@ -156,10 +173,11 @@ fun PathEditDialog(
                         ) {
                             Text(i.getDisplayName(TextStyle.SHORT, Locale.FRANCE))
                             FilterChip(
-                                modifier = Modifier,
+                                modifier = Modifier.padding(horizontal = 4.dp),
                                 selected = tempPath.value.deliveryDay.contains(i.name),
                                 onClick = {
-                                    tempPath.value = tempPath.value.copy(deliveryDay = i.name)
+                                    tempPath.value =
+                                        tempPath.value.copy(deliveryDay = i.name)
                                 },
                                 label = {
                                     i.name
@@ -169,89 +187,149 @@ fun PathEditDialog(
                     }
                 }
 
-                LazyColumn(
+                Box(
                     modifier = Modifier
-                        .padding(top = 8.dp)
+                        .padding(16.dp)
                         .fillMaxWidth()
-                        .heightIn(max = 300.dp),
-                    state = LazyListState()
                 ) {
-                    items(items = tempPath.value.cities, key = { it }) { city ->
-                        CityFields(city,
-                            focusManager,
-                            focusRequester,
-                            onCityChange = {
-                                tempCities?.firstOrNull { it.first == city.first }?.let {
-                                    tempCities[tempCities.indexOf(it)] = Pair(it.first, it.second)
+                    LazyColumn(
+                        modifier = Modifier
+                            .heightIn(max = 300.dp)
+                            .align(Alignment.TopStart),
+                        state = scrollState,
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        // Existing cities
+                        items(tempPath.value.cities, key = { it.first }) { city ->
+                            CityFields(
+                                city = city,
+                                focusManager = focusManager,
+                                focusRequester = focusRequester,
+                                onCityChange = {
+                                    tempCities?.firstOrNull { it.first == city.first }?.let {
+                                        tempCities[tempCities.indexOf(it)] =
+                                            Pair(it.first, it.second)
+                                    }
+                                },
+                                onPostcodeChange = {
+                                    tempCities?.firstOrNull { it.first == city.first }?.let {
+                                        tempCities[tempCities.indexOf(it)] =
+                                            Pair(it.first, it.second)
+                                    }
                                 }
-                            },
-                            onPostcodeChange = {
-                                tempCities?.firstOrNull { it.first == city.first }?.let {
-                                    tempCities[tempCities.indexOf(it)] = Pair(it.first, it.second)
-                                }
-                            })
-                    }
-
-                    item {
-                        CityFields(tempNewCity,
-                            focusManager,
-                            focusRequester,
-                            onCityChange = {
-                                tempNewCity = tempNewCity.copy(first = it)
-                            },
-                            onPostcodeChange = {
-                                tempNewCity = tempNewCity.copy(second = it ?: 0)
-                            })
-
-                        Row(
-                            modifier = Modifier
-                                .padding(top = 8.dp, end = 8.dp, start = 8.dp)
-                                .fillMaxWidth(),
-                            horizontalArrangement = Arrangement.End
-                        ) {
-                            TextButton(
-                                modifier = Modifier
-                                    .padding(top = 8.dp, end = 8.dp, start = 8.dp),
-                                shape = MaterialTheme.shapes.large,
-                                enabled = tempNewCity.second != 0 && tempNewCity.first != "",
-                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 16.dp),
-                                onClick = {
-                                    tempCities?.add(tempNewCity)
-                                    tempNewCity = Pair("", 0)
-                                }
-                            ) {
-                                Text(
-                                    "Ajouter la ville"
-                                )
-                            }
-
-                            TextButton(
-                                modifier = Modifier
-                                    .padding(top = 8.dp, end = 8.dp, start = 8.dp),
-                                shape = MaterialTheme.shapes.large,
-                                enabled = tempNewCity.second != 0 && tempNewCity.first != "",
-                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 16.dp),
-                                onClick = {
-                                    tempNewCity = Pair("", 0)
-                                }
-                            ) {
-                                Text(
-                                    "Vider les champs"
-                                )
-                            }
+                            )
                         }
 
+                        // New city fields
+                        item {
+                            CityFields(
+                                city = tempNewCity,
+                                focusManager = focusManager,
+                                focusRequester = focusRequester,
+                                onCityChange = {
+                                    tempNewCity = tempNewCity.copy(first = it)
+                                },
+                                onPostcodeChange = {
+                                    tempNewCity = tempNewCity.copy(second = it ?: 0)
+                                }
+                            )
+                        }
+
+                        // Add/Clear city buttons
+                        item {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 8.dp),
+                                horizontalArrangement = Arrangement.End
+                            ) {
+                                TextButton(
+                                    modifier = Modifier.padding(horizontal = 4.dp),
+                                    shape = MaterialTheme.shapes.large,
+                                    enabled = tempNewCity.second != 0 && tempNewCity.first != "",
+                                    contentPadding = PaddingValues(
+                                        horizontal = 8.dp,
+                                        vertical = 16.dp
+                                    ),
+                                    onClick = {
+                                        tempCities?.add(tempNewCity)
+                                        tempNewCity = Pair("", 0)
+                                    }
+                                ) {
+                                    Text("Ajouter la ville")
+                                }
+
+                                TextButton(
+                                    modifier = Modifier.padding(horizontal = 4.dp),
+                                    shape = MaterialTheme.shapes.large,
+                                    enabled = tempNewCity.second != 0 && tempNewCity.first != "",
+                                    contentPadding = PaddingValues(
+                                        horizontal = 8.dp,
+                                        vertical = 16.dp
+                                    ),
+                                    onClick = {
+                                        tempNewCity = Pair("", 0)
+                                    }
+                                ) {
+                                    Text("Vider les champs")
+                                }
+                            }
+                        }
                     }
+
+                    Scrollbars(
+                        modifier = Modifier
+                            .width(width = 16.dp)
+                            .heightIn(max = 300.dp)
+                            .align(Alignment.TopEnd),
+                        state = rememberScrollbarsState(
+                            config = ScrollbarsConfig(
+                                orientation = ScrollbarsOrientation.Vertical,
+                                paddingValues = PaddingValues(),
+                                layersType = ScrollbarsLayersType.Wrap(
+                                    paddingValues = PaddingValues(
+                                        all = 2.dp
+                                    )
+                                ),
+                                backgroundLayerContentType = ScrollbarsLayerContentType.Custom {
+                                    // Set shadowed background.
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .shadow(
+                                                elevation = 4.dp,
+                                                shape = RoundedCornerShape(50),
+                                                clip = true,
+                                                spotColor = Color.DarkGray.copy(alpha = 0.5F),
+                                                ambientColor = Color.DarkGray.copy(alpha = 0.5F)
+                                            )
+                                            .background(
+                                                color = Color(255, 255, 255, 255),
+                                                shape = RoundedCornerShape(50)
+                                            )
+                                    )
+                                },
+                                knobLayerContentType = ScrollbarsLayerContentType.Default.Colored.Idle(
+                                    shape = RoundedCornerShape(50),
+                                    idleColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.7F)
+                                )
+                            ),
+                            scrollType = ScrollbarsScrollType.Lazy.List.Static(
+                                state = scrollState,
+                                knobType = ScrollbarsStaticKnobType.Auto()
+                            )
+                        )
+                    )
                 }
 
                 Row(
                     modifier = Modifier
-                        .fillMaxWidth(),
+                        .fillMaxWidth()
+                        .padding(top = 8.dp),
                     horizontalArrangement = Arrangement.End
                 ) {
                     TextButton(
-                        modifier = Modifier
-                            .padding(top = 8.dp, end = 8.dp, start = 8.dp),
+                        modifier = Modifier.padding(horizontal = 4.dp),
                         enabled = (tempPath.value.name.isNotBlank() &&
                                 tempPath.value.cities.isNotEmpty() &&
                                 tempPath.value.deliveryDay.isNotBlank()),
@@ -262,25 +340,20 @@ fun PathEditDialog(
                                 onValidate.invoke(tempPath.value)
                             }
                             onDismiss.invoke()
-                        },
+                        }
                     ) {
-                        Text(
-                            "Valider le parcours"
-                        )
+                        Text("Valider le parcours")
                     }
 
                     TextButton(
-                        modifier = Modifier
-                            .padding(top = 8.dp, end = 8.dp, start = 8.dp),
+                        modifier = Modifier.padding(horizontal = 4.dp),
                         shape = MaterialTheme.shapes.large,
                         contentPadding = PaddingValues(horizontal = 8.dp, vertical = 16.dp),
                         onClick = {
                             onDismiss.invoke()
-                        },
+                        }
                     ) {
-                        Text(
-                            "Annuler"
-                        )
+                        Text("Annuler")
                     }
                 }
             }
@@ -294,12 +367,16 @@ fun CityFields(
     focusManager: FocusManager,
     focusRequester: FocusRequester,
     onCityChange: (String) -> Unit,
-    onPostcodeChange: (Int?) -> Unit
+    onPostcodeChange: (Int?) -> Unit,
+    onRenderedHeight: (Int) -> Unit = {}
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 8.dp),
+            .padding(horizontal = 8.dp)
+            .onGloballyPositioned {
+                onRenderedHeight.invoke(it.size.height)
+            },
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         ProductEditField(

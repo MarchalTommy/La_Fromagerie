@@ -1,14 +1,12 @@
 package com.mtdevelopment.checkout.presentation.composable
 
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.mtdevelopment.admin.presentation.composable.InfiniteCircularList
 import com.mtdevelopment.admin.presentation.model.AdminUiDeliveryPath
 import com.mtdevelopment.admin.presentation.viewmodel.AdminViewModel
+import com.mtdevelopment.core.util.FadeOverlay
 import org.koin.androidx.compose.koinViewModel
 
 @Composable
@@ -27,12 +25,10 @@ fun AdminContent(
     }
 
     if (pathList.isNotEmpty()) {
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-        ) {
+        FadeOverlay {
             InfiniteCircularList(
                 itemHeight = 250.dp,
-                numberOfDisplayedItems = 3,
+                itemWidth = 250.dp,
                 items = pathList,
                 initialItem = initialItem,
                 textColor = MaterialTheme.colorScheme.onBackground,
