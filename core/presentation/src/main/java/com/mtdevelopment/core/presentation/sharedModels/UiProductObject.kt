@@ -42,5 +42,7 @@ fun UiProductObject.toDomainProduct() = Product(
     imageUrl = imageUrl!!,
     type = type.name,
     description = description,
-    allergens = allergens
+    allergens = allergens?.map { allergen ->
+        allergen.trim().replaceFirstChar { firstChar -> firstChar.uppercaseChar() }
+    }
 )

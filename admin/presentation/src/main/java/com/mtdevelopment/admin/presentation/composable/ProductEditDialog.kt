@@ -137,6 +137,7 @@ fun ProductEditDialog(
                     }
                 }
                 ProductEditField(
+                    modifier = Modifier,
                     title = "Nom du produit",
                     value = tempProduct.value.name,
                     onValueChange = {
@@ -148,6 +149,7 @@ fun ProductEditDialog(
                     focusManager = focusManager,
                 )
                 ProductEditField(
+                    modifier = Modifier,
                     title = "Prix",
                     value = if (tempProduct.value.priceInCents != 0L) {
                         tempProduct.value.priceInCents.toUiPrice().replace("€", "")
@@ -171,8 +173,12 @@ fun ProductEditDialog(
                     imeAction = ImeAction.Next,
                     focusRequester = focusRequester,
                     focusManager = focusManager,
+                    prefix = {
+                        Text("€")
+                    }
                 )
                 ProductEditField(
+                    modifier = Modifier,
                     title = "Description",
                     value = tempProduct.value.description,
                     onValueChange = {
@@ -180,19 +186,17 @@ fun ProductEditDialog(
                     },
                     isError = tempProduct.value.description.isEmpty(),
                     isBigText = true,
-                    imeAction = ImeAction.Next,
+                    imeAction = ImeAction.Default,
                     focusRequester = focusRequester,
                     focusManager = focusManager,
                 )
                 ProductEditField(
+                    modifier = Modifier,
                     title = "Allergènes",
                     value = tempProduct.value.allergens?.joinToString { it } ?: "",
                     onValueChange = {
                         tempProduct.value = tempProduct.value.copy(allergens =
-                        it.split(",").map { allergen ->
-                            allergen.trim()
-                                .replaceFirstChar { firstChar -> firstChar.uppercaseChar() }
-                        }
+                        it.split(",")
                         )
                     },
                     imeAction = ImeAction.Done,
@@ -248,6 +252,7 @@ fun ProductEditDialog(
 
 @Composable
 fun ProductEditField(
+    modifier: Modifier = Modifier,
     title: String,
     value: String,
     onValueChange: (String) -> Unit,
@@ -256,12 +261,12 @@ fun ProductEditField(
     isBigText: Boolean = false,
     imeAction: ImeAction,
     focusRequester: FocusRequester,
-    focusManager: FocusManager
+    focusManager: FocusManager,
+    prefix: @Composable() (() -> Unit)? = null
 ) {
     OutlinedTextField(
-        modifier = Modifier
+        modifier = modifier
             .padding(8.dp)
-            .fillMaxWidth()
             .focusRequester(focusRequester),
         value = value,
         onValueChange = {
@@ -270,11 +275,7 @@ fun ProductEditField(
         label = {
             Text(title)
         },
-        prefix = {
-            if (isNumberOnly) {
-                Text("€")
-            }
-        },
+        prefix = prefix,
         singleLine = !isBigText,
         maxLines = if (isBigText) Int.MAX_VALUE else 1,
         isError = isError,
@@ -291,7 +292,7 @@ fun ProductEditField(
                 focusManager.moveFocus(FocusDirection.Down)
             },
             onDone = {
-                focusManager.clearFocus(force = true)
+                focusManager.clearFocus()
             }
         )
     )

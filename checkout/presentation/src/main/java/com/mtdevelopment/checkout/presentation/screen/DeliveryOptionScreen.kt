@@ -1,59 +1,43 @@
 package com.mtdevelopment.checkout.presentation.screen
 
 import android.annotation.SuppressLint
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Person
-import androidx.compose.material.icons.rounded.Place
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonColors
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import app.rive.runtime.kotlin.core.Rive
 import com.mapbox.common.MapboxOptions
+import com.mtdevelopment.admin.presentation.composable.PathEditDialog
+import com.mtdevelopment.admin.presentation.model.AdminUiDeliveryPath
+import com.mtdevelopment.admin.presentation.model.toDomainDeliveryPath
+import com.mtdevelopment.admin.presentation.viewmodel.AdminViewModel
 import com.mtdevelopment.checkout.presentation.BuildConfig.MAPBOX_PUBLIC_TOKEN
+import com.mtdevelopment.checkout.presentation.composable.AdminContent
+import com.mtdevelopment.checkout.presentation.composable.CustomerContent
 import com.mtdevelopment.checkout.presentation.composable.DatePickerComposable
-import com.mtdevelopment.checkout.presentation.composable.DateTextField
 import com.mtdevelopment.checkout.presentation.composable.DeliveryPathPickerComposable
-import com.mtdevelopment.checkout.presentation.composable.LocalisationTextComposable
-import com.mtdevelopment.checkout.presentation.composable.LocalisationTypePicker
 import com.mtdevelopment.checkout.presentation.composable.MapBoxComposable
 import com.mtdevelopment.checkout.presentation.composable.PermissionManagerComposable
-import com.mtdevelopment.checkout.presentation.composable.UserInfoComposable
 import com.mtdevelopment.checkout.presentation.composable.getDatePickerState
+import com.mtdevelopment.checkout.presentation.model.toAdminUiDeliveryPath
 import com.mtdevelopment.checkout.presentation.viewmodel.DeliveryViewModel
 import com.mtdevelopment.core.presentation.MainViewModel
 import com.mtdevelopment.core.presentation.composable.RiveAnimation
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
+import com.mtdevelopment.core.presentation.util.VARIANT
 import org.koin.androidx.compose.koinViewModel
 
 @SuppressLint("MissingPermission")
@@ -65,6 +49,8 @@ fun DeliveryOptionScreen(
 ) {
 
     val deliveryViewModel = koinViewModel<DeliveryViewModel>()
+    val adminViewModel = koinViewModel<AdminViewModel>()
+
     val context = LocalContext.current
 
     val state = remember(deliveryViewModel.deliveryUiDataState) {
@@ -72,17 +58,6 @@ fun DeliveryOptionScreen(
             deliveryViewModel.deliveryUiDataState
         }
     }
-
-    val isButtonEnabled = remember(
-        state.value.userNameFieldText,
-        state.value.userAddressFieldText,
-        state.value.dateFieldText
-    ) {
-        state.value.userNameFieldText.isNotBlank()
-                && state.value.userAddressFieldText.isNotBlank()
-                && state.value.dateFieldText.isNotBlank()
-    }
-
     val datePickerState = remember(state.value.selectedPath) {
         derivedStateOf {
             getDatePickerState(state.value.selectedPath)
@@ -92,11 +67,9 @@ fun DeliveryOptionScreen(
     val isConnected = deliveryViewModel.isConnected.collectAsState()
 
     val scrollState = rememberScrollState()
-    val focusRequester = remember {
-        FocusRequester()
-    }
-    val focusManager = LocalFocusManager.current
-    val scope = rememberCoroutineScope()
+
+    val showEditDialog = remember { mutableStateOf(false) }
+    val selectedPath = remember { mutableStateOf<AdminUiDeliveryPath?>(null) }
 
     if (MapboxOptions.accessToken != MAPBOX_PUBLIC_TOKEN) {
         MapboxOptions.accessToken = MAPBOX_PUBLIC_TOKEN
@@ -139,122 +112,33 @@ fun DeliveryOptionScreen(
                 }
             )
 
-            // Localisation Type Picker
-            LocalisationTypePicker(
-                showDeliverySelection = {
-                    deliveryViewModel.updateShowDeliveryPathPicker(true)
-                },
-                selectedPath = state.value.selectedPath,
-                localisationSuccess = state.value.localisationSuccess,
-                shouldAskLocalisationPermission = {
-                    deliveryViewModel.updateShouldShowLocalisationPermission(true)
-                }
-            )
-
-            if (state.value.localisationSuccess || state.value.selectedPath != null || state.value.userLocationOnPath) {
-                LocalisationTextComposable(
-                    selectedPath = state.value.selectedPath,
-                    geolocIsOnPath = state.value.userLocationOnPath,
-                    userCity = state.value.userCity
+            if (VARIANT != "admin") {
+                CustomerContent(
+                    deliveryViewModel,
+                    mainViewModel,
+                    navigateToCheckout,
+                    state,
+                    datePickerState,
+                    scrollState
                 )
-            }
-
-            DateTextField(
-                shouldBeClickable = state.value.shouldDatePickerBeClickable,
-                dateFieldText = state.value.dateFieldText,
-                datePickerState = datePickerState.value,
-                shouldShowDatePicker = {
-                    deliveryViewModel.setIsDatePickerShown(true)
-                },
-                newDateFieldText = {
-                    deliveryViewModel.setDateFieldText(it)
-                }
-            )
-
-            UserInfoComposable(
-                fieldText = state.value.userNameFieldText,
-                label = "Nom complet",
-                imeAction = ImeAction.Next,
-                focusRequester = focusRequester,
-                focusManager = focusManager,
-                updateText = {
-                    deliveryViewModel.setUserNameFieldText(it)
-                },
-                leadingIcon = {
-                    Icon(Icons.Rounded.Person, "")
-                },
-                onFocusChange = {
-                    if (it) {
-                        scope.launch {
-                            delay(500)
-                            scrollState.animateScrollTo(scrollState.maxValue)
+            } else {
+                if (state.value.deliveryPaths.isNotEmpty()) {
+                    AdminContent(
+                        pathList = state.value.deliveryPaths.map { it.toAdminUiDeliveryPath() },
+                        onPathSelected = { path ->
+                            selectedPath.value = path
+                            showEditDialog.value = true
+                        },
+                        onPathPreSelected = { preselected ->
+                            if (preselected != null) {
+                                state.value.deliveryPaths.find { it.name == preselected.name }
+                                    ?.let { deliveryViewModel.updateSelectedPath(it) }
+                            } else {
+                                deliveryViewModel.updateSelectedPath(null)
+                            }
                         }
-                    }
+                    )
                 }
-            )
-
-            UserInfoComposable(
-                fieldText = state.value.userAddressFieldText,
-                label = "Adresse exacte",
-                imeAction = ImeAction.Done,
-                focusRequester = focusRequester,
-                focusManager = focusManager,
-                updateText = {
-                    deliveryViewModel.setUserAddressFieldText(it)
-                },
-                leadingIcon = {
-                    Icon(Icons.Rounded.Place, "")
-                },
-                onFocusChange = {
-                    if (it) {
-                        scope.launch {
-                            delay(500)
-                            scrollState.animateScrollTo(scrollState.maxValue)
-                        }
-                    }
-                }
-            )
-
-            if (!isButtonEnabled) {
-                Text(
-                    modifier = Modifier
-                        .padding(top = 8.dp, start = 16.dp, end = 16.dp)
-                        .fillMaxWidth(),
-                    text = "Veuillez remplir les champs ci-dessus pour pouvoir aller plus loin.",
-                    style = MaterialTheme.typography.displaySmall,
-                    color = MaterialTheme.colorScheme.onBackground,
-                    textAlign = TextAlign.Center
-                )
-            }
-
-            Button(modifier = Modifier
-                .align(Alignment.CenterHorizontally)
-                .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 16.dp),
-                contentPadding = PaddingValues(16.dp),
-                border = BorderStroke(
-                    width = 2.dp,
-                    color = if (isButtonEnabled) {
-                        MaterialTheme.colorScheme.secondary
-                    } else {
-                        MaterialTheme.colorScheme.inverseSurface
-                    }
-                ),
-                colors = ButtonColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    contentColor = MaterialTheme.colorScheme.secondary,
-                    disabledContainerColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    disabledContentColor = MaterialTheme.colorScheme.onSurface
-                ),
-                elevation = ButtonDefaults.elevatedButtonElevation(),
-                shape = RoundedCornerShape(8.dp),
-                enabled = isButtonEnabled,
-                onClick = {
-                    deliveryViewModel.saveUserInfo(onError = {
-                        mainViewModel.setError("Erreur lors de la sauvegarde des informations")
-                    })
-                    navigateToCheckout.invoke()
-                }) {
-                Text("Valider et passer au paiement")
             }
 
             Spacer(modifier = Modifier.imePadding())
@@ -320,6 +204,30 @@ fun DeliveryOptionScreen(
                 onDismiss = {
                     deliveryViewModel.updateShowDeliveryPathPicker(false)
                 })
+        }
+
+        if (showEditDialog.value) {
+            PathEditDialog(
+                path = selectedPath.value,
+                onValidate = { newPath ->
+                    if (state.value.deliveryPaths.any { it.id == newPath.id }) {
+                        adminViewModel.updateDeliveryPath(newPath.toDomainDeliveryPath())
+                    } else {
+                        adminViewModel.addNewDeliveryPath(newPath.toDomainDeliveryPath())
+                    }
+                    showEditDialog.value = false
+                },
+                onDelete = { newPath ->
+                    adminViewModel.deleteDeliveryPath(newPath.toDomainDeliveryPath())
+                    showEditDialog.value = false
+                },
+                onDismiss = {
+                    showEditDialog.value = false
+                },
+                onError = {
+                    mainViewModel.setError(it)
+                }
+            )
         }
     }
 }

@@ -67,4 +67,7 @@ dependencies {
     implementation(platform(libs.koin.bom))
     implementation(libs.koin.core)
     implementation(libs.koin.android)
+
+//    https://github.com/GIGAMOLE/ComposeScrollbars
+    implementation(libs.scrollbar)
 }

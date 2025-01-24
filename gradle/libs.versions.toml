@@ -37,6 +37,8 @@ google-service = "4.4.2"
 wallet = "19.4.0"
 wallet-button = "1.0.0"
 ksp = "2.0.21-1.0.27"
+scrollbar = "1.0.4"
+
 
 [libraries]
 core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "core-ktx" }
@@ -69,6 +71,9 @@ androidx-ui-tooling-preview = { group = "androidx.compose.ui", name = "ui-toolin
 androidx-ui-test-manifest = { group = "androidx.compose.ui", name = "ui-test-manifest" }
 androidx-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4" }
 androidx-material3 = { group = "androidx.compose.material3", name = "material3" }
+
+## ScrollBars
+scrollbar = { module = "com.github.GIGAMOLE:ComposeScrollbars", version.ref = "scrollbar"}
 
 
 ## Firebase

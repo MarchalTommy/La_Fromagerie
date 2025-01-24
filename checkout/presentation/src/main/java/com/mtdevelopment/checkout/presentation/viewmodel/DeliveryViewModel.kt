@@ -137,7 +137,7 @@ class DeliveryViewModel(
         deliveryUiDataState = deliveryUiDataState.copy(userCity = city)
     }
 
-    fun updateSelectedPath(path: UiDeliveryPath) {
+    fun updateSelectedPath(path: UiDeliveryPath?) {
         deliveryUiDataState = deliveryUiDataState.copy(selectedPath = path)
     }
 

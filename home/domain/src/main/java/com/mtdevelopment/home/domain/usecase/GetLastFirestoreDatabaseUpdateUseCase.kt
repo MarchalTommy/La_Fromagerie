@@ -50,7 +50,7 @@ class GetLastFirestoreDatabaseUpdateUseCase(
 
                 // UPDATE REFRESH FLAGS
                 sharedDatastore.setShouldRefreshProducts(shouldRefreshProducts.value)
-                sharedDatastore.setShouldRefreshPaths(shouldRefreshProducts.value)
+                sharedDatastore.setShouldRefreshPaths(shouldRefreshPaths.value)
 
                 // UPDATE SAVED TIMESTAMPS
                 sharedDatastore.lastFirestoreProductsUpdate(newProductUpdateTimestamp.value)
