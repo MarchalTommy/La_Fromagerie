@@ -24,18 +24,16 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.mtdevelopment.admin.presentation.model.AdminUiDeliveryPath
+import java.util.UUID
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -45,23 +43,19 @@ fun <T> InfiniteCircularList(
     items: List<T>,
     initialItem: T,
     textColor: Color,
-    onItemSelected: (index: Int, item: AdminUiDeliveryPath?) -> Unit = { _, _ -> }
+    onItemSelected: (index: Int, item: AdminUiDeliveryPath?) -> Unit = { _, _ -> },
+    onItemPreSelected: (item: T?) -> Unit = {}
 ) {
-    val coroutineScope = rememberCoroutineScope()
-
     val scrollState = rememberLazyListState(0)
     var lastSelectedIndex by remember { mutableIntStateOf(0) }
     var itemsState by remember { mutableStateOf(items) }
 
     val lastItem = AdminUiDeliveryPath(
-        id = "new",
+        id = UUID.randomUUID().toString(),
         name = "Ajouter un parcours",
         cities = emptyList(),
         deliveryDay = ""
     )
-
-    val density = LocalDensity.current
-    val configuration = LocalConfiguration.current
 
     var hasScrolled by remember { mutableStateOf(false) }
 
@@ -99,6 +93,11 @@ fun <T> InfiniteCircularList(
                         animationSpec = tween(250)
                     ) { value, _ ->
                         scale = value
+                    }
+                    if (secondItemIndex - 1 >= 0) {
+                        onItemPreSelected.invoke(items[secondItemIndex - 1])
+                    } else {
+                        onItemPreSelected.invoke(null)
                     }
                 } else {
                     animate(

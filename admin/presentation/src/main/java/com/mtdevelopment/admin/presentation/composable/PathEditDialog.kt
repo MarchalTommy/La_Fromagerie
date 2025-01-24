@@ -31,6 +31,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -81,7 +82,11 @@ fun PathEditDialog(
         mutableStateOf(
             AdminUiDeliveryPath(
                 id = path?.id ?: UUID.randomUUID().toString(),
-                name = path?.name ?: "",
+                name = if (path?.name == "Ajouter un parcours") {
+                    "Nouveau Parcours"
+                } else {
+                    path?.name ?: ""
+                },
                 cities = path?.cities ?: emptyList(),
                 deliveryDay = path?.deliveryDay ?: ""
             )
@@ -89,10 +94,13 @@ fun PathEditDialog(
     }
 
     val tempCities = remember {
-        path?.cities?.toMutableList()
+        mutableListOf<Pair<String, Int>>()
     }
-    var tempNewCity = Pair("", 0)
+    val tempNewCity = remember { mutableStateOf(Pair("", 0)) }
 
+    LaunchedEffect(Unit) {
+        path?.cities?.let { tempCities.addAll(it) }
+    }
     BackHandler(true) {
         onDismiss.invoke()
     }
@@ -205,17 +213,31 @@ fun PathEditDialog(
                                 city = city,
                                 focusManager = focusManager,
                                 focusRequester = focusRequester,
-                                onCityChange = {
-                                    tempCities?.firstOrNull { it.first == city.first }?.let {
-                                        tempCities[tempCities.indexOf(it)] =
-                                            Pair(it.first, it.second)
+                                onCityChange = { newCity ->
+                                    val updatedCities = tempCities.map { currentCity ->
+                                        if (currentCity.first == city.first) { // Compare with the 'city' from the function parameter
+                                            Pair(newCity, currentCity.second)
+                                        } else {
+                                            currentCity
+                                        }
                                     }
+                                    tempPath.value =
+                                        tempPath.value.copy(cities = updatedCities ?: emptyList())
+                                    (tempCities as MutableList).clear()
+                                    (tempCities as MutableList).addAll(updatedCities)
                                 },
-                                onPostcodeChange = {
-                                    tempCities?.firstOrNull { it.first == city.first }?.let {
-                                        tempCities[tempCities.indexOf(it)] =
-                                            Pair(it.first, it.second)
+                                onPostcodeChange = { newPostcode ->
+                                    val updatedCities = tempCities.map { currentCity ->
+                                        if (currentCity.first == city.first) { // Compare with the 'city' from the function parameter
+                                            Pair(currentCity.first, newPostcode ?: 0)
+                                        } else {
+                                            currentCity
+                                        }
                                     }
+                                    tempPath.value =
+                                        tempPath.value.copy(cities = updatedCities ?: emptyList())
+                                    (tempCities as MutableList).clear()
+                                    (tempCities as MutableList).addAll(updatedCities)
                                 }
                             )
                         }
@@ -223,14 +245,14 @@ fun PathEditDialog(
                         // New city fields
                         item {
                             CityFields(
-                                city = tempNewCity,
+                                city = tempNewCity.value,
                                 focusManager = focusManager,
                                 focusRequester = focusRequester,
                                 onCityChange = {
-                                    tempNewCity = tempNewCity.copy(first = it)
+                                    tempNewCity.value = tempNewCity.value.copy(first = it)
                                 },
                                 onPostcodeChange = {
-                                    tempNewCity = tempNewCity.copy(second = it ?: 0)
+                                    tempNewCity.value = tempNewCity.value.copy(second = it ?: 0)
                                 }
                             )
                         }
@@ -246,14 +268,21 @@ fun PathEditDialog(
                                 TextButton(
                                     modifier = Modifier.padding(horizontal = 4.dp),
                                     shape = MaterialTheme.shapes.large,
-                                    enabled = tempNewCity.second != 0 && tempNewCity.first != "",
+                                    enabled = tempNewCity.value.second != 0 && tempNewCity.value.first != "",
                                     contentPadding = PaddingValues(
                                         horizontal = 8.dp,
                                         vertical = 16.dp
                                     ),
                                     onClick = {
-                                        tempCities?.add(tempNewCity)
-                                        tempNewCity = Pair("", 0)
+                                        // Update tempCities first
+                                        val updatedCities = tempCities + tempNewCity.value
+                                        (tempCities as MutableList).clear()
+                                        (tempCities as MutableList).addAll(updatedCities)
+
+                                        // Then update tempPath to trigger recomposition
+                                        tempPath.value = tempPath.value.copy(cities = updatedCities)
+
+                                        tempNewCity.value = Pair("", 0)
                                     }
                                 ) {
                                     Text("Ajouter la ville")
@@ -262,13 +291,13 @@ fun PathEditDialog(
                                 TextButton(
                                     modifier = Modifier.padding(horizontal = 4.dp),
                                     shape = MaterialTheme.shapes.large,
-                                    enabled = tempNewCity.second != 0 && tempNewCity.first != "",
+                                    enabled = tempNewCity.value.second != 0 && tempNewCity.value.first != "",
                                     contentPadding = PaddingValues(
                                         horizontal = 8.dp,
                                         vertical = 16.dp
                                     ),
                                     onClick = {
-                                        tempNewCity = Pair("", 0)
+                                        tempNewCity.value = Pair("", 0)
                                     }
                                 ) {
                                     Text("Vider les champs")
@@ -402,6 +431,7 @@ fun CityFields(
                     onPostcodeChange.invoke(null)
                 }
             },
+            isNumberOnly = true,
             imeAction = ImeAction.Next,
             focusRequester = focusRequester,
             focusManager = focusManager,

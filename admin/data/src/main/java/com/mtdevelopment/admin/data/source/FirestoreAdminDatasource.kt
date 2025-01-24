@@ -50,6 +50,12 @@ class FirestoreAdminDatasource(
             .set(path)
     }
 
+    fun deleteDeliveryPath(path: DataDeliveryPath) {
+        firestore.collection("delivery_paths")
+            .document(path.id)
+            .delete()
+    }
+
     fun saveNewDatabasePathsUpdate(timestamp: Long) {
         firestore.collection("database_update")
             .document("path_timestamp")

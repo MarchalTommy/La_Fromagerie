@@ -5,19 +5,18 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.dp
 import com.mtdevelopment.admin.presentation.composable.InfiniteCircularList
 import com.mtdevelopment.admin.presentation.model.AdminUiDeliveryPath
-import com.mtdevelopment.admin.presentation.viewmodel.AdminViewModel
 import com.mtdevelopment.core.util.FadeOverlay
-import org.koin.androidx.compose.koinViewModel
+import java.util.UUID
 
 @Composable
 fun AdminContent(
     pathList: List<AdminUiDeliveryPath>,
-    onPathSelected: (AdminUiDeliveryPath) -> Unit
+    onPathSelected: (AdminUiDeliveryPath) -> Unit,
+    onPathPreSelected: (AdminUiDeliveryPath?) -> Unit
 ) {
-    val adminViewModel = koinViewModel<AdminViewModel>()
     val initialItem = pathList.getOrElse(0) {
         AdminUiDeliveryPath(
-            id = "new",
+            id = UUID.randomUUID().toString(),
             name = "",
             cities = emptyList(),
             deliveryDay = ""
@@ -34,6 +33,9 @@ fun AdminContent(
                 textColor = MaterialTheme.colorScheme.onBackground,
                 onItemSelected = { _, item ->
                     item?.let { onPathSelected(it) }
+                },
+                onItemPreSelected = { item ->
+                    onPathPreSelected.invoke(item)
                 }
             )
         }

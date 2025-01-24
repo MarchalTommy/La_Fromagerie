@@ -14,12 +14,17 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import app.rive.runtime.kotlin.core.Rive
 import com.mapbox.common.MapboxOptions
+import com.mtdevelopment.admin.presentation.composable.PathEditDialog
+import com.mtdevelopment.admin.presentation.model.AdminUiDeliveryPath
+import com.mtdevelopment.admin.presentation.model.toDomainDeliveryPath
+import com.mtdevelopment.admin.presentation.viewmodel.AdminViewModel
 import com.mtdevelopment.checkout.presentation.BuildConfig.MAPBOX_PUBLIC_TOKEN
 import com.mtdevelopment.checkout.presentation.composable.AdminContent
 import com.mtdevelopment.checkout.presentation.composable.CustomerContent
@@ -34,9 +39,6 @@ import com.mtdevelopment.core.presentation.MainViewModel
 import com.mtdevelopment.core.presentation.composable.RiveAnimation
 import com.mtdevelopment.core.presentation.util.VARIANT
 import org.koin.androidx.compose.koinViewModel
-import com.mtdevelopment.admin.presentation.composable.PathEditDialog
-import androidx.compose.runtime.mutableStateOf
-import com.mtdevelopment.admin.presentation.model.AdminUiDeliveryPath
 
 @SuppressLint("MissingPermission")
 @OptIn(ExperimentalMaterial3Api::class)
@@ -47,6 +49,8 @@ fun DeliveryOptionScreen(
 ) {
 
     val deliveryViewModel = koinViewModel<DeliveryViewModel>()
+    val adminViewModel = koinViewModel<AdminViewModel>()
+
     val context = LocalContext.current
 
     val state = remember(deliveryViewModel.deliveryUiDataState) {
@@ -124,6 +128,14 @@ fun DeliveryOptionScreen(
                         onPathSelected = { path ->
                             selectedPath.value = path
                             showEditDialog.value = true
+                        },
+                        onPathPreSelected = { preselected ->
+                            if (preselected != null) {
+                                state.value.deliveryPaths.find { it.name == preselected.name }
+                                    ?.let { deliveryViewModel.updateSelectedPath(it) }
+                            } else {
+                                deliveryViewModel.updateSelectedPath(null)
+                            }
                         }
                     )
                 }
@@ -197,10 +209,16 @@ fun DeliveryOptionScreen(
         if (showEditDialog.value) {
             PathEditDialog(
                 path = selectedPath.value,
-                onValidate = {
+                onValidate = { newPath ->
+                    if (state.value.deliveryPaths.any { it.id == newPath.id }) {
+                        adminViewModel.updateDeliveryPath(newPath.toDomainDeliveryPath())
+                    } else {
+                        adminViewModel.addNewDeliveryPath(newPath.toDomainDeliveryPath())
+                    }
                     showEditDialog.value = false
                 },
-                onDelete = {
+                onDelete = { newPath ->
+                    adminViewModel.deleteDeliveryPath(newPath.toDomainDeliveryPath())
                     showEditDialog.value = false
                 },
                 onDismiss = {

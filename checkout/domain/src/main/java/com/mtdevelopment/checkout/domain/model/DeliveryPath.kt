@@ -1,5 +1,8 @@
 package com.mtdevelopment.checkout.domain.model
 
+import kotlinx.serialization.Serializable
+
+@Serializable
 data class DeliveryPath(
     val id: String,
     val pathName: String,

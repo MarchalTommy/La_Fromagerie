@@ -173,6 +173,9 @@ fun ProductEditDialog(
                     imeAction = ImeAction.Next,
                     focusRequester = focusRequester,
                     focusManager = focusManager,
+                    prefix = {
+                        Text("€")
+                    }
                 )
                 ProductEditField(
                     modifier = Modifier,
@@ -258,7 +261,8 @@ fun ProductEditField(
     isBigText: Boolean = false,
     imeAction: ImeAction,
     focusRequester: FocusRequester,
-    focusManager: FocusManager
+    focusManager: FocusManager,
+    prefix: @Composable() (() -> Unit)? = null
 ) {
     OutlinedTextField(
         modifier = modifier
@@ -271,11 +275,7 @@ fun ProductEditField(
         label = {
             Text(title)
         },
-        prefix = {
-            if (isNumberOnly) {
-                Text("€")
-            }
-        },
+        prefix = prefix,
         singleLine = !isBigText,
         maxLines = if (isBigText) Int.MAX_VALUE else 1,
         isError = isError,

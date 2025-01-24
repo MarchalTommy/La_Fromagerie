@@ -9,8 +9,11 @@ import com.google.firebase.firestore.firestore
 import com.mtdevelopment.admin.data.repository.FirebaseAdminRepositoryImpl
 import com.mtdevelopment.admin.data.source.FirestoreAdminDatasource
 import com.mtdevelopment.admin.domain.repository.FirebaseAdminRepository
+import com.mtdevelopment.admin.domain.usecase.AddNewPathUseCase
 import com.mtdevelopment.admin.domain.usecase.AddNewProductUseCase
+import com.mtdevelopment.admin.domain.usecase.DeletePathUseCase
 import com.mtdevelopment.admin.domain.usecase.DeleteProductUseCase
+import com.mtdevelopment.admin.domain.usecase.UpdateDeliveryPathUseCase
 import com.mtdevelopment.admin.domain.usecase.UpdateProductUseCase
 import com.mtdevelopment.admin.presentation.viewmodel.AdminViewModel
 import com.mtdevelopment.cart.presentation.viewmodel.CartViewModel
@@ -140,6 +143,10 @@ val mainAppModule = module {
     factory { AddNewProductUseCase(get()) }
     factory { DeleteProductUseCase(get()) }
 
+    factory { UpdateDeliveryPathUseCase(get()) }
+    factory { DeletePathUseCase(get()) }
+    factory { AddNewPathUseCase(get()) }
+
     factory { HomeDatabase(get()) }
     factory { DeliveryDatabase(get()) }
 
@@ -148,7 +155,7 @@ val mainAppModule = module {
     viewModelOf(::MainViewModel)
     viewModelOf(::DeliveryViewModel)
     viewModelOf(::CheckoutViewModel)
-    single { AdminViewModel(get(), get(), get()) }
+    single { AdminViewModel(get(), get(), get(), get(), get(), get()) }
 }
 
 val provideHttpClientModule = module {

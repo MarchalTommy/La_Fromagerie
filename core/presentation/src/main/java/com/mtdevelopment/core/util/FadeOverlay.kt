@@ -18,8 +18,8 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun FadeOverlay(
     modifier: Modifier = Modifier,
-    overlayWidth: Dp = 32.dp, // Largeur du dégradé
-    content: @Composable () -> Unit // Ajout du paramètre content
+    overlayWidth: Dp = 32.dp,
+    content: @Composable () -> Unit
 ) {
     val color = MaterialTheme.colorScheme.background
 

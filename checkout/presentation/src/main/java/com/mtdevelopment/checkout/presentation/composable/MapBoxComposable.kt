@@ -2,6 +2,8 @@ package com.mtdevelopment.checkout.presentation.composable
 
 import android.animation.Animator
 import android.animation.Animator.AnimatorListener
+import android.content.ContentValues.TAG
+import android.util.Log
 import android.view.MotionEvent
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.fillMaxSize
@@ -125,6 +127,19 @@ fun MapBoxComposable(
         getBaseCameraLocation(allPaths = allPaths, setIsLoading = { setIsLoading.invoke(it) },
             callback = { nw, se ->
                 setIsLoading.invoke(false)
+
+                val long =
+                    (nw.longitude()
+                        .plus(se.longitude())).div(2)
+
+                val lat = nw.latitude()
+                    .plus(se.latitude()).div(2)
+
+                cameraBasePoint.value = Point.fromLngLat(
+                    long,
+                    lat,
+                )
+
                 zoomOnSelectedPathMainCity(
                     map.value,
                     nw,
@@ -168,6 +183,17 @@ fun MapBoxComposable(
                     setIsLoading.invoke(false)
                 }
             }
+            map.value?.camera?.flyTo(
+                cameraOptions = CameraOptions.Builder()
+                    .center(
+                        cameraBasePoint.value
+                    )
+                    .zoom(8.5)
+                    .build(),
+                animationOptions = MapAnimationOptions.mapAnimationOptions {
+                    duration(1500)
+                }
+            )
         }
     }
 
@@ -425,20 +451,23 @@ fun getStyleForPath(
     path: UiDeliveryPath,
     allPaths: List<UiDeliveryPath>
 ): StyleContract.StyleExtension {
-
     return style(style = Style.STANDARD) {
-        +geoJsonSource("startingSource") {
-            featureCollection(
-                FeatureCollection.fromJson(Json.encodeToString(path.geoJson)),
-                "${path.hashCode()}_data"
-            )
-        }
-        +lineLayer("linelayer", "startingSource") {
-            lineCap(LineCap.ROUND)
-            lineJoin(LineJoin.ROUND)
-            lineOpacity(1.0)
-            lineWidth(6.0)
-            lineColor(pathsColors[allPaths.indexOf(path) % pathsColors.size])
+        try {
+            +geoJsonSource("startingSource") {
+                featureCollection(
+                    FeatureCollection.fromJson(Json.encodeToString(path.geoJson)),
+                    "${path.hashCode()}_data"
+                )
+            }
+            +lineLayer("linelayer", "startingSource") {
+                lineCap(LineCap.ROUND)
+                lineJoin(LineJoin.ROUND)
+                lineOpacity(1.0)
+                lineWidth(6.0)
+                lineColor(pathsColors[allPaths.indexOf(path) % pathsColors.size])
+            }
+        } catch (e: NullPointerException) {
+            Log.e(TAG, "Style not found for map... Geojson error ?")
         }
     }
 }
