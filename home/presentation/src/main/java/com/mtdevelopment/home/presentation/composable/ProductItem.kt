@@ -226,38 +226,37 @@ fun ProductItem(
                             contentDescription = "Edit"
                         )
                     }
+                } else {
+                    Button(
+                        modifier = Modifier
+                            .width(32.dp)
+                            .height(32.dp),
+                        onClick = {
+                            vibratePhoneClick(context)
+                            animateAddToCart()
+                            onAddClick.invoke()
+                        },
+                        colors = ButtonColors(
+                            containerColor = MaterialTheme.colorScheme.secondary,
+                            contentColor = MaterialTheme.colorScheme.primaryContainer,
+                            disabledContainerColor = MaterialTheme.colorScheme.secondary,
+                            disabledContentColor = MaterialTheme.colorScheme.primaryContainer
+                        ),
+                        contentPadding = PaddingValues(4.dp),
+                        border = BorderStroke(
+                            width = 2.dp,
+                            color = MaterialTheme.colorScheme.secondary
+                        ),
+                        elevation = ButtonDefaults.elevatedButtonElevation(),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Add,
+                            contentDescription = "Add"
+                        )
+                    }
                 }
-                Button(
-                    modifier = Modifier
-                        .width(32.dp)
-                        .height(32.dp),
-                    onClick = {
-                        vibratePhoneClick(context)
-                        animateAddToCart()
-                        onAddClick.invoke()
-                    },
-                    colors = ButtonColors(
-                        containerColor = MaterialTheme.colorScheme.secondary,
-                        contentColor = MaterialTheme.colorScheme.primaryContainer,
-                        disabledContainerColor = MaterialTheme.colorScheme.secondary,
-                        disabledContentColor = MaterialTheme.colorScheme.primaryContainer
-                    ),
-                    contentPadding = PaddingValues(4.dp),
-                    border = BorderStroke(
-                        width = 2.dp,
-                        color = MaterialTheme.colorScheme.secondary
-                    ),
-                    elevation = ButtonDefaults.elevatedButtonElevation(),
-                    shape = RoundedCornerShape(8.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = "Add"
-                    )
-                }
-
             }
-
         }
     }
 }

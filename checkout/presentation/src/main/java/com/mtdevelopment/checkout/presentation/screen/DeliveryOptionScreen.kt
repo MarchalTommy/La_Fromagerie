@@ -112,16 +112,7 @@ fun DeliveryOptionScreen(
                 }
             )
 
-            if (VARIANT != "admin") {
-                CustomerContent(
-                    deliveryViewModel,
-                    mainViewModel,
-                    navigateToCheckout,
-                    state,
-                    datePickerState,
-                    scrollState
-                )
-            } else {
+            if (VARIANT == "admin") {
                 if (state.value.deliveryPaths.isNotEmpty()) {
                     AdminContent(
                         pathList = state.value.deliveryPaths.map { it.toAdminUiDeliveryPath() },
@@ -139,6 +130,15 @@ fun DeliveryOptionScreen(
                         }
                     )
                 }
+            } else {
+                CustomerContent(
+                    deliveryViewModel,
+                    mainViewModel,
+                    navigateToCheckout,
+                    state,
+                    datePickerState,
+                    scrollState
+                )
             }
 
             Spacer(modifier = Modifier.imePadding())

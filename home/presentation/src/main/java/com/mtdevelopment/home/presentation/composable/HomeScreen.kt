@@ -13,6 +13,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
@@ -54,7 +55,7 @@ fun HomeScreen(
     cartViewModel: CartViewModel,
     shouldRefresh: Boolean,
     navigateToDetail: () -> Unit = {},
-    navigateToDelivery: (UiBasketObject) -> Unit = {}
+    navigateToDelivery: (UiBasketObject?) -> Unit = {}
 ) {
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -146,44 +147,8 @@ fun HomeScreen(
             }
         }
 
-        BadgedBox(
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .graphicsLayer {
-                    scaleX = scaleCart.value
-                    scaleY = scaleCart.value
-                }
-                .padding(32.dp),
-            badge = {
-                if ((cartState.cartObject.content.size) > 0) {
-                    Badge(
-                        containerColor = Color.Red,
-                        contentColor = Color.White
-                    ) {
-                        val cartItemsQuantity = cartState.cartObject.content.sumOf { it.quantity }
-                        Text("$cartItemsQuantity")
-                    }
-                }
-            }
-        ) {
-            FloatingActionButton(
-                modifier = Modifier
-                    .border(
-                        3.dp,
-                        color = MaterialTheme.colorScheme.tertiary,
-                        shape = RoundedCornerShape(16.dp)
-                    ),
-                containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                contentColor = MaterialTheme.colorScheme.tertiary,
-                onClick = {
-                    cartViewModel.setCartVisibility(true)
-                }
-            ) {
-                Icon(imageVector = Icons.Default.ShoppingCart, contentDescription = "Cart")
-            }
-        }
-
         if (VARIANT == "admin") {
+            // EDIT BUTTON
             FloatingActionButton(
                 modifier = Modifier
                     .padding(32.dp)
@@ -200,6 +165,63 @@ fun HomeScreen(
                 }
             ) {
                 Icon(imageVector = Icons.Default.Add, contentDescription = "Add a product")
+            }
+
+            // NEXT SCREEN BUTTON
+            FloatingActionButton(
+                modifier = Modifier
+                    .padding(32.dp)
+                    .align(Alignment.BottomEnd)
+                    .border(
+                        3.dp,
+                        color = MaterialTheme.colorScheme.tertiary,
+                        shape = RoundedCornerShape(16.dp)
+                    ),
+                containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                contentColor = MaterialTheme.colorScheme.tertiary,
+                onClick = {
+                    navigateToDelivery.invoke(null)
+                }
+            ) {
+                Icon(imageVector = Icons.Default.ArrowForward, contentDescription = "Next")
+            }
+        } else {
+            BadgedBox(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .graphicsLayer {
+                        scaleX = scaleCart.value
+                        scaleY = scaleCart.value
+                    }
+                    .padding(32.dp),
+                badge = {
+                    if ((cartState.cartObject.content.size) > 0) {
+                        Badge(
+                            containerColor = Color.Red,
+                            contentColor = Color.White
+                        ) {
+                            val cartItemsQuantity =
+                                cartState.cartObject.content.sumOf { it.quantity }
+                            Text("$cartItemsQuantity")
+                        }
+                    }
+                }
+            ) {
+                FloatingActionButton(
+                    modifier = Modifier
+                        .border(
+                            3.dp,
+                            color = MaterialTheme.colorScheme.tertiary,
+                            shape = RoundedCornerShape(16.dp)
+                        ),
+                    containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                    contentColor = MaterialTheme.colorScheme.tertiary,
+                    onClick = {
+                        cartViewModel.setCartVisibility(true)
+                    }
+                ) {
+                    Icon(imageVector = Icons.Default.ShoppingCart, contentDescription = "Cart")
+                }
             }
         }
 
