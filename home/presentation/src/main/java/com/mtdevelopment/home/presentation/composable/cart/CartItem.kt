@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.KeyboardArrowDown
@@ -26,6 +27,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.mtdevelopment.core.presentation.sharedModels.UiProductObject
@@ -71,13 +73,14 @@ fun CartItem(
         Row(
             modifier = modifier
                 .fillMaxWidth()
-                .background(MaterialTheme.colorScheme.surfaceContainerLow),
+                .background(MaterialTheme.colorScheme.surfaceContainerLow, RoundedCornerShape(50)),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             if (item != null) {
                 Row {
-                    IconButton(modifier = Modifier
-                        .padding(4.dp),
+                    IconButton(
+                        modifier = Modifier
+                            .padding(4.dp),
                         onClick = {
                             coroutineScope.launch {
                                 dismissState.dismiss(SwipeToDismissBoxValue.StartToEnd)
@@ -142,7 +145,7 @@ fun DismissBackground(dismissState: SwipeToDismissBoxState) {
     Row(
         modifier = Modifier
             .fillMaxSize()
-            .background(color)
+            .background(color = color, shape = RoundedCornerShape(50))
             .padding(12.dp, 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
