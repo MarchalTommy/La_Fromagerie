@@ -20,42 +20,6 @@ import io.ktor.http.path
 import kotlinx.coroutines.flow.Flow
 
 class SumUpDataSource(private val httpClient: HttpClient) {
-//
-//    fun initClientToken(bearerTokens: BearerTokens?) {
-//        httpClient.config {
-//            install(DefaultRequest) {
-//                url {
-//                    protocol = URLProtocol.HTTPS
-//                    host = Constants.SUM_UP_BASE_URL_WITHOUT_HTTPS
-//                }
-//            }
-//            install(Auth) {
-//                bearer {
-//                    loadTokens {
-//                        bearerTokens
-//                    }
-////                    refreshTokens {
-////                        // TODO: DO WHAT'S NEEDED TO REFRESH THE TOKEN, AND RETURN THE NEW PAIR HERE :
-////                        BearerTokens(TODO("BEARER"), TODO("REFRESH"))
-////                    }
-//                }
-//            }
-//        }
-//    }
-
-//    fun getToken(
-//        request: TokenRequest
-//    ): Flow<NetWorkResult<TokenResponse>> {
-//        return toResultFlow {
-//            val response = httpClient.get {
-//                url {
-//                    path("token")
-//                }
-//                setBody(request)
-//            }.body<TokenResponse>()
-//            NetWorkResult.Success(response)
-//        }
-//    }
 
     fun getCheckoutsList(reference: String? = null): Flow<NetWorkResult<List<CheckoutResponse?>>> {
         return toResultFlow {
@@ -111,7 +75,6 @@ class SumUpDataSource(private val httpClient: HttpClient) {
                             "v0.1/checkouts/$it"
                         )
                     }
-
                 }
                 contentType(ContentType.Application.Json)
                 setBody(body)

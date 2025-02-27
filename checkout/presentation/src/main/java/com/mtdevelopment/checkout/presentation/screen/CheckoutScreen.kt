@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardColors
 import androidx.compose.material3.CardDefaults
@@ -21,6 +22,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.contentColorFor
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
@@ -41,7 +43,8 @@ import java.util.Locale
 
 @Composable
 fun CheckoutScreen(
-    onGooglePayButtonClick: (priceCents: Long) -> Unit = {}
+    onGooglePayButtonClick: (priceCents: Long) -> Unit = {},
+    onNavigatePaymentSuccess: () -> Unit
 ) {
 
     val screenSize: ScreenSize = rememberScreenSize()
@@ -57,34 +60,46 @@ fun CheckoutScreen(
             .fillMaxSize()
     ) {
 
-        Column(
-            modifier = Modifier.fillMaxSize(),
+    LaunchedEffect(uiData.value) {
+        if (uiData.value.isPaymentSuccessful) {
+            onNavigatePaymentSuccess.invoke()
+        }
+    }
+
+        LaunchedEffect(paymentState.value) {
+        if (paymentState.value is PaymentUiState.PaymentCompleted) {
+            onNavigatePaymentSuccess.invoke()
+        }
+    }
+
+    Column(
+        modifier = Modifier.fillMaxSize(),
+    ) {
+        Card(
+            modifier = Modifier
+                .heightIn(min = 0.dp, max = (screenSize.height / 5) * 2)
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp)
+                .focusable(true),
+            colors = CardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                contentColor = MaterialTheme.colorScheme.contentColorFor(MaterialTheme.colorScheme.surfaceContainer),
+                disabledContainerColor = MaterialTheme.colorScheme.secondaryContainer,
+                disabledContentColor = MaterialTheme.colorScheme.contentColorFor(MaterialTheme.colorScheme.secondaryContainer)
+            ),
+            elevation = CardDefaults.elevatedCardElevation()
         ) {
-            Card(
+            Text(
+                modifier = Modifier.padding(start = 8.dp, top = 12.dp),
+                text = "Votre commande",
+                style = MaterialTheme.typography.titleLarge
+            )
+            LazyColumn(
                 modifier = Modifier
-                    .heightIn(min = 0.dp, max = (screenSize.height / 5) * 2)
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
-                    .focusable(true),
-                colors = CardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
-                    contentColor = MaterialTheme.colorScheme.contentColorFor(MaterialTheme.colorScheme.surfaceContainer),
-                    disabledContainerColor = MaterialTheme.colorScheme.secondaryContainer,
-                    disabledContentColor = MaterialTheme.colorScheme.contentColorFor(MaterialTheme.colorScheme.secondaryContainer)
-                ),
-                elevation = CardDefaults.elevatedCardElevation()
+                    .padding(start = 16.dp, end = 16.dp, bottom = 16.dp, top = 8.dp)
             ) {
-                Text(
-                    modifier = Modifier.padding(start = 8.dp, top = 12.dp),
-                    text = "Votre commande",
-                    style = MaterialTheme.typography.titleLarge
-                )
-                LazyColumn(
-                    modifier = Modifier
-                        .padding(start = 16.dp, end = 16.dp, bottom = 16.dp, top = 8.dp)
-                ) {
-                    items(
-                        items = uiData.value.cartItems?.cartItems ?: emptyList(),
+                items(
+                    items = uiData.value.cartItems?.cartItems ?: emptyList(),
                         key = { it.name.hashCode() }
                     ) {
                         Row(
@@ -119,25 +134,25 @@ fun CheckoutScreen(
                 }
             }
 
-            Card(
-                modifier = Modifier
-                    .heightIn(min = 0.dp, max = (screenSize.height / 5) * 2)
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
-                    .focusable(true),
-                colors = CardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
-                    contentColor = MaterialTheme.colorScheme.contentColorFor(MaterialTheme.colorScheme.surfaceContainer),
-                    disabledContainerColor = MaterialTheme.colorScheme.secondaryContainer,
-                    disabledContentColor = MaterialTheme.colorScheme.contentColorFor(MaterialTheme.colorScheme.secondaryContainer)
-                ),
-                elevation = CardDefaults.elevatedCardElevation()
-            ) {
-                Text(
-                    modifier = Modifier.padding(start = 8.dp, top = 12.dp),
-                    text = "Vos informations",
-                    style = MaterialTheme.typography.titleLarge
-                )
+        Card(
+            modifier = Modifier
+                .heightIn(min = 0.dp, max = (screenSize.height / 5) * 2)
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp)
+                .focusable(true),
+            colors = CardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                contentColor = MaterialTheme.colorScheme.contentColorFor(MaterialTheme.colorScheme.surfaceContainer),
+                disabledContainerColor = MaterialTheme.colorScheme.secondaryContainer,
+                disabledContentColor = MaterialTheme.colorScheme.contentColorFor(MaterialTheme.colorScheme.secondaryContainer)
+            ),
+            elevation = CardDefaults.elevatedCardElevation()
+        ) {
+            Text(
+                modifier = Modifier.padding(start = 8.dp, top = 12.dp),
+                text = "Vos informations",
+                style = MaterialTheme.typography.titleLarge
+            )
 
                 Column(
                     modifier = Modifier
@@ -185,6 +200,30 @@ fun CheckoutScreen(
             )
         }
 
+        if (BuildConfig.DEBUG) {
+            Button(
+                onClick = {
+                    checkoutViewModel.changePaymentUiStateDebug(
+                        PaymentUiState.PaymentCompleted("Testeur")
+                    )
+                }
+            ) {
+                Text("Debug go to success")
+            }
+            Button(
+                onClick = {
+                    checkoutViewModel.changePaymentUiStateDebug(
+                        PaymentUiState.Error(
+                            666,
+                            "This is an error message"
+                        )
+                    )
+                }
+            ) {
+                Text("Debug go to error")
+            }
+        }
+
         if (uiData.value.error != null && uiData.value.error != "") {
             ErrorOverlay(
                 message = uiData.value.error,
@@ -199,6 +238,8 @@ fun CheckoutScreen(
             modifier = Modifier.fillMaxSize(),
             contentDescription = "Loading animation"
         )
+
+
     }
 
 }

@@ -33,10 +33,6 @@ class PaymentRepositoryImpl(
 //    private val datastore: CheckoutDatastorePreferenceImpl
 ) : PaymentRepository {
 
-//    init {
-//        initClientToken()
-//    }
-
     ///////////////////////////////////////////////////////////////////////////
     // GOOGLE PAY PART
     ///////////////////////////////////////////////////////////////////////////
@@ -122,29 +118,6 @@ class PaymentRepositoryImpl(
     ///////////////////////////////////////////////////////////////////////////
     // SUMUP PART
     ///////////////////////////////////////////////////////////////////////////
-//    private fun initClientToken() {
-//        // TODO: GET TOKENs FROM LOCAL STORAGE (JETPACK DATASTORE I THINK ?) Try with api key and if it does not work, go with OAUTH 2.0
-////        val token = datastore.sumUpTokenFlow.first()
-////        val refresh = datastore.sumUpRefreshTokenFlow.first()
-//        val bearerTokens = BearerTokens(BuildConfig.SUMUP_PRIVATE_KEY, null)
-//        sumUpDataSource.initClientToken(bearerTokens)
-//    }
-
-//    private fun generateTokenRequestBody(
-//        clientId: String,
-//        clientSecret: String,
-//        authCode: String,
-//        grantType: GrantType,
-//        refreshToken: String? = null
-//    ): TokenRequest {
-//        return TokenRequest(
-//            clientId = clientId,
-//            clientSecret = clientSecret,
-//            authCode = authCode,
-//            grantType = grantType,
-//            refreshToken = refreshToken
-//        )
-//    }
 
     override suspend fun getCheckoutFromRef(reference: String?) {
         TODO("Not yet implemented")

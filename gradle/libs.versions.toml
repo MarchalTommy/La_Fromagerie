@@ -1,43 +1,55 @@
 [versions]
-agp = "8.7.2"
-kotlin = "2.0.21"
+# Base
+agp = "8.7.3"
+kotlin = "2.1.10"
 kotlinx-coroutines = "1.9.0"
-core-ktx = "1.15.0"
+core-ktx = "1.16.0"
 core-splash = "1.0.1"
 junit = "4.13.2"
 androidx-test-ext-junit = "1.2.1"
 espresso-core = "3.6.1"
 lifecycle-runtime-ktx = "2.8.7"
-activity-compose = "1.9.3"
-compose-bom = "2024.11.00"
+appcompat = "1.7.0"
+material = "1.12.0"
+paging = "3.3.6"
+lifecycle-scope = "2.8.7"
+navigation-common-ktx = "2.8.9"
+google-service = "4.4.2"
+ksp = "2.1.10-1.0.31"
+# Compose
+activity-compose = "1.10.1"
+compose-bom = "2025.04.00"
+navigation-compose = "2.8.9"
+paging-compose = "3.3.6"
+# Images and animations
 landscapist = "2.3.2"
 rive = "9.6.5"
 lottie = "6.6.4"
+dotlottie = "0.6.2"
+# DI
 koin-bom = "3.5.6"
+# Network
 ktor = "3.0.0"
-appcompat = "1.7.0"
-material = "1.12.0"
-firebase-bom = "33.6.0"
-navigation-compose = "2.8.4"
-datastore = "1.1.1"
-gson = "2.10.1"
+# Firebase
+firebase-bom = "33.12.0"
+crashlytics = "3.0.3"
+# Storage
+datastore = "1.1.4"
+room = "2.7.0"
+# Permissions
 accompanist = "0.28.0"
 accompanist-permissions = "0.35.0-alpha"
-paging = "3.3.4"
-paging-compose = "3.3.4"
-lifecycle-scope = "2.8.7"
-room = "2.6.1"
-serialization = "1.7.3"
-navigation-common-ktx = "2.8.4"
+contentment = "2.0.1"
+# Maps
 mapbox = "11.6.1"
 mapbox-geojson = "7.3.1"
 location = "21.3.0"
-contentment = "2.0.1"
-crashlytics = "3.0.2"
-google-service = "4.4.2"
+# Wallet
 wallet = "19.4.0"
 wallet-button = "1.0.0"
-ksp = "2.0.21-1.0.27"
+# Tools
+gson = "2.10.1"
+serialization = "1.7.3"
 scrollbar = "1.0.4"
 
 
@@ -92,6 +104,7 @@ firebase-crashlytics-ndk = { module = "com.google.firebase:firebase-crashlytics-
 landscapist = { group = "com.github.skydoves", name = "landscapist-glide", version.ref = "landscapist" }
 rive-android = { module = "app.rive:rive-android", version.ref = "rive" }
 lottie = { module = "com.airbnb.android:lottie-compose", version.ref = "lottie" }
+dotlottie = { module = "com.github.LottieFiles:dotlottie-android", version.ref = "dotlottie" }
 
 
 ## Injection

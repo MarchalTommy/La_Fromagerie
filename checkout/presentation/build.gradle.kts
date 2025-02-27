@@ -79,6 +79,7 @@ dependencies {
 
     implementation(libs.landscapist)
     implementation(libs.rive.android)
+    implementation(libs.lottie)
 
     implementation(platform(libs.koin.bom))
     implementation(libs.koin.core)

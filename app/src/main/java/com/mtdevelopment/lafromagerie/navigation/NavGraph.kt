@@ -9,6 +9,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.toRoute
 import com.mtdevelopment.cart.presentation.viewmodel.CartViewModel
+import com.mtdevelopment.checkout.presentation.screen.AfterPaymentScreen
 import com.mtdevelopment.checkout.presentation.screen.CheckoutScreen
 import com.mtdevelopment.core.presentation.MainViewModel
 import com.mtdevelopment.core.presentation.theme.ui.ScaleTransitionDirection
@@ -115,7 +116,35 @@ fun NavGraph(
             }
         ) {
             CheckoutScreen(
-                onGooglePayButtonClick = onGooglePayButtonClick
+                onGooglePayButtonClick = onGooglePayButtonClick,
+                onNavigatePaymentSuccess = {
+                    navController.navigate(
+                        AfterPaymentScreenDestination
+                    )
+                }
+            )
+        }
+
+        composable<AfterPaymentScreenDestination>(
+            enterTransition = {
+                scaleIntoContainer()
+            },
+            exitTransition = {
+                scaleOutOfContainer(ScaleTransitionDirection.INWARDS)
+            },
+            popEnterTransition = {
+                scaleIntoContainer(ScaleTransitionDirection.OUTWARDS)
+            },
+            popExitTransition = {
+                scaleOutOfContainer()
+            }
+        ) {
+            AfterPaymentScreen(
+                onHomeClick = {
+                    navController.navigate(
+                        HomeScreenDestination(shouldRefresh = false)
+                    )
+                }
             )
         }
 
