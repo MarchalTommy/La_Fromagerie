@@ -17,39 +17,23 @@ import com.mtdevelopment.admin.domain.usecase.UpdateDeliveryPathUseCase
 import com.mtdevelopment.admin.domain.usecase.UpdateProductUseCase
 import com.mtdevelopment.admin.presentation.viewmodel.AdminViewModel
 import com.mtdevelopment.cart.presentation.viewmodel.CartViewModel
-import com.mtdevelopment.checkout.data.BuildConfig
 import com.mtdevelopment.checkout.data.local.CheckoutDatastorePreferenceImpl
 import com.mtdevelopment.checkout.data.remote.model.Constants.ADDRESS_API_BASE_URL_WITHOUT_HTTPS
 import com.mtdevelopment.checkout.data.remote.model.Constants.OPEN_ROUTE_BASE_URL_WITHOUT_HTTPS
-import com.mtdevelopment.checkout.data.remote.source.AddressApiDataSource
-import com.mtdevelopment.checkout.data.remote.source.FirestoreDataSource
-import com.mtdevelopment.checkout.data.remote.source.OpenRouteDataSource
 import com.mtdevelopment.checkout.data.remote.source.SumUpDataSource
-import com.mtdevelopment.checkout.data.remote.source.local.DeliveryDatabase
-import com.mtdevelopment.checkout.data.remote.source.local.dao.DeliveryDao
-import com.mtdevelopment.checkout.data.repository.AddressApiRepositoryImpl
-import com.mtdevelopment.checkout.data.repository.FirestorePathRepositoryImpl
 import com.mtdevelopment.checkout.data.repository.PaymentRepositoryImpl
-import com.mtdevelopment.checkout.data.repository.RoomDeliveryRepositoryImpl
-import com.mtdevelopment.checkout.domain.repository.AddressApiRepository
 import com.mtdevelopment.checkout.domain.repository.CheckoutDatastorePreference
-import com.mtdevelopment.checkout.domain.repository.FirestorePathRepository
 import com.mtdevelopment.checkout.domain.repository.PaymentRepository
-import com.mtdevelopment.checkout.domain.repository.RoomDeliveryRepository
 import com.mtdevelopment.checkout.domain.usecase.CreateNewCheckoutUseCase
 import com.mtdevelopment.checkout.domain.usecase.CreatePaymentsClientUseCase
 import com.mtdevelopment.checkout.domain.usecase.FetchAllowedPaymentMethods
-import com.mtdevelopment.checkout.domain.usecase.GetAllDeliveryPathsUseCase
 import com.mtdevelopment.checkout.domain.usecase.GetCanUseGooglePayUseCase
 import com.mtdevelopment.checkout.domain.usecase.GetCheckoutDataUseCase
-import com.mtdevelopment.checkout.domain.usecase.GetDeliveryPathUseCase
 import com.mtdevelopment.checkout.domain.usecase.GetIsReadyToPayUseCase
 import com.mtdevelopment.checkout.domain.usecase.GetPaymentDataRequestUseCase
-import com.mtdevelopment.checkout.domain.usecase.GetUserInfoFromDatastoreUseCase
 import com.mtdevelopment.checkout.domain.usecase.ProcessSumUpCheckoutUseCase
 import com.mtdevelopment.checkout.domain.usecase.SaveCheckoutReferenceUseCase
 import com.mtdevelopment.checkout.presentation.viewmodel.CheckoutViewModel
-import com.mtdevelopment.checkout.presentation.viewmodel.DeliveryViewModel
 import com.mtdevelopment.core.local.SharedDatastoreImpl
 import com.mtdevelopment.core.presentation.MainViewModel
 import com.mtdevelopment.core.repository.NetworkRepository
@@ -59,6 +43,10 @@ import com.mtdevelopment.core.usecase.ClearDatastoreUseCase
 import com.mtdevelopment.core.usecase.ClearOrderUseCase
 import com.mtdevelopment.core.usecase.GetIsNetworkConnectedUseCase
 import com.mtdevelopment.core.usecase.SaveToDatastoreUseCase
+import com.mtdevelopment.delivery.data.BuildConfig.OPEN_ROUTE_TOKEN
+import com.mtdevelopment.delivery.data.source.remote.AddressApiDataSource
+import com.mtdevelopment.delivery.data.source.remote.OpenRouteDataSource
+import com.mtdevelopment.delivery.presentation.viewmodel.DeliveryViewModel
 import com.mtdevelopment.home.data.repository.FirebaseHomeRepositoryImpl
 import com.mtdevelopment.home.data.repository.RoomHomeRepositoryImpl
 import com.mtdevelopment.home.data.source.local.HomeDatabase
@@ -105,19 +93,33 @@ val mainAppModule = module {
     single { SumUpDataSource(get()) }
     single<NetworkRepository> { NetworkRepositoryImpl(get()) }
     single<PaymentRepository> { PaymentRepositoryImpl(get(), get()) }
-    single<AddressApiRepository> { AddressApiRepositoryImpl(get()) }
+    single<com.mtdevelopment.delivery.domain.repository.AddressApiRepository> {
+        com.mtdevelopment.delivery.data.repository.AddressApiRepositoryImpl(
+            get()
+        )
+    }
 
     single<FirebaseHomeRepository> { FirebaseHomeRepositoryImpl(get()) }
     single<RoomHomeRepository> { RoomHomeRepositoryImpl(get()) }
-    single<RoomDeliveryRepository> { RoomDeliveryRepositoryImpl(get()) }
+    single<com.mtdevelopment.delivery.domain.repository.RoomDeliveryRepository> {
+        com.mtdevelopment.delivery.data.repository.RoomDeliveryRepositoryImpl(
+            get()
+        )
+    }
 
     single<FirebaseAdminRepository> { FirebaseAdminRepositoryImpl(get()) }
 
-    single<FirestorePathRepository> { FirestorePathRepositoryImpl(get(), get(), get()) }
+    single<com.mtdevelopment.delivery.domain.repository.FirestorePathRepository> {
+        com.mtdevelopment.delivery.data.repository.FirestorePathRepositoryImpl(
+            get(),
+            get(),
+            get()
+        )
+    }
 
     factory { GetCheckoutDataUseCase(get()) }
     factory { SaveToDatastoreUseCase(get()) }
-    factory { GetUserInfoFromDatastoreUseCase(get()) }
+    factory { com.mtdevelopment.delivery.domain.usecase.GetUserInfoFromDatastoreUseCase(get()) }
     factory { ClearDatastoreUseCase(get()) }
     factory { ClearOrderUseCase(get()) }
 
@@ -128,8 +130,14 @@ val mainAppModule = module {
     factory { GetIsNetworkConnectedUseCase(get()) }
     factory { GetPaymentDataRequestUseCase(get()) }
 
-    factory { GetDeliveryPathUseCase(get()) }
-    factory { GetAllDeliveryPathsUseCase(get(), get(), get()) }
+    factory { com.mtdevelopment.delivery.domain.usecase.GetDeliveryPathUseCase(get()) }
+    factory {
+        com.mtdevelopment.delivery.domain.usecase.GetAllDeliveryPathsUseCase(
+            get(),
+            get(),
+            get()
+        )
+    }
 
     factory { CreateNewCheckoutUseCase(get()) }
     factory { ProcessSumUpCheckoutUseCase(get()) }
@@ -148,7 +156,7 @@ val mainAppModule = module {
     factory { AddNewPathUseCase(get()) }
 
     factory { HomeDatabase(get()) }
-    factory { DeliveryDatabase(get()) }
+    factory { com.mtdevelopment.delivery.data.source.local.DeliveryDatabase(get()) }
 
     viewModelOf(::CartViewModel)
     viewModelOf(::HomeViewModel)
@@ -171,7 +179,7 @@ val provideHttpClientModule = module {
             install(Auth) {
                 bearer {
                     loadTokens {
-                        BearerTokens(BuildConfig.OPEN_ROUTE_TOKEN, null)
+                        BearerTokens(OPEN_ROUTE_TOKEN, null)
                     }
                 }
             }
@@ -208,7 +216,11 @@ val provideFirebaseDatabase = module {
     single<FirebaseFirestore> { Firebase.firestore }
     single<FirestoreDatabase> { FirestoreDatabase(get()) }
     single<FirestoreAdminDatasource> { FirestoreAdminDatasource(get()) }
-    single<FirestoreDataSource> { FirestoreDataSource(get()) }
+    single<com.mtdevelopment.delivery.data.source.remote.FirestoreDataSource> {
+        com.mtdevelopment.delivery.data.source.remote.FirestoreDataSource(
+            get()
+        )
+    }
 }
 
 val provideOpenRouteDatasource = module {
@@ -222,7 +234,7 @@ val provideOpenRouteDatasource = module {
         install(Auth) {
             bearer {
                 loadTokens {
-                    BearerTokens(BuildConfig.OPEN_ROUTE_TOKEN, null)
+                    BearerTokens(OPEN_ROUTE_TOKEN, null)
                 }
             }
         }
@@ -238,7 +250,12 @@ val provideOpenRouteDatasource = module {
             })
         }
     }
-    single<OpenRouteDataSource> { OpenRouteDataSource(client, get()) }
+    single<OpenRouteDataSource> {
+        OpenRouteDataSource(
+            client,
+            get()
+        )
+    }
 }
 
 val provideAddressApiDataSource = module {
@@ -261,7 +278,12 @@ val provideAddressApiDataSource = module {
             })
         }
     }
-    single<AddressApiDataSource> { AddressApiDataSource(client, get()) }
+    single<AddressApiDataSource> {
+        AddressApiDataSource(
+            client,
+            get()
+        )
+    }
 }
 
 val provideGeocoder = module {
@@ -275,7 +297,9 @@ val provideRoomFromagerieDatabase = module {
 }
 
 fun provideHomeDao(db: FromagerieDatabase): HomeDao = db.homeDao
-fun provideDeliveryDao(db: FromagerieDatabase): DeliveryDao = db.deliveryDao
+fun provideDeliveryDao(db: FromagerieDatabase): com.mtdevelopment.delivery.data.source.local.dao.DeliveryDao =
+    db.deliveryDao
+
 fun provideDataBase(application: Application): FromagerieDatabase =
     Room.databaseBuilder(
         application,

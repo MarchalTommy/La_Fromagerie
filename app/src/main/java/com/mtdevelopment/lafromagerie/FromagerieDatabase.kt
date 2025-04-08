@@ -4,22 +4,20 @@ import androidx.room.Database
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverter
 import androidx.room.TypeConverters
-import com.mtdevelopment.checkout.data.remote.model.Coordinate
-import com.mtdevelopment.checkout.data.remote.model.entity.PathEntity
-import com.mtdevelopment.checkout.data.remote.source.local.dao.DeliveryDao
+import com.mtdevelopment.delivery.data.model.entity.PathEntity
 import com.mtdevelopment.home.data.model.ProductEntity
 import com.mtdevelopment.home.data.source.local.dao.HomeDao
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
 @Database(
-    entities = [ProductEntity::class, PathEntity::class],
+    entities = [ProductEntity::class, com.mtdevelopment.delivery.data.model.entity.PathEntity::class],
     version = 3,
 )
 @TypeConverters(Converters::class, CoordinatesConverter::class, MapConverter::class)
 abstract class FromagerieDatabase : RoomDatabase() {
     abstract val homeDao: HomeDao
-    abstract val deliveryDao: DeliveryDao
+    abstract val deliveryDao: com.mtdevelopment.delivery.data.source.local.dao.DeliveryDao
 }
 
 class Converters {
@@ -32,10 +30,12 @@ class Converters {
 
 class CoordinatesConverter {
     @TypeConverter
-    fun fromList(value: List<Coordinate>) = Json.encodeToString(value)
+    fun fromList(value: List<com.mtdevelopment.delivery.data.model.Coordinate>) =
+        Json.encodeToString(value)
 
     @TypeConverter
-    fun toList(value: String) = Json.decodeFromString<List<Coordinate>>(value)
+    fun toList(value: String) =
+        Json.decodeFromString<List<com.mtdevelopment.delivery.data.model.Coordinate>>(value)
 }
 
 class MapConverter {

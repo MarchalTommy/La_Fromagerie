@@ -8,24 +8,12 @@ plugins {
 android {
     namespace = "com.mtdevelopment.checkout.presentation"
     compileSdk = 35
-    android.buildFeatures.buildConfig = true
 
     defaultConfig {
         minSdk = 26
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles("consumer-rules.pro")
-        val MAPBOX_PUBLIC_TOKEN =
-            System.getenv("MAPBOX_PUBLIC_TOKEN") ?: project.findProperty("MAPBOX_PUBLIC_TOKEN")
-                ?.toString()
-        val MAPBOX_SECRET_TOKEN =
-            System.getenv("MAPBOX_SECRET_TOKEN") ?: project.findProperty("MAPBOX_SECRET_TOKEN")
-                ?.toString()
-        buildConfigField("String", "MAPBOX_PUBLIC_TOKEN", "\"$MAPBOX_PUBLIC_TOKEN\"")
-        buildConfigField(
-            "String", "MAPBOX_SECRET_TOKEN",
-            "\"$MAPBOX_SECRET_TOKEN\""
-        )
     }
 
     buildTypes {
@@ -87,6 +75,8 @@ dependencies {
     implementation(libs.firebase.common)
     implementation(libs.firebase.crashlytics)
 
+    implementation(libs.google.gson)
+
     implementation(libs.landscapist)
     implementation(libs.rive.android)
 
@@ -95,12 +85,6 @@ dependencies {
     implementation(libs.koin.android)
     implementation(libs.koin.androidx.compose)
     implementation(libs.koin.androidx.compose.navigation)
-
-    implementation(libs.mapbox)
-    implementation(libs.mapbox.extension)
-
-    implementation(libs.location)
-    implementation(libs.accompanist.permissions)
 
     implementation(libs.contentment)
 
