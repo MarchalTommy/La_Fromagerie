@@ -10,7 +10,6 @@ import androidx.navigation.compose.composable
 import androidx.navigation.toRoute
 import com.mtdevelopment.cart.presentation.viewmodel.CartViewModel
 import com.mtdevelopment.checkout.presentation.screen.CheckoutScreen
-import com.mtdevelopment.checkout.presentation.screen.DeliveryOptionScreen
 import com.mtdevelopment.core.presentation.MainViewModel
 import com.mtdevelopment.core.presentation.theme.ui.ScaleTransitionDirection
 import com.mtdevelopment.core.presentation.theme.ui.scaleIntoContainer
@@ -88,7 +87,7 @@ fun NavGraph(
                 scaleOutOfContainer()
             }
         ) {
-            DeliveryOptionScreen(
+            com.mtdevelopment.delivery.presentation.screen.DeliveryOptionScreen(
                 mainViewModel = mainViewModel,
                 navigateToCheckout = {
                     navController.navigate(

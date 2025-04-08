@@ -2,6 +2,7 @@ package com.mtdevelopment.checkout.presentation.screen
 
 import android.content.ContentValues.TAG
 import android.icu.text.SimpleDateFormat
+import android.util.Log
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -19,7 +20,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.contentColorFor
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
@@ -27,7 +27,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.google.pay.button.PayButton
-import com.mapbox.maps.logE
 import com.mtdevelopment.checkout.presentation.composable.UserInfoFormComposable
 import com.mtdevelopment.checkout.presentation.viewmodel.CheckoutViewModel
 import com.mtdevelopment.core.util.ScreenSize
@@ -46,15 +45,18 @@ fun CheckoutScreen(
     val uiData = checkoutViewModel.checkoutUiState
 
     fun onPricingError() {
-        logE(TAG, "Pricing error")
+        Log.e(TAG, "Pricing error")
     }
 
     Column(
         modifier = Modifier.fillMaxSize(),
     ) {
         Card(
-            modifier = Modifier.heightIn(min = 0.dp, max = (screenSize.height / 5) * 2)
-                .fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp).focusable(true),
+            modifier = Modifier
+                .heightIn(min = 0.dp, max = (screenSize.height / 5) * 2)
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp)
+                .focusable(true),
             colors = CardColors(
                 containerColor = MaterialTheme.colorScheme.surfaceContainer,
                 contentColor = MaterialTheme.colorScheme.contentColorFor(MaterialTheme.colorScheme.surfaceContainer),
@@ -109,8 +111,11 @@ fun CheckoutScreen(
         }
 
         Card(
-            modifier = Modifier.heightIn(min = 0.dp, max = (screenSize.height / 5) * 2)
-                .fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp).focusable(true),
+            modifier = Modifier
+                .heightIn(min = 0.dp, max = (screenSize.height / 5) * 2)
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp)
+                .focusable(true),
             colors = CardColors(
                 containerColor = MaterialTheme.colorScheme.surfaceContainer,
                 contentColor = MaterialTheme.colorScheme.contentColorFor(MaterialTheme.colorScheme.surfaceContainer),
