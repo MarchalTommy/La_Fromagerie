@@ -12,6 +12,7 @@ activity-compose = "1.9.3"
 compose-bom = "2024.11.00"
 landscapist = "2.3.2"
 rive = "9.6.5"
+lottie = "6.6.4"
 koin-bom = "3.5.6"
 ktor = "3.0.0"
 appcompat = "1.7.0"
@@ -90,6 +91,7 @@ firebase-crashlytics-ndk = { module = "com.google.firebase:firebase-crashlytics-
 # Landscapist (replaces base glide / coil / picasso)
 landscapist = { group = "com.github.skydoves", name = "landscapist-glide", version.ref = "landscapist" }
 rive-android = { module = "app.rive:rive-android", version.ref = "rive" }
+lottie = { module = "com.airbnb.android:lottie-compose", version.ref = "lottie" }
 
 
 ## Injection

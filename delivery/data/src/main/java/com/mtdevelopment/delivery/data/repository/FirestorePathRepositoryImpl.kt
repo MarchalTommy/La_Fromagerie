@@ -48,10 +48,17 @@ class FirestorePathRepositoryImpl(
                 listOfZipped.forEach { zipped ->
                     deferredCityInfoList.add(zipped.map {
                         async {
-                            addressApiRepository.reverseGeocodeCity(
+                            val result = addressApiRepository.reverseGeocodeCity(
                                 name = it.first,
                                 zip = it.second
                             )
+
+                            if (result == null) {
+                                onFailure.invoke()
+                                null
+                            } else {
+                                result
+                            }
                         }
                     })
                 }

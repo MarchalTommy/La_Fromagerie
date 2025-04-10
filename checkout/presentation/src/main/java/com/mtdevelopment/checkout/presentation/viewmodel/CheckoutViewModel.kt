@@ -60,7 +60,6 @@ class CheckoutViewModel(
     var checkoutUiState by mutableStateOf(LocalCheckoutInformation())
         private set
 
-
     private val _paymentUiState: MutableStateFlow<PaymentUiState> =
         MutableStateFlow(PaymentUiState.NotStarted)
     val paymentUiState: StateFlow<PaymentUiState> = _paymentUiState.asStateFlow()
@@ -84,7 +83,7 @@ class CheckoutViewModel(
         viewModelScope.launch {
             updateUiState()
             verifyGooglePayReadiness()
-//            createCheckout()
+            createCheckout()
         }
     }
 

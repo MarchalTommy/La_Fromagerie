@@ -49,7 +49,6 @@ class DeliveryViewModel(
         }
     }
 
-    // TODO: Manage error state
     fun saveUserInfo(onError: () -> Unit = {}) {
         viewModelScope.launch {
             if (deliveryUiDataState.selectedPath == null || deliveryUiDataState.userAddressFieldText.isBlank()) {
@@ -84,7 +83,7 @@ class DeliveryViewModel(
                 )
             },
             onFailure = {
-                deliveryUiDataState = deliveryUiDataState.copy(isLoading = false)
+                deliveryUiDataState = deliveryUiDataState.copy(isLoading = false, isError = true)
                 // TODO: Manage error state
             })
     }
@@ -120,6 +119,10 @@ class DeliveryViewModel(
 
     fun setIsLoading(isLoading: Boolean) {
         deliveryUiDataState = deliveryUiDataState.copy(isLoading = isLoading)
+    }
+
+    fun setIsError(isError: Boolean) {
+        deliveryUiDataState = deliveryUiDataState.copy(isError = isError)
     }
 
     fun setColumnScrollingEnabled(isEnabled: Boolean) {

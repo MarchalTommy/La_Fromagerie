@@ -1,6 +1,8 @@
 package com.mtdevelopment.delivery.data.repository
 
 import com.google.android.gms.maps.model.LatLng
+import com.mtdevelopment.core.util.NetWorkResult
+import com.mtdevelopment.delivery.data.model.response.addressData.AddressData
 import com.mtdevelopment.delivery.data.source.remote.AddressApiDataSource
 import com.mtdevelopment.delivery.domain.model.CityInformation
 import com.mtdevelopment.delivery.domain.repository.AddressApiRepository
@@ -11,8 +13,15 @@ class AddressApiRepositoryImpl(
 
     override suspend fun reverseGeocodeCity(name: String, zip: Int): CityInformation? {
         val result = addressApiDataSource.getLngLatFromCity(name, zip)
-        val properties = result.data?.features?.first()?.properties
-        val geometry = result.data?.features?.first()?.geometry
+
+        if (result is NetWorkResult.Error) {
+            return null
+        }
+
+        val properties =
+            (result as NetWorkResult<AddressData>).data?.features?.first()?.properties
+        val geometry =
+            (result as NetWorkResult<AddressData>).data?.features?.first()?.geometry
 
         return if (geometry != null) {
             CityInformation(

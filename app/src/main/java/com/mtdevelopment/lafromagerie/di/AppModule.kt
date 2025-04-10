@@ -192,6 +192,7 @@ val provideHttpClientModule = module {
                 json(Json {
                     prettyPrint = true
                     isLenient = true
+                    ignoreUnknownKeys = true
                 })
             }
         }
@@ -247,6 +248,7 @@ val provideOpenRouteDatasource = module {
             json(Json {
                 prettyPrint = true
                 isLenient = true
+                ignoreUnknownKeys = true
             })
         }
     }
@@ -275,6 +277,7 @@ val provideAddressApiDataSource = module {
             json(Json {
                 prettyPrint = true
                 isLenient = true
+                ignoreUnknownKeys = true
             })
         }
     }
