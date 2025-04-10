@@ -280,7 +280,6 @@ class MainActivity : ComponentActivity() {
                         mainViewModel = mainViewModel,
                         cartViewModel = cartViewModel,
                         onGooglePayButtonClick = { priceCents ->
-                            Log.e("PAYMENT", "BUTTON CLICKED")
                             requestPayment(priceCents)
                         }
                     )

@@ -1,5 +1,8 @@
 package com.mtdevelopment.checkout.domain.model
 
+import kotlinx.serialization.Serializable
+
+@Serializable
 data class NewCheckoutResult(
     val amount: Double?,
     val checkoutReference: String?,
@@ -17,12 +20,14 @@ data class NewCheckoutResult(
     val transactions: List<Transaction?>?,
     val validUntil: String?
 ) {
+    @Serializable
     data class Mandate(
         val merchantCode: String?,
         val status: String?,
         val type: String?
     )
 
+    @Serializable
     data class Transaction(
         val amount: Double?,
         val authCode: String?,

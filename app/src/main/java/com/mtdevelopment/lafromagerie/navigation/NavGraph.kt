@@ -14,6 +14,7 @@ import com.mtdevelopment.core.presentation.MainViewModel
 import com.mtdevelopment.core.presentation.theme.ui.ScaleTransitionDirection
 import com.mtdevelopment.core.presentation.theme.ui.scaleIntoContainer
 import com.mtdevelopment.core.presentation.theme.ui.scaleOutOfContainer
+import com.mtdevelopment.delivery.presentation.screen.DeliveryOptionScreen
 import com.mtdevelopment.details.presentation.composable.DetailScreen
 import com.mtdevelopment.home.presentation.composable.HomeScreen
 
@@ -87,7 +88,7 @@ fun NavGraph(
                 scaleOutOfContainer()
             }
         ) {
-            com.mtdevelopment.delivery.presentation.screen.DeliveryOptionScreen(
+            DeliveryOptionScreen(
                 mainViewModel = mainViewModel,
                 navigateToCheckout = {
                     navController.navigate(

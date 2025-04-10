@@ -34,9 +34,10 @@ android {
             ?.toString()
         buildConfigField("String", "SUMUP_MERCHANT_ID_TEST", "\"$SUMUP_MERCHANT_ID_TEST\"")
 
-        val GOOGLE_PAY_ID = System.getenv("GOOGLE_PAY_ID") ?: project.findProperty("GOOGLE_PAY_ID")
+        val GOOGLE_PAY_PROFILE_ID =
+            System.getenv("GOOGLE_PAY_PROFILE_ID") ?: project.findProperty("GOOGLE_PAY_PROFILE_ID")
             ?.toString()
-        buildConfigField("String", "GOOGLE_PAY_ID", "\"$GOOGLE_PAY_ID\"")
+        buildConfigField("String", "GOOGLE_PAY_PROFILE_ID", "\"$GOOGLE_PAY_PROFILE_ID\"")
 
         val GOOGLE_PAY_MERCHANT_ID = System.getenv("GOOGLE_PAY_MERCHANT_ID") ?: project.findProperty("GOOGLE_PAY_MERCHANT_ID")
             ?.toString()

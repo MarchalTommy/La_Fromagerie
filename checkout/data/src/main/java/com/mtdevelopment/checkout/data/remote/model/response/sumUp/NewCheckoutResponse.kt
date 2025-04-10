@@ -10,78 +10,78 @@ import kotlinx.serialization.Serializable
 @Keep
 data class NewCheckoutResponse(
     @SerialName("amount")
-    val amount: Double?,
+    val amount: Double? = null,
     @SerialName("checkout_reference")
-    val checkoutReference: String?,
+    val checkoutReference: String? = null,
     @SerialName("currency")
-    val currency: String?,
+    val currency: String? = null,
     @SerialName("customer_id")
-    val customerId: String?,
+    val customerId: String? = null,
     @SerialName("date")
-    val date: String?,
+    val date: String? = null,
     @SerialName("description")
-    val description: String?,
+    val description: String? = null,
     @SerialName("id")
-    val id: String?,
+    val id: String? = null,
     @SerialName("mandate")
-    val mandate: Mandate?,
+    val mandate: Mandate? = null,
     @SerialName("merchant_code")
-    val merchantCode: String?,
+    val merchantCode: String? = null,
     @SerialName("merchant_country")
-    val merchantCountry: String?,
+    val merchantCountry: String? = null,
     @SerialName("pay_to_email")
-    val payToEmail: String?,
+    val payToEmail: String? = null,
     @SerialName("return_url")
-    val returnUrl: String?,
+    val returnUrl: String? = null,
     @SerialName("status")
-    val status: String?,
+    val status: String? = null,
     @SerialName("transactions")
-    val transactions: List<Transaction?>?,
+    val transactions: List<Transaction?>? = null,
     @SerialName("valid_until")
-    val validUntil: String?
+    val validUntil: String? = null
 ) {
     @Serializable
     @Keep
     data class Mandate(
         @SerialName("merchant_code")
-        val merchantCode: String?,
+        val merchantCode: String? = null,
         @SerialName("status")
-        val status: String?,
+        val status: String? = null,
         @SerialName("type")
-        val type: String?
+        val type: String? = null
     )
 
     @Serializable
     @Keep
     data class Transaction(
         @SerialName("amount")
-        val amount: Double?,
+        val amount: Double? = null,
         @SerialName("auth_code")
-        val authCode: String?,
+        val authCode: String? = null,
         @SerialName("currency")
-        val currency: String?,
+        val currency: String? = null,
         @SerialName("entry_mode")
-        val entryMode: String?,
+        val entryMode: String? = null,
         @SerialName("id")
-        val id: String?,
+        val id: String? = null,
         @SerialName("installments_count")
-        val installmentsCount: Int?,
+        val installmentsCount: Int? = null,
         @SerialName("internal_id")
-        val internalId: Int?,
+        val internalId: Int? = null,
         @SerialName("merchant_code")
-        val merchantCode: String?,
+        val merchantCode: String? = null,
         @SerialName("payment_type")
-        val paymentType: String?,
+        val paymentType: String? = null,
         @SerialName("status")
-        val status: String?,
+        val status: String? = null,
         @SerialName("timestamp")
-        val timestamp: String?,
+        val timestamp: String? = null,
         @SerialName("tip_amount")
-        val tipAmount: Int?,
+        val tipAmount: Int? = null,
         @SerialName("transaction_code")
-        val transactionCode: String?,
+        val transactionCode: String? = null,
         @SerialName("vat_amount")
-        val vatAmount: Int?
+        val vatAmount: Int? = null
     )
 }
 
