@@ -93,6 +93,9 @@ fun NavGraph(
                     navController.navigate(
                         CheckoutScreenDestination
                     )
+                },
+                navigateBack = {
+                    navController.navigateUp()
                 })
         }
 

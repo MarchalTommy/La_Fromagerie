@@ -18,7 +18,7 @@ class AddressApiDataSource(
     private val json: Json
 ) {
 
-    suspend fun getLngLatFromCity(cityName: String, zip: Int): NetWorkResult<AddressData> {
+    suspend fun getLngLatFromCity(cityName: String, zip: Int): NetWorkResult<Any> {
         val response = httpClient.get {
             url {
                 protocol = URLProtocol.HTTPS
@@ -30,11 +30,14 @@ class AddressApiDataSource(
                 )
                 encodedPath = "/search/?q=${cityName.encodeURLPathPart()}-${zip}&type=municipality"
             }
-        }.body<String?>()
-        return NetWorkResult.Success(
-            json.decodeFromString<AddressData>(
-                response.toString()
+        }
+
+        return try {
+            NetWorkResult.Success(
+                response.body<AddressData>()
             )
-        )
+        } catch (e: Exception) {
+            NetWorkResult.Error(response.status, e.message ?: "")
+        }
     }
 }

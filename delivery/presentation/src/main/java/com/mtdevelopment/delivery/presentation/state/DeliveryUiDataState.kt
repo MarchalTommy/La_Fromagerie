@@ -1,5 +1,7 @@
 package com.mtdevelopment.delivery.presentation.state
 
+import com.mtdevelopment.delivery.presentation.model.UiDeliveryPath
+
 data class DeliveryUiDataState(
     val shouldDatePickerBeClickable: Boolean = false,
     val datePickerVisibility: Boolean = false,
@@ -11,11 +13,12 @@ data class DeliveryUiDataState(
     val userLocationOnPath: Boolean = false,
     val showDeliveryPathPicker: Boolean = false,
     val isLoading: Boolean = false,
+    val isError: Boolean = false,
     val columnScrollingEnabled: Boolean = true,
 
     val userCity: String = "",
     val userCityLocation: Pair<Double, Double> = Pair(0.0, 0.0),
-    val selectedPath: com.mtdevelopment.delivery.presentation.model.UiDeliveryPath? = null,
+    val selectedPath: UiDeliveryPath? = null,
 
-    val deliveryPaths: List<com.mtdevelopment.delivery.presentation.model.UiDeliveryPath> = emptyList()
+    val deliveryPaths: List<UiDeliveryPath> = emptyList()
 )

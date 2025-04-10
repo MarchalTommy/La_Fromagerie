@@ -26,6 +26,7 @@ import com.mtdevelopment.admin.presentation.model.AdminUiDeliveryPath
 import com.mtdevelopment.admin.presentation.model.toDomainDeliveryPath
 import com.mtdevelopment.admin.presentation.viewmodel.AdminViewModel
 import com.mtdevelopment.core.presentation.MainViewModel
+import com.mtdevelopment.core.presentation.composable.ErrorOverlay
 import com.mtdevelopment.core.presentation.composable.RiveAnimation
 import com.mtdevelopment.core.presentation.util.VARIANT
 import com.mtdevelopment.delivery.presentation.BuildConfig.MAPBOX_PUBLIC_TOKEN
@@ -45,7 +46,8 @@ import org.koin.androidx.compose.koinViewModel
 @Composable
 fun DeliveryOptionScreen(
     mainViewModel: MainViewModel,
-    navigateToCheckout: () -> Unit = {}
+    navigateToCheckout: () -> Unit = {},
+    navigateBack: () -> Unit = {}
 ) {
 
     val deliveryViewModel = koinViewModel<DeliveryViewModel>()
@@ -87,7 +89,10 @@ fun DeliveryOptionScreen(
     Surface(
         modifier = Modifier
             .fillMaxSize()
-            .verticalScroll(state = scrollState, enabled = state.value.columnScrollingEnabled)
+            .verticalScroll(
+                state = scrollState,
+                enabled = state.value.columnScrollingEnabled && state.value.isError.not()
+            )
             .imePadding()
     ) {
         Column(
@@ -177,6 +182,16 @@ fun DeliveryOptionScreen(
             isLoading = state.value.isLoading,
             modifier = Modifier.fillMaxSize(),
             contentDescription = "Loading animation"
+        )
+
+        // Error Composable
+        ErrorOverlay(
+            isShown = state.value.isError,
+            message = "Une erreur est survenue lors du chargement des parcours de livraison.\nSi le problème persiste merci de nous contacter !",
+            onDismiss = {
+                deliveryViewModel.setIsError(false)
+                navigateBack.invoke()
+            }
         )
 
         if (state.value.datePickerVisibility) {
