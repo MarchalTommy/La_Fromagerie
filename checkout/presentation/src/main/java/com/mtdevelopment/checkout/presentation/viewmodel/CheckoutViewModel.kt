@@ -281,4 +281,16 @@ class CheckoutViewModel(
         }
     }
 
+
+    ///////////////////////////////////////////////////////////////////////////
+    // FOR DEBUGGING PURPOSE ONLY
+    ///////////////////////////////////////////////////////////////////////////
+    fun setPaymentSuccess(isSuccess: Boolean) {
+        _paymentScreenState.update {
+            it.copy(
+                isPaymentSuccess = isSuccess
+            )
+        }
+    }
+
 }

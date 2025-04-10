@@ -8,6 +8,7 @@ plugins {
 android {
     namespace = "com.mtdevelopment.checkout.presentation"
     compileSdk = 35
+    android.buildFeatures.buildConfig = true
 
     defaultConfig {
         minSdk = 26

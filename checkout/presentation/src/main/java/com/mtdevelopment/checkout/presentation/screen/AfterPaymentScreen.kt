@@ -3,11 +3,9 @@ package com.mtdevelopment.checkout.presentation.screen
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
@@ -34,7 +32,9 @@ fun AfterPaymentScreen(
 ) {
 
     val viewModel = koinViewModel<CheckoutViewModel>()
-    val clientName = viewModel.clientInfo.collectAsState(null)
+    val clientName = viewModel.paymentScreenState.collectAsState(null).value?.buyerName
+
+    // TODO: Deactivate back button on this particular screen
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -56,7 +56,7 @@ fun AfterPaymentScreen(
                         .offset(y = 72.dp),
                     style = MaterialTheme.typography.titleLarge,
                     textAlign = TextAlign.Center,
-                    text = "Merci pour votre achat\n${clientName.value?.name} !"
+                    text = "Merci pour votre achat\n${clientName} !"
                 )
             }
 
@@ -95,7 +95,8 @@ fun SuccessAnim() {
     val progress by animateLottieCompositionAsState(composition)
     LottieAnimation(
         modifier = Modifier
-            .height(screenSize.height / 3).offset(y = (-52).dp),
+            .height(screenSize.height / 3)
+            .offset(y = (-52).dp),
         composition = composition,
         progress = { progress },
     )
