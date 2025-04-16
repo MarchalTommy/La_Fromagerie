@@ -14,6 +14,7 @@ import androidx.navigation.NavType
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.koin.compose.currentKoinScope
+import java.text.NumberFormat
 import java.util.Locale
 
 fun Double.toCentsLong(): Long {
@@ -24,9 +25,10 @@ fun Long.toPriceDouble(): Double {
     return this.toDouble() / 100
 }
 
-fun Long.toUiPrice(): String {
-    return String.format(locale = Locale.FRANCE, "%.2f", this.toDouble() / 100)
-        .replace(".", ",") + "€"
+fun Long.toStringPrice(): String {
+    val tempDouble = this / 100.0
+    val format = NumberFormat.getCurrencyInstance(Locale.FRANCE)
+    return format.format(tempDouble)
 }
 
 fun String.toLongPrice(): Long {

@@ -26,6 +26,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.mtdevelopment.cart.presentation.viewmodel.CartViewModel
+import com.mtdevelopment.core.util.toStringPrice
 import com.mtdevelopment.core.util.vibratePhoneClick
 import com.mtdevelopment.core.util.vibratePhoneClickBig
 import kotlinx.coroutines.launch
@@ -79,13 +80,13 @@ fun CartView(
                 }
 
                 AnimatedVisibility(
-                    visible = state?.cartObject?.content?.isEmpty() == true,
+                    visible = state?.cartItems?.cartItems?.isEmpty() == true,
                     enter = fadeIn(animationSpec = tween(800))
                 ) {
                     CartEmptyMessage(alphaAnimation = alphaAnimation)
                 }
             }
-            items(items = state?.cartObject?.content ?: emptyList(), key = { it.id }) {
+            items(items = state?.cartItems?.cartItems ?: emptyList(), key = { it?.name ?: "" }) {
                 val itemVisibility = remember {
                     Animatable(1f)
                 }
@@ -95,28 +96,34 @@ fun CartView(
                             animationSpec = tween(800)
                         )
                         .alpha(itemVisibility.value),
-                    item = it.copy(quantity = state?.cartObject?.content?.find { searched -> searched.id == it.id }?.quantity!!),
+                    item = it?.copy(quantity = state?.cartItems?.cartItems?.find { searched -> searched?.name == it.name }?.quantity!!),
                     onAddMore = {
                         vibratePhoneClick(context)
-                        cartViewModel.addCartObject(it)
+                        cartViewModel?.addCartObject(valueAsCartItem = it)
                     },
                     onRemoveOne = {
                         vibratePhoneClick(context)
                         coroutineScope.launch {
-                            if (it.quantity <= 1) {
+                            if ((it?.quantity ?: 0) <= 1) {
                                 itemVisibility.animateTo(
                                     targetValue = 0f,
                                     animationSpec = tween(200)
                                 )
-                                cartViewModel.totallyRemoveObject(it)
+                                if (it != null) {
+                                    cartViewModel?.totallyRemoveObject(it)
+                                }
                             } else {
-                                cartViewModel.removeCartObject(it)
+                                if (it != null) {
+                                    cartViewModel?.removeCartObject(it)
+                                }
                             }
                         }
                     },
                     onRemoveAll = {
                         vibratePhoneClickBig(context)
-                        cartViewModel?.totallyRemoveObject(it)
+                        if (it != null) {
+                            cartViewModel?.totallyRemoveObject(it)
+                        }
                     }
                 )
             }
@@ -128,8 +135,8 @@ fun CartView(
                             animationSpec = tween(300)
                         )
                         .fillMaxWidth(),
-                    totalAmount = state?.cartObject?.totalPrice ?: "",
-                    hasItems = state?.cartObject?.content?.isNotEmpty() == true,
+                    totalAmount = state?.cartItems?.totalPrice?.toStringPrice() ?: "",
+                    hasItems = state?.cartItems?.cartItems?.isNotEmpty() == true,
                     canShowDelivery = isNetworkConnected?.value ?: false
                 ) {
                     coroutineScope.launch {

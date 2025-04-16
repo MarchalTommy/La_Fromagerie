@@ -15,7 +15,7 @@ class GetCheckoutDataUseCase(
         val deliveryDate = sharedDatastore.deliveryDateFlow
 
         var localCheckoutInformation = user.combine(cart) { user, cart ->
-            val totalPrice = cart?.cartItems?.sumOf { it.price * it.quantity }
+            val totalPrice = cart?.cartItems?.sumOf { it?.price?.times((it?.quantity ?: 0)) ?: 0 }
             if (cart != null && user != null) {
                 LocalCheckoutInformation(
                     buyerName = user.name,

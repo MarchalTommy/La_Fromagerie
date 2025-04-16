@@ -9,20 +9,22 @@ import com.google.android.gms.wallet.PaymentData
 import com.google.android.gms.wallet.PaymentDataRequest
 import com.google.android.gms.wallet.PaymentsClient
 import com.google.firebase.crashlytics.FirebaseCrashlytics
-import com.mtdevelopment.checkout.domain.model.GooglePayData
 import com.mtdevelopment.checkout.domain.usecase.CreateNewCheckoutUseCase
 import com.mtdevelopment.checkout.domain.usecase.CreatePaymentsClientUseCase
 import com.mtdevelopment.checkout.domain.usecase.FetchAllowedPaymentMethods
 import com.mtdevelopment.checkout.domain.usecase.GetCanUseGooglePayUseCase
 import com.mtdevelopment.checkout.domain.usecase.GetCheckoutDataUseCase
+import com.mtdevelopment.checkout.domain.usecase.GetIsPaymentSuccessUseCase
 import com.mtdevelopment.checkout.domain.usecase.GetPaymentDataRequestUseCase
 import com.mtdevelopment.checkout.domain.usecase.GetPreviouslyCreatedCheckoutUseCase
 import com.mtdevelopment.checkout.domain.usecase.ProcessSumUpCheckoutUseCase
+import com.mtdevelopment.checkout.domain.usecase.ResetCheckoutStatusUseCase
 import com.mtdevelopment.checkout.domain.usecase.SaveCheckoutReferenceUseCase
 import com.mtdevelopment.checkout.domain.usecase.SaveCreatedCheckoutUseCase
+import com.mtdevelopment.checkout.domain.usecase.SavePaymentStateUseCase
 import com.mtdevelopment.checkout.presentation.model.PaymentScreenState
+import com.mtdevelopment.core.usecase.ClearCartUseCase
 import com.mtdevelopment.core.usecase.GetIsNetworkConnectedUseCase
-import com.mtdevelopment.core.util.toPriceDouble
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -30,12 +32,12 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import org.json.JSONException
 import org.json.JSONObject
 import org.koin.core.component.KoinComponent
-import java.util.Calendar
 
 class CheckoutViewModel(
     getIsConnectedUseCase: GetIsNetworkConnectedUseCase,
@@ -49,7 +51,11 @@ class CheckoutViewModel(
     private val processSumUpCheckoutUseCase: ProcessSumUpCheckoutUseCase,
     private val saveCheckoutReferenceUseCase: SaveCheckoutReferenceUseCase,
     private val getPreviouslyCreatedCheckoutUseCase: GetPreviouslyCreatedCheckoutUseCase,
-    private val saveCreatedCheckoutUseCase: SaveCreatedCheckoutUseCase
+    private val saveCreatedCheckoutUseCase: SaveCreatedCheckoutUseCase,
+    private val savePaymentStateUseCase: SavePaymentStateUseCase,
+    private val getIsPaymentSuccessUseCase: GetIsPaymentSuccessUseCase,
+    private val clearCartUseCase: ClearCartUseCase,
+    private val resetCheckoutStatusUseCase: ResetCheckoutStatusUseCase
 ) : ViewModel(), KoinComponent {
 
     val isConnected: StateFlow<Boolean> = getIsConnectedUseCase.invoke().stateIn(
@@ -73,14 +79,11 @@ class CheckoutViewModel(
 
     init {
         viewModelScope.launch {
-            updateUiState()
-        }
-        viewModelScope.launch {
             verifyGooglePayReadiness()
         }
     }
 
-    private suspend fun updateUiState() {
+    suspend fun updateUiState() {
         _paymentScreenState.update {
             it.copy(isLoading = true)
         }
@@ -93,7 +96,8 @@ class CheckoutViewModel(
                         buyerAddress = data.buyerAddress,
                         totalPrice = data.totalPrice,
                         deliveryDate = data.deliveryDate,
-                        cartItems = data.cartItems
+                        cartItems = data.cartItems,
+                        isPaymentSuccess = false
                     )
                 }
             }
@@ -121,8 +125,10 @@ class CheckoutViewModel(
             } else {
                 FirebaseCrashlytics.getInstance()
                     .recordException(Throwable("Google Pay not available, exception raised by hand"))
+
                 _paymentScreenState.update {
                     it.copy(
+                        isGooglePayAvailable = false,
                         error = "Google Pay ne semble pas disponible sur votre téléphone.\nMerci de contacter l'équipe de l'EARL."
                     )
                 }
@@ -132,6 +138,7 @@ class CheckoutViewModel(
                 .recordException(Throwable("Error on checking Google Pay : ${exception.statusCode} - ${exception.message}"))
             _paymentScreenState.update {
                 it.copy(
+                    isGooglePayAvailable = false,
                     error = "Une erreur est survenue avec le prestataire de paiement.\nMerci de contacter l'équipe de l'EARL."
                 )
             }
@@ -170,78 +177,111 @@ class CheckoutViewModel(
         Log.e("Google Pay API error", "Error code: $statusCode, Message: $message")
     }
 
-    fun createCheckout(isSuccess: (Boolean) -> Unit) {
-        _paymentScreenState.update {
-            it.copy(
-                isLoading = true
-            )
+    // TODO: This has been commented to avoid overloading SumUp API during development of Google Pay
+//    fun createCheckout(isSuccess: (Boolean) -> Unit) {
+//        _paymentScreenState.update {
+//            it.copy(
+//                isLoading = true
+//            )
+//        }
+//
+//        val checkoutRef =
+//            paymentScreenState.value.buyerName.toString()
+//                .replace(" ", "-") + "_" + Calendar.getInstance().time.toInstant()
+//                .toEpochMilli().toString()
+//
+//        viewModelScope.launch {
+//            createNewCheckoutUseCase.invoke(
+//                amount = paymentScreenState.value.totalPrice?.toPriceDouble() ?: 0.0,
+//                reference = checkoutRef
+//            ).collect { checkout ->
+//                saveCheckoutReferenceUseCase.invoke(checkoutRef)
+//                saveCreatedCheckoutUseCase.invoke(checkout)
+//                _paymentScreenState.update {
+//                    it.copy(
+//                        isLoading = false
+//                    )
+//                }
+//                isSuccess.invoke(checkout.status != null)
+//            }
+//        }
+//    }
+
+//    private suspend fun processCheckout(paymentDataItem: GooglePayData, checkoutId: String) {
+//        // TODO: Now, loader until fetch again checkouts from SumUp to see if completed !
+//        //  Still needs to bypass SumUp for now as I'm still in preprod Google Pay
+//
+//        getIsPaymentSuccessUseCase.invoke().collect {
+//            _paymentScreenState.update { state ->
+//                state.copy(
+//                    isLoading = false,
+//                    isPaymentSuccess = it
+//                )
+//            }
+//        }
+//        processSumUpCheckoutUseCase.invoke(
+//            checkoutId = checkoutId,
+//            googlePayData = paymentDataItem
+//        ).collect { temporaryPair ->
+//
+//
+//        }
+//    }
+
+    fun setGooglePaySuccess(isSuccess: Boolean) {
+        if (!viewModelScope.isActive) {
+            return
         }
-
-        val checkoutRef =
-            paymentScreenState.value.buyerName.toString()
-                .replace(" ", "-") + "_" + Calendar.getInstance().time.toInstant()
-                .toEpochMilli().toString()
-
         viewModelScope.launch {
-            createNewCheckoutUseCase.invoke(
-                amount = paymentScreenState.value.totalPrice?.toPriceDouble() ?: 0.0,
-                reference = checkoutRef
-            ).collect { checkout ->
-                saveCheckoutReferenceUseCase.invoke(checkoutRef)
-                saveCreatedCheckoutUseCase.invoke(checkout)
-                _paymentScreenState.update {
-                    it.copy(
-                        isLoading = false
+            try {
+                _paymentScreenState.update { state ->
+                    state.copy(isLoading = true)
+                }
+                savePaymentStateUseCase.invoke(isSuccess)
+                delay(3000)
+                _paymentScreenState.update { state ->
+                    state.copy(
+                        isLoading = false,
+                        isPaymentSuccess = isSuccess
                     )
                 }
-                isSuccess.invoke(checkout.status != null)
-            }
-        }
-    }
-
-    private suspend fun processCheckout(paymentDataItem: GooglePayData, checkoutId: String) {
-        _paymentScreenState.update {
-            it.copy(
-                isLoading = true
-            )
-        }
-
-        processSumUpCheckoutUseCase.invoke(
-            checkoutId = checkoutId,
-            googlePayData = paymentDataItem
-        ).collect { temporaryPair ->
-
-
-            delay(temporaryPair.second)
-
-            // TODO: Now, loader until fetch again checkouts from SumUp to see if completed ! Still needs to bypass SumUp for now as I'm still in preprod Google Pay
-            _paymentScreenState.update { state ->
-                state.copy(
-                    isLoading = true,
-                    isPaymentSuccess = temporaryPair.first
-                )
-            }
-        }
-    }
-
-    fun setPaymentData(paymentData: PaymentData) {
-        viewModelScope.launch {
-            _paymentScreenState.update {
-                it.copy(
-                    isLoading = true
-                )
-            }
-
-            getPreviouslyCreatedCheckoutUseCase.invoke().collect {
-
-                if (it.status.equals("pending", true)) {
-                    val paymentDataItem =
-                        json.decodeFromString<GooglePayData>(paymentData.toJson())
-                    processCheckout(paymentDataItem, it.id ?: "")
+            } catch (e: Exception) {
+                // Mettre à jour l'état pour refléter l'erreur si nécessaire
+                _paymentScreenState.update { state ->
+                    state.copy(
+                        isLoading = false,
+                        error = e.message
+                    )
                 }
             }
         }
     }
+
+//    fun setPaymentData(paymentData: PaymentData) {
+//        viewModelScope.launch {
+//            _paymentScreenState.update {
+//                it.copy(
+//                    isLoading = true
+//                )
+//            }
+//            // TODO: FIRST OF ALL, CHECK THE ORDER TO MAKE IT SAVE THE STATUS RIGHT AFTER GOOGLE PAY
+//            // TODO: THEN, COLLECT THE FLOW TO UPDATE THE UI
+//            savePaymentStateUseCase.invoke(true)
+//
+//            val paymentDataItem =
+//                json.decodeFromString<GooglePayData>(paymentData.toJson())
+//            processCheckout(paymentDataItem, "")
+//
+//            // TODO: Uncomment when Google Pay is ready
+////            getPreviouslyCreatedCheckoutUseCase.invoke().collect {
+////                if (it.status.equals("pending", true)) {
+////                    val paymentDataItem =
+////                        json.decodeFromString<GooglePayData>(paymentData.toJson())
+////                    processCheckout(paymentDataItem, it.id ?: "")
+////                }
+////            }
+//        }
+//    }
 
     private fun extractPaymentBillingName(paymentData: PaymentData): String? {
         val paymentInformation = paymentData.toJson()
@@ -281,6 +321,23 @@ class CheckoutViewModel(
         }
     }
 
+    private fun resetPaymentState() {
+        viewModelScope.launch {
+            resetCheckoutStatusUseCase.invoke()
+            _paymentScreenState.update {
+                it.copy(
+                    isPaymentSuccess = false
+                )
+            }
+        }
+    }
+
+    fun resetAppStateAfterSuccess() {
+        viewModelScope.launch {
+            clearCartUseCase.invoke()
+            resetPaymentState()
+        }
+    }
 
     ///////////////////////////////////////////////////////////////////////////
     // FOR DEBUGGING PURPOSE ONLY
@@ -289,6 +346,14 @@ class CheckoutViewModel(
         _paymentScreenState.update {
             it.copy(
                 isPaymentSuccess = isSuccess
+            )
+        }
+    }
+
+    fun setPaymentError(message: String? = null) {
+        _paymentScreenState.update {
+            it.copy(
+                error = message
             )
         }
     }

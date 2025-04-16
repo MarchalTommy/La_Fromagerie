@@ -8,10 +8,10 @@ import kotlinx.serialization.Serializable
 @Keep
 data class CartItemsData(
     @SerializedName("cartItems")
-    val cartItems: List<CartItemData>,
+    val cartItems: List<CartItemData> = emptyList(),
 
     @SerializedName("totalPrice")
-    val totalPrice: Long
+    val totalPrice: Long = 0L
 )
 
 // Data to domain
@@ -25,7 +25,7 @@ fun CartItemsData.toCartItems(): CartItems {
 // Domain to data
 fun CartItems.toCartItemsData(): CartItemsData {
     return CartItemsData(
-        cartItems = this.cartItems.map { it.toCartItemData() },
+        cartItems = this.cartItems.mapNotNull { it?.toCartItemData() },
         totalPrice = this.totalPrice
     )
 }

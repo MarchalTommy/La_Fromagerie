@@ -1,5 +1,6 @@
 package com.mtdevelopment.core.presentation.sharedModels
 
+import com.mtdevelopment.core.model.CartItem
 import com.mtdevelopment.core.model.Product
 import com.mtdevelopment.core.model.ProductType
 import com.mtdevelopment.core.util.serializableType
@@ -45,4 +46,10 @@ fun UiProductObject.toDomainProduct() = Product(
     allergens = allergens?.map { allergen ->
         allergen.trim().replaceFirstChar { firstChar -> firstChar.uppercaseChar() }
     }
+)
+
+fun UiProductObject.toCartItem() = CartItem(
+    name = this.name,
+    price = this.priceInCents,
+    quantity = this.quantity
 )

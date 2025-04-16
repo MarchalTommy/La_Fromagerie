@@ -1,11 +1,10 @@
 plugins {
     alias(libs.plugins.androidLibrary)
     alias(libs.plugins.kotlinAndroid)
-    alias(libs.plugins.kotlin.serialization)
 }
 
 android {
-    namespace = "com.mtdevelopment.core.domain"
+    namespace = "com.mtdevelopment.cart.domain"
     compileSdk = 35
 
     defaultConfig {
@@ -24,15 +23,19 @@ android {
             )
         }
     }
-
-    kotlin {
-        jvmToolchain(17)
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_11
+        targetCompatibility = JavaVersion.VERSION_11
+    }
+    kotlinOptions {
+        jvmTarget = "11"
     }
 }
 
 dependencies {
 
-    implementation(libs.kotlinx.serialization.json)
+
+    implementation(project(":core:domain"))
 
     implementation(libs.core.ktx)
     implementation(libs.androidx.appcompat)
@@ -40,6 +43,4 @@ dependencies {
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.test.ext.junit)
     androidTestImplementation(libs.espresso.core)
-
-    implementation(libs.google.gson)
 }

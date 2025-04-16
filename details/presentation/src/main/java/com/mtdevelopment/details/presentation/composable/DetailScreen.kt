@@ -66,7 +66,7 @@ import com.mtdevelopment.core.presentation.MainViewModel
 import com.mtdevelopment.core.presentation.util.VARIANT
 import com.mtdevelopment.core.util.ScreenSize
 import com.mtdevelopment.core.util.rememberScreenSize
-import com.mtdevelopment.core.util.toUiPrice
+import com.mtdevelopment.core.util.toStringPrice
 import com.mtdevelopment.core.util.vibratePhoneClick
 import com.skydoves.landscapist.ImageOptions
 import com.skydoves.landscapist.glide.GlideImage
@@ -234,7 +234,7 @@ fun DetailScreen(
                     )
                 }
 
-                state.currentItem?.priceInCents?.toUiPrice()?.let {
+                state.currentItem?.priceInCents?.toStringPrice()?.let {
                     Text(
                         modifier = Modifier
                             .padding(horizontal = 16.dp, vertical = 8.dp),
@@ -362,13 +362,13 @@ fun DetailScreen(
                     }
                     .padding(32.dp),
                 badge = {
-                    if (state.cartObject.content.find { it.id == state.currentItem?.id } != null) {
+                    if (state.cartItems?.cartItems?.find { it?.name == state.currentItem?.name } != null) {
                         Badge(
                             containerColor = Color.Red,
                             contentColor = Color.White
                         ) {
                             val cartItemsQuantity =
-                                state.cartObject.content.find { it.id == state.currentItem?.id }?.quantity
+                                state.cartItems?.cartItems?.find { it?.name == state.currentItem?.name }?.quantity
                             Text("$cartItemsQuantity")
                         }
                     }
@@ -379,7 +379,7 @@ fun DetailScreen(
                     onClick = {
                         vibratePhoneClick(context = context)
                         animateAddingToCart()
-                        state.currentItem?.let { viewModel.addCartObject(it) }
+                        state.currentItem?.let { viewModel.addCartObject(valueAsUiObject = it) }
                     },
                     shape = Shapes().medium
                 ) {

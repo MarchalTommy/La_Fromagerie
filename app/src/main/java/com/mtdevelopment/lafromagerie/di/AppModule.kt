@@ -16,6 +16,7 @@ import com.mtdevelopment.admin.domain.usecase.DeleteProductUseCase
 import com.mtdevelopment.admin.domain.usecase.UpdateDeliveryPathUseCase
 import com.mtdevelopment.admin.domain.usecase.UpdateProductUseCase
 import com.mtdevelopment.admin.presentation.viewmodel.AdminViewModel
+import com.mtdevelopment.cart.domain.usecase.GetCartDataUseCase
 import com.mtdevelopment.cart.presentation.viewmodel.CartViewModel
 import com.mtdevelopment.checkout.data.BuildConfig
 import com.mtdevelopment.checkout.data.local.CheckoutDatastorePreferenceImpl
@@ -31,18 +32,22 @@ import com.mtdevelopment.checkout.domain.usecase.CreatePaymentsClientUseCase
 import com.mtdevelopment.checkout.domain.usecase.FetchAllowedPaymentMethods
 import com.mtdevelopment.checkout.domain.usecase.GetCanUseGooglePayUseCase
 import com.mtdevelopment.checkout.domain.usecase.GetCheckoutDataUseCase
+import com.mtdevelopment.checkout.domain.usecase.GetIsPaymentSuccessUseCase
 import com.mtdevelopment.checkout.domain.usecase.GetIsReadyToPayUseCase
 import com.mtdevelopment.checkout.domain.usecase.GetPaymentDataRequestUseCase
 import com.mtdevelopment.checkout.domain.usecase.GetPreviouslyCreatedCheckoutUseCase
 import com.mtdevelopment.checkout.domain.usecase.ProcessSumUpCheckoutUseCase
+import com.mtdevelopment.checkout.domain.usecase.ResetCheckoutStatusUseCase
 import com.mtdevelopment.checkout.domain.usecase.SaveCheckoutReferenceUseCase
 import com.mtdevelopment.checkout.domain.usecase.SaveCreatedCheckoutUseCase
+import com.mtdevelopment.checkout.domain.usecase.SavePaymentStateUseCase
 import com.mtdevelopment.checkout.presentation.viewmodel.CheckoutViewModel
 import com.mtdevelopment.core.local.SharedDatastoreImpl
 import com.mtdevelopment.core.presentation.MainViewModel
 import com.mtdevelopment.core.repository.NetworkRepository
 import com.mtdevelopment.core.repository.NetworkRepositoryImpl
 import com.mtdevelopment.core.repository.SharedDatastore
+import com.mtdevelopment.core.usecase.ClearCartUseCase
 import com.mtdevelopment.core.usecase.ClearDatastoreUseCase
 import com.mtdevelopment.core.usecase.ClearOrderUseCase
 import com.mtdevelopment.core.usecase.GetIsNetworkConnectedUseCase
@@ -134,6 +139,8 @@ val mainAppModule = module {
 
     factory { GetCheckoutDataUseCase(get()) }
     factory { SaveToDatastoreUseCase(get()) }
+    factory { GetCartDataUseCase(get()) }
+    factory { ClearCartUseCase(get()) }
     factory { GetUserInfoFromDatastoreUseCase(get()) }
     factory { ClearDatastoreUseCase(get()) }
     factory { ClearOrderUseCase(get()) }
@@ -159,6 +166,9 @@ val mainAppModule = module {
     factory { GetPreviouslyCreatedCheckoutUseCase(get()) }
     factory { ProcessSumUpCheckoutUseCase(get()) }
     factory { SaveCheckoutReferenceUseCase(get()) }
+    factory { SavePaymentStateUseCase(get()) }
+    factory { ResetCheckoutStatusUseCase(get()) }
+    factory { GetIsPaymentSuccessUseCase(get()) }
 
     factory { GetLastFirestoreDatabaseUpdateUseCase(get(), get()) }
 
@@ -175,10 +185,10 @@ val mainAppModule = module {
     factory { HomeDatabase(get()) }
     factory { DeliveryDatabase(get()) }
 
-    viewModelOf(::CartViewModel)
     viewModelOf(::HomeViewModel)
     viewModelOf(::MainViewModel)
     viewModelOf(::DeliveryViewModel)
+    viewModelOf(::CartViewModel)
     viewModelOf(::CheckoutViewModel)
     single { AdminViewModel(get(), get(), get(), get(), get(), get()) }
 }

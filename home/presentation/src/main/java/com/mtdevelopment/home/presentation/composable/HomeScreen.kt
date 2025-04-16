@@ -37,7 +37,6 @@ import androidx.compose.ui.unit.dp
 import app.rive.runtime.kotlin.core.Rive
 import com.mtdevelopment.admin.presentation.composable.ProductEditDialog
 import com.mtdevelopment.admin.presentation.viewmodel.AdminViewModel
-import com.mtdevelopment.cart.presentation.model.UiBasketObject
 import com.mtdevelopment.cart.presentation.viewmodel.CartViewModel
 import com.mtdevelopment.core.presentation.MainViewModel
 import com.mtdevelopment.core.presentation.composable.RiveAnimation
@@ -46,7 +45,6 @@ import com.mtdevelopment.core.presentation.util.VARIANT
 import com.mtdevelopment.home.presentation.composable.cart.CartView
 import com.mtdevelopment.home.presentation.viewmodel.HomeViewModel
 import kotlinx.coroutines.launch
-import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 
 @Composable
@@ -55,12 +53,12 @@ fun HomeScreen(
     cartViewModel: CartViewModel,
     shouldRefresh: Boolean,
     navigateToDetail: () -> Unit = {},
-    navigateToDelivery: (UiBasketObject?) -> Unit = {}
+    navigateToDelivery: () -> Unit = {}
 ) {
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
 
-    val homeViewModel = koinViewModel<HomeViewModel>()
+    val homeViewModel = com.mtdevelopment.core.util.koinViewModel<HomeViewModel>()
     val adminViewModel = koinInject<AdminViewModel>()
 
     val scaleCart = remember { Animatable(1f) }
@@ -131,7 +129,7 @@ fun HomeScreen(
                         navigateToDetail.invoke()
                     },
                     onAddClick = {
-                        cartViewModel.addCartObject(productListItem)
+                        cartViewModel.addCartObject(valueAsUiObject = productListItem)
                         animateAddingToCart()
                     },
                     onEditClick = {
@@ -180,7 +178,7 @@ fun HomeScreen(
                 containerColor = MaterialTheme.colorScheme.tertiaryContainer,
                 contentColor = MaterialTheme.colorScheme.tertiary,
                 onClick = {
-                    navigateToDelivery.invoke(null)
+                    navigateToDelivery.invoke()
                 }
             ) {
                 Icon(imageVector = Icons.Default.ArrowForward, contentDescription = "Next")
@@ -195,13 +193,13 @@ fun HomeScreen(
                     }
                     .padding(32.dp),
                 badge = {
-                    if ((cartState.cartObject.content.size) > 0) {
+                    if ((cartState.cartItems?.cartItems) != null && (cartState.cartItems?.cartItems?.size)!! > 0) {
                         Badge(
                             containerColor = Color.Red,
                             contentColor = Color.White
                         ) {
                             val cartItemsQuantity =
-                                cartState.cartObject.content.sumOf { it.quantity }
+                                cartState.cartItems?.cartItems!!.sumOf { it?.quantity ?: 0 }
                             Text("$cartItemsQuantity")
                         }
                     }
@@ -226,11 +224,17 @@ fun HomeScreen(
         }
 
         if (cartState.isCartVisible) {
-            CartView(cartViewModel = cartViewModel, {
-                cartViewModel.setCartVisibility(false)
-            }, {
-                cartState.cartObject.let { navigateToDelivery.invoke(it) }
-            })
+            CartView(
+                cartViewModel = cartViewModel,
+                onDismiss = {
+                    cartViewModel.setCartVisibility(false)
+                },
+                onNavigateToCheckout = {
+                    cartState.cartItems.let {
+                        cartViewModel.resetCart(withVisibility = true)
+                        navigateToDelivery.invoke()
+                    }
+                })
         }
 
         // Loading animation

@@ -25,4 +25,11 @@ interface CheckoutDatastorePreference {
     val createdCheckoutFlow: Flow<NewCheckoutResult>
 
     suspend fun saveCreatedCheckout(data: NewCheckoutResult)
+
+    val isCheckoutSuccessfulFlow: Flow<Boolean>
+
+    suspend fun setIsCheckoutSuccessful(isSuccess: Boolean)
+
+    suspend fun resetCheckoutStatus()
+
 }

@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.annotation.Keep
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
@@ -88,6 +89,24 @@ class CheckoutDatastorePreferenceImpl(private val context: Context) : CheckoutDa
     override suspend fun saveCreatedCheckout(data: NewCheckoutResult) {
         context.dataStore.edit { settings ->
             settings[CREATED_CHECKOUT] = Json.encodeToString(data)
+        }
+    }
+
+    private val IS_CHECKOUT_SUCCESS = booleanPreferencesKey("IS_CHECKOUT_SUCCESS")
+    override val isCheckoutSuccessfulFlow: Flow<Boolean> =
+        context.dataStore.data.map { preferences ->
+            preferences[IS_CHECKOUT_SUCCESS] ?: false
+        }
+
+    override suspend fun setIsCheckoutSuccessful(isSuccess: Boolean) {
+        context.dataStore.edit { settings ->
+            settings[IS_CHECKOUT_SUCCESS] = isSuccess
+        }
+    }
+
+    override suspend fun resetCheckoutStatus() {
+        context.dataStore.edit {
+            it.remove(IS_CHECKOUT_SUCCESS)
         }
     }
 }
