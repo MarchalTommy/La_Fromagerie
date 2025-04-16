@@ -48,7 +48,9 @@ android {
 
 dependencies {
 
+    implementation(project(":core:domain"))
     implementation(project(":core:presentation"))
+    implementation(project(":cart:domain"))
     implementation(project(":cart:presentation"))
     implementation(project(":admin:presentation"))
 

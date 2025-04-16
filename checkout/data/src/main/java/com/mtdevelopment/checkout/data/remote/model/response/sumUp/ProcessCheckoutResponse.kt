@@ -8,29 +8,29 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class ProcessCheckoutResponse(
     @SerialName("next_step")
-    val nextStep: NextStep?
+    val nextStep: NextStep? = null
 ) {
     @Serializable
     data class NextStep(
         @SerialName("full")
-        val full: String?,
+        val full: String? = null,
         @SerialName("mechanism")
-        val mechanism: List<String?>?,
+        val mechanism: List<String?>? = null,
         @SerialName("method")
-        val method: String?,
+        val method: String? = null,
         @SerialName("payload")
-        val payload: Payload?,
+        val payload: Payload? = null,
         @SerialName("url")
-        val url: String?
+        val url: String? = null
     ) {
         @Serializable
         data class Payload(
             @SerialName("cs")
-            val cs: String?,
+            val cs: String? = null,
             @SerialName("rs")
-            val rs: String?,
+            val rs: String? = null,
             @SerialName("tx")
-            val tx: String?
+            val tx: String? = null
         )
     }
 }

@@ -95,6 +95,7 @@ android {
 
 dependencies {
 
+    implementation(project(":cart:domain"))
     implementation(project(":cart:presentation"))
     implementation(project(":core:data"))
     implementation(project(":core:domain"))

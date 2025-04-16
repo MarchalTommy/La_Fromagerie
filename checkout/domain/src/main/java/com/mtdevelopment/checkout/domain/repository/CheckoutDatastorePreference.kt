@@ -1,5 +1,6 @@
 package com.mtdevelopment.checkout.domain.repository
 
+import com.mtdevelopment.checkout.domain.model.NewCheckoutResult
 import kotlinx.coroutines.flow.Flow
 
 
@@ -20,4 +21,15 @@ interface CheckoutDatastorePreference {
     val checkoutReferencesFlow: Flow<List<String>>
 
     suspend fun saveCheckoutReference(reference: String)
+
+    val createdCheckoutFlow: Flow<NewCheckoutResult>
+
+    suspend fun saveCreatedCheckout(data: NewCheckoutResult)
+
+    val isCheckoutSuccessfulFlow: Flow<Boolean>
+
+    suspend fun setIsCheckoutSuccessful(isSuccess: Boolean)
+
+    suspend fun resetCheckoutStatus()
+
 }

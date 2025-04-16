@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.androidLibrary)
     alias(libs.plugins.kotlinAndroid)
+    alias(libs.plugins.kotlin.serialization)
 }
 
 android {
@@ -30,6 +31,8 @@ android {
 }
 
 dependencies {
+
+    implementation(libs.kotlinx.serialization.json)
 
     implementation(libs.core.ktx)
     implementation(libs.androidx.appcompat)

@@ -51,7 +51,7 @@ import com.bumptech.glide.load.resource.bitmap.BitmapTransitionOptions.withCross
 import com.bumptech.glide.request.RequestOptions
 import com.mtdevelopment.core.presentation.sharedModels.UiProductObject
 import com.mtdevelopment.core.presentation.util.VARIANT
-import com.mtdevelopment.core.util.toUiPrice
+import com.mtdevelopment.core.util.toStringPrice
 import com.mtdevelopment.core.util.vibratePhoneClick
 import com.skydoves.landscapist.ImageOptions
 import com.skydoves.landscapist.glide.GlideImage
@@ -188,7 +188,7 @@ fun ProductItem(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                product?.priceInCents?.toUiPrice()?.let {
+                product?.priceInCents?.toStringPrice()?.let {
                     Text(
                         modifier = Modifier
                             .padding(horizontal = 8.dp),

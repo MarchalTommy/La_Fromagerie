@@ -1,6 +1,5 @@
 package com.mtdevelopment.checkout.data.remote.source
 
-import com.mtdevelopment.checkout.data.remote.model.Constants
 import com.mtdevelopment.checkout.data.remote.model.request.CheckoutCreationBody
 import com.mtdevelopment.checkout.data.remote.model.request.ProcessCheckoutRequest
 import com.mtdevelopment.checkout.data.remote.model.response.sumUp.CheckoutFromIdResponse
@@ -11,57 +10,16 @@ import com.mtdevelopment.core.util.NetWorkResult
 import com.mtdevelopment.core.util.toResultFlow
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
-import io.ktor.client.plugins.DefaultRequest
-import io.ktor.client.plugins.auth.Auth
-import io.ktor.client.plugins.auth.providers.BearerTokens
-import io.ktor.client.plugins.auth.providers.bearer
 import io.ktor.client.request.get
 import io.ktor.client.request.post
 import io.ktor.client.request.put
 import io.ktor.client.request.setBody
 import io.ktor.http.ContentType
-import io.ktor.http.URLProtocol
 import io.ktor.http.contentType
 import io.ktor.http.path
 import kotlinx.coroutines.flow.Flow
 
 class SumUpDataSource(private val httpClient: HttpClient) {
-
-    fun initClientToken(bearerTokens: BearerTokens?) {
-        httpClient.config {
-            install(DefaultRequest) {
-                url {
-                    protocol = URLProtocol.HTTPS
-                    host = Constants.BASE_URL_WITHOUT_HTTPS
-                }
-            }
-            install(Auth) {
-                bearer {
-                    loadTokens {
-                        bearerTokens
-                    }
-//                    refreshTokens {
-//                        // TODO: DO WHAT'S NEEDED TO REFRESH THE TOKEN, AND RETURN THE NEW PAIR HERE :
-//                        BearerTokens(TODO("BEARER"), TODO("REFRESH"))
-//                    }
-                }
-            }
-        }
-    }
-
-//    fun getToken(
-//        request: TokenRequest
-//    ): Flow<NetWorkResult<TokenResponse>> {
-//        return toResultFlow {
-//            val response = httpClient.get {
-//                url {
-//                    path("token")
-//                }
-//                setBody(request)
-//            }.body<TokenResponse>()
-//            NetWorkResult.Success(response)
-//        }
-//    }
 
     fun getCheckoutsList(reference: String? = null): Flow<NetWorkResult<List<CheckoutResponse?>>> {
         return toResultFlow {
@@ -112,11 +70,10 @@ class SumUpDataSource(private val httpClient: HttpClient) {
         return toResultFlow {
             val response = httpClient.put {
                 url {
-                    path(
-                        "v0.1/checkouts"
-                    )
                     body.id?.let {
-                        parameters.append("id", it)
+                        path(
+                            "v0.1/checkouts/$it"
+                        )
                     }
                 }
                 contentType(ContentType.Application.Json)

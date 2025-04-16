@@ -1,15 +1,13 @@
 package com.mtdevelopment.cart.presentation.state
 
-import com.mtdevelopment.cart.presentation.model.UiBasketObject
+import com.mtdevelopment.core.model.CartItems
 import com.mtdevelopment.core.presentation.sharedModels.UiProductObject
-import java.util.UUID
 
 data class CartUiState(
     val isCartVisible: Boolean = false,
-    val cartObject: UiBasketObject = UiBasketObject(
-        UUID.randomUUID().toString(),
+    var cartItems: CartItems? = CartItems(
         emptyList(),
-        "0,00€"
+        0L
     ),
     val currentItem: UiProductObject? = null
-    )
+)

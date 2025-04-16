@@ -1,29 +1,36 @@
 package com.mtdevelopment.checkout.domain.model
 
+import kotlinx.serialization.Serializable
+
+@Serializable
 data class GooglePayData(
-    val apiVersion: Int?,
-    val apiVersionMinor: Int?,
-    val paymentMethodData: PaymentMethodData?
+    val apiVersion: Int? = null,
+    val apiVersionMinor: Int? = null,
+    val paymentMethodData: PaymentMethodData? = null
 ) {
+    @Serializable
     data class PaymentMethodData(
-        val description: String?,
-        val info: Info?,
-        val tokenizationData: TokenizationData?,
-        val type: String?
+        val description: String? = null,
+        val info: Info? = null,
+        val tokenizationData: TokenizationData? = null,
+        val type: String? = null
     ) {
+        @Serializable
         data class Info(
-            val billingAddress: BillingAddress?,
-            val cardDetails: String?,
-            val cardNetwork: String?
+            val billingAddress: BillingAddress? = null,
+            val cardDetails: String? = null,
+            val cardNetwork: String? = null
         ) {
+            @Serializable
             data class BillingAddress(
-                val phoneNumber: String?
+                val phoneNumber: String? = null
             )
         }
 
+        @Serializable
         data class TokenizationData(
-            val token: String?,
-            val type: String?
+            val token: String? = null,
+            val type: String? = null
         )
     }
 }

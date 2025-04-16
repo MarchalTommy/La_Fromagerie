@@ -16,3 +16,8 @@ object DeliveryOptionScreenDestination
 
 @Serializable
 object CheckoutScreenDestination
+
+@Serializable
+data class AfterPaymentScreenDestination(
+    val clientName: String? = null
+)

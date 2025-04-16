@@ -40,6 +40,8 @@ android {
 }
 
 dependencies {
+    implementation(project(":cart:domain"))
+
     implementation(project(":core:presentation"))
     implementation(project(":core:domain"))
 

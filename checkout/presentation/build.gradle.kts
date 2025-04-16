@@ -8,6 +8,7 @@ plugins {
 android {
     namespace = "com.mtdevelopment.checkout.presentation"
     compileSdk = 35
+    android.buildFeatures.buildConfig = true
 
     defaultConfig {
         minSdk = 26
@@ -35,12 +36,9 @@ android {
             dimension = "version"
         }
     }
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_1_8
-        targetCompatibility = JavaVersion.VERSION_1_8
-    }
-    kotlinOptions {
-        jvmTarget = "1.8"
+
+    kotlin {
+        jvmToolchain(17)
     }
 }
 
@@ -79,6 +77,7 @@ dependencies {
 
     implementation(libs.landscapist)
     implementation(libs.rive.android)
+    implementation(libs.lottie)
 
     implementation(platform(libs.koin.bom))
     implementation(libs.koin.core)

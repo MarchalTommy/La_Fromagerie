@@ -44,7 +44,7 @@ import com.mtdevelopment.core.model.ProductType
 import com.mtdevelopment.core.presentation.sharedModels.UiProductObject
 import com.mtdevelopment.core.presentation.theme.ui.black70
 import com.mtdevelopment.core.util.toLongPrice
-import com.mtdevelopment.core.util.toUiPrice
+import com.mtdevelopment.core.util.toStringPrice
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -152,7 +152,7 @@ fun ProductEditDialog(
                     modifier = Modifier,
                     title = "Prix",
                     value = if (tempProduct.value.priceInCents != 0L) {
-                        tempProduct.value.priceInCents.toUiPrice().replace("€", "")
+                        tempProduct.value.priceInCents.toStringPrice()
                     } else {
                         ""
                     },
@@ -195,8 +195,9 @@ fun ProductEditDialog(
                     title = "Allergènes",
                     value = tempProduct.value.allergens?.joinToString { it } ?: "",
                     onValueChange = {
-                        tempProduct.value = tempProduct.value.copy(allergens =
-                        it.split(",")
+                        tempProduct.value = tempProduct.value.copy(
+                            allergens =
+                                it.split(",")
                         )
                     },
                     imeAction = ImeAction.Done,

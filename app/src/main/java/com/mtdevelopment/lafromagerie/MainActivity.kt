@@ -3,7 +3,6 @@ package com.mtdevelopment.lafromagerie
 import android.animation.ObjectAnimator
 import android.os.Build
 import android.os.Bundle
-import android.util.Log
 import android.view.View
 import android.view.animation.OvershootInterpolator
 import androidx.activity.ComponentActivity
@@ -45,16 +44,14 @@ import androidx.compose.ui.unit.dp
 import androidx.core.animation.doOnEnd
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.lifecycleScope
-import androidx.navigation.NavDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.google.android.gms.common.api.CommonStatusCodes
-import com.google.android.gms.wallet.contract.TaskResultContracts
 import com.mtdevelopment.cart.presentation.viewmodel.CartViewModel
-import com.mtdevelopment.checkout.presentation.viewmodel.CheckoutViewModel
 import com.mtdevelopment.core.presentation.MainViewModel
 import com.mtdevelopment.core.presentation.theme.ui.AppTheme
+import com.mtdevelopment.lafromagerie.navigation.AfterPaymentScreenDestination
+import com.mtdevelopment.lafromagerie.navigation.DeliveryOptionScreenDestination
 import com.mtdevelopment.lafromagerie.navigation.HomeScreenDestination
 import com.mtdevelopment.lafromagerie.navigation.NavGraph
 import kotlinx.coroutines.CoroutineScope
@@ -63,26 +60,11 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.koin.androidx.viewmodel.ext.android.viewModel
 
+
 class MainActivity : ComponentActivity() {
 
-    private val checkoutViewModel: CheckoutViewModel by viewModel()
     private val cartViewModel: CartViewModel by viewModel()
     private val mainViewModel: MainViewModel by viewModel()
-
-    val paymentDataLauncher =
-        registerForActivityResult(TaskResultContracts.GetPaymentDataResult()) { taskResult ->
-            when (taskResult.status.statusCode) {
-                CommonStatusCodes.SUCCESS -> {
-                    taskResult.result!!.let {
-                        Log.i("Google Pay result", it.toJson())
-                        checkoutViewModel.setPaymentData(it)
-                    }
-                }
-                //CommonStatusCodes.CANCELED -> The user canceled
-                //CommonStatusCodes.DEVELOPER_ERROR -> The API returned an error (it.status: Status)
-                //else -> Handle internal and other unexpected errors
-            }
-        }
 
     @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -161,7 +143,6 @@ class MainActivity : ComponentActivity() {
             AppTheme {
                 val navController: NavHostController = rememberNavController()
                 val currentBackStackEntry = navController.currentBackStackEntryAsState()
-                var homeEntry: NavDestination? = null
 
                 val coroutineScope: CoroutineScope = rememberCoroutineScope()
 
@@ -207,12 +188,19 @@ class MainActivity : ComponentActivity() {
                             },
                             navigationIcon = {
                                 AnimatedVisibility(
-                                    visible = currentBackStackEntry.value?.destination != homeEntry,
+                                    visible = currentBackStackEntry.value?.destination?.route?.replace(
+                                        "?shouldRefresh={shouldRefresh}",
+                                        ""
+                                    ) != HomeScreenDestination::class.java.name &&
+                                            currentBackStackEntry.value?.destination?.route != AfterPaymentScreenDestination::class.java.name,
                                     exit = fadeOut(animationSpec = tween(300)),
                                     enter = fadeIn(animationSpec = tween(500))
                                 ) {
                                     IconButton(
                                         onClick = {
+                                            if (currentBackStackEntry.value?.destination?.route == DeliveryOptionScreenDestination::class.java.name) {
+                                                cartViewModel.loadCart(withVisibility = false)
+                                            }
                                             navController.navigateUp()
                                         },
                                         content = {
@@ -278,25 +266,11 @@ class MainActivity : ComponentActivity() {
                         paddingValues = paddingValues,
                         navController = navController,
                         mainViewModel = mainViewModel,
-                        cartViewModel = cartViewModel,
-                        onGooglePayButtonClick = { priceCents ->
-                            Log.e("PAYMENT", "BUTTON CLICKED")
-                            requestPayment(priceCents)
-                        }
+                        cartViewModel = cartViewModel
                     )
-                    try {
-                        homeEntry =
-                            navController.getBackStackEntry(HomeScreenDestination()).destination
-                    } catch (e: IllegalArgumentException) {
-                        homeEntry = null
-                    }
                 }
             }
         }
     }
 
-    private fun requestPayment(priceCents: Long) {
-        val task = checkoutViewModel.getLoadPaymentDataTask(priceCents)
-        task.addOnCompleteListener(paymentDataLauncher::launch)
-    }
 }

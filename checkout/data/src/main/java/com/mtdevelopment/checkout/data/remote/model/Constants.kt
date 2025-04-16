@@ -19,13 +19,14 @@ object Constants {
     ///////////////////////////////////////////////////////////////////////////
     // SUMUP CONSTANTS
     ///////////////////////////////////////////////////////////////////////////
-    const val BASE_URL = "https://api.sumup.com"
-    const val BASE_URL_WITHOUT_HTTPS = "api.sumup.com"
+    const val SUM_UP_BASE_URL = "https://api.sumup.com"
+    const val SUM_UP_BASE_URL_WITHOUT_HTTPS = "api.sumup.com"
 
     ///////////////////////////////////////////////////////////////////////////
     // GOOGLE PAY CONSTANTS
     ///////////////////////////////////////////////////////////////////////////
 
+    // TODO: set to WalletConstants.ENVIRONMENT_PRODUCTION after validation with Google : https://developers.google.com/pay/api/android/guides/test-and-deploy/integration-checklist
     const val PAYMENTS_ENVIRONMENT = WalletConstants.ENVIRONMENT_TEST
 
     val SUPPORTED_NETWORKS = listOf(

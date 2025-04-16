@@ -34,7 +34,7 @@ interface PaymentRepository {
     fun createNewCheckout(amount: Double, reference: String): Flow<NewCheckoutResult>
 
     fun processCheckout(
-        reference: String,
+        checkoutId: String,
         googlePayData: GooglePayData
     ): Flow<ProcessCheckoutResult>
 }
