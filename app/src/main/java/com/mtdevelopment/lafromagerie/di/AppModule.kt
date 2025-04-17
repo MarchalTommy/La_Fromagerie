@@ -6,16 +6,6 @@ import androidx.room.Room
 import com.google.firebase.Firebase
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.firestore
-import com.mtdevelopment.admin.data.repository.FirebaseAdminRepositoryImpl
-import com.mtdevelopment.admin.data.source.FirestoreAdminDatasource
-import com.mtdevelopment.admin.domain.repository.FirebaseAdminRepository
-import com.mtdevelopment.admin.domain.usecase.AddNewPathUseCase
-import com.mtdevelopment.admin.domain.usecase.AddNewProductUseCase
-import com.mtdevelopment.admin.domain.usecase.DeletePathUseCase
-import com.mtdevelopment.admin.domain.usecase.DeleteProductUseCase
-import com.mtdevelopment.admin.domain.usecase.UpdateDeliveryPathUseCase
-import com.mtdevelopment.admin.domain.usecase.UpdateProductUseCase
-import com.mtdevelopment.admin.presentation.viewmodel.AdminViewModel
 import com.mtdevelopment.cart.domain.usecase.GetCartDataUseCase
 import com.mtdevelopment.cart.presentation.viewmodel.CartViewModel
 import com.mtdevelopment.checkout.data.BuildConfig
@@ -127,8 +117,6 @@ val mainAppModule = module {
         )
     }
 
-    single<FirebaseAdminRepository> { FirebaseAdminRepositoryImpl(get()) }
-
     single<FirestorePathRepository> {
         FirestorePathRepositoryImpl(
             get(),
@@ -174,13 +162,6 @@ val mainAppModule = module {
 
     factory { GetAllProductsUseCase(get(), get(), get()) }
     factory { GetAllCheesesUseCase(get()) }
-    factory { UpdateProductUseCase(get()) }
-    factory { AddNewProductUseCase(get()) }
-    factory { DeleteProductUseCase(get()) }
-
-    factory { UpdateDeliveryPathUseCase(get()) }
-    factory { DeletePathUseCase(get()) }
-    factory { AddNewPathUseCase(get()) }
 
     factory { HomeDatabase(get()) }
     factory { DeliveryDatabase(get()) }
@@ -190,7 +171,6 @@ val mainAppModule = module {
     viewModelOf(::DeliveryViewModel)
     viewModelOf(::CartViewModel)
     viewModelOf(::CheckoutViewModel)
-    single { AdminViewModel(get(), get(), get(), get(), get(), get()) }
 }
 
 val provideJson = module {
@@ -210,7 +190,6 @@ val provideDatastore = module {
 val provideFirebaseDatabase = module {
     single<FirebaseFirestore> { Firebase.firestore }
     single<FirestoreDatabase> { FirestoreDatabase(get()) }
-    single<FirestoreAdminDatasource> { FirestoreAdminDatasource(get()) }
     single<FirestoreDataSource> {
         FirestoreDataSource(
             get()

@@ -6,7 +6,15 @@ import com.mtdevelopment.core.model.DeliveryPath
 class UpdateDeliveryPathUseCase(
     private val firebaseRepository: FirebaseAdminRepository
 ) {
-    operator fun invoke(path: DeliveryPath) {
-        firebaseRepository.updateDeliveryPath(path)
+    suspend operator fun invoke(
+        path: DeliveryPath,
+        onSuccess: () -> Unit,
+        onError: (Throwable) -> Unit
+    ) {
+        firebaseRepository.updateDeliveryPath(path).onSuccess {
+            onSuccess()
+        }.onFailure {
+            onError(it)
+        }
     }
 }

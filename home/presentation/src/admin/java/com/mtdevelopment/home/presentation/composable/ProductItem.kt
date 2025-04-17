@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonColors
@@ -50,7 +49,6 @@ import com.bumptech.glide.load.engine.DiskCacheStrategy
 import com.bumptech.glide.load.resource.bitmap.BitmapTransitionOptions.withCrossFade
 import com.bumptech.glide.request.RequestOptions
 import com.mtdevelopment.core.presentation.sharedModels.UiProductObject
-import com.mtdevelopment.core.presentation.util.VARIANT
 import com.mtdevelopment.core.util.toStringPrice
 import com.mtdevelopment.core.util.vibratePhoneClick
 import com.skydoves.landscapist.ImageOptions
@@ -198,63 +196,32 @@ fun ProductItem(
                     )
                 }
 
-                if (VARIANT == "admin") {
-                    Button(
-                        modifier = Modifier
-                            .width(32.dp)
-                            .height(32.dp),
-                        onClick = {
-                            vibratePhoneClick(context)
-                            onEditClick.invoke(product!!)
-                        },
-                        colors = ButtonColors(
-                            containerColor = MaterialTheme.colorScheme.secondary,
-                            contentColor = MaterialTheme.colorScheme.primaryContainer,
-                            disabledContainerColor = MaterialTheme.colorScheme.secondary,
-                            disabledContentColor = MaterialTheme.colorScheme.primaryContainer
-                        ),
-                        contentPadding = PaddingValues(4.dp),
-                        border = BorderStroke(
-                            width = 2.dp,
-                            color = MaterialTheme.colorScheme.secondary
-                        ),
-                        elevation = ButtonDefaults.elevatedButtonElevation(),
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Edit,
-                            contentDescription = "Edit"
-                        )
-                    }
-                } else {
-                    Button(
-                        modifier = Modifier
-                            .width(32.dp)
-                            .height(32.dp),
-                        onClick = {
-                            vibratePhoneClick(context)
-                            animateAddToCart()
-                            onAddClick.invoke()
-                        },
-                        colors = ButtonColors(
-                            containerColor = MaterialTheme.colorScheme.secondary,
-                            contentColor = MaterialTheme.colorScheme.primaryContainer,
-                            disabledContainerColor = MaterialTheme.colorScheme.secondary,
-                            disabledContentColor = MaterialTheme.colorScheme.primaryContainer
-                        ),
-                        contentPadding = PaddingValues(4.dp),
-                        border = BorderStroke(
-                            width = 2.dp,
-                            color = MaterialTheme.colorScheme.secondary
-                        ),
-                        elevation = ButtonDefaults.elevatedButtonElevation(),
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Add,
-                            contentDescription = "Add"
-                        )
-                    }
+                Button(
+                    modifier = Modifier
+                        .width(32.dp)
+                        .height(32.dp),
+                    onClick = {
+                        vibratePhoneClick(context)
+                        onEditClick.invoke(product!!)
+                    },
+                    colors = ButtonColors(
+                        containerColor = MaterialTheme.colorScheme.secondary,
+                        contentColor = MaterialTheme.colorScheme.primaryContainer,
+                        disabledContainerColor = MaterialTheme.colorScheme.secondary,
+                        disabledContentColor = MaterialTheme.colorScheme.primaryContainer
+                    ),
+                    contentPadding = PaddingValues(4.dp),
+                    border = BorderStroke(
+                        width = 2.dp,
+                        color = MaterialTheme.colorScheme.secondary
+                    ),
+                    elevation = ButtonDefaults.elevatedButtonElevation(),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Edit,
+                        contentDescription = "Edit"
+                    )
                 }
             }
         }

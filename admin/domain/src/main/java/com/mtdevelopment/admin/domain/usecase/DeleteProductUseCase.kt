@@ -6,7 +6,15 @@ import com.mtdevelopment.core.model.Product
 class DeleteProductUseCase(
     private val firebaseRepository: FirebaseAdminRepository
 ) {
-    operator fun invoke(product: Product) {
-        firebaseRepository.deleteProduct(product)
+    suspend operator fun invoke(
+        product: Product,
+        onSuccess: () -> Unit,
+        onError: (Throwable) -> Unit
+    ) {
+        firebaseRepository.deleteProduct(product).onSuccess {
+            onSuccess()
+        }.onFailure {
+            onError(it)
+        }
     }
 }

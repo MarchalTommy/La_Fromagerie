@@ -5,20 +5,20 @@ import com.mtdevelopment.core.model.Product
 
 interface FirebaseAdminRepository {
 
-    fun saveNewDatabaseProductsUpdate(timestamp: Long)
+    suspend fun saveNewDatabaseProductsUpdate(timestamp: Long): Result<Unit>
 
-    fun addNewProduct(product: Product)
+    suspend fun addNewProduct(product: Product): Result<Unit>
 
-    fun updateProduct(product: Product)
+    suspend fun updateProduct(product: Product): Result<Unit>
 
-    fun deleteProduct(product: Product)
+    suspend fun deleteProduct(product: Product): Result<Unit>
 
-    fun saveNewDatabasePathsUpdate(timestamp: Long)
+    suspend fun saveNewDatabasePathsUpdate(timestamp: Long): Result<Unit>
 
-    fun addNewDeliveryPath(path: DeliveryPath)
+    suspend fun addNewDeliveryPath(path: DeliveryPath): Result<Unit>
 
-    fun updateDeliveryPath(path: DeliveryPath)
+    suspend fun updateDeliveryPath(path: DeliveryPath): Result<Unit>
 
-    fun deleteDeliveryPath(path: DeliveryPath)
+    suspend fun deleteDeliveryPath(path: DeliveryPath): Result<Unit>
 
 }

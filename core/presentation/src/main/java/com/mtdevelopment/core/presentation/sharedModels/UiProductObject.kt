@@ -12,7 +12,7 @@ data class UiProductObject(
     val id: String,
     val name: String,
     val priceInCents: Long,
-    val imageUrl: String? = null,
+    var imageUrl: String? = null,
 //    val imageRes: Int? = null,
     val type: ProductType,
     val description: String = "",

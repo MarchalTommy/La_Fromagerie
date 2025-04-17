@@ -26,6 +26,7 @@ landscapist = "2.3.2"
 rive = "9.6.5"
 lottie = "6.6.4"
 dotlottie = "0.6.2"
+cloudinary = "3.0.2"
 # DI
 koin-bom = "3.5.6"
 # Network
@@ -51,6 +52,7 @@ wallet-button = "1.0.0"
 gson = "2.10.1"
 serialization = "1.7.3"
 scrollbar = "1.0.4"
+exifinterface = "1.4.0"
 
 
 [libraries]
@@ -105,6 +107,7 @@ landscapist = { group = "com.github.skydoves", name = "landscapist-glide", versi
 rive-android = { module = "app.rive:rive-android", version.ref = "rive" }
 lottie = { module = "com.airbnb.android:lottie-compose", version.ref = "lottie" }
 dotlottie = { module = "com.github.LottieFiles:dotlottie-android", version.ref = "dotlottie" }
+cloudinary = { module = "com.cloudinary:cloudinary-android", version.ref = "cloudinary" }
 
 
 ## Injection
@@ -169,6 +172,7 @@ location = { module = "com.google.android.gms:play-services-location", version.r
 
 ## Contentment (avoid loader flickering)
 contentment = { module = "me.rmyhal.contentment:contentment", version.ref = "contentment" }
+androidx-exifinterface = { group = "androidx.exifinterface", name = "exifinterface", version.ref = "exifinterface" }
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }

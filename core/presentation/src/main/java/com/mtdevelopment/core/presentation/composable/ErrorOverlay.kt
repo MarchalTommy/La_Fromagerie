@@ -32,7 +32,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun ErrorOverlay(
     isShown: Boolean = true,
-    duration: Float? = null,
+    duration: Long? = null,
     message: String? = null,
     onDismiss: () -> Unit = {}
 ) {
@@ -48,7 +48,7 @@ fun ErrorOverlay(
     LaunchedEffect(duration) {
         if (duration != null) {
             scope.launch {
-                delay(duration.toLong())
+                delay(duration)
                 onDismiss.invoke()
             }
         }

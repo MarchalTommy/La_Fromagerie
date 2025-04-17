@@ -12,8 +12,6 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
@@ -35,17 +33,14 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import app.rive.runtime.kotlin.core.Rive
-import com.mtdevelopment.admin.presentation.composable.ProductEditDialog
-import com.mtdevelopment.admin.presentation.viewmodel.AdminViewModel
 import com.mtdevelopment.cart.presentation.viewmodel.CartViewModel
 import com.mtdevelopment.core.presentation.MainViewModel
 import com.mtdevelopment.core.presentation.composable.RiveAnimation
 import com.mtdevelopment.core.presentation.sharedModels.UiProductObject
-import com.mtdevelopment.core.presentation.util.VARIANT
+import com.mtdevelopment.core.util.koinViewModel
 import com.mtdevelopment.home.presentation.composable.cart.CartView
 import com.mtdevelopment.home.presentation.viewmodel.HomeViewModel
 import kotlinx.coroutines.launch
-import org.koin.compose.koinInject
 
 @Composable
 fun HomeScreen(
@@ -58,15 +53,13 @@ fun HomeScreen(
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
 
-    val homeViewModel = com.mtdevelopment.core.util.koinViewModel<HomeViewModel>()
-    val adminViewModel = koinInject<AdminViewModel>()
+    val homeViewModel = koinViewModel<HomeViewModel>()
 
     val scaleCart = remember { Animatable(1f) }
 
     val cartState = cartViewModel.cartUiState
     val homeState = homeViewModel.homeUiState
     var showEditDialog by remember { mutableStateOf(false) }
-    var showAddNewProductDialog by remember { mutableStateOf(false) }
     var editedProduct by remember { mutableStateOf<UiProductObject?>(null) }
 
     var hasLoadedFirstPic by remember { mutableStateOf(false) }
@@ -145,12 +138,29 @@ fun HomeScreen(
             }
         }
 
-        if (VARIANT == "admin") {
-            // EDIT BUTTON
+        BadgedBox(
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .graphicsLayer {
+                    scaleX = scaleCart.value
+                    scaleY = scaleCart.value
+                }
+                .padding(32.dp),
+            badge = {
+                if ((cartState.cartItems?.cartItems) != null && (cartState.cartItems?.cartItems?.size)!! > 0) {
+                    Badge(
+                        containerColor = Color.Red,
+                        contentColor = Color.White
+                    ) {
+                        val cartItemsQuantity =
+                            cartState.cartItems?.cartItems!!.sumOf { it?.quantity ?: 0 }
+                        Text("$cartItemsQuantity")
+                    }
+                }
+            }
+        ) {
             FloatingActionButton(
                 modifier = Modifier
-                    .padding(32.dp)
-                    .align(Alignment.BottomStart)
                     .border(
                         3.dp,
                         color = MaterialTheme.colorScheme.tertiary,
@@ -159,67 +169,10 @@ fun HomeScreen(
                 containerColor = MaterialTheme.colorScheme.tertiaryContainer,
                 contentColor = MaterialTheme.colorScheme.tertiary,
                 onClick = {
-                    showAddNewProductDialog = true
+                    cartViewModel.setCartVisibility(true)
                 }
             ) {
-                Icon(imageVector = Icons.Default.Add, contentDescription = "Add a product")
-            }
-
-            // NEXT SCREEN BUTTON
-            FloatingActionButton(
-                modifier = Modifier
-                    .padding(32.dp)
-                    .align(Alignment.BottomEnd)
-                    .border(
-                        3.dp,
-                        color = MaterialTheme.colorScheme.tertiary,
-                        shape = RoundedCornerShape(16.dp)
-                    ),
-                containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                contentColor = MaterialTheme.colorScheme.tertiary,
-                onClick = {
-                    navigateToDelivery.invoke()
-                }
-            ) {
-                Icon(imageVector = Icons.Default.ArrowForward, contentDescription = "Next")
-            }
-        } else {
-            BadgedBox(
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .graphicsLayer {
-                        scaleX = scaleCart.value
-                        scaleY = scaleCart.value
-                    }
-                    .padding(32.dp),
-                badge = {
-                    if ((cartState.cartItems?.cartItems) != null && (cartState.cartItems?.cartItems?.size)!! > 0) {
-                        Badge(
-                            containerColor = Color.Red,
-                            contentColor = Color.White
-                        ) {
-                            val cartItemsQuantity =
-                                cartState.cartItems?.cartItems!!.sumOf { it?.quantity ?: 0 }
-                            Text("$cartItemsQuantity")
-                        }
-                    }
-                }
-            ) {
-                FloatingActionButton(
-                    modifier = Modifier
-                        .border(
-                            3.dp,
-                            color = MaterialTheme.colorScheme.tertiary,
-                            shape = RoundedCornerShape(16.dp)
-                        ),
-                    containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                    contentColor = MaterialTheme.colorScheme.tertiary,
-                    onClick = {
-                        cartViewModel.setCartVisibility(true)
-                    }
-                ) {
-                    Icon(imageVector = Icons.Default.ShoppingCart, contentDescription = "Cart")
-                }
+                Icon(imageVector = Icons.Default.ShoppingCart, contentDescription = "Cart")
             }
         }
 
@@ -243,39 +196,5 @@ fun HomeScreen(
             modifier = Modifier.fillMaxSize(),
             contentDescription = "Loading animation"
         )
-
-        if (showEditDialog && editedProduct != null) {
-            ProductEditDialog(
-                product = editedProduct!!,
-                onDismiss = { showEditDialog = false },
-                onValidate = {
-                    adminViewModel.updateProduct(product = it)
-                    homeViewModel.refreshProducts()
-                },
-                onDelete = {
-                    adminViewModel.deleteProduct(product = it)
-                },
-                onError = {
-                    mainViewModel.setError(
-                        it
-                    )
-                })
-        }
-
-        if (showAddNewProductDialog) {
-            ProductEditDialog(
-                product = null,
-                onDismiss = { showAddNewProductDialog = false },
-                onValidate = {
-                    adminViewModel.addNewProduct(product = it)
-                    homeViewModel.refreshProducts()
-                },
-                onDelete = null,
-                onError = {
-                    mainViewModel.setError(
-                        it
-                    )
-                })
-        }
     }
 }

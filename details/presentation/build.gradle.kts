@@ -71,6 +71,7 @@ dependencies {
     debugImplementation(libs.androidx.ui.test.manifest)
 
     implementation(libs.landscapist)
+    implementation(libs.rive.android)
 
     implementation(platform(libs.koin.bom))
     implementation(libs.koin.core)
