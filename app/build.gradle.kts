@@ -110,9 +110,10 @@ dependencies {
     implementation(project(":checkout:data"))
     implementation(project(":checkout:domain"))
     implementation(project(":checkout:presentation"))
-    implementation(project(":admin:data"))
-    implementation(project(":admin:domain"))
-    implementation(project(":admin:presentation"))
+
+    "adminImplementation"(project(":admin:data"))
+    "adminImplementation"(project(":admin:domain"))
+    "adminImplementation"(project(":admin:presentation"))
 
     implementation(libs.core.ktx)
     implementation(libs.splashscreen)
@@ -168,6 +169,8 @@ dependencies {
     ksp(libs.room.compiler)
     implementation(libs.room.ktx)
     implementation(libs.room.runtime)
+
+    implementation(libs.cloudinary)
 }
 
 class Version(code: Int, version: String) {

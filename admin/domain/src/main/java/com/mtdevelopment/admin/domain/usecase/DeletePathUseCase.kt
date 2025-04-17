@@ -7,8 +7,16 @@ class DeletePathUseCase(
     private val firebaseRepository: FirebaseAdminRepository
 ) {
 
-    operator fun invoke(path: DeliveryPath) {
-        firebaseRepository.deleteDeliveryPath(path)
+    suspend operator fun invoke(
+        path: DeliveryPath,
+        onSuccess: () -> Unit,
+        onError: (Throwable) -> Unit
+    ) {
+        firebaseRepository.deleteDeliveryPath(path).onSuccess {
+            onSuccess()
+        }.onFailure {
+            onError(it)
+        }
     }
 
 }

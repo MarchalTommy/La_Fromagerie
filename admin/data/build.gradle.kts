@@ -7,12 +7,28 @@ plugins {
 android {
     namespace = "com.mtdevelopment.admin.data"
     compileSdk = 35
+    android.buildFeatures.buildConfig = true
 
     defaultConfig {
         minSdk = 26
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles("consumer-rules.pro")
+
+        val CLOUDINARY_URL =
+            System.getenv("CLOUDINARY_URL") ?: project.findProperty("CLOUDINARY_URL")
+                ?.toString()
+        buildConfigField("String", "CLOUDINARY_URL", "\"$CLOUDINARY_URL\"")
+
+        val CLOUDINARY_PUBLIC =
+            System.getenv("CLOUDINARY_PUBLIC") ?: project.findProperty("CLOUDINARY_PUBLIC")
+                ?.toString()
+        buildConfigField("String", "CLOUDINARY_PUBLIC", "\"$CLOUDINARY_PUBLIC\"")
+
+        val CLOUDINARY_PRIVATE =
+            System.getenv("CLOUDINARY_PRIVATE") ?: project.findProperty("CLOUDINARY_PRIVATE")
+                ?.toString()
+        buildConfigField("String", "CLOUDINARY_PRIVATE", "\"$CLOUDINARY_PRIVATE\"")
     }
 
     buildTypes {
@@ -64,4 +80,13 @@ dependencies {
     implementation(libs.firebase.analytics)
     implementation(libs.firebase.auth)
     implementation(libs.firebase.firestore)
+
+    implementation(libs.cloudinary)
+
+    implementation(platform(libs.koin.bom))
+    implementation(libs.koin.core)
+    implementation(libs.koin.android)
+    implementation(libs.koin.androidx.compose)
+    implementation(libs.koin.androidx.compose.navigation)
+    testImplementation(libs.koin.test)
 }

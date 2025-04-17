@@ -69,4 +69,8 @@ class HomeViewModel(
             checkAndUpdateDatabase()
         }
     }
+
+    fun setIsLoading(isLoading: Boolean) {
+        homeUiState = homeUiState.copy(isLoading = isLoading)
+    }
 }

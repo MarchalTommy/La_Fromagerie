@@ -13,48 +13,84 @@ class FirebaseAdminRepositoryImpl(
     ///////////////////////////////////////////////////////////////////////////
     // Product
     ///////////////////////////////////////////////////////////////////////////
-    override fun addNewProduct(product: com.mtdevelopment.core.model.Product) {
-        firestore.addNewProduct(product = product.toProductData())
-        saveNewDatabaseProductsUpdate(System.currentTimeMillis())
+    override suspend fun addNewProduct(product: com.mtdevelopment.core.model.Product): Result<Unit> {
+        val result = firestore.addNewProduct(product = product.toProductData())
+        var finalResult: Result<Unit>? = null
+
+        result.onSuccess {
+            finalResult = saveNewDatabaseProductsUpdate(System.currentTimeMillis())
+        }
+
+        return finalResult ?: result
     }
 
-    override fun updateProduct(product: com.mtdevelopment.core.model.Product) {
-        firestore.updateProduct(product = product.toProductData())
-        saveNewDatabaseProductsUpdate(System.currentTimeMillis())
+    override suspend fun updateProduct(product: com.mtdevelopment.core.model.Product): Result<Unit> {
+        val result = firestore.updateProduct(product = product.toProductData())
+        var finalResult: Result<Unit>? = null
+
+        result.onSuccess {
+            finalResult = saveNewDatabaseProductsUpdate(System.currentTimeMillis())
+        }
+
+        return finalResult ?: result
     }
 
-    override fun deleteProduct(product: com.mtdevelopment.core.model.Product) {
-        firestore.deleteProduct(product = product.toProductData())
-        saveNewDatabaseProductsUpdate(System.currentTimeMillis())
+    override suspend fun deleteProduct(product: com.mtdevelopment.core.model.Product): Result<Unit> {
+        val result = firestore.deleteProduct(product = product.toProductData())
+        var finalResult: Result<Unit>? = null
+
+        result.onSuccess {
+            finalResult = saveNewDatabaseProductsUpdate(System.currentTimeMillis())
+        }
+
+        return finalResult ?: result
     }
 
     //////////////////////////////////////////////////////////////////////////
     // Delivery Paths
     ///////////////////////////////////////////////////////////////////////////
-    override fun addNewDeliveryPath(path: DeliveryPath) {
-        firestore.addNewDeliveryPath(path = path.toDataDeliveryPath())
-        saveNewDatabasePathsUpdate(System.currentTimeMillis())
+    override suspend fun addNewDeliveryPath(path: DeliveryPath): Result<Unit> {
+        val result = firestore.addNewDeliveryPath(path = path.toDataDeliveryPath())
+        var finalResult: Result<Unit>? = null
+
+        result.onSuccess {
+            finalResult = saveNewDatabasePathsUpdate(System.currentTimeMillis())
+        }
+
+        return finalResult ?: result
     }
 
-    override fun updateDeliveryPath(path: DeliveryPath) {
-        firestore.updateDeliveryPath(path = path.toDataDeliveryPath())
-        saveNewDatabasePathsUpdate(System.currentTimeMillis())
+    override suspend fun updateDeliveryPath(path: DeliveryPath): Result<Unit> {
+        val result = firestore.updateDeliveryPath(path = path.toDataDeliveryPath())
+        var finalResult: Result<Unit>? = null
+
+        result.onSuccess {
+            finalResult = saveNewDatabasePathsUpdate(System.currentTimeMillis())
+        }
+
+        return finalResult ?: result
     }
 
-    override fun deleteDeliveryPath(path: DeliveryPath) {
-        firestore.deleteDeliveryPath(path = path.toDataDeliveryPath())
-        saveNewDatabasePathsUpdate(System.currentTimeMillis())
+    override suspend fun deleteDeliveryPath(path: DeliveryPath): Result<Unit> {
+        val result = firestore.deleteDeliveryPath(path = path.toDataDeliveryPath())
+        var finalResult: Result<Unit>? = null
+
+        result.onSuccess {
+            finalResult = saveNewDatabasePathsUpdate(System.currentTimeMillis())
+        }
+
+        return finalResult ?: result
     }
 
     ///////////////////////////////////////////////////////////////////////////
     // Database Update Timestamp
     ///////////////////////////////////////////////////////////////////////////
-    override fun saveNewDatabaseProductsUpdate(timestamp: Long) {
-        firestore.saveNewDatabaseProductUpdate(timestamp)
+    override suspend fun saveNewDatabaseProductsUpdate(timestamp: Long): Result<Unit> {
+        return firestore.saveNewDatabaseProductUpdate(timestamp)
     }
 
-    override fun saveNewDatabasePathsUpdate(timestamp: Long) {
-        firestore.saveNewDatabasePathsUpdate(timestamp)
+    override suspend fun saveNewDatabasePathsUpdate(timestamp: Long): Result<Unit> {
+        return firestore.saveNewDatabasePathsUpdate(timestamp)
     }
 
 }

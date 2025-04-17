@@ -5,7 +5,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -39,21 +38,24 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.core.net.toUri
 import com.mtdevelopment.core.model.ProductType
 import com.mtdevelopment.core.presentation.sharedModels.UiProductObject
 import com.mtdevelopment.core.presentation.theme.ui.black70
 import com.mtdevelopment.core.util.toLongPrice
 import com.mtdevelopment.core.util.toStringPrice
 
-@OptIn(ExperimentalLayoutApi::class)
+@Preview(showBackground = true)
 @Composable
 fun ProductEditDialog(
-    onValidate: (UiProductObject) -> Unit,
-    onDelete: ((UiProductObject) -> Unit)?,
-    onDismiss: () -> Unit,
-    onError: (String) -> Unit,
-    product: UiProductObject?
+    onValidate: (UiProductObject) -> Unit = {},
+    onDelete: ((UiProductObject) -> Unit)? = null,
+    onDismiss: () -> Unit = {},
+    onError: (String) -> Unit = {},
+    shouldShowLoading: (Boolean) -> Unit = {},
+    product: UiProductObject? = null
 ) {
     val focusRequester = remember {
         FocusRequester()
@@ -136,6 +138,16 @@ fun ProductEditDialog(
                         )
                     }
                 }
+
+                ImagePickerButton(
+                    existingImageUri = tempProduct.value.imageUrl?.toUri(),
+                    onImagePicked = {
+                        tempProduct.value = tempProduct.value.copy(imageUrl = it.toString())
+                    },
+                    shouldShowLoading = shouldShowLoading,
+                    onError = onError
+                )
+
                 ProductEditField(
                     modifier = Modifier,
                     title = "Nom du produit",

@@ -21,23 +21,17 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import app.rive.runtime.kotlin.core.Rive
 import com.mapbox.common.MapboxOptions
-import com.mtdevelopment.admin.presentation.composable.PathEditDialog
 import com.mtdevelopment.admin.presentation.model.AdminUiDeliveryPath
-import com.mtdevelopment.admin.presentation.model.toDomainDeliveryPath
-import com.mtdevelopment.admin.presentation.viewmodel.AdminViewModel
 import com.mtdevelopment.core.presentation.MainViewModel
 import com.mtdevelopment.core.presentation.composable.ErrorOverlay
 import com.mtdevelopment.core.presentation.composable.RiveAnimation
-import com.mtdevelopment.core.presentation.util.VARIANT
 import com.mtdevelopment.delivery.presentation.BuildConfig.MAPBOX_PUBLIC_TOKEN
-import com.mtdevelopment.delivery.presentation.composable.AdminContent
 import com.mtdevelopment.delivery.presentation.composable.CustomerContent
 import com.mtdevelopment.delivery.presentation.composable.DatePickerComposable
 import com.mtdevelopment.delivery.presentation.composable.DeliveryPathPickerComposable
 import com.mtdevelopment.delivery.presentation.composable.MapBoxComposable
 import com.mtdevelopment.delivery.presentation.composable.PermissionManagerComposable
 import com.mtdevelopment.delivery.presentation.composable.getDatePickerState
-import com.mtdevelopment.delivery.presentation.model.toAdminUiDeliveryPath
 import com.mtdevelopment.delivery.presentation.viewmodel.DeliveryViewModel
 import org.koin.androidx.compose.koinViewModel
 
@@ -51,7 +45,6 @@ fun DeliveryOptionScreen(
 ) {
 
     val deliveryViewModel = koinViewModel<DeliveryViewModel>()
-    val adminViewModel = koinViewModel<AdminViewModel>()
 
     val context = LocalContext.current
 
@@ -117,34 +110,14 @@ fun DeliveryOptionScreen(
                 }
             )
 
-            if (VARIANT == "admin") {
-                if (state.value.deliveryPaths.isNotEmpty()) {
-                    AdminContent(
-                        pathList = state.value.deliveryPaths.map { it.toAdminUiDeliveryPath() },
-                        onPathSelected = { path ->
-                            selectedPath.value = path
-                            showEditDialog.value = true
-                        },
-                        onPathPreSelected = { preselected ->
-                            if (preselected != null) {
-                                state.value.deliveryPaths.find { it.name == preselected.name }
-                                    ?.let { deliveryViewModel.updateSelectedPath(it) }
-                            } else {
-                                deliveryViewModel.updateSelectedPath(null)
-                            }
-                        }
-                    )
-                }
-            } else {
-                CustomerContent(
-                    deliveryViewModel,
-                    mainViewModel,
-                    navigateToCheckout,
-                    state,
-                    datePickerState,
-                    scrollState
-                )
-            }
+            CustomerContent(
+                deliveryViewModel,
+                mainViewModel,
+                navigateToCheckout,
+                state,
+                datePickerState,
+                scrollState
+            )
 
             Spacer(modifier = Modifier.imePadding())
         }
@@ -219,30 +192,6 @@ fun DeliveryOptionScreen(
                 onDismiss = {
                     deliveryViewModel.updateShowDeliveryPathPicker(false)
                 })
-        }
-
-        if (showEditDialog.value) {
-            PathEditDialog(
-                path = selectedPath.value,
-                onValidate = { newPath ->
-                    if (state.value.deliveryPaths.any { it.id == newPath.id }) {
-                        adminViewModel.updateDeliveryPath(newPath.toDomainDeliveryPath())
-                    } else {
-                        adminViewModel.addNewDeliveryPath(newPath.toDomainDeliveryPath())
-                    }
-                    showEditDialog.value = false
-                },
-                onDelete = { newPath ->
-                    adminViewModel.deleteDeliveryPath(newPath.toDomainDeliveryPath())
-                    showEditDialog.value = false
-                },
-                onDismiss = {
-                    showEditDialog.value = false
-                },
-                onError = {
-                    mainViewModel.setError(it)
-                }
-            )
         }
     }
 }

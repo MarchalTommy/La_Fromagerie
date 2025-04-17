@@ -1,9 +1,12 @@
 package com.mtdevelopment.lafromagerie
 
 import android.app.Application
+import android.util.Log
+import com.cloudinary.android.MediaManager
 import com.google.firebase.Firebase
 import com.google.firebase.initialize
 import com.mtdevelopment.lafromagerie.di.appModule
+import com.mtdevelopment.lafromagerie.di.flavorModules
 import org.koin.android.ext.koin.androidContext
 import org.koin.android.ext.koin.androidLogger
 import org.koin.core.context.startKoin
@@ -16,6 +19,14 @@ class CheeseApplication : Application() {
 
         Firebase.initialize(this)
 
+        try {
+            val config = mapOf("cloud_name" to "dzgaywpmz")
+            MediaManager.init(this, config)
+            Log.i("YourApplication", "Cloudinary initialized successfully.")
+        } catch (e: Exception) {
+            Log.e("YourApplication", "Failed to initialize Cloudinary", e)
+        }
+
         startKoin {
             androidLogger(level = Level.DEBUG)
 
@@ -23,7 +34,7 @@ class CheeseApplication : Application() {
 
             // Place Koin Modules here !
             modules(
-                appModule()
+                appModule() + flavorModules()
             )
         }
     }
