@@ -96,7 +96,6 @@ fun NavGraph(
             }
 
             DeliveryOptionScreen(
-                mainViewModel = mainViewModel,
                 navigateToCheckout = {
                     navController.navigate(
                         CheckoutScreenDestination

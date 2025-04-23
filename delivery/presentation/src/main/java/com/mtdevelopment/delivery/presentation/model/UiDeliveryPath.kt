@@ -1,6 +1,8 @@
 package com.mtdevelopment.delivery.presentation.model
 
 import com.mtdevelopment.admin.presentation.model.AdminUiDeliveryPath
+import com.mtdevelopment.delivery.domain.model.DeliveryPath
+import com.mtdevelopment.delivery.domain.model.GeoJsonFeatureCollection
 
 data class UiDeliveryPath(
     val id: String,
@@ -8,12 +10,12 @@ data class UiDeliveryPath(
     val cities: List<Pair<String, Int>>,
     val locations: List<Pair<Double, Double>>?,
     val deliveryDay: String,
-    val geoJson: com.mtdevelopment.delivery.domain.model.GeoJsonFeatureCollection?
+    val geoJson: GeoJsonFeatureCollection?
 )
 
-fun com.mtdevelopment.delivery.domain.model.DeliveryPath.toUiDeliveryPath(): UiDeliveryPath {
+fun DeliveryPath.toUiDeliveryPath(): UiDeliveryPath {
     return UiDeliveryPath(
-        id = this.pathName,
+        id = this.id,
         name = this.pathName,
         cities = this.availableCities,
         locations = this.locations,

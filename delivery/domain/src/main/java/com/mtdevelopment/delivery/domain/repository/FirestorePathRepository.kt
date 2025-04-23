@@ -1,15 +1,17 @@
 package com.mtdevelopment.delivery.domain.repository
 
+import com.mtdevelopment.delivery.domain.model.DeliveryPath
+
 interface FirestorePathRepository {
 
     fun getAllDeliveryPaths(
-        onSuccess: (List<com.mtdevelopment.delivery.domain.model.DeliveryPath?>) -> Unit,
+        onSuccess: (List<DeliveryPath?>) -> Unit,
         onFailure: () -> Unit
     )
 
     fun getDeliveryPath(
         pathName: String,
-        onSuccess: (com.mtdevelopment.delivery.domain.model.DeliveryPath?) -> Unit,
+        onSuccess: (DeliveryPath?) -> Unit,
         onFailure: () -> Unit
     )
 

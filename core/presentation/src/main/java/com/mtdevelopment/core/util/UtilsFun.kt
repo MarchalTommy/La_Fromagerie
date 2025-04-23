@@ -52,6 +52,19 @@ fun String.toLongPrice(): Long {
     return (this.replace("€", "").replace(",", ".").trim().toDouble() * 100).toLong()
 }
 
+// Fonction d'extension pour déplacer un élément dans une MutableList
+fun <T> MutableList<T>.move(from: Int, to: Int) {
+    // Vérifie si les indices sont valides
+    if (from < 0 || from >= size || to < 0 || to >= size || from == to) {
+        Log.w("ListMove", "Invalid move indices: from=$from, to=$to, size=$size")
+        return
+    }
+    // Retire l'élément de sa position d'origine
+    val element = removeAt(from)
+    // Ajoute l'élément à la nouvelle position
+    add(to, element)
+}
+
 fun vibratePhoneClick(context: Context) {
     if (Build.VERSION.SDK_INT < 34) {
         val vibrator = context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator

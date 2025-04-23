@@ -268,20 +268,26 @@ fun ProductEditField(
     modifier: Modifier = Modifier,
     title: String,
     value: String,
-    onValueChange: (String) -> Unit,
+    onValueChange: (String) -> Unit = {},
     isError: Boolean = false,
     isNumberOnly: Boolean = false,
     isBigText: Boolean = false,
-    imeAction: ImeAction,
-    focusRequester: FocusRequester,
-    focusManager: FocusManager,
+    isReadOnly: Boolean = false,
+    imeAction: ImeAction = ImeAction.Done,
+    focusRequester: FocusRequester? = null,
+    focusManager: FocusManager? = null,
     prefix: @Composable() (() -> Unit)? = null
 ) {
+    val requester = focusRequester ?: remember {
+        FocusRequester()
+    }
+
     OutlinedTextField(
         modifier = modifier
             .padding(8.dp)
-            .focusRequester(focusRequester),
+            .focusRequester(requester),
         value = value,
+        readOnly = isReadOnly,
         onValueChange = {
             onValueChange.invoke(it)
         },
@@ -302,10 +308,10 @@ fun ProductEditField(
         ),
         keyboardActions = KeyboardActions(
             onNext = {
-                focusManager.moveFocus(FocusDirection.Down)
+                focusManager?.moveFocus(FocusDirection.Down)
             },
             onDone = {
-                focusManager.clearFocus()
+                focusManager?.clearFocus()
             }
         )
     )

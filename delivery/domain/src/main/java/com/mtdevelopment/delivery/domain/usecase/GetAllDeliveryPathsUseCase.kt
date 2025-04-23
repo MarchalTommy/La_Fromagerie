@@ -1,22 +1,26 @@
 package com.mtdevelopment.delivery.domain.usecase
 
 import com.mtdevelopment.core.repository.SharedDatastore
+import com.mtdevelopment.delivery.domain.model.DeliveryPath
+import com.mtdevelopment.delivery.domain.repository.FirestorePathRepository
+import com.mtdevelopment.delivery.domain.repository.RoomDeliveryRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 class GetAllDeliveryPathsUseCase(
-    private val roomRepository: com.mtdevelopment.delivery.domain.repository.RoomDeliveryRepository,
+    private val roomRepository: RoomDeliveryRepository,
     private val sharedDatastore: SharedDatastore,
-    private val repository: com.mtdevelopment.delivery.domain.repository.FirestorePathRepository
+    private val repository: FirestorePathRepository
 ) {
     suspend operator fun invoke(
+        forceRefresh: Boolean = false,
         scope: CoroutineScope,
-        onSuccess: (List<com.mtdevelopment.delivery.domain.model.DeliveryPath?>) -> Unit,
+        onSuccess: (List<DeliveryPath?>) -> Unit,
         onFailure: () -> Unit
     ) {
 
-        val shouldRefresh = sharedDatastore.shouldRefreshPaths.first()
+        val shouldRefresh = forceRefresh || sharedDatastore.shouldRefreshPaths.first()
 
         /**
          * If locally known last firestore update timestamp is different from the one on the server, we need to update.

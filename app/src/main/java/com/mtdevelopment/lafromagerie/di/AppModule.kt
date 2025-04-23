@@ -11,6 +11,7 @@ import com.mtdevelopment.cart.presentation.viewmodel.CartViewModel
 import com.mtdevelopment.checkout.data.BuildConfig
 import com.mtdevelopment.checkout.data.local.CheckoutDatastorePreferenceImpl
 import com.mtdevelopment.checkout.data.remote.model.Constants.ADDRESS_API_BASE_URL_WITHOUT_HTTPS
+import com.mtdevelopment.checkout.data.remote.model.Constants.AUTOCOMPLETE_API_BASE_URL_WITHOUT_HTTPS
 import com.mtdevelopment.checkout.data.remote.model.Constants.OPEN_ROUTE_BASE_URL_WITHOUT_HTTPS
 import com.mtdevelopment.checkout.data.remote.model.Constants.SUM_UP_BASE_URL_WITHOUT_HTTPS
 import com.mtdevelopment.checkout.data.remote.source.SumUpDataSource
@@ -49,12 +50,14 @@ import com.mtdevelopment.delivery.data.repository.RoomDeliveryRepositoryImpl
 import com.mtdevelopment.delivery.data.source.local.DeliveryDatabase
 import com.mtdevelopment.delivery.data.source.local.dao.DeliveryDao
 import com.mtdevelopment.delivery.data.source.remote.AddressApiDataSource
+import com.mtdevelopment.delivery.data.source.remote.AutoCompleteApiDataSource
 import com.mtdevelopment.delivery.data.source.remote.FirestoreDataSource
 import com.mtdevelopment.delivery.data.source.remote.OpenRouteDataSource
 import com.mtdevelopment.delivery.domain.repository.AddressApiRepository
 import com.mtdevelopment.delivery.domain.repository.FirestorePathRepository
 import com.mtdevelopment.delivery.domain.repository.RoomDeliveryRepository
 import com.mtdevelopment.delivery.domain.usecase.GetAllDeliveryPathsUseCase
+import com.mtdevelopment.delivery.domain.usecase.GetAutocompleteSuggestionsUseCase
 import com.mtdevelopment.delivery.domain.usecase.GetDeliveryPathUseCase
 import com.mtdevelopment.delivery.domain.usecase.GetUserInfoFromDatastoreUseCase
 import com.mtdevelopment.delivery.presentation.viewmodel.DeliveryViewModel
@@ -97,6 +100,7 @@ fun appModule() = listOf(
     provideGeocoder,
     provideOpenRouteDatasource,
     provideAddressApiDataSource,
+    provideAutoCompleteApiDataSource,
     provideSumUpDataSource
 )
 
@@ -105,6 +109,7 @@ val mainAppModule = module {
     single<PaymentRepository> { PaymentRepositoryImpl(get(), get()) }
     single<AddressApiRepository> {
         AddressApiRepositoryImpl(
+            get(),
             get()
         )
     }
@@ -141,6 +146,7 @@ val mainAppModule = module {
     factory { GetPaymentDataRequestUseCase(get()) }
 
     factory { GetDeliveryPathUseCase(get()) }
+    factory { GetAutocompleteSuggestionsUseCase(get()) }
     factory {
         GetAllDeliveryPathsUseCase(
             get(),
@@ -256,6 +262,35 @@ val provideAddressApiDataSource = module {
     }
     single<AddressApiDataSource> {
         AddressApiDataSource(
+            client,
+            get()
+        )
+    }
+}
+
+val provideAutoCompleteApiDataSource = module {
+    val client = HttpClient(CIO) {
+        install(DefaultRequest) {
+            url {
+                protocol = URLProtocol.HTTPS
+                host = AUTOCOMPLETE_API_BASE_URL_WITHOUT_HTTPS
+            }
+        }
+        install(Logging) {
+            logger = Logger.ANDROID
+            level = LogLevel.ALL
+            sanitizeHeader { header -> header == HttpHeaders.Authorization }
+        }
+        install(ContentNegotiation) {
+            json(Json {
+                prettyPrint = true
+                isLenient = true
+                ignoreUnknownKeys = true
+            })
+        }
+    }
+    single<AutoCompleteApiDataSource> {
+        AutoCompleteApiDataSource(
             client,
             get()
         )

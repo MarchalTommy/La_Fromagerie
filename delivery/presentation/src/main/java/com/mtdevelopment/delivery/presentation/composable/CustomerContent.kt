@@ -1,15 +1,17 @@
 package com.mtdevelopment.delivery.presentation.composable
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Person
-import androidx.compose.material.icons.rounded.Place
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonColors
 import androidx.compose.material3.ButtonDefaults
@@ -29,7 +31,6 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.mtdevelopment.core.presentation.MainViewModel
 import com.mtdevelopment.delivery.presentation.state.DeliveryUiDataState
 import com.mtdevelopment.delivery.presentation.viewmodel.DeliveryViewModel
 import kotlinx.coroutines.delay
@@ -39,11 +40,11 @@ import kotlinx.coroutines.launch
 @Composable
 fun CustomerContent(
     deliveryViewModel: DeliveryViewModel,
-    mainViewModel: MainViewModel,
     navigateToCheckout: () -> Unit,
     state: State<DeliveryUiDataState>,
     datePickerState: State<DatePickerState>,
-    scrollState: ScrollState
+    scrollState: ScrollState,
+    onError: (String) -> Unit
 ) {
 
     Column(
@@ -53,11 +54,11 @@ fun CustomerContent(
 
         val isButtonEnabled = remember(
             state.value.userNameFieldText,
-            state.value.userAddressFieldText,
+            state.value.addressSearchQuery,
             state.value.dateFieldText
         ) {
             state.value.userNameFieldText.isNotBlank()
-                    && state.value.userAddressFieldText.isNotBlank()
+                    && state.value.addressSearchQuery.isNotBlank()
                     && state.value.dateFieldText.isNotBlank()
         }
 
@@ -68,37 +69,7 @@ fun CustomerContent(
         val focusManager = LocalFocusManager.current
         val scope = rememberCoroutineScope()
 
-        // Localisation Type Picker
-        LocalisationTypePicker(
-            showDeliverySelection = {
-                deliveryViewModel.updateShowDeliveryPathPicker(true)
-            },
-            selectedPath = state.value.selectedPath,
-            localisationSuccess = state.value.localisationSuccess,
-            shouldAskLocalisationPermission = {
-                deliveryViewModel.updateShouldShowLocalisationPermission(true)
-            }
-        )
-
-        if (state.value.localisationSuccess || state.value.selectedPath != null || state.value.userLocationOnPath) {
-            LocalisationTextComposable(
-                selectedPath = state.value.selectedPath,
-                geolocIsOnPath = state.value.userLocationOnPath,
-                userCity = state.value.userCity
-            )
-        }
-
-        DateTextField(
-            shouldBeClickable = state.value.shouldDatePickerBeClickable,
-            dateFieldText = state.value.dateFieldText,
-            datePickerState = datePickerState.value,
-            shouldShowDatePicker = {
-                deliveryViewModel.setIsDatePickerShown(true)
-            },
-            newDateFieldText = {
-                deliveryViewModel.setDateFieldText(it)
-            }
-        )
+        Spacer(modifier = Modifier.height(32.dp))
 
         UserInfoComposable(
             fieldText = state.value.userNameFieldText,
@@ -122,17 +93,23 @@ fun CustomerContent(
             }
         )
 
-        UserInfoComposable(
-            fieldText = state.value.userAddressFieldText,
-            label = "Adresse exacte",
-            imeAction = ImeAction.Done,
+        Spacer(modifier = Modifier.height(8.dp))
+
+        AddressAutocompleteTextField(
+            searchQuery = state.value.addressSearchQuery,
+            suggestions = state.value.addressSuggestions,
+            isLoading = state.value.addressSuggestionsLoading,
+            showDropdown = state.value.showAddressSuggestions,
             focusRequester = focusRequester,
             focusManager = focusManager,
-            updateText = {
-                deliveryViewModel.setUserAddressFieldText(it)
+            onDropDownDismiss = {
+                deliveryViewModel.setShowAddressesSuggestions(false)
             },
-            leadingIcon = {
-                Icon(Icons.Rounded.Place, "")
+            onSuggestionSelected = {
+                deliveryViewModel.onSuggestionSelected(it)
+            },
+            onValueChange = {
+                deliveryViewModel.setAddressFieldText(it)
             },
             onFocusChange = {
                 if (it) {
@@ -141,15 +118,49 @@ fun CustomerContent(
                         scrollState.animateScrollTo(scrollState.maxValue)
                     }
                 }
-            }
+            },
         )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        if (state.value.localisationSuccess || state.value.selectedPath != null || state.value.userLocationOnPath) {
+            LocalisationTextComposable(
+                selectedPath = state.value.selectedPath,
+                geolocIsOnPath = state.value.userLocationOnPath,
+                userCity = state.value.userCity
+            )
+        } else {
+            LocalisationTypePicker(
+                selectedPath = state.value.selectedPath,
+                localisationSuccess = state.value.localisationSuccess,
+                shouldAskLocalisationPermission = {
+                    deliveryViewModel.updateShouldShowLocalisationPermission(true)
+                }
+            )
+        }
+
+        AnimatedVisibility(
+            visible = state.value.selectedPath != null
+        ) {
+            DateTextField(
+                shouldBeClickable = state.value.shouldDatePickerBeClickable,
+                dateFieldText = state.value.dateFieldText,
+                datePickerState = datePickerState.value,
+                shouldShowDatePicker = {
+                    deliveryViewModel.setIsDatePickerShown(true)
+                },
+                newDateFieldText = {
+                    deliveryViewModel.setDateFieldText(it)
+                }
+            )
+        }
 
         if (!isButtonEnabled) {
             Text(
                 modifier = Modifier
                     .padding(top = 8.dp, start = 16.dp, end = 16.dp)
                     .fillMaxWidth(),
-                text = "Veuillez remplir les champs ci-dessus pour pouvoir aller plus loin.",
+                text = "Veuillez remplir les champs ci-dessus pour continuer.",
                 style = MaterialTheme.typography.displaySmall,
                 color = MaterialTheme.colorScheme.onBackground,
                 textAlign = TextAlign.Center
@@ -180,7 +191,7 @@ fun CustomerContent(
             enabled = isButtonEnabled,
             onClick = {
                 deliveryViewModel.saveUserInfo(onError = {
-                    mainViewModel.setError("Erreur lors de la sauvegarde des informations")
+                    onError.invoke("Erreur lors de la sauvegarde des informations")
                 })
                 navigateToCheckout.invoke()
             }) {
