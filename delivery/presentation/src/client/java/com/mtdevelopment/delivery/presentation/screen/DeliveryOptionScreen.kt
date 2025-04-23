@@ -25,6 +25,7 @@ import com.mtdevelopment.core.presentation.composable.RiveAnimation
 import com.mtdevelopment.delivery.presentation.BuildConfig.MAPBOX_PUBLIC_TOKEN
 import com.mtdevelopment.delivery.presentation.composable.CustomerContent
 import com.mtdevelopment.delivery.presentation.composable.DatePickerComposable
+import com.mtdevelopment.delivery.presentation.composable.DeliveryEligibility
 import com.mtdevelopment.delivery.presentation.composable.MapBoxComposable
 import com.mtdevelopment.delivery.presentation.composable.PermissionManagerComposable
 import com.mtdevelopment.delivery.presentation.composable.getDatePickerState
@@ -38,14 +39,6 @@ fun DeliveryOptionScreen(
     navigateToCheckout: () -> Unit = {},
     navigateBack: () -> Unit = {}
 ) {
-
-    // TODO: Manage that selected address is on a Path ->
-    // Fetch all paths WITHOUT geoJson, allow it to be smaller as we just need cities + latlng
-    // Compare city to assert it's in it. If it's not, check if it's far with some latlng calculus
-    // If it's in a city less than 10km away from a city of a path, propose to ask the EARL to take it into account automatically
-    // Else if it's too far, still warns EARL but say sorry, not available for now, but keep the app up to date as it may change !
-
-
     val context = LocalContext.current
 
     val deliveryViewModel = koinViewModel<DeliveryViewModel>()
@@ -124,17 +117,21 @@ fun DeliveryOptionScreen(
         if (state.value.shouldShowLocalisationPermission) {
             PermissionManagerComposable(
                 allPaths = state.value.deliveryPaths,
-                onUpdateUserCity = {
-                    deliveryViewModel.updateUserCity(it)
+                onUpdateEligibility = { eligibility, city, userAddress, path ->
+                    if (city != null) {
+                        deliveryViewModel.updateUserCity(city)
+                    }
+                    if (userAddress != null) {
+                        deliveryViewModel.setAddressFieldText(userAddress)
+                    }
+                    deliveryViewModel.updateSelectedPath(path)
+                    deliveryViewModel.updateUserLocationOnPath(eligibility == DeliveryEligibility.DELIVERABLE)
+                    deliveryViewModel.updateUserLocationCloseFromPath(eligibility == DeliveryEligibility.ASK_FOR_SUPPORT)
                 },
-                onUpdateSelectedPath = {
-                    deliveryViewModel.updateSelectedPath(it)
-                },
-                onUpdateUserIsOnPath = {
-                    deliveryViewModel.updateUserLocationOnPath(it)
-                },
-                onUpdateUserCityLocation = {
-                    deliveryViewModel.updateUserCityLocation(it)
+                onUpdateUserLocation = {
+                    if (it != null) {
+                        deliveryViewModel.updateUserCityLocation(it)
+                    }
                 },
                 onUpdateLocalisationState = {
                     deliveryViewModel.updateLocalisationState(it)
@@ -144,7 +141,7 @@ fun DeliveryOptionScreen(
                 },
                 setIsLoading = {
                     deliveryViewModel.setIsLoading(it)
-                }
+                },
             )
         }
 

@@ -1,5 +1,9 @@
 package com.mtdevelopment.delivery.presentation.composable
 
+import android.content.Context
+import android.location.Address
+import android.location.Geocoder
+import android.os.Build
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ScrollState
@@ -21,20 +25,30 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.mtdevelopment.core.util.calculateDistance
+import com.mtdevelopment.delivery.domain.model.AutoCompleteSuggestion
+import com.mtdevelopment.delivery.presentation.model.UiDeliveryPath
 import com.mtdevelopment.delivery.presentation.state.DeliveryUiDataState
 import com.mtdevelopment.delivery.presentation.viewmodel.DeliveryViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.IOException
+import kotlin.coroutines.resume
+import kotlin.coroutines.suspendCoroutine
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -46,6 +60,31 @@ fun CustomerContent(
     scrollState: ScrollState,
     onError: (String) -> Unit
 ) {
+
+    val coroutineScope = rememberCoroutineScope()
+    val context = LocalContext.current
+
+    LaunchedEffect(state.value.addressSearchQuery == "" || state.value.deliveryPaths.isNotEmpty()) {
+        if (state.value.addressSearchQuery != "") {
+            checkLocationEligibility(
+                context = context,
+                address = state.value.addressSearchQuery,
+                location = null,
+                allPaths = state.value.deliveryPaths,
+                onResult = { eligibility, city, userLocation, selectedPath ->
+                    if (city != null) {
+                        deliveryViewModel.updateUserCity(city)
+                    }
+                    if (userLocation != null) {
+                        deliveryViewModel.updateUserCityLocation(userLocation)
+                    }
+                    deliveryViewModel.updateSelectedPath(selectedPath)
+                    deliveryViewModel.updateUserLocationOnPath(eligibility == DeliveryEligibility.DELIVERABLE)
+                    deliveryViewModel.updateUserLocationCloseFromPath(eligibility == DeliveryEligibility.ASK_FOR_SUPPORT)
+                }
+            )
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -105,9 +144,6 @@ fun CustomerContent(
             onDropDownDismiss = {
                 deliveryViewModel.setShowAddressesSuggestions(false)
             },
-            onSuggestionSelected = {
-                deliveryViewModel.onSuggestionSelected(it)
-            },
             onValueChange = {
                 deliveryViewModel.setAddressFieldText(it)
             },
@@ -119,14 +155,44 @@ fun CustomerContent(
                     }
                 }
             },
+            onAddressValidated = { string, suggestion ->
+                if (suggestion != null) {
+                    deliveryViewModel.onSuggestionSelected(suggestion)
+                } else {
+                    deliveryViewModel.setAddressesSuggestions(emptyList())
+                    deliveryViewModel.setShowAddressesSuggestions(false)
+                    deliveryViewModel.setAddressFieldText(string)
+                }
+
+                coroutineScope.launch {
+                    checkLocationEligibility(
+                        context = context,
+                        address = string,
+                        location = suggestion,
+                        allPaths = state.value.deliveryPaths,
+                        onResult = { eligibility, city, userLocation, selectedPath ->
+                            if (city != null) {
+                                deliveryViewModel.updateUserCity(city)
+                            }
+                            if (userLocation != null) {
+                                deliveryViewModel.updateUserCityLocation(userLocation)
+                            }
+                            deliveryViewModel.updateSelectedPath(selectedPath)
+                            deliveryViewModel.updateUserLocationOnPath(eligibility == DeliveryEligibility.DELIVERABLE)
+                            deliveryViewModel.updateUserLocationCloseFromPath(eligibility == DeliveryEligibility.ASK_FOR_SUPPORT)
+                        }
+                    )
+                }
+            },
         )
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        if (state.value.localisationSuccess || state.value.selectedPath != null || state.value.userLocationOnPath) {
+        if (state.value.localisationSuccess || state.value.selectedPath != null || state.value.userLocationOnPath || state.value.addressSearchQuery != "") {
             LocalisationTextComposable(
                 selectedPath = state.value.selectedPath,
                 geolocIsOnPath = state.value.userLocationOnPath,
+                canAskForDelivery = state.value.userLocationCloseFromPath,
                 userCity = state.value.userCity
             )
         } else {
@@ -196,6 +262,100 @@ fun CustomerContent(
                 navigateToCheckout.invoke()
             }) {
             Text("Valider et passer au paiement")
+        }
+    }
+}
+
+private suspend fun checkLocationEligibility(
+    context: Context,
+    address: String? = null,
+    location: AutoCompleteSuggestion? = null,
+    allPaths: List<UiDeliveryPath>,
+    onResult: (eligibility: DeliveryEligibility, city: String?, userLocation: Pair<Double, Double>?, selectedPath: UiDeliveryPath?) -> Unit
+) {
+    withContext(Dispatchers.IO) {
+        val geocoder = Geocoder(context)
+        var userCity: String? = null
+        var userLocation: Pair<Double, Double>? = null
+        val isNearPathCity: Boolean
+        var closestDistance = Double.MAX_VALUE
+        var matchingPathForCity: UiDeliveryPath? = null
+
+        if (address != null && location == null) {
+            // 1. Géocodage pour obtenir le nom de la ville
+            try {
+                val addresses: List<Address>? =
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        suspendCoroutine { continuation ->
+                            geocoder.getFromLocationName(
+                                address,
+                                1
+                            ) { addressList ->
+                                continuation.resume(addressList)
+                            }
+                        }
+                    } else {
+                        @Suppress("DEPRECATION")
+                        geocoder.getFromLocationName(address, 1)
+                    }
+                userCity = addresses?.firstOrNull()?.locality
+                userLocation = addresses?.firstOrNull()?.let {
+                    Pair(it.latitude, it.longitude)
+                }
+            } catch (e: IOException) {
+                userCity = null // ou "Erreur Geocoder"
+            } catch (e: IllegalArgumentException) {
+                userCity = null // ou "Erreur Coordonnées"
+            }
+        } else {
+            userCity = location?.city
+            if (location?.lat != null && location.long != null) {
+                userLocation = Pair(location.lat!!, location.long!!)
+            }
+        }
+
+        // 2. Vérifier la proximité et si la ville est dans un parcours
+        for (path in allPaths) {
+            for (cityInfo in path.cities) {
+                val cityName = cityInfo.first
+                val cityLocation = path.locations!![path.cities.indexOf(cityInfo)]
+
+                // Calculer la distance
+                val distance = calculateDistance(
+                    userLocation?.first ?: 0.0,
+                    userLocation?.second ?: 0.0,
+                    cityLocation.first,
+                    cityLocation.second
+                )
+
+                if (distance < closestDistance) {
+                    closestDistance = distance.toDouble()
+                }
+
+                // Vérifier si la ville géocodée correspond à une ville du parcours
+                if (userCity != null && userCity.equals(cityName, ignoreCase = true)) {
+                    matchingPathForCity = path
+                }
+            }
+        }
+
+        isNearPathCity = closestDistance <= MAX_DISTANCE_FOR_PICKUP_METERS
+
+        // 3. Déterminer l'éligibilité
+        val eligibility = when {
+            matchingPathForCity != null -> DeliveryEligibility.DELIVERABLE // Priorité si livrable
+            isNearPathCity -> DeliveryEligibility.ASK_FOR_SUPPORT // Ensuite si trop loin
+            else -> DeliveryEligibility.NOT_ELIGIBLE // Ensuite si vraiment trop loin
+        }
+
+        // Retourner le résultat sur le thread principal si nécessaire pour l'UI
+        withContext(Dispatchers.Main) {
+            onResult(
+                eligibility,
+                userCity,
+                userLocation,
+                if (eligibility == DeliveryEligibility.DELIVERABLE) matchingPathForCity else null
+            )
         }
     }
 }

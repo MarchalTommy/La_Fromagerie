@@ -17,10 +17,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.mtdevelopment.delivery.presentation.R
+import com.mtdevelopment.delivery.presentation.model.UiDeliveryPath
 
 @Composable
 fun LocalisationTypePicker(
-    selectedPath: com.mtdevelopment.delivery.presentation.model.UiDeliveryPath?,
+    selectedPath: UiDeliveryPath?,
     localisationSuccess: Boolean,
     shouldAskLocalisationPermission: () -> Unit = {}
 ) {

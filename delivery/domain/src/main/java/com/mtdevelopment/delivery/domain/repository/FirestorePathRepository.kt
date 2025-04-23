@@ -5,6 +5,7 @@ import com.mtdevelopment.delivery.domain.model.DeliveryPath
 interface FirestorePathRepository {
 
     fun getAllDeliveryPaths(
+        withGeoJson: Boolean = false,
         onSuccess: (List<DeliveryPath?>) -> Unit,
         onFailure: () -> Unit
     )

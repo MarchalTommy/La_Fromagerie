@@ -59,7 +59,7 @@ class DeliveryViewModel(
 
     fun loadAdminData(forceRefresh: Boolean = false) {
         viewModelScope.launch {
-            getAllDeliveryPaths(forceRefresh)
+            getAllDeliveryPaths(forceRefresh = forceRefresh, withGeoJson = true)
         }
 
         ///////////////////////////////////////////////////////////////////////////
@@ -92,6 +92,9 @@ class DeliveryViewModel(
     }
 
     fun loadClientData() {
+        viewModelScope.launch {
+            getAllDeliveryPaths()
+        }
         ///////////////////////////////////////////////////////////////////////////
         // User Data to populate UI
         ///////////////////////////////////////////////////////////////////////////
@@ -156,9 +159,13 @@ class DeliveryViewModel(
         }
     }
 
-    private suspend fun getAllDeliveryPaths(forceRefresh: Boolean = false) {
+    private suspend fun getAllDeliveryPaths(
+        forceRefresh: Boolean = false,
+        withGeoJson: Boolean = false
+    ) {
         getAllDeliveryPathsUseCase.invoke(
             forceRefresh = forceRefresh,
+            withGeoJson = withGeoJson,
             scope = viewModelScope,
             onSuccess = { pathsList ->
                 deliveryUiDataState = deliveryUiDataState.copy(
@@ -286,5 +293,10 @@ class DeliveryViewModel(
     fun updateUserLocationOnPath(isOnPath: Boolean) {
         deliveryUiDataState =
             deliveryUiDataState.copy(userLocationOnPath = isOnPath)
+    }
+
+    fun updateUserLocationCloseFromPath(isClose: Boolean) {
+        deliveryUiDataState =
+            deliveryUiDataState.copy(userLocationCloseFromPath = isClose)
     }
 }

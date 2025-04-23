@@ -2,11 +2,9 @@ package com.mtdevelopment.delivery.data.repository
 
 import com.mtdevelopment.delivery.data.source.remote.FirestoreDataSource
 import com.mtdevelopment.delivery.data.source.remote.OpenRouteDataSource
-import com.mtdevelopment.delivery.domain.model.CityInformation
 import com.mtdevelopment.delivery.domain.model.DeliveryPath
 import com.mtdevelopment.delivery.domain.repository.AddressApiRepository
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
@@ -18,6 +16,7 @@ class FirestorePathRepositoryImpl(
 ) : com.mtdevelopment.delivery.domain.repository.FirestorePathRepository {
 
     override fun getAllDeliveryPaths(
+        withGeoJson: Boolean,
         onSuccess: (List<DeliveryPath?>) -> Unit,
         onFailure: () -> Unit
     ) {
@@ -27,78 +26,69 @@ class FirestorePathRepositoryImpl(
          */
         firestore.getAllDeliveryPaths(onSuccess = { pathList ->
             CoroutineScope(Dispatchers.IO).launch {
-
-                val idList = pathList.map { it.id }
-
-                val listOfZipped = mutableListOf<List<Pair<String, Int>>>()
-
-                /**
-                 * We zip their cities with their cities-postcodes to have pairs
-                 */
-                pathList.forEach { path ->
-                    if (path.cities?.isNotEmpty() == true && path.postcodes?.isNotEmpty() == true) {
-                        listOfZipped.add(path.cities zip path.postcodes)
-                    }
+                // Prepare data for reverse geocoding
+                val pathsWithCities = pathList.filter {
+                    it.cities?.isNotEmpty() == true && it.postcodes?.isNotEmpty() == true
                 }
 
-                /**
-                 * We call the reverse geocoding API
-                 */
-                val deferredCityInfoList = mutableListOf<List<Deferred<CityInformation?>>>()
-                listOfZipped.forEach { zipped ->
-                    deferredCityInfoList.add(zipped.map {
+                val deferredCityInfoList = pathsWithCities.map { path ->
+                    val zippedCities = path.cities!! zip path.postcodes!!
+                    // Launch async calls for reverse geocoding
+                    val deferredCities = zippedCities.map { cityPair ->
                         async {
-                            val result = addressApiRepository.reverseGeocodeCity(
-                                name = it.first,
-                                zip = it.second
+                            addressApiRepository.reverseGeocodeCity(
+                                name = cityPair.first,
+                                zip = cityPair.second
                             )
-
-                            if (result == null) {
-                                onFailure.invoke()
-                                null
-                            } else {
-                                result
-                            }
                         }
-                    })
+                    }
+                    // Associate necessary info for final reconstruction
+                    Triple(path, zippedCities, deferredCities)
                 }
 
-                /**
-                 * We use their locations from reverse geocoding to call for the geoJson API
-                 */
-                val locationsList = mutableListOf<List<Pair<Double, Double>>>()
-                val geoJsons = deferredCityInfoList.map { deferred ->
-                    val cities = deferred.map { it.await() }
+                // Await geocoding results and build DeliveryPaths
+                val finalPaths =
+                    deferredCityInfoList.mapNotNull { (pathData, zippedCities, deferredCities) ->
+                        // Await resolution of all geocoding requests for this path
+                        val cityInfos = deferredCities.map { it.await() }
 
-                    locationsList.add(cities.mapNotNull {
-                        Pair(
-                            it?.location?.latitude ?: 0.0,
-                            it?.location?.longitude ?: 0.0
-                        )
-                    })
+                        // Check if all city information was retrieved
+                        if (cityInfos.any { it == null }) {
+                            // If info is missing, ignore this specific path by returning null
+                            null
+                        } else {
+                            // Calculate the list of locations (latitude, longitude)
+                            val locations = cityInfos.mapNotNull { cityInfo ->
+                                cityInfo?.location?.let { Pair(it.latitude, it.longitude) }
+                            }
 
-                    openRouteService.getGeoJsonForLngLatList(cities.map {
-                        Pair(
-                            it?.location?.latitude ?: 0.0,
-                            it?.location?.longitude ?: 0.0
-                        )
-                    }).data
+                            // Get GeoJson only if requested and locations are available
+                            val geoJsonData = if (withGeoJson && locations.isNotEmpty()) {
+                                openRouteService.getGeoJsonForLngLatList(locations).data
+                            } else {
+                                null // No GeoJson requested or no locations
+                            }
+
+                            // Build the final DeliveryPath object
+                            DeliveryPath(
+                                id = pathData.id,
+                                pathName = pathData.path_name ?: "",
+                                availableCities = zippedCities,
+                                locations = locations,
+                                deliveryDay = pathData.deliveryDay,
+                                geoJson = geoJsonData // Use null if withGeoJson is false
+                            )
+                        }
+                    }
+
+                // Check if paths were skipped due to geocoding errors
+                if (finalPaths.size != deferredCityInfoList.size && finalPaths.isEmpty()) {
+                    // If all paths failed, call onFailure
+                    onFailure.invoke()
+                } else {
+                    // Otherwise, return the successful paths
+                    onSuccess.invoke(finalPaths)
                 }
-
-
-                val finalPaths = geoJsons.map { geoJson ->
-                    DeliveryPath(
-                        id = idList[geoJsons.indexOf(geoJson)],
-                        pathName = pathList[geoJsons.indexOf(geoJson)].path_name ?: "",
-                        availableCities = listOfZipped[geoJsons.indexOf(geoJson)],
-                        locations = locationsList[geoJsons.indexOf(geoJson)],
-                        deliveryDay = pathList[geoJsons.indexOf(geoJson)].deliveryDay,
-                        geoJson = geoJson
-                    )
-                }
-
-                onSuccess.invoke(finalPaths)
-
             }
         }, onFailure = onFailure)
     }

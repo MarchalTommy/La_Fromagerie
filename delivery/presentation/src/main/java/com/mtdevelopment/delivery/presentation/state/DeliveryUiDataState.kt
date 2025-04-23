@@ -17,6 +17,7 @@ data class DeliveryUiDataState(
     val shouldShowLocalisationPermission: Boolean = false,
     val localisationSuccess: Boolean = false,
     val userLocationOnPath: Boolean = false,
+    val userLocationCloseFromPath: Boolean = false,
     val isLoading: Boolean = false,
     val isError: String = "",
     val columnScrollingEnabled: Boolean = true,

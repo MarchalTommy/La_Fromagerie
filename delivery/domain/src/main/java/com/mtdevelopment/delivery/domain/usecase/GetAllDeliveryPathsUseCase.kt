@@ -15,6 +15,7 @@ class GetAllDeliveryPathsUseCase(
 ) {
     suspend operator fun invoke(
         forceRefresh: Boolean = false,
+        withGeoJson: Boolean = false,
         scope: CoroutineScope,
         onSuccess: (List<DeliveryPath?>) -> Unit,
         onFailure: () -> Unit
@@ -27,41 +28,44 @@ class GetAllDeliveryPathsUseCase(
          * Else, fetch from room.
          */
         if (shouldRefresh) {
-            repository.getAllDeliveryPaths(onSuccess = { pathsList ->
-                /**
-                 * Persist all products from firebase to room
-                 */
-                pathsList.forEach { path ->
-                    scope.launch {
-                        if (path != null) {
-                            roomRepository.persistPath(path)
+            repository.getAllDeliveryPaths(
+                withGeoJson = withGeoJson,
+                onSuccess = { pathsList ->
+                    /**
+                     * Persist all products from firebase to room
+                     */
+                    pathsList.forEach { path ->
+                        scope.launch {
+                            if (path != null) {
+                                roomRepository.persistPath(path)
+                            }
                         }
                     }
-                }
 
-                scope.launch {
-                    /**
-                     * Reset refresh needed flag
-                     */
-                    sharedDatastore.setShouldRefreshPaths(false)
+                    scope.launch {
+                        /**
+                         * Reset refresh needed flag
+                         */
+                        sharedDatastore.setShouldRefreshPaths(false)
 
-                    /**
-                     * Delete all products from room that are not in firebase,
-                     * in case products got removed
-                     */
-                    roomRepository.getPaths { localPathsList ->
-                        localPathsList.forEach { entity ->
-                            if (!pathsList.any { data -> entity.id == data?.id }) {
-                                scope.launch {
-                                    roomRepository.deletePath(entity)
+                        /**
+                         * Delete all products from room that are not in firebase,
+                         * in case products got removed
+                         */
+                        roomRepository.getPaths { localPathsList ->
+                            localPathsList.forEach { entity ->
+                                if (!pathsList.any { data -> entity.id == data?.id }) {
+                                    scope.launch {
+                                        roomRepository.deletePath(entity)
+                                    }
                                 }
                             }
                         }
                     }
-                }
 
-                onSuccess(pathsList)
-            }, onFailure)
+                    onSuccess(pathsList)
+                }, onFailure
+            )
         } else {
             scope.launch {
                 roomRepository.getPaths { localPathsList ->
