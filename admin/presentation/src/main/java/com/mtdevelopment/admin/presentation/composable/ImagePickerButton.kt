@@ -12,8 +12,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardColors
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -47,7 +51,7 @@ import kotlinx.coroutines.launch
 @Preview(showBackground = true)
 @Composable
 fun ImagePickerButton(
-    existingImageUri: Uri? = null,
+    existingImageUri: Uri? = "https://res.cloudinary.com/dzgaywpmz/image/upload/v1747057323/DSC01949-HDR_caie95.jpg".toUri(),
     onImagePicked: (Uri) -> Unit = {},
     shouldShowLoading: (Boolean) -> Unit = {},
     onError: (String) -> Unit = {}
@@ -101,7 +105,7 @@ fun ImagePickerButton(
         Button(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                .padding(start = 64.dp, end = 64.dp, bottom = 8.dp, top = 16.dp),
             onClick = {
                 pickMediaLauncher.launch(
                     PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
@@ -115,7 +119,7 @@ fun ImagePickerButton(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Icon(
-                    modifier = Modifier.size(32.dp),
+                    modifier = Modifier.size(24.dp),
                     painter = painterResource(id = R.drawable.image_24px),
                     contentDescription = "Add Image",
                     tint = MaterialTheme.colorScheme.onPrimary
@@ -131,37 +135,49 @@ fun ImagePickerButton(
 
         selectedImageUri?.let { uri ->
             if (selectedImageUri != "".toUri()) {
-                GlideImage(
+                Card(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(start = 16.dp, end = 16.dp, bottom = 16.dp)
-                        .size(250.dp)
-                        .clip(RoundedCornerShape(12.dp)),
-                    imageModel = {
-                        uri
-                    },
-                    imageOptions = ImageOptions(contentScale = ContentScale.FillWidth),
-                    requestBuilder = {
-                        Glide.with(LocalContext.current)
-                            .asBitmap()
-                            .apply(
-                                RequestOptions().diskCacheStrategy(DiskCacheStrategy.ALL)
-                            ).thumbnail(0.6f)
-                            .transition(withCrossFade())
-                    },
-                    loading = {
-                        Box(modifier = Modifier.matchParentSize()) {
-                            CircularProgressIndicator(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .align(Alignment.Center),
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                        }
-                    },
-                    failure = {
-                        Text(text = "image request failed.")
-                    })
+                        .padding(8.dp)
+                        .wrapContentHeight(),
+                    colors = CardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        disabledContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                        disabledContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    ),
+                    elevation = CardDefaults.elevatedCardElevation()
+                ) {
+                    GlideImage(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .size(250.dp)
+                            .clip(RoundedCornerShape(12.dp)),
+                        imageModel = {
+                            uri
+                        },
+                        imageOptions = ImageOptions(contentScale = ContentScale.Crop),
+                        requestBuilder = {
+                            Glide.with(LocalContext.current)
+                                .asBitmap()
+                                .apply(
+                                    RequestOptions().diskCacheStrategy(DiskCacheStrategy.ALL)
+                                ).thumbnail(0.6f)
+                                .transition(withCrossFade())
+                        },
+                        loading = {
+                            Box(modifier = Modifier.matchParentSize()) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .align(Alignment.Center),
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        },
+                        failure = {
+                            Text(text = "image request failed.")
+                        })
+                }
             }
         }
     }

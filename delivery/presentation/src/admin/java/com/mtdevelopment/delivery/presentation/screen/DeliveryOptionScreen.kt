@@ -31,7 +31,6 @@ import com.mtdevelopment.delivery.presentation.composable.AdminContent
 import com.mtdevelopment.delivery.presentation.composable.DatePickerComposable
 import com.mtdevelopment.delivery.presentation.composable.MapBoxComposable
 import com.mtdevelopment.delivery.presentation.composable.PathEditDialog
-import com.mtdevelopment.delivery.presentation.composable.PermissionManagerComposable
 import com.mtdevelopment.delivery.presentation.composable.getDatePickerState
 import com.mtdevelopment.delivery.presentation.model.toAdminUiDeliveryPath
 import com.mtdevelopment.delivery.presentation.viewmodel.DeliveryViewModel
@@ -132,34 +131,6 @@ fun DeliveryOptionScreen(
             }
 
             Spacer(modifier = Modifier.imePadding())
-        }
-
-        // Localisation permission
-        if (state.value.shouldShowLocalisationPermission) {
-            PermissionManagerComposable(
-                allPaths = state.value.deliveryPaths,
-                onUpdateUserCity = {
-                    deliveryViewModel.updateUserCity(it)
-                },
-                onUpdateSelectedPath = {
-                    deliveryViewModel.updateSelectedPath(it)
-                },
-                onUpdateUserIsOnPath = {
-                    deliveryViewModel.updateUserLocationOnPath(it)
-                },
-                onUpdateUserCityLocation = {
-                    deliveryViewModel.updateUserCityLocation(it)
-                },
-                onUpdateLocalisationState = {
-                    deliveryViewModel.updateLocalisationState(it)
-                },
-                onUpdateShouldShowLocalisationPermission = {
-                    deliveryViewModel.updateShouldShowLocalisationPermission(it)
-                },
-                setIsLoading = {
-                    deliveryViewModel.setIsLoading(it)
-                }
-            )
         }
 
         // Loading animation

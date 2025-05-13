@@ -26,8 +26,10 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
@@ -47,6 +49,7 @@ import com.mtdevelopment.core.presentation.theme.ui.black70
 import com.mtdevelopment.core.util.toLongPrice
 import com.mtdevelopment.core.util.toStringPrice
 
+// TODO: Check why bug when picture + data, but not when just picture or just data
 @Preview(showBackground = true)
 @Composable
 fun ProductEditDialog(
@@ -80,6 +83,9 @@ fun ProductEditDialog(
             )
         )
     }
+    var allergensInputText by remember(tempProduct.value.allergens) {
+        mutableStateOf(tempProduct.value.allergens?.joinToString(", ") ?: "")
+    }
 
     BackHandler(true) {
         onDismiss.invoke()
@@ -94,7 +100,7 @@ fun ProductEditDialog(
                 .fillMaxWidth()
                 .wrapContentHeight()
                 .imePadding()
-                .padding(48.dp)
+                .padding(vertical = 32.dp, horizontal = 24.dp)
         ) {
             Column(
                 modifier = Modifier
@@ -205,12 +211,9 @@ fun ProductEditDialog(
                 ProductEditField(
                     modifier = Modifier,
                     title = "Allergènes",
-                    value = tempProduct.value.allergens?.joinToString { it } ?: "",
+                    value = allergensInputText,
                     onValueChange = {
-                        tempProduct.value = tempProduct.value.copy(
-                            allergens =
-                                it.split(",")
-                        )
+                        allergensInputText = it.replace(".", "")
                     },
                     imeAction = ImeAction.Done,
                     focusRequester = focusRequester,
@@ -232,6 +235,11 @@ fun ProductEditDialog(
                             shape = MaterialTheme.shapes.large,
                             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 16.dp),
                             onClick = {
+                                tempProduct.value = tempProduct.value.copy(
+                                    allergens = allergensInputText.split(',')
+                                        .map { it.trim() }
+                                        .filter { it.isNotEmpty() }
+                                )
                                 if (tempProduct.value != product) {
                                     onValidate.invoke(tempProduct.value)
                                 }
@@ -284,6 +292,7 @@ fun ProductEditField(
 
     OutlinedTextField(
         modifier = modifier
+            .fillMaxWidth()
             .padding(8.dp)
             .focusRequester(requester),
         value = value,
