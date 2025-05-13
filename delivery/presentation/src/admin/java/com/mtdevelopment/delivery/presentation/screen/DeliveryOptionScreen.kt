@@ -21,19 +21,16 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import app.rive.runtime.kotlin.core.Rive
 import com.mapbox.common.MapboxOptions
-import com.mtdevelopment.admin.presentation.composable.PathEditDialog
 import com.mtdevelopment.admin.presentation.model.AdminUiDeliveryPath
 import com.mtdevelopment.admin.presentation.model.toDomainDeliveryPath
 import com.mtdevelopment.admin.presentation.viewmodel.AdminViewModel
-import com.mtdevelopment.core.presentation.MainViewModel
 import com.mtdevelopment.core.presentation.composable.ErrorOverlay
 import com.mtdevelopment.core.presentation.composable.RiveAnimation
 import com.mtdevelopment.delivery.presentation.BuildConfig.MAPBOX_PUBLIC_TOKEN
 import com.mtdevelopment.delivery.presentation.composable.AdminContent
 import com.mtdevelopment.delivery.presentation.composable.DatePickerComposable
-import com.mtdevelopment.delivery.presentation.composable.DeliveryPathPickerComposable
 import com.mtdevelopment.delivery.presentation.composable.MapBoxComposable
-import com.mtdevelopment.delivery.presentation.composable.PermissionManagerComposable
+import com.mtdevelopment.delivery.presentation.composable.PathEditDialog
 import com.mtdevelopment.delivery.presentation.composable.getDatePickerState
 import com.mtdevelopment.delivery.presentation.model.toAdminUiDeliveryPath
 import com.mtdevelopment.delivery.presentation.viewmodel.DeliveryViewModel
@@ -43,7 +40,6 @@ import org.koin.androidx.compose.koinViewModel
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DeliveryOptionScreen(
-    mainViewModel: MainViewModel,
     navigateToCheckout: () -> Unit = {},
     navigateBack: () -> Unit = {}
 ) {
@@ -58,6 +54,7 @@ fun DeliveryOptionScreen(
             deliveryViewModel.deliveryUiDataState
         }
     }
+
     val datePickerState = remember(state.value.selectedPath) {
         derivedStateOf {
             getDatePickerState(state.value.selectedPath)
@@ -76,6 +73,7 @@ fun DeliveryOptionScreen(
     }
 
     LaunchedEffect(Unit) {
+        deliveryViewModel.loadAdminData()
         Rive.init(context)
     }
 
@@ -89,7 +87,7 @@ fun DeliveryOptionScreen(
             .fillMaxSize()
             .verticalScroll(
                 state = scrollState,
-                enabled = state.value.columnScrollingEnabled && state.value.isError.not()
+                enabled = state.value.columnScrollingEnabled && state.value.isError.isEmpty()
             )
             .imePadding()
     ) {
@@ -105,13 +103,12 @@ fun DeliveryOptionScreen(
                 allPaths = state.value.deliveryPaths,
                 isConnectedToInternet = isConnected.value,
                 setIsLoading = {
-                    deliveryViewModel.setIsLoading(it)
                 },
                 setColumnScrollingEnabled = {
                     deliveryViewModel.setColumnScrollingEnabled(it)
                 },
                 onError = {
-                    mainViewModel.setError(it)
+                    deliveryViewModel.setIsError("Une erreur est survenue lors du chargement de la carte.")
                 }
             )
 
@@ -136,34 +133,6 @@ fun DeliveryOptionScreen(
             Spacer(modifier = Modifier.imePadding())
         }
 
-        // Localisation permission
-        if (state.value.shouldShowLocalisationPermission) {
-            PermissionManagerComposable(
-                allPaths = state.value.deliveryPaths,
-                onUpdateUserCity = {
-                    deliveryViewModel.updateUserCity(it)
-                },
-                onUpdateSelectedPath = {
-                    deliveryViewModel.updateSelectedPath(it)
-                },
-                onUpdateUserIsOnPath = {
-                    deliveryViewModel.updateUserLocationOnPath(it)
-                },
-                onUpdateUserCityLocation = {
-                    deliveryViewModel.updateUserCityLocation(it)
-                },
-                onUpdateLocalisationState = {
-                    deliveryViewModel.updateLocalisationState(it)
-                },
-                onUpdateShouldShowLocalisationPermission = {
-                    deliveryViewModel.updateShouldShowLocalisationPermission(it)
-                },
-                setIsLoading = {
-                    deliveryViewModel.setIsLoading(it)
-                }
-            )
-        }
-
         // Loading animation
         RiveAnimation(
             isLoading = state.value.isLoading,
@@ -173,10 +142,10 @@ fun DeliveryOptionScreen(
 
         // Error Composable
         ErrorOverlay(
-            isShown = state.value.isError,
-            message = "Une erreur est survenue lors du chargement des parcours de livraison.\nSi le problème persiste merci de nous contacter !",
+            isShown = state.value.isError.isNotBlank(),
+            message = state.value.isError.ifBlank { "Une erreur inconnue est survenue.\nSi le problème persiste merci de nous contacter !" },
             onDismiss = {
-                deliveryViewModel.setIsError(false)
+                deliveryViewModel.setIsError("")
                 navigateBack.invoke()
             }
         )
@@ -196,39 +165,62 @@ fun DeliveryOptionScreen(
             )
         }
 
-        if (state.value.showDeliveryPathPicker) {
-            DeliveryPathPickerComposable(
-                allPaths = state.value.deliveryPaths,
-                selectedPath = state.value.selectedPath,
-                onPathSelected = {
-                    deliveryViewModel.updateSelectedPath(it)
-                },
-                onDismiss = {
-                    deliveryViewModel.updateShowDeliveryPathPicker(false)
-                })
-        }
-
         if (showEditDialog.value) {
             PathEditDialog(
                 path = selectedPath.value,
+                searchQuery = state.value.addressSearchQuery,
                 onValidate = { newPath ->
                     if (state.value.deliveryPaths.any { it.id == newPath.id }) {
-                        adminViewModel.updateDeliveryPath(newPath.toDomainDeliveryPath())
+                        deliveryViewModel.setIsLoading(true)
+                        adminViewModel.updateDeliveryPath(
+                            newPath.toDomainDeliveryPath(),
+                            onSuccess = {
+                                deliveryViewModel.loadAdminData(true)
+                            },
+                            onFailure = {
+                                deliveryViewModel.setIsError("Une erreur est survenue lors de la mise à jour du chemin.")
+                                deliveryViewModel.setIsLoading(false)
+                            })
                     } else {
-                        adminViewModel.addNewDeliveryPath(newPath.toDomainDeliveryPath())
+                        adminViewModel.addNewDeliveryPath(
+                            newPath.toDomainDeliveryPath(),
+                            onSuccess = {
+                                deliveryViewModel.loadAdminData(true)
+                            },
+                            onFailure = {
+                                deliveryViewModel.setIsError("Une erreur est survenue lors de l'ajout du chemin.")
+                                deliveryViewModel.setIsLoading(false)
+                            })
                     }
                     showEditDialog.value = false
                 },
                 onDelete = { newPath ->
-                    adminViewModel.deleteDeliveryPath(newPath.toDomainDeliveryPath())
+                    adminViewModel.deleteDeliveryPath(
+                        newPath.toDomainDeliveryPath(),
+                        onSuccess = {
+                            deliveryViewModel.loadAdminData(true)
+                        },
+                        onFailure = {
+                            deliveryViewModel.setIsError("Une erreur est survenue lors de la suppression du chemin.")
+                            deliveryViewModel.setIsLoading(false)
+                        })
                     showEditDialog.value = false
                 },
                 onDismiss = {
                     showEditDialog.value = false
                 },
                 onError = {
-                    mainViewModel.setError(it)
-                }
+                    deliveryViewModel.setIsError(it)
+                },
+                autoCompleteSuggestion = state.value.addressSuggestions,
+                showAutocompleteDropdown = state.value.showAddressSuggestions,
+                onAutoCompleteDropdownDismiss = {
+                    deliveryViewModel.setShowAddressesSuggestions(false)
+                },
+                onAutocompleteQueryChange = {
+                    deliveryViewModel.setAddressFieldText(it)
+                },
+                parentScrollState = scrollState
             )
         }
     }

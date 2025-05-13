@@ -92,8 +92,8 @@ fun CartView(
                 }
                 CartItem(
                     modifier = Modifier
-                        .animateItemPlacement(
-                            animationSpec = tween(800)
+                        .animateItem(
+                            fadeInSpec = null, fadeOutSpec = tween(350), placementSpec = tween(800)
                         )
                         .alpha(itemVisibility.value),
                     item = it?.copy(quantity = state?.cartItems?.cartItems?.find { searched -> searched?.name == it.name }?.quantity!!),

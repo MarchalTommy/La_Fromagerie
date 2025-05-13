@@ -60,7 +60,7 @@ fun DateTextField(
                 if (shouldBeClickable) {
                     stringResource(R.string.delivery_date_label)
                 } else {
-                    "Sélectionnez un parcours pour choisir une date"
+                    "Sélectionnez une des dates disponible"
                 },
                 Modifier.background(Color.Transparent)
             )

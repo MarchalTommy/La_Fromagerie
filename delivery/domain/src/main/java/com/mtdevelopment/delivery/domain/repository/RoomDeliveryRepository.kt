@@ -1,13 +1,15 @@
 package com.mtdevelopment.delivery.domain.repository
 
+import com.mtdevelopment.delivery.domain.model.DeliveryPath
+
 interface RoomDeliveryRepository {
-    suspend fun persistPath(path: com.mtdevelopment.delivery.domain.model.DeliveryPath)
-    suspend fun deletePath(path: com.mtdevelopment.delivery.domain.model.DeliveryPath)
-    suspend fun updatePath(path: com.mtdevelopment.delivery.domain.model.DeliveryPath)
+    suspend fun persistPath(path: DeliveryPath)
+    suspend fun deletePath(path: DeliveryPath)
+    suspend fun updatePath(path: DeliveryPath)
     suspend fun getPathById(
         id: String,
-        onSuccess: (com.mtdevelopment.delivery.domain.model.DeliveryPath) -> Unit
+        onSuccess: (DeliveryPath) -> Unit
     )
 
-    suspend fun getPaths(onSuccess: (List<com.mtdevelopment.delivery.domain.model.DeliveryPath>) -> Unit)
+    suspend fun getPaths(onSuccess: (List<DeliveryPath>) -> Unit)
 }

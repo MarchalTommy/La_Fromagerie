@@ -17,12 +17,12 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.mtdevelopment.delivery.presentation.R
+import com.mtdevelopment.delivery.presentation.model.UiDeliveryPath
 
 @Composable
 fun LocalisationTypePicker(
-    selectedPath: com.mtdevelopment.delivery.presentation.model.UiDeliveryPath?,
+    selectedPath: UiDeliveryPath?,
     localisationSuccess: Boolean,
-    showDeliverySelection: () -> Unit,
     shouldAskLocalisationPermission: () -> Unit = {}
 ) {
     Row(
@@ -57,22 +57,5 @@ fun LocalisationTypePicker(
                 thickness = Dp.Hairline
             )
         }
-
-        TextButton(
-            modifier = Modifier
-                .padding(horizontal = 8.dp)
-                .weight(1f),
-            onClick = {
-                showDeliverySelection()
-            },
-            content = {
-                Text(
-                    modifier = Modifier
-                        .padding(8.dp)
-                        .align(Alignment.CenterVertically),
-                    text = stringResource(R.string.manually_select_delivery_path),
-                    textAlign = TextAlign.Center
-                )
-            })
     }
 }

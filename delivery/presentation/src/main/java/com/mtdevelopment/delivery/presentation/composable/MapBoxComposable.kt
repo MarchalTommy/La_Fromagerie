@@ -1,8 +1,5 @@
 package com.mtdevelopment.delivery.presentation.composable
 
-import android.animation.Animator
-import android.animation.Animator.AnimatorListener
-import android.content.ContentValues.TAG
 import android.util.Log
 import android.view.MotionEvent
 import androidx.compose.foundation.focusable
@@ -17,7 +14,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.contentColorFor
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -25,506 +21,376 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInteropFilter
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import com.mapbox.android.gestures.MoveGestureDetector
 import com.mapbox.geojson.FeatureCollection
 import com.mapbox.geojson.Point
 import com.mapbox.maps.CameraOptions
+import com.mapbox.maps.EdgeInsets
 import com.mapbox.maps.MapView
 import com.mapbox.maps.Style
-import com.mapbox.maps.TransitionOptions
 import com.mapbox.maps.extension.compose.MapEffect
 import com.mapbox.maps.extension.compose.MapboxMap
+import com.mapbox.maps.extension.compose.animation.viewport.MapViewportState
 import com.mapbox.maps.extension.compose.animation.viewport.rememberMapViewportState
-import com.mapbox.maps.extension.compose.style.standard.MapboxStandardStyle
-import com.mapbox.maps.extension.compose.style.styleImportsConfig
-import com.mapbox.maps.extension.style.StyleContract
+import com.mapbox.maps.extension.compose.annotation.generated.PointAnnotation
+import com.mapbox.maps.extension.compose.annotation.rememberIconImage
 import com.mapbox.maps.extension.style.layers.addLayer
 import com.mapbox.maps.extension.style.layers.generated.lineLayer
 import com.mapbox.maps.extension.style.layers.properties.generated.LineCap
 import com.mapbox.maps.extension.style.layers.properties.generated.LineJoin
 import com.mapbox.maps.extension.style.sources.addSource
 import com.mapbox.maps.extension.style.sources.generated.geoJsonSource
-import com.mapbox.maps.extension.style.style
-import com.mapbox.maps.logI
 import com.mapbox.maps.plugin.animation.MapAnimationOptions
-import com.mapbox.maps.plugin.animation.camera
 import com.mapbox.maps.plugin.annotation.AnnotationConfig
 import com.mapbox.maps.plugin.annotation.annotations
 import com.mapbox.maps.plugin.annotation.generated.PointAnnotationManager
-import com.mapbox.maps.plugin.annotation.generated.PointAnnotationOptions
 import com.mapbox.maps.plugin.annotation.generated.createPointAnnotationManager
 import com.mapbox.maps.plugin.gestures.OnMoveListener
-import com.mapbox.maps.plugin.gestures.addOnMoveListener
+import com.mapbox.maps.plugin.gestures.gestures
 import com.mtdevelopment.core.util.ScreenSize
 import com.mtdevelopment.core.util.rememberScreenSize
+import com.mtdevelopment.delivery.presentation.R
 import com.mtdevelopment.delivery.presentation.model.UiDeliveryPath
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import kotlin.random.Random
+import kotlin.math.abs
 
-const val FRASNE_LATITUDE = 46.854022
-const val FRASNE_LONGITUDE = 6.156132
+const val DEFAULT_LATITUDE = 46.85 // Approximate center of France
+const val DEFAULT_LONGITUDE = 2.35 // Approximate center of France
+const val INITIAL_ZOOM_ALL_PATHS = 8.0 // Zoom level when showing all paths
+const val INITIAL_ZOOM_NO_PATHS = 4.0 // Zoom level when no paths are available
+const val PATH_ZOOM_LEVEL = 9.5
+const val USER_LOCATION_ZOOM_LEVEL = 11.0
+const val CAMERA_ANIMATION_DURATION = 1500L
 
-val pathsColors = mutableListOf(
+const val PATH_SOURCE_ID_PREFIX = "path_source_"
+const val PATH_LAYER_ID_PREFIX = "path_layer_"
+
+val pathsColors = listOf(
     "#FF6B6B", "#6BCEFF", "#ff9b54", "#4ECDC4", "#6B6BFF"
 )
 
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun MapBoxComposable(
-    userLocation: Pair<Double, Double>?,
-    chosenPath: UiDeliveryPath?,
-    allPaths: List<UiDeliveryPath>,
+    modifier: Modifier = Modifier,
+    userLocation: Pair<Double, Double>? = null,
+    chosenPath: UiDeliveryPath? = null,
+    allPaths: List<UiDeliveryPath>? = null,
     isConnectedToInternet: Boolean,
     setIsLoading: (Boolean) -> Unit,
     setColumnScrollingEnabled: (Boolean) -> Unit,
     onError: (String) -> Unit = {}
 ) {
-
-    val cameraBasePoint =
-        remember { mutableStateOf<Point?>(null) }
-
+    val context = LocalContext.current
     val screenSize: ScreenSize = rememberScreenSize()
-    val map = remember { mutableStateOf<MapView?>(null) }
 
-    var pointAnnotationManager: PointAnnotationManager? by remember {
-        mutableStateOf(null)
-    }
-    val hasBeenGeoloked = remember { mutableStateOf(false) }
+    var mapViewInstance by remember { mutableStateOf<MapView?>(null) }
+    var pointAnnotationManager by remember { mutableStateOf<PointAnnotationManager?>(null) }
+    var initialCameraSet by remember { mutableStateOf(false) }
 
-    val userPoint = remember {
-        mutableStateOf<Point>(
-            Point.fromLngLat(
-                userLocation?.second ?: 0.0,
-                userLocation?.first ?: 0.0
-            )
-        )
-    }
+    val shouldShowMarker = remember { mutableStateOf(false) }
+    val marker = rememberIconImage(
+        key = R.drawable.push_pin_final,
+        painter = painterResource(R.drawable.push_pin_final)
+    )
 
-    val animatorListener = object : AnimatorListener {
-        override fun onAnimationStart(p0: Animator) {
-            // Is here only to assure loader goes away after animating has started,
-            // which means style has loaded
-            setIsLoading.invoke(false)
-            hasBeenGeoloked.value = true
-        }
-
-        override fun onAnimationEnd(p0: Animator) {
-            /* NOTHING */
-        }
-
-        override fun onAnimationCancel(p0: Animator) {
-            /* NOTHING */
-        }
-
-        override fun onAnimationRepeat(p0: Animator) {
-            /* NOTHING */
-        }
+    // Calculate the initial camera position based on all paths or default
+    val initialCameraOptions = remember(allPaths) {
+        calculateInitialCamera(allPaths)
     }
 
-    LaunchedEffect(allPaths) {
-        getBaseCameraLocation(
-            allPaths = allPaths, setIsLoading = { setIsLoading.invoke(it) },
-            callback = { nw, se ->
-                setIsLoading.invoke(false)
-
-                val long =
-                    (nw.longitude()
-                        .plus(se.longitude())).div(2)
-
-                val lat = nw.latitude()
-                    .plus(se.latitude()).div(2)
-
-                cameraBasePoint.value = Point.fromLngLat(
-                    long,
-                    lat,
-                )
-
-                zoomOnSelectedPathMainCity(
-                    map.value,
-                    nw,
-                    se,
-                    9.0,
-                    null
-                )
-            })
+    val mapViewportState = rememberMapViewportState {
+        setCameraOptions(initialCameraOptions)
     }
 
-    LaunchedEffect(chosenPath) {
+    // --- Effects ---
+
+    // Effect to initialize the map, annotation manager, and listeners
+    LaunchedEffect(Unit) {
+        setIsLoading(true)
+        // The MapEffect below will handle setting isLoading(false) after setup
+    }
+
+    // Effect to update paths drawn on the map
+    LaunchedEffect(mapViewInstance, chosenPath, allPaths, pathsColors) {
+        val mapView = mapViewInstance ?: return@LaunchedEffect
+        val style = mapView.mapboxMap.style ?: return@LaunchedEffect
+
+        // Determine which paths to draw
+        val pathsToDraw = chosenPath?.let { listOf(it) } ?: allPaths ?: emptyList()
+
+        // Efficiently update sources and layers
+        updateMapPaths(style, pathsToDraw, allPaths ?: emptyList(), pathsColors)
+    }
+
+    // Effect to handle camera movements based on chosen path or returning to overview
+    LaunchedEffect(mapViewportState, chosenPath, allPaths, isConnectedToInternet) {
         if (chosenPath != null) {
-            if (isConnectedToInternet) {
-                getCameraLocalisationFromPath(
-                    chosenPath,
-                    onBothPointFound = { nw, se ->
-                        map.value?.mapboxMap?.loadStyle(
-                            getStyleForPath(chosenPath, allPaths)
-                        ) {
-                            zoomOnSelectedPathMainCity(
-                                map.value,
-                                nw,
-                                se,
-                                null,
-                                animatorListener
-                            )
-                        }
-                    }
-                )
-            } else {
-                zoomOnSelectedPathOffline(
-                    map.value,
-                    animatorListener
+            // Calculate bounds for the chosen path
+            val bounds = calculateBoundsForPaths(listOf(chosenPath))
+            if (bounds != null) {
+                // Fly camera to the chosen path
+                flyToLocation(mapViewportState, bounds.center, PATH_ZOOM_LEVEL)
+            } else if (!isConnectedToInternet) {
+                // Fallback for offline mode if bounds calculation fails
+                flyToLocation(
+                    mapViewportState,
+                    Point.fromLngLat(DEFAULT_LONGITUDE, DEFAULT_LATITUDE),
+                    INITIAL_ZOOM_ALL_PATHS
                 )
             }
         } else {
-            if (map.value?.mapboxMap?.style == null && allPaths.isNotEmpty()) {
-                map.value?.mapboxMap?.loadStyle(
-                    getStyleForNoChosenPath(allPaths)
-                ) {
-                    setIsLoading.invoke(false)
-                }
+            // No specific path chosen, fly to overview of all paths or default
+            val overviewCamera = calculateInitialCamera(allPaths)
+            flyToLocation(mapViewportState, overviewCamera.center, overviewCamera.zoom)
+        }
+        // Ensure loading is off after camera animation starts or logic completes
+        setIsLoading(false)
+    }
+
+    // Effect to show user location marker and center map (only when no path is chosen)
+    LaunchedEffect(mapViewportState, pointAnnotationManager, userLocation, chosenPath) {
+        val manager = pointAnnotationManager ?: return@LaunchedEffect
+        manager.deleteAll()
+
+        if (userLocation != null && chosenPath == null) {
+            val userPoint = Point.fromLngLat(userLocation.second, userLocation.first)
+            // Check for valid coordinates (Mapbox might handle (0,0) but good practice)
+            if (abs(userPoint.latitude()) > 0.0001 && abs(userPoint.longitude()) > 0.0001) {
+                shouldShowMarker.value = true
+                // Fly camera to user location
+                flyToLocation(mapViewportState, userPoint, USER_LOCATION_ZOOM_LEVEL)
             }
-            map.value?.camera?.flyTo(
-                cameraOptions = CameraOptions.Builder()
-                    .center(
-                        cameraBasePoint.value
-                    )
-                    .zoom(8.5)
-                    .build(),
-                animationOptions = MapAnimationOptions.mapAnimationOptions {
-                    duration(1500)
-                }
-            )
+        } else {
+            shouldShowMarker.value = false
         }
     }
 
+    // --- UI ---
+
     Card(
-        modifier = Modifier
-            .heightIn(min = 0.dp, max = (screenSize.height / 5) * 2)
+        modifier = modifier
+            .heightIn(min = 150.dp, max = (screenSize.height / 5) * 2)
             .fillMaxWidth()
             .padding(4.dp)
             .focusable(true),
+        elevation = CardDefaults.elevatedCardElevation(),
         colors = CardColors(
             containerColor = MaterialTheme.colorScheme.primaryContainer,
             contentColor = MaterialTheme.colorScheme.contentColorFor(MaterialTheme.colorScheme.primaryContainer),
             disabledContainerColor = MaterialTheme.colorScheme.secondaryContainer,
             disabledContentColor = MaterialTheme.colorScheme.contentColorFor(MaterialTheme.colorScheme.secondaryContainer)
         ),
-        elevation = CardDefaults.elevatedCardElevation()
     ) {
-        Card(
+        MapboxMap(
             modifier = Modifier
+                .fillMaxSize()
                 .padding(8.dp)
-                .fillMaxSize(),
-            elevation = CardDefaults.elevatedCardElevation()
-        ) {
-            MapboxMap(
-                modifier = Modifier.pointerInteropFilter(onTouchEvent = {
+                .pointerInteropFilter {
                     when (it.action) {
                         MotionEvent.ACTION_DOWN -> {
-                            setColumnScrollingEnabled.invoke(false)
-                            logI("MapTouch", "PRESSED DOWN")
-                            false
+                            setColumnScrollingEnabled(false) // Disable parent scroll on touch
+                            false // Indicate event not consumed
                         }
 
-                        else -> {
-                            false
+                        MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                            setColumnScrollingEnabled(true) // Re-enable parent scroll
+                            false // Indicate event not consumed
                         }
-                    }
-                }),
-                mapViewportState = rememberMapViewportState {
-                    setCameraOptions {
-                        zoom(8.5)
-                        center(
-                            cameraBasePoint.value
-                        )
-                        pitch(0.0)
-                        bearing(0.0)
+
+                        else -> false
                     }
                 },
-                style = {
-                    MapboxStandardStyle(
-                        styleImportsContent = {},
-                        styleTransition = TransitionOptions.Builder().duration(2000).build(),
-                        middleSlot = {},
-                        init = {
-                            styleImportsConfig {
-                                getStyleForInit(map, allPaths)
-                            }
-                        }
-                    )
-                },
-                scaleBar = { /* Nothing */ },
-                attribution = { /* Nothing */ },
-                logo = { /* Nothing */ }
-            ) {
-                MapEffect(Unit) { mapView ->
-                    map.value = mapView
-
-                    mapView.mapboxMap.addOnMoveListener(object : OnMoveListener {
-                        override fun onMove(detector: MoveGestureDetector): Boolean {
-                            //Do nothing
-                            return false
-                        }
-
-                        override fun onMoveBegin(detector: MoveGestureDetector) {
-                            //Do nothing
-                        }
-
-                        override fun onMoveEnd(detector: MoveGestureDetector) {
-                            setColumnScrollingEnabled.invoke(true)
-                        }
-
-                    })
-
-                    pointAnnotationManager =
-                        mapView.annotations.createPointAnnotationManager(AnnotationConfig())
-
-                    setIsLoading.invoke(true)
-                    if (mapView.mapboxMap.style == null) {
-                        if (allPaths.isNotEmpty()) {
-                            mapView.mapboxMap.loadStyle(
-                                if (chosenPath != null) {
-                                    getStyleForPath(chosenPath, allPaths)
-                                } else {
-                                    getStyleForNoChosenPath(allPaths)
-                                }
-                            ) {
-                                setIsLoading.invoke(false)
-                            }
-                        }
-                    } else {
-                        setIsLoading.invoke(false)
-                    }
-                }
-            }
-        }
-    }
-
-    if (userLocation != null && chosenPath == null) {
-        userPoint.value = Point.fromLngLat(
-            userLocation.second,
-            userLocation.first
-        )
-
-        if (userPoint.value.latitude() != 0.0 &&
-            userPoint.value.longitude() != 0.0 &&
-            !hasBeenGeoloked.value
+            mapViewportState = mapViewportState,
+            scaleBar = { /* Nothing */ },
+            attribution = { /* Nothing */ },
+            logo = { /* Nothing */ }
         ) {
-            pointAnnotationManager?.let {
-                it.deleteAll()
-                val pointAnnotationOptions =
-                    PointAnnotationOptions().withPoint(userPoint.value)
-
-                it.create(pointAnnotationOptions)
-            }
-
-            map.value?.camera?.flyTo(
-                cameraOptions = CameraOptions.Builder()
-                    .center(
-                        userPoint.value
+            if (shouldShowMarker.value) {
+                PointAnnotation(
+                    point = Point.fromLngLat(
+                        userLocation?.second!!,
+                        userLocation.first
                     )
-                    .zoom(10.0)
-                    .build(),
-                animationOptions = MapAnimationOptions.mapAnimationOptions {
-                    duration(1500)
+                ) {
+                    iconImage = marker
                 }
-            )
-        }
-    }
-}
+            } else {
+                mapViewInstance?.annotations?.cleanup()
+            }
 
-fun getCameraLocalisationFromPath(
-    path: UiDeliveryPath,
-    onBothPointFound: (pointNW: Point, pointSE: Point) -> Unit
-) {
+            MapEffect(Unit) { mapView ->
+                mapViewInstance = mapView
 
-    val latitudes = path.locations?.map { it.first }
-    val maxLatitude = latitudes?.maxOf { it }
-    val minLatitude = latitudes?.minOf { it }
-
-    val longitude = path.locations?.map { it.second }
-    val maxLongitude = longitude?.maxOf { it }
-    val minLongitude = longitude?.minOf { it }
-
-    val northWestPoint = Point.fromLngLat(
-        minLongitude ?: 0.0, maxLatitude ?: 0.0
-    )
-    val southEastPoint = Point.fromLngLat(
-        maxLongitude ?: 0.0, minLatitude ?: 0.0
-    )
-
-    onBothPointFound.invoke(northWestPoint, southEastPoint)
-
-}
-
-fun getBaseCameraLocation(
-    allPaths: List<UiDeliveryPath>,
-    setIsLoading: (Boolean) -> Unit,
-    callback: (nw: Point, se: Point) -> Unit
-) {
-    setIsLoading.invoke(true)
-    if (allPaths.isNotEmpty()) {
-        val allCoordinates = allPaths.flatMap { it.locations!! }
-
-        val latitudes = allCoordinates.map { it.first }
-        val maxLatitude = latitudes.maxOf { it }
-        val minLatitude = latitudes.minOf { it }
-
-        val longitude = allCoordinates.map { it.second }
-        val maxLongitude = longitude.maxOf { it }
-        val minLongitude = longitude.minOf { it }
-
-        val northWestPoint = Point.fromLngLat(
-            minLongitude, maxLatitude
-        )
-        val southEastPoint = Point.fromLngLat(
-            maxLongitude, minLatitude
-        )
-
-        callback.invoke(northWestPoint, southEastPoint)
-    }
-}
-
-fun zoomOnSelectedPathMainCity(
-    map: MapView?,
-    selectedPathNW: Point?,
-    selectedPathSE: Point?,
-    zoom: Double? = null,
-    animatorListener: AnimatorListener?
-) {
-    val long =
-        (selectedPathNW?.longitude()
-            ?.plus(selectedPathSE?.longitude() ?: 0.0))?.div(2)
-
-    val lat = selectedPathNW?.latitude()
-        ?.plus(selectedPathSE?.latitude() ?: 0.0)?.div(2)
-
-    map?.camera?.flyTo(
-        cameraOptions = CameraOptions.Builder()
-            .center(
-                Point.fromLngLat(
-                    long ?: FRASNE_LONGITUDE,
-                    lat ?: FRASNE_LATITUDE,
+                // Initialize annotation manager
+                val annotationPlugin = mapView.annotations
+                val annotationConfig = AnnotationConfig(
+                    // layerId = "map_annotation_layer" // Optional: Specify layer ID if needed
                 )
-            )
-            .zoom(
-                if (zoom != null) {
-                    zoom
-                } else {
-                    if (lat != null && long != null) {
-                        9.5
-                    } else {
-                        8.5
+                pointAnnotationManager =
+                    annotationPlugin.createPointAnnotationManager(annotationConfig)
+
+                // Setup gesture listener for enabling parent scroll after map move ends
+                mapView.gestures.addOnMoveListener(object : OnMoveListener {
+                    override fun onMoveBegin(detector: MoveGestureDetector) {}
+                    override fun onMove(detector: MoveGestureDetector): Boolean = false
+                    override fun onMoveEnd(detector: MoveGestureDetector) {
+                        setColumnScrollingEnabled(true) // Re-enable parent scroll
                     }
-                },
-            )
-            .build(),
-        animationOptions = MapAnimationOptions.mapAnimationOptions {
-            duration(1500)
-        },
-        animatorListener = animatorListener
+                })
+
+                // Map is ready, hide initial loader if it hasn't been hidden by camera effects
+                setIsLoading(false)
+                initialCameraSet = true // Mark initial camera as potentially set
+            }
+        }
+    }
+}
+
+// --- Helper Functions ---
+
+/**
+ * Calculates the initial camera options based on available paths.
+ */
+private fun calculateInitialCamera(allPaths: List<UiDeliveryPath>?): CameraOptions {
+    val bounds = calculateBoundsForPaths(allPaths)
+    return if (bounds != null) {
+        CameraOptions.Builder()
+            .center(bounds.center)
+            .zoom(INITIAL_ZOOM_ALL_PATHS)
+            .padding(EdgeInsets(50.0, 50.0, 50.0, 50.0))
+            .build()
+    } else {
+        CameraOptions.Builder()
+            .center(Point.fromLngLat(DEFAULT_LONGITUDE, DEFAULT_LATITUDE))
+            .zoom(INITIAL_ZOOM_NO_PATHS)
+            .build()
+    }
+}
+
+/**
+ * Data class to hold calculated bounds and center.
+ */
+private data class MapBounds(val northWest: Point, val southEast: Point) {
+    val center: Point by lazy {
+        Point.fromLngLat(
+            (northWest.longitude() + southEast.longitude()) / 2.0,
+            (northWest.latitude() + southEast.latitude()) / 2.0
+        )
+    }
+}
+
+/**
+ * Calculates the bounding box encompassing all coordinates in the given paths.
+ * Returns null if paths are null, empty, or contain no valid locations.
+ */
+private fun calculateBoundsForPaths(paths: List<UiDeliveryPath>?): MapBounds? {
+    val allCoordinates = paths?.flatMap { it.locations ?: emptyList() }
+        ?.filter { it.first != 0.0 || it.second != 0.0 } // Filter out invalid points
+
+    if (allCoordinates.isNullOrEmpty()) {
+        return null
+    }
+
+    val minLat = allCoordinates.minOf { it.first }
+    val maxLat = allCoordinates.maxOf { it.first }
+    val minLng = allCoordinates.minOf { it.second }
+    val maxLng = allCoordinates.maxOf { it.second }
+
+    // Basic validation
+    if (minLat == maxLat && minLng == maxLng && allCoordinates.size == 1) {
+        // Handle single point case - maybe return a small bounding box around it or just the point
+        // For simplicity, returning a slightly expanded bounds might work, or just the center point.
+        // Let's return null for now, camera logic can handle centering on a single point.
+        // return MapBounds(Point.fromLngLat(minLng, maxLat), Point.fromLngLat(maxLng, minLat)) // Creates a zero-size bound
+        return MapBounds(
+            Point.fromLngLat(minLng, maxLat),
+            Point.fromLngLat(maxLng, minLat)
+        ) // Center calculation will work
+    }
+    if (minLat > maxLat || minLng > maxLng) return null // Invalid bounds
+
+
+    return MapBounds(
+        northWest = Point.fromLngLat(minLng, maxLat),
+        southEast = Point.fromLngLat(maxLng, minLat)
     )
 }
 
-fun zoomOnSelectedPathOffline(
-    map: MapView?,
-    animatorListener: AnimatorListener
+/**
+ * Animates the map camera to a specific point and zoom level.
+ */
+private fun flyToLocation(
+    mapViewportState: MapViewportState,
+    center: Point?,
+    zoom: Double?
 ) {
-    map?.camera?.flyTo(
+    if (center == null || zoom == null) return // Cannot fly without center/zoom
+
+    mapViewportState.flyTo(
         cameraOptions = CameraOptions.Builder()
-            .center(
-                Point.fromLngLat(
-                    FRASNE_LONGITUDE,
-                    FRASNE_LATITUDE,
-                )
-            )
-            .zoom(8.5)
+            .center(center)
+            .zoom(zoom)
             .build(),
         animationOptions = MapAnimationOptions.mapAnimationOptions {
-            duration(1500)
-        },
-        animatorListener = animatorListener
+            duration(CAMERA_ANIMATION_DURATION)
+        }
     )
 }
 
-fun getStyleForPath(
-    path: UiDeliveryPath,
-    allPaths: List<UiDeliveryPath>
-): StyleContract.StyleExtension {
-    return style(style = Style.STANDARD) {
+/**
+ * Updates the map style to display the provided paths.
+ * Clears old path layers/sources before adding new ones.
+ */
+private fun updateMapPaths(
+    style: Style,
+    pathsToDraw: List<UiDeliveryPath>,
+    allPaths: List<UiDeliveryPath>, // Needed for consistent color mapping
+    colors: List<String>
+) {
+    // 1. Remove all existing path layers and sources first
+    style.styleLayers.filter { it.id.startsWith(PATH_LAYER_ID_PREFIX) }.forEach {
+        style.removeStyleLayer(it.id)
+    }
+    style.styleSources.filter { it.id.startsWith(PATH_SOURCE_ID_PREFIX) }.forEach {
+        style.removeStyleSource(it.id)
+    }
+
+    // 2. Add sources and layers for the paths to be drawn
+    pathsToDraw.forEach { path ->
+        // Find the original index in allPaths to maintain consistent coloring
+        val originalIndex = allPaths.indexOf(path).takeIf { it != -1 } ?: pathsToDraw.indexOf(path)
+        val color = colors[originalIndex % colors.size]
+        val sourceId = "$PATH_SOURCE_ID_PREFIX${path.hashCode()}"
+        val layerId = "$PATH_LAYER_ID_PREFIX${path.hashCode()}"
+
         try {
-            +geoJsonSource("startingSource") {
-                featureCollection(
-                    FeatureCollection.fromJson(Json.encodeToString(path.geoJson)),
-                    "${path.hashCode()}_data"
-                )
-            }
-            +lineLayer("linelayer", "startingSource") {
-                lineCap(LineCap.ROUND)
-                lineJoin(LineJoin.ROUND)
-                lineOpacity(1.0)
-                lineWidth(6.0)
-                lineColor(pathsColors[allPaths.indexOf(path) % pathsColors.size])
-            }
-        } catch (e: NullPointerException) {
-            Log.e(TAG, "Style not found for map... Geojson error ?")
-        }
-    }
-}
-
-fun getStyleForNoChosenPath(allPaths: List<UiDeliveryPath>): StyleContract.StyleExtension {
-
-    return style(style = Style.STANDARD) {
-        allPaths.forEach {
-            +geoJsonSource("${it.hashCode()}") {
-                featureCollection(
-                    FeatureCollection.fromJson(Json.encodeToString(it.geoJson)),
-                    "${it.hashCode()}_data"
-                )
-            }
-            +lineLayer("linelayer", "${it.hashCode()}") {
-                lineCap(LineCap.ROUND)
-                lineJoin(LineJoin.ROUND)
-                lineOpacity(1.0)
-                lineWidth(6.0)
-                lineColor(pathsColors[allPaths.indexOf(it) % pathsColors.size])
-            }
-        }
-    }
-}
-
-fun getStyleForInit(
-    map: MutableState<MapView?>,
-    allPaths: List<UiDeliveryPath>
-): StyleContract.StyleExtension {
-
-    return style(style = Style.STANDARD) {
-        allPaths.forEach { path ->
-            val sourceId =
-                path.hashCode().toString() + Random.nextInt().toString()
-            val layerId = "${sourceId}_layer"
-
-            map.value?.mapboxMap?.addSource(geoJsonSource(sourceId) {
-                featureCollection(
-                    FeatureCollection.fromJson(
-                        Json.encodeToString(path.geoJson)
-                    ),
-                    "${sourceId}_data"
-                )
+            // Add source
+            style.addSource(geoJsonSource(sourceId) {
+                featureCollection(FeatureCollection.fromJson(Json.encodeToString(path.geoJson)))
             })
 
-            map.value?.mapboxMap?.addLayer(
-                lineLayer(
-                    layerId,
-                    sourceId
-                ) {
-                    lineCap(LineCap.ROUND)
-                    lineJoin(LineJoin.ROUND)
-                    lineOpacity(1.0)
-                    lineWidth(6.0)
-                    lineColor(pathsColors[allPaths.indexOf(path) % pathsColors.size])
-                })
+            // Add layer
+            style.addLayer(lineLayer(layerId, sourceId) {
+                lineCap(LineCap.ROUND)
+                lineJoin(LineJoin.ROUND)
+                lineOpacity(0.9) // Slightly transparent
+                lineWidth(5.0)   // Slightly thinner
+                lineColor(color)
+            })
+        } catch (e: Exception) {
+            // Log or handle exceptions during style modification
+            Log.e(
+                "MapStyleError",
+                "Failed to add source/layer for path ${path.hashCode()}: ${e.message}"
+            )
+            // Optionally remove potentially partially added source/layer
+            style.removeStyleLayer(layerId)
+            style.removeStyleSource(sourceId)
         }
     }
 }

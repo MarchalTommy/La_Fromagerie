@@ -104,4 +104,7 @@ dependencies {
     implementation(libs.accompanist.permissions)
 
     implementation(libs.contentment)
+
+//    https://github.com/GIGAMOLE/ComposeScrollbars
+    implementation(libs.scrollbar)
 }

@@ -98,33 +98,33 @@ class AdminViewModel(
     ///////////////////////////////////////////////////////////////////////////
     // Delivery Paths
     ///////////////////////////////////////////////////////////////////////////
-    fun updateDeliveryPath(path: DeliveryPath) {
+    fun updateDeliveryPath(path: DeliveryPath, onSuccess: () -> Unit, onFailure: () -> Unit) {
         viewModelScope.launch {
             updateDeliveryPathUseCase.invoke(path, onSuccess = {
-
+                onSuccess.invoke()
             }, onError = {
-
+                onFailure.invoke()
             })
         }
     }
 
-    fun deleteDeliveryPath(path: DeliveryPath) {
+    fun deleteDeliveryPath(path: DeliveryPath, onSuccess: () -> Unit, onFailure: () -> Unit) {
         viewModelScope.launch {
             deleteDeliveryPathUseCase.invoke(path, onSuccess = {
-
+                onSuccess.invoke()
             }, onError = {
-
+                onFailure.invoke()
             })
         }
     }
 
 
-    fun addNewDeliveryPath(path: DeliveryPath) {
+    fun addNewDeliveryPath(path: DeliveryPath, onSuccess: () -> Unit, onFailure: () -> Unit) {
         viewModelScope.launch {
             addNewDeliveryPathUseCase.invoke(path, onSuccess = {
-
+                onSuccess.invoke()
             }, onError = {
-
+                onFailure.invoke()
             })
         }
     }

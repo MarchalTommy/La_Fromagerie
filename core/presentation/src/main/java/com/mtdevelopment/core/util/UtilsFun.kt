@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Matrix
+import android.location.Location
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -50,6 +51,26 @@ fun Long.toStringPrice(): String {
 
 fun String.toLongPrice(): Long {
     return (this.replace("€", "").replace(",", ".").trim().toDouble() * 100).toLong()
+}
+
+// Fonction utilitaire pour calculer la distance (utilise l'API Location d'Android)
+fun calculateDistance(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Float {
+    val results = FloatArray(1)
+    Location.distanceBetween(lat1, lon1, lat2, lon2, results)
+    return results[0] // Distance en mètres
+}
+
+// Fonction d'extension pour déplacer un élément dans une MutableList
+fun <T> MutableList<T>.move(from: Int, to: Int) {
+    // Vérifie si les indices sont valides
+    if (from < 0 || from >= size || to < 0 || to >= size || from == to) {
+        Log.w("ListMove", "Invalid move indices: from=$from, to=$to, size=$size")
+        return
+    }
+    // Retire l'élément de sa position d'origine
+    val element = removeAt(from)
+    // Ajoute l'élément à la nouvelle position
+    add(to, element)
 }
 
 fun vibratePhoneClick(context: Context) {
