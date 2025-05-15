@@ -11,8 +11,8 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
 @Database(
-    entities = [ProductEntity::class, com.mtdevelopment.delivery.data.model.entity.PathEntity::class],
-    version = 3,
+    entities = [ProductEntity::class, PathEntity::class],
+    version = 4,
 )
 @TypeConverters(Converters::class, CoordinatesConverter::class, MapConverter::class)
 abstract class FromagerieDatabase : RoomDatabase() {

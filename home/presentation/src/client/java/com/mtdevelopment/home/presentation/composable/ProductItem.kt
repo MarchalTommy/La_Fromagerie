@@ -5,12 +5,14 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -37,11 +39,13 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.bumptech.glide.Glide
@@ -158,12 +162,37 @@ fun ProductItem(
                     hasLoaded = true
                 },
                 success = { data, painter ->
-                    Image(
-                        painter = painter,
-                        contentDescription = "product Image",
-                        contentScale = ContentScale.Crop,
-                        alignment = Alignment.Center
-                    )
+                    Box(
+                        modifier = Modifier.matchParentSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Image(
+                            painter = painter,
+                            contentDescription = "product Image",
+                            contentScale = ContentScale.Crop,
+                            alignment = Alignment.Center
+                        )
+
+                        if (product?.isAvailable != true) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .alpha(0.8f)
+                                    .background(MaterialTheme.colorScheme.secondary),
+                                verticalArrangement = Arrangement.Center,
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    modifier = Modifier
+                                        .padding(8.dp),
+                                    text = "Produit indisponible temporairement !",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSecondary,
+                                    textAlign = TextAlign.Center
+                                )
+                            }
+                        }
+                    }
                     hasLoaded = true
                 })
 
@@ -197,33 +226,35 @@ fun ProductItem(
                 }
 
 
-                Button(
-                    modifier = Modifier
-                        .width(32.dp)
-                        .height(32.dp),
-                    onClick = {
-                        vibratePhoneClick(context)
-                        animateAddToCart()
-                        onAddClick.invoke()
-                    },
-                    colors = ButtonColors(
-                        containerColor = MaterialTheme.colorScheme.secondary,
-                        contentColor = MaterialTheme.colorScheme.primaryContainer,
-                        disabledContainerColor = MaterialTheme.colorScheme.secondary,
-                        disabledContentColor = MaterialTheme.colorScheme.primaryContainer
-                    ),
-                    contentPadding = PaddingValues(4.dp),
-                    border = BorderStroke(
-                        width = 2.dp,
-                        color = MaterialTheme.colorScheme.secondary
-                    ),
-                    elevation = ButtonDefaults.elevatedButtonElevation(),
-                    shape = RoundedCornerShape(8.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = "Add"
-                    )
+                if (product?.isAvailable == true) {
+                    Button(
+                        modifier = Modifier
+                            .width(32.dp)
+                            .height(32.dp),
+                        onClick = {
+                            vibratePhoneClick(context)
+                            animateAddToCart()
+                            onAddClick.invoke()
+                        },
+                        colors = ButtonColors(
+                            containerColor = MaterialTheme.colorScheme.secondary,
+                            contentColor = MaterialTheme.colorScheme.primaryContainer,
+                            disabledContainerColor = MaterialTheme.colorScheme.secondary,
+                            disabledContentColor = MaterialTheme.colorScheme.primaryContainer
+                        ),
+                        contentPadding = PaddingValues(4.dp),
+                        border = BorderStroke(
+                            width = 2.dp,
+                            color = MaterialTheme.colorScheme.secondary
+                        ),
+                        elevation = ButtonDefaults.elevatedButtonElevation(),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Add,
+                            contentDescription = "Add"
+                        )
+                    }
                 }
             }
         }

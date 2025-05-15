@@ -16,7 +16,8 @@ data class UiProductObject(
     val type: ProductType,
     val description: String = "",
     val allergens: List<String>? = null,
-    var quantity: Int = 0
+    var quantity: Int = 0,
+    val isAvailable: Boolean = true
 ) {
 
     companion object {
@@ -32,7 +33,8 @@ fun Product.toUiProductObject() = UiProductObject(
     imageUrl = imageUrl,
     type = ProductType.valueOf(type),
     description = description,
-    allergens = allergens
+    allergens = allergens,
+    isAvailable = isAvailable
 )
 
 fun UiProductObject.toDomainProduct() = Product(
@@ -44,7 +46,8 @@ fun UiProductObject.toDomainProduct() = Product(
     description = description,
     allergens = allergens?.map { allergen ->
         allergen.trim().replaceFirstChar { firstChar -> firstChar.uppercaseChar() }
-    }
+    },
+    isAvailable = isAvailable
 )
 
 fun UiProductObject.toCartItem() = CartItem(

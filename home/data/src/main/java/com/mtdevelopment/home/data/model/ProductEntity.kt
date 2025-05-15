@@ -21,7 +21,9 @@ data class ProductEntity(
     @SerialName("description")
     val description: String = "",
     @SerialName("allergens")
-    val allergens: List<String>? = null
+    val allergens: List<String>? = null,
+    @SerialName("available")
+    val isAvailable: Boolean = true
 )
 
 fun ProductEntity.toProduct(): Product {
@@ -33,6 +35,7 @@ fun ProductEntity.toProduct(): Product {
         type = this.type ?: "",
         description = this.description,
         allergens = this.allergens,
+        isAvailable = this.isAvailable
     )
 }
 
@@ -45,5 +48,6 @@ fun Product.toProductEntity(): ProductEntity {
         type = this.type,
         description = this.description,
         allergens = this.allergens,
+        isAvailable = this.isAvailable
     )
 }

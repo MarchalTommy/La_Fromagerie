@@ -9,4 +9,5 @@ data class Product(
         val type: String,
         val description: String = "",
         val allergens: List<String>? = null,
+        val isAvailable: Boolean = true
 )

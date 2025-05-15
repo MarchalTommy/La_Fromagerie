@@ -92,7 +92,6 @@ fun HomeScreen(
                         cartViewModel.saveClickedItem(it)
                         navigateToDetail.invoke()
                     },
-                    onAddClick = {},
                     onEditClick = {
                         showEditDialog = true
                         editedProduct = it
@@ -101,6 +100,20 @@ fun HomeScreen(
                         if (!hasLoadedFirstPic) {
                             hasLoadedFirstPic = true
                         }
+                    },
+                    onAvailabilityChange = {
+                        adminViewModel.updateProduct(
+                            product = it.copy(isAvailable = !it.isAvailable), onSuccess = {
+                                editedProduct = null
+                                homeViewModel.refreshProducts()
+                            }, onError = {
+                                mainViewModel.setError(
+                                    "Une erreur est survenue lors de la modification de disponibilité du produit"
+                                )
+                            }, onLoading = { isLoading ->
+                                homeViewModel.setIsLoading(isLoading)
+                            }
+                        )
                     }
                 )
             }

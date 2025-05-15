@@ -21,6 +21,8 @@ data class ProductData(
     val description: String = "",
     @SerializedName("allergens")
     val allergens: List<String>? = null,
+    @SerializedName("isAvailable")
+    val isAvailable: Boolean = true
 )
 
 fun String.toProductType(): ProductType {
@@ -36,6 +38,7 @@ fun ProductData.toProduct(): Product {
         type = this.type.name,
         description = this.description.replace("\\n", "\n"),
         allergens = this.allergens,
+        isAvailable = this.isAvailable
     )
 }
 
@@ -48,5 +51,6 @@ fun Product.toProductData(): ProductData {
         type = ProductType.valueOf(this.type),
         description = this.description.replace("\n", "\\n"),
         allergens = this.allergens,
+        isAvailable = this.isAvailable
     )
 }
