@@ -29,6 +29,7 @@ class FirestoreDatabase(
                             type = item.data?.get("e").toString().toProductType(),
                             description = item.data?.get("f").toString(),
                             allergens = item.data?.get("g") as? List<String> ?: emptyList(),
+                            isAvailable = item.data?.get("h") as? Boolean != false
                         )
                     } else {
                         ProductData(
@@ -39,6 +40,7 @@ class FirestoreDatabase(
                             type = item.data?.get("type").toString().toProductType(),
                             description = item.data?.get("description").toString(),
                             allergens = item.data?.get("allergens") as? List<String> ?: emptyList(),
+                            isAvailable = item.data?.get("available") as? Boolean != false
                         )
                     }
                 })

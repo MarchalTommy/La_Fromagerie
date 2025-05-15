@@ -27,6 +27,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -48,6 +49,8 @@ import com.bumptech.glide.Glide
 import com.bumptech.glide.load.engine.DiskCacheStrategy
 import com.bumptech.glide.load.resource.bitmap.BitmapTransitionOptions.withCrossFade
 import com.bumptech.glide.request.RequestOptions
+import com.mtdevelopment.core.model.ProductType
+import com.mtdevelopment.core.presentation.R
 import com.mtdevelopment.core.presentation.sharedModels.UiProductObject
 import com.mtdevelopment.core.util.toStringPrice
 import com.mtdevelopment.core.util.vibratePhoneClick
@@ -55,14 +58,26 @@ import com.skydoves.landscapist.ImageOptions
 import com.skydoves.landscapist.glide.GlideImage
 import kotlinx.coroutines.launch
 
+val previewItem = UiProductObject(
+    id = "awlkwdja",
+    name = "Testing Fromage",
+    priceInCents = 370,
+    imageUrl = null,
+    type = ProductType.FROMAGE,
+    description = "Un fromage",
+    allergens = listOf(),
+    quantity = 0,
+    isAvailable = true,
+)
+
 @Preview
 @Composable
 fun ProductItem(
     modifier: Modifier = Modifier,
-    product: UiProductObject? = null,
+    product: UiProductObject? = previewItem,
     onDetailClick: (UiProductObject) -> Unit = {},
-    onAddClick: () -> Unit = {},
     onEditClick: (UiProductObject) -> Unit = {},
+    onAvailabilityChange: (UiProductObject) -> Unit = {},
     isLoadingFinished: () -> Unit = {}
 ) {
 
@@ -132,7 +147,7 @@ fun ProductItem(
                     .clip(RoundedCornerShape(8.dp)),
                 imageModel = {
                     product?.imageUrl
-                        ?: com.mtdevelopment.core.presentation.R.drawable.placeholder
+                        ?: R.drawable.placeholder
                 },
                 imageOptions = ImageOptions(contentScale = ContentScale.Crop),
                 requestBuilder = {
@@ -224,6 +239,33 @@ fun ProductItem(
                     )
                 }
             }
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    modifier = Modifier,
+                    text = "Disponibilité du produit :",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Switch(
+                    modifier = Modifier,
+                    checked = product?.isAvailable == true,
+                    onCheckedChange = {
+                        vibratePhoneClick(context)
+                        product?.let {
+                            onAvailabilityChange.invoke(product)
+                        }
+                    }
+                )
+
+            }
+
         }
     }
 }

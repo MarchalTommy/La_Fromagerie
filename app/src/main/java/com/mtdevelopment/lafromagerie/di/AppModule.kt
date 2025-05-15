@@ -352,4 +352,4 @@ fun provideDataBase(application: Application): FromagerieDatabase =
         application,
         FromagerieDatabase::class.java,
         "lafromagerie_database"
-    ).fallbackToDestructiveMigration().build()
+    ).fallbackToDestructiveMigration(true).build()

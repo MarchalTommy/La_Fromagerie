@@ -50,6 +50,7 @@ import androidx.compose.ui.graphics.drawscope.Fill
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.toIntRect
@@ -324,53 +325,61 @@ fun DetailScreen(
             )
         }
 
-
-        BadgedBox(
-            modifier = Modifier
-                .align(Alignment.CenterHorizontally)
-                .padding(
-                    vertical = if (state.currentItem?.allergens.isNullOrEmpty()) {
-                        32.dp
-                    } else {
-                        8.dp
+        if (state.currentItem?.isAvailable != true) {
+            Text(
+                modifier = Modifier.padding(start = 8.dp, end = 8.dp, top = 16.dp, bottom = 8.dp),
+                text = "Ce produit est temporairement indisponible, nous faisons notre possible pour vous le ramener le plus vite possible !",
+                style = MaterialTheme.typography.titleLarge,
+                color = MaterialTheme.colorScheme.onBackground,
+                textAlign = TextAlign.Center
+            )
+        } else {
+            BadgedBox(
+                modifier = Modifier
+                    .align(Alignment.CenterHorizontally)
+                    .padding(
+                        vertical = if (state.currentItem?.allergens.isNullOrEmpty()) {
+                            32.dp
+                        } else {
+                            8.dp
+                        }
+                    )
+                    .graphicsLayer {
+                        scaleX = scaleCart.value
+                        scaleY = scaleCart.value
                     }
-                )
-                .graphicsLayer {
-                    scaleX = scaleCart.value
-                    scaleY = scaleCart.value
-                }
-                .padding(32.dp),
-            badge = {
-                if (state.cartItems?.cartItems?.find { it?.name == state.currentItem?.name } != null) {
-                    Badge(
-                        containerColor = Color.Red,
-                        contentColor = Color.White
-                    ) {
-                        val cartItemsQuantity =
-                            state.cartItems?.cartItems?.find { it?.name == state.currentItem?.name }?.quantity
-                        Text("$cartItemsQuantity")
+                    .padding(32.dp),
+                badge = {
+                    if (state.cartItems?.cartItems?.find { it?.name == state.currentItem?.name } != null) {
+                        Badge(
+                            containerColor = Color.Red,
+                            contentColor = Color.White
+                        ) {
+                            val cartItemsQuantity =
+                                state.cartItems?.cartItems?.find { it?.name == state.currentItem?.name }?.quantity
+                            Text("$cartItemsQuantity")
+                        }
                     }
                 }
-            }
-        ) {
-            Button(
-                modifier = Modifier,
-                onClick = {
-                    vibratePhoneClick(context = context)
-                    animateAddingToCart()
-                    state.currentItem?.let { viewModel.addCartObject(valueAsUiObject = it) }
-                },
-                shape = Shapes().medium
             ) {
-                Icon(imageVector = Icons.Default.ShoppingCart, contentDescription = "Cart")
+                Button(
+                    modifier = Modifier,
+                    onClick = {
+                        vibratePhoneClick(context = context)
+                        animateAddingToCart()
+                        state.currentItem?.let { viewModel.addCartObject(valueAsUiObject = it) }
+                    },
+                    shape = Shapes().medium
+                ) {
+                    Icon(imageVector = Icons.Default.ShoppingCart, contentDescription = "Cart")
 
-                Text(
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                    text = "Ajouter au panier"
-                )
+                    Text(
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        text = "Ajouter au panier"
+                    )
+                }
             }
         }
-
     }
 
     // Loading animation
