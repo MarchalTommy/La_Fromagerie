@@ -146,7 +146,6 @@ fun DeliveryOptionScreen(
             message = state.value.isError.ifBlank { "Une erreur inconnue est survenue.\nSi le problème persiste merci de nous contacter !" },
             onDismiss = {
                 deliveryViewModel.setIsError("")
-                navigateBack.invoke()
             }
         )
 

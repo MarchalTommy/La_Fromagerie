@@ -64,7 +64,12 @@ class GetAllDeliveryPathsUseCase(
                     }
 
                     onSuccess(pathsList)
-                }, onFailure
+                }, onFailure = {
+                    scope.launch {
+                        sharedDatastore.setShouldRefreshPaths(true)
+                        onFailure.invoke()
+                    }
+                }
             )
         } else {
             scope.launch {

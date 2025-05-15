@@ -1,8 +1,10 @@
 package com.mtdevelopment.delivery.data.repository
 
+import com.mtdevelopment.core.util.NetWorkResult
 import com.mtdevelopment.delivery.data.source.remote.FirestoreDataSource
 import com.mtdevelopment.delivery.data.source.remote.OpenRouteDataSource
 import com.mtdevelopment.delivery.domain.model.DeliveryPath
+import com.mtdevelopment.delivery.domain.model.GeoJsonFeatureCollection
 import com.mtdevelopment.delivery.domain.repository.AddressApiRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -64,7 +66,15 @@ class FirestorePathRepositoryImpl(
 
                             // Get GeoJson only if requested and locations are available
                             val geoJsonData = if (withGeoJson && locations.isNotEmpty()) {
-                                openRouteService.getGeoJsonForLngLatList(locations).data
+                                val result = openRouteService.getGeoJsonForLngLatList(locations)
+
+                                if (result is NetWorkResult.Error) {
+                                    onFailure.invoke()
+                                    null
+                                } else {
+                                    (result as NetWorkResult<GeoJsonFeatureCollection>).data
+                                }
+
                             } else {
                                 null // No GeoJson requested or no locations
                             }

@@ -19,7 +19,7 @@ class OpenRouteDataSource(
     private val json: Json
 ) {
 
-    suspend fun getGeoJsonForLngLatList(lngLatList: List<Pair<Double, Double>>): NetWorkResult<GeoJsonFeatureCollection> {
+    suspend fun getGeoJsonForLngLatList(lngLatList: List<Pair<Double, Double>>): NetWorkResult<Any> {
         val filteredList = lngLatList.filter { it.first != 0.0 || it.second != 0.0 }
         val listOfList = filteredList.map { pair ->
             listOf(pair.second, pair.first)
@@ -41,9 +41,14 @@ class OpenRouteDataSource(
                     )
                 )
             }
-        }.body<String?>()
-        return NetWorkResult.Success(
-            json.decodeFromString<GeoJsonFeatureCollection>(response.toString())
-        )
+        }
+        return try {
+            val result = json.decodeFromString<GeoJsonFeatureCollection>(response.body())
+            NetWorkResult.Success(
+                result
+            )
+        } catch (e: Exception) {
+            NetWorkResult.Error(response.status, e.message ?: "")
+        }
     }
 }
