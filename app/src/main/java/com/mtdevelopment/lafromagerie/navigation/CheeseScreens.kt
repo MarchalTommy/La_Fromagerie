@@ -15,6 +15,9 @@ object DetailScreenDestination
 object DeliveryOptionScreenDestination
 
 @Serializable
+object OrdersScreenDestination
+
+@Serializable
 object CheckoutScreenDestination
 
 @Serializable

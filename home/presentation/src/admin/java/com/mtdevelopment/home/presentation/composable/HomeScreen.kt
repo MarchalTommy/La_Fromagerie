@@ -11,9 +11,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -41,7 +43,8 @@ fun HomeScreen(
     cartViewModel: CartViewModel,
     shouldRefresh: Boolean,
     navigateToDetail: () -> Unit = {},
-    navigateToDelivery: () -> Unit = {}
+    navigateToDelivery: () -> Unit = {},
+    navigateToOrders: () -> Unit = {}
 ) {
     val context = LocalContext.current
 
@@ -136,6 +139,28 @@ fun HomeScreen(
             }
         ) {
             Icon(imageVector = Icons.Default.Add, contentDescription = "Add a product")
+        }
+
+        // PREPARE ORDERS BUTTON
+        ExtendedFloatingActionButton(
+            modifier = Modifier
+                .padding(32.dp)
+                .align(Alignment.BottomCenter)
+                .border(
+                    3.dp,
+                    color = MaterialTheme.colorScheme.tertiary,
+                    shape = RoundedCornerShape(16.dp)
+                ),
+            containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+            contentColor = MaterialTheme.colorScheme.tertiary,
+            onClick = {
+                navigateToOrders.invoke()
+            }
+        ) {
+            Text(
+                text = "Préparer les commandes",
+                style = MaterialTheme.typography.titleMedium
+            )
         }
 
         // NEXT SCREEN BUTTON

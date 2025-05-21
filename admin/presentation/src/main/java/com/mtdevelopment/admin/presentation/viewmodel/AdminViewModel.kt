@@ -150,6 +150,8 @@ class AdminViewModel(
                 isLoading = true
             )
 
+        }
+        viewModelScope.launch {
             getAllOrdersUseCase.invoke(onSuccess = {
                 _orderScreenState.value = _orderScreenState.value.copy(
                     orders = it ?: emptyList(),

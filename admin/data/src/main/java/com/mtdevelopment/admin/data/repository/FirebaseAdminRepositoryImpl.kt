@@ -90,11 +90,15 @@ class FirebaseAdminRepositoryImpl(
 
     override suspend fun getAllOrders(onSuccess: (List<Order>?) -> Unit) {
         firestore.getAllOrders(onSuccess = { orders ->
-            orders.map {
-                it.toOrder()
-            }
+            onSuccess.invoke(
+                orders.map {
+                    it.toOrder()
+                }
+            )
         }, onFailure = {
-            null
+            onSuccess.invoke(
+                null
+            )
         })
     }
 

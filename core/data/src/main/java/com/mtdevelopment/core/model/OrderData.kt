@@ -4,19 +4,19 @@ import androidx.annotation.Keep
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
-@Serializable
 @Keep
+@Serializable
 data class OrderData(
     @SerialName("id")
     val id: String,
     @SerialName("customer_name")
-    val customerName: String,
+    val customer_name: String,
     @SerialName("customer_address")
-    val customerAddress: String,
+    val customer_address: String,
     @SerialName("delivery_date")
-    val deliveryDate: String,
+    val delivery_date: String,
     @SerialName("order_date")
-    val orderDate: String,
+    val order_date: String,
     @SerialName("products")
     val products: Map<String, Int>,
     @SerialName("status")
@@ -26,10 +26,10 @@ data class OrderData(
 fun OrderData.toOrder(): Order {
     return Order(
         id = id,
-        customerName = customerName,
-        customerAddress = customerAddress,
-        deliveryDate = deliveryDate,
-        orderDate = orderDate,
+        customerName = customer_name,
+        customerAddress = customer_address,
+        deliveryDate = delivery_date,
+        orderDate = order_date,
         products = products,
         status = status
     )
@@ -38,10 +38,10 @@ fun OrderData.toOrder(): Order {
 fun Order.toOrderData(): OrderData {
     return OrderData(
         id = id,
-        customerName = customerName,
-        customerAddress = customerAddress,
-        deliveryDate = deliveryDate,
-        orderDate = orderDate,
+        customer_name = customerName,
+        customer_address = customerAddress,
+        delivery_date = deliveryDate,
+        order_date = orderDate,
         products = products,
         status = status
     )
