@@ -47,7 +47,8 @@ fun NavGraph(
                     navController.navigate(
                         DeliveryOptionScreenDestination
                     )
-                })
+                }
+            )
         }
 
         composable<DetailScreenDestination>(

@@ -14,11 +14,13 @@ import com.mtdevelopment.checkout.data.remote.model.Constants.ADDRESS_API_BASE_U
 import com.mtdevelopment.checkout.data.remote.model.Constants.AUTOCOMPLETE_API_BASE_URL_WITHOUT_HTTPS
 import com.mtdevelopment.checkout.data.remote.model.Constants.OPEN_ROUTE_BASE_URL_WITHOUT_HTTPS
 import com.mtdevelopment.checkout.data.remote.model.Constants.SUM_UP_BASE_URL_WITHOUT_HTTPS
+import com.mtdevelopment.checkout.data.remote.source.FirestoreOrderDataSource
 import com.mtdevelopment.checkout.data.remote.source.SumUpDataSource
 import com.mtdevelopment.checkout.data.repository.PaymentRepositoryImpl
 import com.mtdevelopment.checkout.domain.repository.CheckoutDatastorePreference
 import com.mtdevelopment.checkout.domain.repository.PaymentRepository
 import com.mtdevelopment.checkout.domain.usecase.CreateNewCheckoutUseCase
+import com.mtdevelopment.checkout.domain.usecase.CreateNewOrderUseCase
 import com.mtdevelopment.checkout.domain.usecase.CreatePaymentsClientUseCase
 import com.mtdevelopment.checkout.domain.usecase.FetchAllowedPaymentMethods
 import com.mtdevelopment.checkout.domain.usecase.GetCanUseGooglePayUseCase
@@ -27,11 +29,13 @@ import com.mtdevelopment.checkout.domain.usecase.GetIsPaymentSuccessUseCase
 import com.mtdevelopment.checkout.domain.usecase.GetIsReadyToPayUseCase
 import com.mtdevelopment.checkout.domain.usecase.GetPaymentDataRequestUseCase
 import com.mtdevelopment.checkout.domain.usecase.GetPreviouslyCreatedCheckoutUseCase
+import com.mtdevelopment.checkout.domain.usecase.GetSavedOrderUseCase
 import com.mtdevelopment.checkout.domain.usecase.ProcessSumUpCheckoutUseCase
 import com.mtdevelopment.checkout.domain.usecase.ResetCheckoutStatusUseCase
 import com.mtdevelopment.checkout.domain.usecase.SaveCheckoutReferenceUseCase
 import com.mtdevelopment.checkout.domain.usecase.SaveCreatedCheckoutUseCase
 import com.mtdevelopment.checkout.domain.usecase.SavePaymentStateUseCase
+import com.mtdevelopment.checkout.domain.usecase.UpdateOrderStatus
 import com.mtdevelopment.checkout.presentation.viewmodel.CheckoutViewModel
 import com.mtdevelopment.core.local.SharedDatastoreImpl
 import com.mtdevelopment.core.presentation.MainViewModel
@@ -51,7 +55,7 @@ import com.mtdevelopment.delivery.data.source.local.DeliveryDatabase
 import com.mtdevelopment.delivery.data.source.local.dao.DeliveryDao
 import com.mtdevelopment.delivery.data.source.remote.AddressApiDataSource
 import com.mtdevelopment.delivery.data.source.remote.AutoCompleteApiDataSource
-import com.mtdevelopment.delivery.data.source.remote.FirestoreDataSource
+import com.mtdevelopment.delivery.data.source.remote.FirestoreDeliveryDataSource
 import com.mtdevelopment.delivery.data.source.remote.OpenRouteDataSource
 import com.mtdevelopment.delivery.domain.repository.AddressApiRepository
 import com.mtdevelopment.delivery.domain.repository.FirestorePathRepository
@@ -106,7 +110,7 @@ fun appModule() = listOf(
 
 val mainAppModule = module {
     single<NetworkRepository> { NetworkRepositoryImpl(get()) }
-    single<PaymentRepository> { PaymentRepositoryImpl(get(), get()) }
+    single<PaymentRepository> { PaymentRepositoryImpl(get(), get(), get()) }
     single<AddressApiRepository> {
         AddressApiRepositoryImpl(
             get(),
@@ -155,6 +159,10 @@ val mainAppModule = module {
         )
     }
 
+    factory { CreateNewOrderUseCase(get(), get()) }
+    factory { GetSavedOrderUseCase(get()) }
+    factory { UpdateOrderStatus(get()) }
+
     factory { CreateNewCheckoutUseCase(get()) }
     factory { SaveCreatedCheckoutUseCase(get()) }
     factory { GetPreviouslyCreatedCheckoutUseCase(get()) }
@@ -196,8 +204,13 @@ val provideDatastore = module {
 val provideFirebaseDatabase = module {
     single<FirebaseFirestore> { Firebase.firestore }
     single<FirestoreDatabase> { FirestoreDatabase(get()) }
-    single<FirestoreDataSource> {
-        FirestoreDataSource(
+    single<FirestoreDeliveryDataSource> {
+        FirestoreDeliveryDataSource(
+            get()
+        )
+    }
+    single<FirestoreOrderDataSource> {
+        FirestoreOrderDataSource(
             get()
         )
     }

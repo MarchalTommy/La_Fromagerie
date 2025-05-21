@@ -34,12 +34,8 @@ android {
             dimension = "version"
         }
     }
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_1_8
-        targetCompatibility = JavaVersion.VERSION_1_8
-    }
-    kotlinOptions {
-        jvmTarget = "1.8"
+    kotlin {
+        jvmToolchain(17)
     }
 }
 
@@ -72,6 +68,7 @@ dependencies {
     testImplementation(libs.koin.test)
 
     implementation(libs.landscapist)
+    implementation(libs.rive.android)
 
 //    https://github.com/GIGAMOLE/ComposeScrollbars
     implementation(libs.scrollbar)

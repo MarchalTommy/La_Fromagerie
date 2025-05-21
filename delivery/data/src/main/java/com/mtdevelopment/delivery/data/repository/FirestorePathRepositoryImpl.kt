@@ -1,7 +1,7 @@
 package com.mtdevelopment.delivery.data.repository
 
 import com.mtdevelopment.core.util.NetWorkResult
-import com.mtdevelopment.delivery.data.source.remote.FirestoreDataSource
+import com.mtdevelopment.delivery.data.source.remote.FirestoreDeliveryDataSource
 import com.mtdevelopment.delivery.data.source.remote.OpenRouteDataSource
 import com.mtdevelopment.delivery.domain.model.DeliveryPath
 import com.mtdevelopment.delivery.domain.model.GeoJsonFeatureCollection
@@ -12,7 +12,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 
 class FirestorePathRepositoryImpl(
-    private val firestore: FirestoreDataSource,
+    private val firestore: FirestoreDeliveryDataSource,
     private val openRouteService: OpenRouteDataSource,
     private val addressApiRepository: AddressApiRepository
 ) : com.mtdevelopment.delivery.domain.repository.FirestorePathRepository {

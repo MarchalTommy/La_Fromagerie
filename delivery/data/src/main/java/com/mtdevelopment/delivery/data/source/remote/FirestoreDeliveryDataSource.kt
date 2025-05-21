@@ -1,12 +1,13 @@
 package com.mtdevelopment.delivery.data.source.remote
 
 import com.google.firebase.firestore.FirebaseFirestore
+import com.mtdevelopment.delivery.data.model.response.firestore.DataDeliveryPathsResponse
 
-class FirestoreDataSource(
+class FirestoreDeliveryDataSource(
     private val firestore: FirebaseFirestore
 ) {
     fun getAllDeliveryPaths(
-        onSuccess: (List<com.mtdevelopment.delivery.data.model.response.firestore.DataDeliveryPathsResponse>) -> Unit,
+        onSuccess: (List<DataDeliveryPathsResponse>) -> Unit,
         onFailure: () -> Unit
     ) {
         firestore.collection("delivery_paths")
@@ -16,7 +17,7 @@ class FirestoreDataSource(
             }
             .addOnSuccessListener {
                 onSuccess.invoke(it.documents.map { item ->
-                    com.mtdevelopment.delivery.data.model.response.firestore.DataDeliveryPathsResponse(
+                    DataDeliveryPathsResponse(
                         id = item.id,
                         path_name = item.data?.get("path_name").toString(),
                         cities = item.data?.get("cities") as? List<String>,
@@ -30,7 +31,7 @@ class FirestoreDataSource(
 
     fun getDeliveryPath(
         pathName: String,
-        onSuccess: (com.mtdevelopment.delivery.data.model.response.firestore.DataDeliveryPathsResponse) -> Unit,
+        onSuccess: (DataDeliveryPathsResponse) -> Unit,
         onFailure: () -> Unit
     ) {
         firestore.collection("delivery_paths")
@@ -41,7 +42,7 @@ class FirestoreDataSource(
             }
             .addOnSuccessListener {
                 onSuccess.invoke(
-                    com.mtdevelopment.delivery.data.model.response.firestore.DataDeliveryPathsResponse(
+                    DataDeliveryPathsResponse(
                         id = it.documents[0].id,
                         path_name = it.documents[0].data?.get("path_name").toString(),
                         cities = it.documents[0].data?.get("cities") as? List<String>,

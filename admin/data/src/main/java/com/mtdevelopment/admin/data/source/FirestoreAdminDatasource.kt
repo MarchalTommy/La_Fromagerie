@@ -5,6 +5,8 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
 import com.mtdevelopment.admin.data.model.DataDeliveryPath
+import com.mtdevelopment.core.model.OrderData
+import com.mtdevelopment.core.model.OrderStatus
 import com.mtdevelopment.core.model.ProductData
 import kotlinx.coroutines.tasks.await
 import java.time.Instant
@@ -130,5 +132,33 @@ class FirestoreAdminDatasource(
         } catch (e: Exception) {
             Result.failure(e)
         }
+    }
+
+    ///////////////////////////////////////////////////////////////////////////
+    // ORDERS
+    ///////////////////////////////////////////////////////////////////////////
+    fun getAllOrders(
+        onSuccess: (List<OrderData>) -> Unit,
+        onFailure: () -> Unit
+    ) {
+        firestore.collection("orders")
+            .get()
+            .addOnFailureListener {
+                onFailure.invoke()
+            }
+            .addOnSuccessListener {
+                onSuccess.invoke(it.documents.map { item ->
+                    OrderData(
+                        id = item.id,
+                        customer_name = item.data?.get("customer_name").toString(),
+                        customer_address = item.data?.get("customer_address").toString(),
+                        delivery_date = item.data?.get("delivery_date").toString(),
+                        order_date = item.data?.get("order_date").toString(),
+                        products = item.data?.get("products") as? Map<String, Int>
+                            ?: emptyMap(),
+                        status = OrderStatus.valueOf(item.data?.get("status").toString())
+                    )
+                })
+            }
     }
 }

@@ -13,5 +13,6 @@ data class PaymentScreenState(
     val cartItems: CartItems? = null,
     val totalPrice: Long? = null,
     val deliveryDate: Long? = null,
-    val checkoutResult: NewCheckoutResult? = null
+    val checkoutResult: NewCheckoutResult? = null,
+    var orderId: String? = null
 )

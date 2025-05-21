@@ -4,6 +4,8 @@ import com.mtdevelopment.admin.data.model.toDataDeliveryPath
 import com.mtdevelopment.admin.data.source.FirestoreAdminDatasource
 import com.mtdevelopment.admin.domain.repository.FirebaseAdminRepository
 import com.mtdevelopment.core.model.DeliveryPath
+import com.mtdevelopment.core.model.Order
+import com.mtdevelopment.core.model.toOrder
 import com.mtdevelopment.core.model.toProductData
 
 class FirebaseAdminRepositoryImpl(
@@ -80,6 +82,24 @@ class FirebaseAdminRepositoryImpl(
         }
 
         return finalResult ?: result
+    }
+
+    ///////////////////////////////////////////////////////////////////////////
+    // ORDERS
+    ///////////////////////////////////////////////////////////////////////////
+
+    override suspend fun getAllOrders(onSuccess: (List<Order>?) -> Unit) {
+        firestore.getAllOrders(onSuccess = { orders ->
+            onSuccess.invoke(
+                orders.map {
+                    it.toOrder()
+                }
+            )
+        }, onFailure = {
+            onSuccess.invoke(
+                null
+            )
+        })
     }
 
     ///////////////////////////////////////////////////////////////////////////

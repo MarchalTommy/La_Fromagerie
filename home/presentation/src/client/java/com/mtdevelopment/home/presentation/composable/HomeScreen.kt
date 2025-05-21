@@ -48,7 +48,8 @@ fun HomeScreen(
     cartViewModel: CartViewModel,
     shouldRefresh: Boolean,
     navigateToDetail: () -> Unit = {},
-    navigateToDelivery: () -> Unit = {}
+    navigateToDelivery: () -> Unit = {},
+    navigateToOrders: () -> Unit = {}
 ) {
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current

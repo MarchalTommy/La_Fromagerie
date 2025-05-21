@@ -13,11 +13,15 @@ import com.mtdevelopment.checkout.data.remote.model.request.ProcessCheckoutReque
 import com.mtdevelopment.checkout.data.remote.model.request.toPaymentData
 import com.mtdevelopment.checkout.data.remote.model.response.sumUp.toNewCheckoutResult
 import com.mtdevelopment.checkout.data.remote.model.response.sumUp.toProcessCheckoutResult
+import com.mtdevelopment.checkout.data.remote.source.FirestoreOrderDataSource
 import com.mtdevelopment.checkout.data.remote.source.SumUpDataSource
 import com.mtdevelopment.checkout.domain.model.GooglePayData
 import com.mtdevelopment.checkout.domain.model.NewCheckoutResult
 import com.mtdevelopment.checkout.domain.model.ProcessCheckoutResult
 import com.mtdevelopment.checkout.domain.repository.PaymentRepository
+import com.mtdevelopment.core.model.Order
+import com.mtdevelopment.core.model.OrderStatus
+import com.mtdevelopment.core.model.toOrderData
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.transform
 import kotlinx.coroutines.tasks.await
@@ -30,6 +34,7 @@ import java.math.RoundingMode
 class PaymentRepositoryImpl(
     private val context: Context,
     private val sumUpDataSource: SumUpDataSource,
+    private val firestoreOrderDataSource: FirestoreOrderDataSource,
 //    private val datastore: CheckoutDatastorePreferenceImpl
 ) : PaymentRepository {
 
@@ -169,4 +174,19 @@ class PaymentRepositoryImpl(
             )
         ).transform { value -> value.data?.toProcessCheckoutResult() }
     }
+
+    ///////////////////////////////////////////////////////////////////////////
+    // ORDERS
+    ///////////////////////////////////////////////////////////////////////////
+    override suspend fun createFirestoreOrder(order: Order): Result<Unit> {
+        return firestoreOrderDataSource.createOrder(order.toOrderData())
+    }
+
+    override suspend fun updateFirestoreOrderStatus(
+        orderId: String,
+        newStatus: OrderStatus
+    ): Result<Unit> {
+        return firestoreOrderDataSource.updateOrder(orderId = orderId, newStatus = newStatus)
+    }
+
 }
