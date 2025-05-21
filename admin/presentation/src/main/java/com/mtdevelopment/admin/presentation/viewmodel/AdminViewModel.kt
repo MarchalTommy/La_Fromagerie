@@ -7,12 +7,16 @@ import com.mtdevelopment.admin.domain.usecase.AddNewPathUseCase
 import com.mtdevelopment.admin.domain.usecase.AddNewProductUseCase
 import com.mtdevelopment.admin.domain.usecase.DeletePathUseCase
 import com.mtdevelopment.admin.domain.usecase.DeleteProductUseCase
+import com.mtdevelopment.admin.domain.usecase.GetAllOrdersUseCase
 import com.mtdevelopment.admin.domain.usecase.UpdateDeliveryPathUseCase
 import com.mtdevelopment.admin.domain.usecase.UpdateProductUseCase
 import com.mtdevelopment.admin.domain.usecase.UploadImageUseCase
+import com.mtdevelopment.admin.presentation.model.OrderScreenState
 import com.mtdevelopment.core.model.DeliveryPath
 import com.mtdevelopment.core.presentation.sharedModels.UiProductObject
 import com.mtdevelopment.core.presentation.sharedModels.toDomainProduct
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import org.koin.core.component.KoinComponent
 
@@ -23,8 +27,15 @@ class AdminViewModel(
     private val updateDeliveryPathUseCase: UpdateDeliveryPathUseCase,
     private val deleteDeliveryPathUseCase: DeletePathUseCase,
     private val addNewDeliveryPathUseCase: AddNewPathUseCase,
-    private val uploadImageUseCase: UploadImageUseCase
+    private val getAllOrdersUseCase: GetAllOrdersUseCase,
+    private val uploadImageUseCase: UploadImageUseCase,
 ) : ViewModel(), KoinComponent {
+
+    ///////////////////////////////////////////////////////////////////////////
+    // States
+    ///////////////////////////////////////////////////////////////////////////
+    private val _orderScreenState = MutableStateFlow(OrderScreenState())
+    val orderScreenState = _orderScreenState.asStateFlow()
 
     ///////////////////////////////////////////////////////////////////////////
     // Products
@@ -125,6 +136,26 @@ class AdminViewModel(
                 onSuccess.invoke()
             }, onError = {
                 onFailure.invoke()
+            })
+        }
+    }
+
+    ///////////////////////////////////////////////////////////////////////////
+    // Orders
+    ///////////////////////////////////////////////////////////////////////////
+
+    fun getAllOrders() {
+        viewModelScope.launch {
+            _orderScreenState.value = _orderScreenState.value.copy(
+                isLoading = true
+            )
+
+            getAllOrdersUseCase.invoke(onSuccess = {
+                _orderScreenState.value = _orderScreenState.value.copy(
+                    orders = it ?: emptyList(),
+                    error = if (it == null) "Error fetching orders" else null,
+                    isLoading = false
+                )
             })
         }
     }

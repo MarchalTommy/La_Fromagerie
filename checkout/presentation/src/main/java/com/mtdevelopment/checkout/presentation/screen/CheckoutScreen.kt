@@ -204,48 +204,59 @@ fun CheckoutScreen(
             fontSize = 26.sp
         )
 
+        // TODO: DEBUG dELIVERY PATH, CAN'T TEST BECAUSE EVERYTHING SEEMS TOO FAR ?
         PayButton(
             modifier = Modifier
                 .testTag("payButton")
                 .fillMaxWidth()
                 .padding(horizontal = 32.dp, vertical = 16.dp),
             onClick = {
+                checkoutViewModel.createOrder() { isSuccess ->
+                    if (isSuccess) {
 //                checkoutViewModel.createCheckout {
-                uiData.value.totalPrice?.let { price ->
-                    val task = checkoutViewModel.getLoadPaymentDataTask(price)
-                    task.addOnCompleteListener { completedTask ->
-                        if (completedTask.isSuccessful) {
-                            completedTask.result.let {
-                                Log.i("Google Pay result", it.toJson())
-                                checkoutViewModel.setGooglePaySuccess(true)
-                            }
-                        } else {
-                            when (val exception = completedTask.exception) {
-                                is ResolvableApiException -> {
-                                    googlePayLauncher.launch(
-                                        IntentSenderRequest.Builder(exception.resolution).build()
-                                    )
-                                }
+                        uiData.value.totalPrice?.let { price ->
+                            val task = checkoutViewModel.getLoadPaymentDataTask(price)
+                            task.addOnCompleteListener { completedTask ->
+                                if (completedTask.isSuccessful) {
+                                    completedTask.result.let {
+                                        Log.i("Google Pay result", it.toJson())
+                                        checkoutViewModel.setGooglePaySuccess(true)
+                                    }
+                                } else {
+                                    when (val exception = completedTask.exception) {
+                                        is ResolvableApiException -> {
+                                            googlePayLauncher.launch(
+                                                IntentSenderRequest.Builder(exception.resolution)
+                                                    .build()
+                                            )
+                                        }
 
-                                is ApiException -> {
-                                    Log.e(
-                                        "Google Pay API error",
-                                        "Error code: ${exception.statusCode}, Message: ${exception.message}"
-                                    )
-                                }
+                                        is ApiException -> {
+                                            Log.e(
+                                                "Google Pay API error",
+                                                "Error code: ${exception.statusCode}, Message: ${exception.message}"
+                                            )
+                                        }
 
-                                else -> {
-                                    Log.e("Google Pay API error", "Unexpected non API exception")
+                                        else -> {
+                                            Log.e(
+                                                "Google Pay API error",
+                                                "Unexpected non API exception"
+                                            )
+                                        }
+                                    }
                                 }
                             }
+
                         }
-                    }
-
-                }
-                    ?: run {
-                        onPricingError()
-                    }
+                            ?: run {
+                                onPricingError()
+                            }
 //                }
+                    } else {
+                        checkoutViewModel.setPaymentError("Une erreur est survenue lors de la création de la commande.\nMerci de réessayer ultérieurement et de contacter nos équipes si le problème persiste !")
+                    }
+                }
             },
             allowedPaymentMethods = checkoutViewModel.allowedPaymentMethods,
             enabled = uiData.value.isGooglePayAvailable

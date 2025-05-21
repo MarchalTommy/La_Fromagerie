@@ -12,6 +12,10 @@ import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.mtdevelopment.checkout.domain.model.NewCheckoutResult
 import com.mtdevelopment.checkout.domain.repository.CheckoutDatastorePreference
+import com.mtdevelopment.core.model.Order
+import com.mtdevelopment.core.model.OrderData
+import com.mtdevelopment.core.model.toOrder
+import com.mtdevelopment.core.model.toOrderData
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.encodeToString
@@ -107,6 +111,19 @@ class CheckoutDatastorePreferenceImpl(private val context: Context) : CheckoutDa
     override suspend fun resetCheckoutStatus() {
         context.dataStore.edit {
             it.remove(IS_CHECKOUT_SUCCESS)
+        }
+    }
+
+    private val ORDER_ITEM = stringPreferencesKey("ORDER_ITEM")
+    override val orderFlow: Flow<Order?>
+        get() = context.dataStore.data.map { preferences ->
+            (Json.decodeFromString(preferences[ORDER_ITEM] ?: "") as OrderData?)?.toOrder()
+        }
+
+
+    override suspend fun saveOrder(order: Order) {
+        context.dataStore.edit { settings ->
+            settings[ORDER_ITEM] = Json.encodeToString(order.toOrderData())
         }
     }
 }

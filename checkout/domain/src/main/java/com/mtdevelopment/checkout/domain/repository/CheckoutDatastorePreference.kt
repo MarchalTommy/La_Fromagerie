@@ -1,6 +1,7 @@
 package com.mtdevelopment.checkout.domain.repository
 
 import com.mtdevelopment.checkout.domain.model.NewCheckoutResult
+import com.mtdevelopment.core.model.Order
 import kotlinx.coroutines.flow.Flow
 
 
@@ -32,4 +33,7 @@ interface CheckoutDatastorePreference {
 
     suspend fun resetCheckoutStatus()
 
+    val orderFlow: Flow<Order?>
+
+    suspend fun saveOrder(order: Order)
 }

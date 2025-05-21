@@ -8,8 +8,10 @@ import com.google.android.gms.tasks.Task
 import com.google.android.gms.wallet.PaymentData
 import com.google.android.gms.wallet.PaymentDataRequest
 import com.google.android.gms.wallet.PaymentsClient
+import com.google.firebase.Timestamp
 import com.google.firebase.crashlytics.FirebaseCrashlytics
 import com.mtdevelopment.checkout.domain.usecase.CreateNewCheckoutUseCase
+import com.mtdevelopment.checkout.domain.usecase.CreateNewOrderUseCase
 import com.mtdevelopment.checkout.domain.usecase.CreatePaymentsClientUseCase
 import com.mtdevelopment.checkout.domain.usecase.FetchAllowedPaymentMethods
 import com.mtdevelopment.checkout.domain.usecase.GetCanUseGooglePayUseCase
@@ -17,19 +19,25 @@ import com.mtdevelopment.checkout.domain.usecase.GetCheckoutDataUseCase
 import com.mtdevelopment.checkout.domain.usecase.GetIsPaymentSuccessUseCase
 import com.mtdevelopment.checkout.domain.usecase.GetPaymentDataRequestUseCase
 import com.mtdevelopment.checkout.domain.usecase.GetPreviouslyCreatedCheckoutUseCase
+import com.mtdevelopment.checkout.domain.usecase.GetSavedOrderUseCase
 import com.mtdevelopment.checkout.domain.usecase.ProcessSumUpCheckoutUseCase
 import com.mtdevelopment.checkout.domain.usecase.ResetCheckoutStatusUseCase
 import com.mtdevelopment.checkout.domain.usecase.SaveCheckoutReferenceUseCase
 import com.mtdevelopment.checkout.domain.usecase.SaveCreatedCheckoutUseCase
 import com.mtdevelopment.checkout.domain.usecase.SavePaymentStateUseCase
+import com.mtdevelopment.checkout.domain.usecase.UpdateOrderStatus
 import com.mtdevelopment.checkout.presentation.model.PaymentScreenState
+import com.mtdevelopment.core.model.Order
+import com.mtdevelopment.core.model.OrderStatus
 import com.mtdevelopment.core.usecase.ClearCartUseCase
 import com.mtdevelopment.core.usecase.GetIsNetworkConnectedUseCase
+import com.mtdevelopment.core.util.toStringDate
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
@@ -38,6 +46,7 @@ import kotlinx.serialization.json.Json
 import org.json.JSONException
 import org.json.JSONObject
 import org.koin.core.component.KoinComponent
+import java.util.Locale
 
 class CheckoutViewModel(
     getIsConnectedUseCase: GetIsNetworkConnectedUseCase,
@@ -55,7 +64,10 @@ class CheckoutViewModel(
     private val savePaymentStateUseCase: SavePaymentStateUseCase,
     private val getIsPaymentSuccessUseCase: GetIsPaymentSuccessUseCase,
     private val clearCartUseCase: ClearCartUseCase,
-    private val resetCheckoutStatusUseCase: ResetCheckoutStatusUseCase
+    private val resetCheckoutStatusUseCase: ResetCheckoutStatusUseCase,
+    private val createNewOrderUseCase: CreateNewOrderUseCase,
+    private val updateOrderStatus: UpdateOrderStatus,
+    private val getSavedOrderUseCase: GetSavedOrderUseCase
 ) : ViewModel(), KoinComponent {
 
     val isConnected: StateFlow<Boolean> = getIsConnectedUseCase.invoke().stateIn(
@@ -290,9 +302,6 @@ class CheckoutViewModel(
             // Token will be null if PaymentDataRequest was not constructed using fromJson(String).
             val paymentMethodData =
                 JSONObject(paymentInformation).getJSONObject("paymentMethodData")
-//            // TODO : As shipping is mandatory here, we need to verify and cancel the order if the
-//            //  shipping selected here is NOT available for delivery or selected delivery date
-//
 //            // TODO : CHECK LEGALLY if I can NOT ask for billing Address
 //            val shippingName = JSONObject(paymentInformation)
 //                .getJSONObject("shippingAddress").getString("name")
@@ -334,8 +343,47 @@ class CheckoutViewModel(
 
     fun resetAppStateAfterSuccess() {
         viewModelScope.launch {
+            updateOrderStatus.invoke(
+                orderId = getSavedOrderUseCase.invoke().first().id,
+                newStatus = OrderStatus.PAID
+            )
             clearCartUseCase.invoke()
             resetPaymentState()
+        }
+    }
+
+    fun createOrder(isSuccess: (Boolean) -> Unit) {
+        val cleanName =
+            _paymentScreenState.value.buyerName?.trim()?.replace(" ", "_")
+                ?.lowercase(Locale.getDefault())
+        val orderId = "${cleanName}#${
+            Timestamp.now().toInstant().toEpochMilli()
+        }"
+        _paymentScreenState.update {
+            it.copy(
+                orderId = orderId
+            )
+        }
+
+        val orderProduct = mutableMapOf<String, Int>()
+        _paymentScreenState.value.cartItems?.cartItems?.forEach {
+            orderProduct[it?.name ?: ""] = it?.quantity ?: 0
+        }
+
+        viewModelScope.launch {
+            isSuccess.invoke(
+                createNewOrderUseCase.invoke(
+                    Order(
+                        id = orderId,
+                        customerName = _paymentScreenState.value.buyerName.toString(),
+                        customerAddress = _paymentScreenState.value.buyerAddress.toString(),
+                        deliveryDate = _paymentScreenState.value.deliveryDate?.toStringDate() ?: "",
+                        orderDate = Timestamp.now().toDate().time.toStringDate(),
+                        products = orderProduct,
+                        status = OrderStatus.PENDING
+                    )
+                )
+            )
         }
     }
 

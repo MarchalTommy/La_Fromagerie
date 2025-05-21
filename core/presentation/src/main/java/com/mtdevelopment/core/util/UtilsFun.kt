@@ -53,6 +53,24 @@ fun String.toLongPrice(): Long {
     return (this.replace("€", "").replace(",", ".").trim().toDouble() * 100).toLong()
 }
 
+private val DATE_FORMATTER_DDMMYYYY: java.time.format.DateTimeFormatter =
+    java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy")
+        .withZone(java.time.ZoneId.systemDefault())
+
+fun String.toTimeStamp(): Long {
+    return try {
+        val localDate = java.time.LocalDate.parse(this, DATE_FORMATTER_DDMMYYYY)
+        localDate.atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
+    } catch (e: Exception) {
+        0L // Retourne 0 ou une valeur par défaut en cas d'erreur de parsing
+    }
+}
+
+fun Long.toStringDate(): String {
+    val instant = java.time.Instant.ofEpochMilli(this)
+    return DATE_FORMATTER_DDMMYYYY.format(instant)
+}
+
 // Fonction utilitaire pour calculer la distance (utilise l'API Location d'Android)
 fun calculateDistance(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Float {
     val results = FloatArray(1)

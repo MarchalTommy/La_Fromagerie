@@ -72,6 +72,7 @@ dependencies {
     testImplementation(libs.koin.test)
 
     implementation(libs.landscapist)
+    implementation(libs.rive.android)
 
 //    https://github.com/GIGAMOLE/ComposeScrollbars
     implementation(libs.scrollbar)

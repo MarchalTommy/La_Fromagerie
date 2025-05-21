@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -26,26 +27,47 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.unit.dp
-import com.mtdevelopment.admin.presentation.model.ClientOrder
+import com.mtdevelopment.admin.presentation.viewmodel.AdminViewModel
+import com.mtdevelopment.core.model.Order
 import com.mtdevelopment.core.model.Product
+import com.mtdevelopment.core.presentation.composable.ErrorOverlay
+import com.mtdevelopment.core.presentation.composable.RiveAnimation
+import com.mtdevelopment.core.util.koinViewModel
 
 @Composable
 fun OrderPreparationScreen(
-
     modifier: Modifier = Modifier,
 ) {
-    // TODO: Screen here
+    val viewModel = koinViewModel<AdminViewModel>()
+    val state = viewModel.orderScreenState.collectAsState()
+
+    OrderPreparationList(
+        orders = state.value.orders
+    )
+
+    RiveAnimation(
+        isLoading = state.value.isLoading,
+        modifier = Modifier.fillMaxSize(),
+        contentDescription = "Loading animation"
+    )
+
+    ErrorOverlay(
+        isShown = state.value.error != null,
+        message = state.value.error,
+    )
+
 }
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun OrderPreparationList(
-    orders: List<ClientOrder>
+    orders: List<Order>
 ) {
     val nextDeliveryDates = orders.map { it.deliveryDate }.sortedDescending().toSet()
     val ordersByDeliveryDate = orders.groupBy { it.deliveryDate }
@@ -59,9 +81,9 @@ fun OrderPreparationList(
 
                 // This is the way to get a good final map like {Beurre=4, Banane=13, Fromage=2, Lait=1}
                 // Doing it here and using the ordersByDeliveryDate allows us to only show the orders dedicated to this date.
-                val quantityForProducts: Map<Product, Int> =
+                val quantityForProducts: Map<String, Int> =
                     ordersByDeliveryDate[deliveryDate]!!.fold(mutableMapOf()) { accumulator, currentMap ->
-                        currentMap.quantityPerProducts.forEach { (product, quantity) ->
+                        currentMap.products.forEach { (product, quantity) ->
                             accumulator.merge(product, quantity, Int::plus)
                         }
                         accumulator
