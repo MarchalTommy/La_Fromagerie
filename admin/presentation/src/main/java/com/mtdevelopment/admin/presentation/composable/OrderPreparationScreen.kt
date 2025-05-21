@@ -94,7 +94,6 @@ fun OrderPreparationList(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 16.dp)
                             .background(color = MaterialTheme.colorScheme.secondary)
                     ) {
                         Text(
@@ -109,7 +108,21 @@ fun OrderPreparationList(
                 }
 
                 items(items = quantityForProducts.toList()) { item ->
+                    val modifier = when {
+                        quantityForProducts.toList().size == 1 ->
+                            Modifier.padding(vertical = 16.dp)
+
+                        quantityForProducts.toList().indexOf(item) == 0 ->
+                            Modifier.padding(top = 16.dp)
+
+                        quantityForProducts.toList()
+                            .indexOf(item) == quantityForProducts.toList().size - 1 ->
+                            Modifier.padding(bottom = 16.dp)
+
+                        else -> Modifier
+                    }
                     OrderPreparationListItem(
+                        modifier = modifier,
                         product = item.first,
                         quantity = item.second,
                         itemsPerClients = ordersByDeliveryDate[deliveryDate] ?: listOf(),
@@ -122,6 +135,7 @@ fun OrderPreparationList(
 
 @Composable
 fun OrderPreparationListItem(
+    modifier: Modifier = Modifier,
     product: String,
     quantity: Int,
     itemsPerClients: List<Order>,
@@ -150,7 +164,7 @@ fun OrderPreparationListItem(
     )
 
     Card(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 4.dp),
         shape = MaterialTheme.shapes.medium,
