@@ -1,6 +1,7 @@
 package com.mtdevelopment.delivery.presentation.composable
 
 import android.content.Context
+import android.content.Intent
 import android.location.Address
 import android.location.Geocoder
 import android.os.Build
@@ -37,6 +38,8 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.core.net.toUri
+import com.mtdevelopment.core.presentation.composable.ErrorOverlay
 import com.mtdevelopment.core.util.calculateDistance
 import com.mtdevelopment.delivery.domain.model.AutoCompleteSuggestion
 import com.mtdevelopment.delivery.presentation.model.UiDeliveryPath
@@ -110,9 +113,21 @@ fun CustomerContent(
 
         Spacer(modifier = Modifier.height(32.dp))
 
+        if (state.value.addressSearchQuery.isBlank() || state.value.userNameFieldText.isBlank()) {
+            Text(
+                modifier = Modifier
+                    .padding(bottom = 8.dp, start = 16.dp, end = 16.dp)
+                    .fillMaxWidth(),
+                text = "Veuillez remplir les champs ci-dessous pour continuer.",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.error,
+                textAlign = TextAlign.Center
+            )
+        }
+
         UserInfoComposable(
             fieldText = state.value.userNameFieldText,
-            label = "Nom complet",
+            label = "Nom et prénom",
             imeAction = ImeAction.Next,
             focusRequester = focusRequester,
             focusManager = focusManager,
@@ -159,8 +174,6 @@ fun CustomerContent(
                 if (suggestion != null) {
                     deliveryViewModel.onSuggestionSelected(suggestion)
                 } else {
-                    deliveryViewModel.setAddressesSuggestions(emptyList())
-                    deliveryViewModel.setShowAddressesSuggestions(false)
                     deliveryViewModel.setAddressFieldText(string)
                 }
 
@@ -191,7 +204,7 @@ fun CustomerContent(
         if (state.value.localisationSuccess || state.value.selectedPath != null || state.value.userLocationOnPath || state.value.addressSearchQuery != "") {
             LocalisationTextComposable(
                 selectedPath = state.value.selectedPath,
-                geolocIsOnPath = state.value.userLocationOnPath,
+                geolocIsOnPath = state.value.userLocationOnPath && state.value.localisationSuccess,
                 canAskForDelivery = state.value.userLocationCloseFromPath,
                 userCity = state.value.userCity
             )
@@ -221,48 +234,101 @@ fun CustomerContent(
             )
         }
 
-        if (!isButtonEnabled) {
-            Text(
-                modifier = Modifier
-                    .padding(top = 8.dp, start = 16.dp, end = 16.dp)
-                    .fillMaxWidth(),
-                text = "Veuillez remplir les champs ci-dessus pour continuer.",
-                style = MaterialTheme.typography.displaySmall,
-                color = MaterialTheme.colorScheme.onBackground,
-                textAlign = TextAlign.Center
-            )
+        when {
+            state.value.userLocationCloseFromPath -> {
+                Button(
+                    modifier = Modifier
+                        .align(Alignment.CenterHorizontally)
+                        .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 16.dp),
+                    contentPadding = PaddingValues(16.dp),
+                    border = BorderStroke(
+                        width = 2.dp,
+                        MaterialTheme.colorScheme.secondary
+                    ),
+                    colors = ButtonColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.secondary,
+                        disabledContainerColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        disabledContentColor = MaterialTheme.colorScheme.onSurface
+                    ),
+                    elevation = ButtonDefaults.elevatedButtonElevation(),
+                    shape = RoundedCornerShape(8.dp),
+                    onClick = {
+                        val emailIntent =
+                            Intent(Intent.ACTION_SENDTO).apply {
+                                data = "mailto:".toUri()
+                                putExtra(
+                                    Intent.EXTRA_EMAIL,
+                                    arrayOf("marchal.gilles25560@gmail.com")
+                                )
+                                putExtra(
+                                    Intent.EXTRA_SUBJECT,
+                                    "Demande d'ajout aux livraisons"
+                                )
+                                putExtra(
+                                    Intent.EXTRA_TEXT,
+                                    "Bonjour Mr. Marchal.\n\nJ'habite à une " +
+                                            "adresse proche d'un de vos points de livraison et j'aurais aimé être livré aussi. " +
+                                            "\nEst-ce possible pour vous d'ajouter ${state.value.userCity} à une de vos livraison ?" +
+                                            "\n\nMerci d'avance !"
+                                )
+                            }
+
+                        try {
+                            context.startActivity(emailIntent)
+                        } catch (e: android.content.ActivityNotFoundException) {
+                            deliveryViewModel.setIsError("Aucune application de messagerie n'a été trouvée.")
+                        }
+                    }
+                ) {
+                    Text("Demander une prise en charge")
+                }
+            }
+
+
+            state.value.selectedPath != null -> {
+                Button(
+                    modifier = Modifier
+                        .align(Alignment.CenterHorizontally)
+                        .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 16.dp),
+                    contentPadding = PaddingValues(16.dp),
+                    border = BorderStroke(
+                        width = 2.dp,
+                        color = if (isButtonEnabled) {
+                            MaterialTheme.colorScheme.secondary
+                        } else {
+                            MaterialTheme.colorScheme.inverseSurface
+                        }
+                    ),
+                    colors = ButtonColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.secondary,
+                        disabledContainerColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        disabledContentColor = MaterialTheme.colorScheme.onSurface
+                    ),
+                    elevation = ButtonDefaults.elevatedButtonElevation(),
+                    shape = RoundedCornerShape(8.dp),
+                    enabled = isButtonEnabled,
+                    onClick = {
+                        deliveryViewModel.saveUserInfo(onError = {
+                            onError.invoke("Erreur lors de la sauvegarde des informations")
+                        })
+                        navigateToCheckout.invoke()
+                    }
+                ) {
+                    Text("Valider et passer au paiement")
+                }
+            }
+
+            else -> {}
         }
 
-        Button(
-            modifier = Modifier
-                .align(Alignment.CenterHorizontally)
-                .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 16.dp),
-            contentPadding = PaddingValues(16.dp),
-            border = BorderStroke(
-                width = 2.dp,
-                color = if (isButtonEnabled) {
-                    MaterialTheme.colorScheme.secondary
-                } else {
-                    MaterialTheme.colorScheme.inverseSurface
-                }
-            ),
-            colors = ButtonColors(
-                containerColor = MaterialTheme.colorScheme.primaryContainer,
-                contentColor = MaterialTheme.colorScheme.secondary,
-                disabledContainerColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                disabledContentColor = MaterialTheme.colorScheme.onSurface
-            ),
-            elevation = ButtonDefaults.elevatedButtonElevation(),
-            shape = RoundedCornerShape(8.dp),
-            enabled = isButtonEnabled,
-            onClick = {
-                deliveryViewModel.saveUserInfo(onError = {
-                    onError.invoke("Erreur lors de la sauvegarde des informations")
-                })
-                navigateToCheckout.invoke()
-            }) {
-            Text("Valider et passer au paiement")
-        }
+        ErrorOverlay(
+            isShown = state.value.isError.isNotBlank(),
+            duration = 3000L,
+            message = state.value.isError,
+        )
+
     }
 }
 

@@ -57,6 +57,9 @@ class DeliveryViewModel(
         }
     }
 
+    ///////////////////////////////////////////////////////////////////////////
+    // ADMIN
+    ///////////////////////////////////////////////////////////////////////////
     fun loadAdminData(forceRefresh: Boolean = false) {
         viewModelScope.launch {
             getAllDeliveryPaths(forceRefresh = forceRefresh, withGeoJson = true)
@@ -91,6 +94,9 @@ class DeliveryViewModel(
         }
     }
 
+    ///////////////////////////////////////////////////////////////////////////
+    // CLIENT
+    ///////////////////////////////////////////////////////////////////////////
     fun loadClientData() {
         viewModelScope.launch {
             getAllDeliveryPaths()
@@ -194,7 +200,7 @@ class DeliveryViewModel(
             } catch (e: Exception) {
                 setShowAddressesSuggestions(false)
                 setAddressesSuggestions(emptyList())
-                // Loggez l'erreur ou affichez un message à l'utilisateur
+                // Afficher un message à l'utilisateur
                 println("Erreur lors de la récupération des suggestions: ${e.message}")
             } finally {
                 setAddressesSuggestionsLoading(false)
@@ -203,9 +209,7 @@ class DeliveryViewModel(
     }
 
     fun onSuggestionSelected(suggestion: AutoCompleteSuggestion) {
-        suggestion.fulltext?.let { setAddressQuery(it) }
-        setAddressesSuggestions(emptyList())
-        setShowAddressesSuggestions(false)
+        suggestion.fulltext?.let { setAddressQuerySelected(it) }
 
         if (suggestion.lat != null && suggestion.lat != 0.0) {
             updateUserCityLocation(Pair(suggestion.lat ?: 0.0, suggestion.long ?: 0.0))
@@ -241,8 +245,12 @@ class DeliveryViewModel(
         deliveryUiDataState = deliveryUiDataState.copy(isLoading = isLoading)
     }
 
-    fun setAddressQuery(query: String) {
+    fun setAddressQuerySelected(query: String) {
         deliveryUiDataState = deliveryUiDataState.copy(addressSearchQuery = query)
+        _searchQuery.value = ""
+        setAddressesSuggestions(emptyList())
+        setShowAddressesSuggestions(false)
+        updateLocalisationState(false)
     }
 
     fun setAddressesSuggestions(suggestions: List<AutoCompleteSuggestion>) {
