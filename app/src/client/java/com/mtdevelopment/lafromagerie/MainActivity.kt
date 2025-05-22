@@ -214,7 +214,7 @@ class MainActivity : ComponentActivity() {
                                     modifier = Modifier.size(64.dp),
                                     onClick = {
                                         mainViewModel.setError(
-                                            "Pas encore implémenté ! Un peu de patience :)",
+                                            "Cette fonctionnalité viendra plus tard ! Un peu de patience :)",
                                             actionLabel = "Je comprends",
                                             action = { mainViewModel.clearError() })
 //                                        TODO("Navigate To Notifications Screen, or Open a Modal Sheet with notifications")
