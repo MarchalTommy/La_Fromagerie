@@ -53,6 +53,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.toIntRect
 import androidx.compose.ui.unit.toSize
 import com.bumptech.glide.Glide
@@ -127,7 +128,7 @@ fun DetailScreen(
                     .fillMaxHeight(0.3f),
                 imageModel = {
                     state.currentItem?.imageUrl
-                        ?: com.mtdevelopment.core.presentation.R.drawable.placeholder
+                        ?: "https://res.cloudinary.com/dzgaywpmz/image/upload/v1748253326/goats4_vroahb.jpg"
                 },
                 imageOptions = ImageOptions(contentScale = ContentScale.FillWidth),
                 requestBuilder = {
@@ -149,8 +150,38 @@ fun DetailScreen(
                     }
                 },
                 failure = {
-                    Text(text = "image request failed.")
+                    GlideImage(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .fillMaxHeight(0.3f),
+                        imageModel = {
+                            "https://res.cloudinary.com/dzgaywpmz/image/upload/v1748253326/goats4_vroahb.jpg"
+                        },
+                        imageOptions = ImageOptions(contentScale = ContentScale.FillWidth),
+                    )
                 })
+
+            if (state.currentItem?.isAvailable != true && state.currentItem?.imageUrl?.isBlank() == true) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .fillMaxHeight(0.3f)
+                        .alpha(0.8f)
+                        .background(MaterialTheme.colorScheme.secondary),
+                    verticalArrangement = Arrangement.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        modifier = Modifier
+                            .padding(32.dp),
+                        text = "La photo arrive bientôt !",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontSize = 24.sp,
+                        color = MaterialTheme.colorScheme.onSecondary,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
 
             Box(
                 modifier = Modifier

@@ -58,12 +58,19 @@ class GetAllProductsUseCase(
                     }
                 }
 
-                onSuccess(productsList)
+                val orderedProducts = productsList.sortedWith(
+                    compareBy<Product> { it.name }
+                )
+
+                onSuccess(orderedProducts)
             }, onFailure)
         } else {
             scope.launch {
                 roomHomeRepository.getProducts { localProductsList ->
-                    onSuccess.invoke(localProductsList)
+                    val orderedProducts = localProductsList.sortedWith(
+                        compareBy<Product> { it.name }
+                    )
+                    onSuccess.invoke(orderedProducts)
                 }
             }
         }

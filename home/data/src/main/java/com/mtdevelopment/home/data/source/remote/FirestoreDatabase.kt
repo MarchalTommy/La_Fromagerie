@@ -11,9 +11,6 @@ import com.mtdevelopment.home.data.model.FirestoreUpdateData
 class FirestoreDatabase(
     private val firestore: FirebaseFirestore
 ) {
-//    fun saveOrder(order: Order) {
-//        firestore.collection("orders").add(order)
-//    }
 
     fun getAllProducts(onSuccess: (List<ProductData?>) -> Unit, onFailure: () -> Unit) {
         firestore.collection("products")
