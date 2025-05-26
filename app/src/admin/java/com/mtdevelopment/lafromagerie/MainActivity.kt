@@ -18,9 +18,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.sharp.ArrowBack
-import androidx.compose.material.icons.sharp.Notifications
-import androidx.compose.material3.Badge
-import androidx.compose.material3.BadgedBox
+import androidx.compose.material.icons.sharp.LocationOn
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -39,7 +37,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.core.animation.doOnEnd
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
@@ -213,33 +210,10 @@ class MainActivity : ComponentActivity() {
                                 IconButton(
                                     modifier = Modifier.size(64.dp),
                                     onClick = {
-                                        mainViewModel.setError(
-                                            "Cette fonctionnalité viendra plus tard ! Un peu de patience :)",
-                                            actionLabel = "Je comprends",
-                                            action = { mainViewModel.clearError() })
-//                                        TODO("Navigate To Notifications Screen, or Open a Modal Sheet with notifications")
+                                        mainViewModel.setShouldGoToDeliveryHelper(true)
                                     },
                                     content = {
-                                        BadgedBox(
-                                            modifier = Modifier,
-                                            badge = {
-                                                // TODO: Notification amount not 0
-                                                if (
-                                                    false
-                                                ) {
-                                                    Badge(
-                                                        containerColor = Color.Red,
-                                                        contentColor = Color.White
-                                                    ) {
-                                                        // TODO: Notification amount
-                                                        val notificationsNumber = 4
-                                                        Text("$notificationsNumber")
-                                                    }
-                                                }
-                                            }
-                                        ) {
-                                            Icon(Icons.Sharp.Notifications, "Notifications")
-                                        }
+                                        Icon(Icons.Sharp.LocationOn, "Livraison")
                                     }
                                 )
                             }

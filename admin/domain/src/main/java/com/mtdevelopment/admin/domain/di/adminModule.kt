@@ -5,6 +5,7 @@ import com.mtdevelopment.admin.domain.usecase.AddNewProductUseCase
 import com.mtdevelopment.admin.domain.usecase.DeletePathUseCase
 import com.mtdevelopment.admin.domain.usecase.DeleteProductUseCase
 import com.mtdevelopment.admin.domain.usecase.GetAllOrdersUseCase
+import com.mtdevelopment.admin.domain.usecase.GetOptimizedDeliveryUseCase
 import com.mtdevelopment.admin.domain.usecase.UpdateDeliveryPathUseCase
 import com.mtdevelopment.admin.domain.usecase.UpdateProductUseCase
 import com.mtdevelopment.admin.domain.usecase.UploadImageUseCase
@@ -23,4 +24,6 @@ val adminDomainModule = module {
     factory { AddNewPathUseCase(get()) }
 
     factory { GetAllOrdersUseCase(get()) }
+
+    factory { GetOptimizedDeliveryUseCase(get()) }
 }

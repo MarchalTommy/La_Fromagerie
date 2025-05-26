@@ -2,9 +2,11 @@ package com.mtdevelopment.admin.data.di
 
 import com.mtdevelopment.admin.data.repository.CloudinaryRepositoryImpl
 import com.mtdevelopment.admin.data.repository.FirebaseAdminRepositoryImpl
+import com.mtdevelopment.admin.data.repository.GoogleRouteRepositoryImpl
 import com.mtdevelopment.admin.data.source.FirestoreAdminDatasource
 import com.mtdevelopment.admin.domain.repository.CloudinaryRepository
 import com.mtdevelopment.admin.domain.repository.FirebaseAdminRepository
+import com.mtdevelopment.admin.domain.repository.GoogleRouteRepository
 import org.koin.dsl.module
 
 fun adminDataModule() = listOf(adminDataModule)
@@ -14,4 +16,5 @@ val adminDataModule = module {
 
     single<FirebaseAdminRepository> { FirebaseAdminRepositoryImpl(get()) }
     single<CloudinaryRepository> { CloudinaryRepositoryImpl(get()) }
+    single<GoogleRouteRepository> { GoogleRouteRepositoryImpl(get()) }
 }
