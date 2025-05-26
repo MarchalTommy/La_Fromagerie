@@ -23,7 +23,16 @@ android {
             )
         }
     }
-    
+
+    flavorDimensions += "version"
+    productFlavors {
+        create("client") {
+            dimension = "version"
+        }
+        create("admin") {
+            dimension = "version"
+        }
+    }
     kotlin {
         jvmToolchain(17)
     }

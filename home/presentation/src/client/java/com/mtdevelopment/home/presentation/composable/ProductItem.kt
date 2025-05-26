@@ -52,6 +52,7 @@ import com.bumptech.glide.Glide
 import com.bumptech.glide.load.engine.DiskCacheStrategy
 import com.bumptech.glide.load.resource.bitmap.BitmapTransitionOptions.withCrossFade
 import com.bumptech.glide.request.RequestOptions
+import com.mtdevelopment.core.presentation.R
 import com.mtdevelopment.core.presentation.sharedModels.UiProductObject
 import com.mtdevelopment.core.util.toStringPrice
 import com.mtdevelopment.core.util.vibratePhoneClick
@@ -135,8 +136,11 @@ fun ProductItem(
                     .height(128.dp)
                     .clip(RoundedCornerShape(8.dp)),
                 imageModel = {
-                    product?.imageUrl
-                        ?: com.mtdevelopment.core.presentation.R.drawable.placeholder
+                    if (!product?.imageUrl.isNullOrBlank()) {
+                        product.imageUrl
+                    } else {
+                        R.drawable.goats_picture_placeholder
+                    }
                 },
                 imageOptions = ImageOptions(contentScale = ContentScale.Crop),
                 requestBuilder = {
