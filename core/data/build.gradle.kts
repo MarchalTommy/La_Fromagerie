@@ -59,4 +59,6 @@ dependencies {
 
     implementation(libs.datastore.preferences)
     implementation(libs.google.gson)
+
+    implementation(libs.play.service.wallet)
 }

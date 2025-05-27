@@ -8,6 +8,7 @@ import com.mtdevelopment.admin.domain.usecase.AddNewProductUseCase
 import com.mtdevelopment.admin.domain.usecase.DeletePathUseCase
 import com.mtdevelopment.admin.domain.usecase.DeleteProductUseCase
 import com.mtdevelopment.admin.domain.usecase.GetAllOrdersUseCase
+import com.mtdevelopment.admin.domain.usecase.GetOptimizedDeliveryUseCase
 import com.mtdevelopment.admin.domain.usecase.UpdateDeliveryPathUseCase
 import com.mtdevelopment.admin.domain.usecase.UpdateProductUseCase
 import com.mtdevelopment.admin.domain.usecase.UploadImageUseCase
@@ -29,6 +30,7 @@ class AdminViewModel(
     private val addNewDeliveryPathUseCase: AddNewPathUseCase,
     private val getAllOrdersUseCase: GetAllOrdersUseCase,
     private val uploadImageUseCase: UploadImageUseCase,
+    private val getOptimizedDeliveryUseCase: GetOptimizedDeliveryUseCase
 ) : ViewModel(), KoinComponent {
 
     ///////////////////////////////////////////////////////////////////////////
@@ -166,8 +168,11 @@ class AdminViewModel(
     // DELIVERY HELPER
     ///////////////////////////////////////////////////////////////////////////
 
-    fun getOptimisedPath(addresses: List<String>) {
-
+    fun getOptimisedPath(addresses: List<String>, onSuccess: (List<Pair<Double, Double>>) -> Unit) {
+        viewModelScope.launch {
+            val result = getOptimizedDeliveryUseCase.invoke(addresses)
+            onSuccess.invoke(result ?: emptyList())
+        }
     }
 
 }

@@ -1,4 +1,4 @@
-package com.mtdevelopment.checkout.data.remote.model
+package com.mtdevelopment.core.data
 
 import com.google.android.gms.wallet.WalletConstants
 
@@ -21,6 +21,12 @@ object Constants {
     ///////////////////////////////////////////////////////////////////////////
     const val OPEN_ROUTE_BASE_URL = "https://api.openrouteservice.org"
     const val OPEN_ROUTE_BASE_URL_WITHOUT_HTTPS = "api.openrouteservice.org"
+
+    ///////////////////////////////////////////////////////////////////////////
+    // GOOGLE ROUTE
+    ///////////////////////////////////////////////////////////////////////////
+    const val GOOGLE_ROUTE_BASE_URL = "https://routes.googleapis.com"
+    const val GOOGLE_ROUTE_BASE_URL_WITHOUT_HTTPS = "routes.googleapis.com"
 
     ///////////////////////////////////////////////////////////////////////////
     // SUMUP CONSTANTS

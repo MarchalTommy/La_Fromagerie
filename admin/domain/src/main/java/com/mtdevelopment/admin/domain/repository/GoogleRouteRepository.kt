@@ -1,5 +1,5 @@
 package com.mtdevelopment.admin.domain.repository
 
 interface GoogleRouteRepository {
-    fun getOptimizedDeliveryPath(addresses: List<String>): List<String>
+    suspend fun getOptimizedDeliveryPath(addresses: List<String>): List<Pair<Double, Double>>?
 }

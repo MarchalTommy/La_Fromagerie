@@ -8,7 +8,7 @@ class GetOptimizedDeliveryUseCase(
 
     suspend operator fun invoke(
         addresses: List<String>
-    ): List<String> {
+    ): List<Pair<Double, Double>>? {
         return googleRouteRepository.getOptimizedDeliveryPath(addresses)
     }
 

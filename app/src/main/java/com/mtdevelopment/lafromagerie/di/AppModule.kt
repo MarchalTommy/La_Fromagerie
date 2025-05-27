@@ -10,10 +10,6 @@ import com.mtdevelopment.cart.domain.usecase.GetCartDataUseCase
 import com.mtdevelopment.cart.presentation.viewmodel.CartViewModel
 import com.mtdevelopment.checkout.data.BuildConfig
 import com.mtdevelopment.checkout.data.local.CheckoutDatastorePreferenceImpl
-import com.mtdevelopment.checkout.data.remote.model.Constants.ADDRESS_API_BASE_URL_WITHOUT_HTTPS
-import com.mtdevelopment.checkout.data.remote.model.Constants.AUTOCOMPLETE_API_BASE_URL_WITHOUT_HTTPS
-import com.mtdevelopment.checkout.data.remote.model.Constants.OPEN_ROUTE_BASE_URL_WITHOUT_HTTPS
-import com.mtdevelopment.checkout.data.remote.model.Constants.SUM_UP_BASE_URL_WITHOUT_HTTPS
 import com.mtdevelopment.checkout.data.remote.source.FirestoreOrderDataSource
 import com.mtdevelopment.checkout.data.remote.source.SumUpDataSource
 import com.mtdevelopment.checkout.data.repository.PaymentRepositoryImpl
@@ -37,6 +33,10 @@ import com.mtdevelopment.checkout.domain.usecase.SaveCreatedCheckoutUseCase
 import com.mtdevelopment.checkout.domain.usecase.SavePaymentStateUseCase
 import com.mtdevelopment.checkout.domain.usecase.UpdateOrderStatus
 import com.mtdevelopment.checkout.presentation.viewmodel.CheckoutViewModel
+import com.mtdevelopment.core.data.Constants.ADDRESS_API_BASE_URL_WITHOUT_HTTPS
+import com.mtdevelopment.core.data.Constants.AUTOCOMPLETE_API_BASE_URL_WITHOUT_HTTPS
+import com.mtdevelopment.core.data.Constants.OPEN_ROUTE_BASE_URL_WITHOUT_HTTPS
+import com.mtdevelopment.core.data.Constants.SUM_UP_BASE_URL_WITHOUT_HTTPS
 import com.mtdevelopment.core.local.SharedDatastoreImpl
 import com.mtdevelopment.core.presentation.MainViewModel
 import com.mtdevelopment.core.repository.NetworkRepository

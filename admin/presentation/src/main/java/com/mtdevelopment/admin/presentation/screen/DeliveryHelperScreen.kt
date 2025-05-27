@@ -92,12 +92,23 @@ fun DeliveryHelperScreen(
             // Here would come the static map
         }
 
-
         Button(
             modifier = Modifier,
             onClick = {
                 vibratePhoneClick(context = context)
+                viewModel.getOptimisedPath(
+                    listOf(
+                        "34 Rue de l'Étang, 25560 Frasne",
+                        "1 Rue du Moulin, 25560 Courvières",
+                        "2 Rue André Roz, 25560 Bannans"
+                    )
+                ) { latlngList ->
+                    val test = "https://www.google.com/maps/dir/"
 
+                    latlngList.forEach {
+                        test.plus(it.first).plus(",").plus(it.second).plus("/")
+                    }
+                }
             },
             shape = Shapes().medium
         ) {

@@ -5,7 +5,6 @@ import com.google.android.gms.wallet.IsReadyToPayRequest
 import com.google.android.gms.wallet.PaymentsClient
 import com.google.android.gms.wallet.Wallet
 import com.mtdevelopment.checkout.data.BuildConfig
-import com.mtdevelopment.checkout.data.remote.model.Constants
 import com.mtdevelopment.checkout.data.remote.model.request.CHECKOUT_CREATION_BODY_PURPOSE
 import com.mtdevelopment.checkout.data.remote.model.request.CheckoutCreationBody
 import com.mtdevelopment.checkout.data.remote.model.request.PersonalDetails
@@ -19,6 +18,7 @@ import com.mtdevelopment.checkout.domain.model.GooglePayData
 import com.mtdevelopment.checkout.domain.model.NewCheckoutResult
 import com.mtdevelopment.checkout.domain.model.ProcessCheckoutResult
 import com.mtdevelopment.checkout.domain.repository.PaymentRepository
+import com.mtdevelopment.core.data.Constants
 import com.mtdevelopment.core.model.Order
 import com.mtdevelopment.core.model.OrderStatus
 import com.mtdevelopment.core.model.toOrderData
