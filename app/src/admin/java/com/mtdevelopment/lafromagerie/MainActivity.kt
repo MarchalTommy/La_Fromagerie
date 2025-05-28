@@ -48,6 +48,7 @@ import com.mtdevelopment.cart.presentation.viewmodel.CartViewModel
 import com.mtdevelopment.core.presentation.MainViewModel
 import com.mtdevelopment.core.presentation.theme.ui.AppTheme
 import com.mtdevelopment.lafromagerie.navigation.AfterPaymentScreenDestination
+import com.mtdevelopment.lafromagerie.navigation.DeliveryHelperScreenDestination
 import com.mtdevelopment.lafromagerie.navigation.DeliveryOptionScreenDestination
 import com.mtdevelopment.lafromagerie.navigation.HomeScreenDestination
 import com.mtdevelopment.lafromagerie.navigation.NavGraph
@@ -207,15 +208,17 @@ class MainActivity : ComponentActivity() {
                                 }
                             },
                             actions = {
-                                IconButton(
-                                    modifier = Modifier.size(64.dp),
-                                    onClick = {
-                                        mainViewModel.setShouldGoToDeliveryHelper(true)
-                                    },
-                                    content = {
-                                        Icon(Icons.Sharp.LocationOn, "Livraison")
-                                    }
-                                )
+                                if (currentBackStackEntry.value?.destination?.route != DeliveryHelperScreenDestination::class.java.name) {
+                                    IconButton(
+                                        modifier = Modifier.size(64.dp),
+                                        onClick = {
+                                            mainViewModel.setShouldGoToDeliveryHelper(true)
+                                        },
+                                        content = {
+                                            Icon(Icons.Sharp.LocationOn, "Livraison")
+                                        }
+                                    )
+                                }
                             }
                         )
                     },

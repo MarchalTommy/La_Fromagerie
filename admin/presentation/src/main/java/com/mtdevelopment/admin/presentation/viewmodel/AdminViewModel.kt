@@ -175,4 +175,13 @@ class AdminViewModel(
         }
     }
 
+    ///////////////////////////////////////////////////////////////////////////
+    // UI
+    ///////////////////////////////////////////////////////////////////////////
+    fun onLoading(isLoading: Boolean) {
+        _orderScreenState.value = _orderScreenState.value.copy(
+            isLoading = isLoading
+        )
+    }
+
 }
