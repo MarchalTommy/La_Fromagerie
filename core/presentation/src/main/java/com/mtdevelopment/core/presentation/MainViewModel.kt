@@ -16,11 +16,18 @@ class MainViewModel() : ViewModel(), KoinComponent {
     private var _canRemoveSplash: MutableStateFlow<Boolean> = MutableStateFlow(false)
     val canRemoveSplash: StateFlow<Boolean> = _canRemoveSplash.asStateFlow()
 
+    private var _shouldGoToDeliveryHelper: MutableStateFlow<Boolean> = MutableStateFlow(false)
+    val shouldGoToDeliveryHelper: StateFlow<Boolean> = _shouldGoToDeliveryHelper.asStateFlow()
+
     var errorState by mutableStateOf(ErrorState())
         private set
 
     fun setCanRemoveSplash() {
         _canRemoveSplash.tryEmit(true)
+    }
+
+    fun setShouldGoToDeliveryHelper(shouldGo: Boolean) {
+        _shouldGoToDeliveryHelper.tryEmit(shouldGo)
     }
 
     fun setError(

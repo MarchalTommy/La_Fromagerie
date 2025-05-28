@@ -7,12 +7,18 @@ plugins {
 android {
     namespace = "com.mtdevelopment.admin.presentation"
     compileSdk = 35
+    android.buildFeatures.buildConfig = true
 
     defaultConfig {
         minSdk = 26
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles("consumer-rules.pro")
+
+        val GOOGLE_API =
+            System.getenv("GOOGLE_API") ?: project.findProperty("GOOGLE_API")
+                ?.toString()
+        buildConfigField("String", "GOOGLE_API", "\"$GOOGLE_API\"")
     }
 
     buildTypes {

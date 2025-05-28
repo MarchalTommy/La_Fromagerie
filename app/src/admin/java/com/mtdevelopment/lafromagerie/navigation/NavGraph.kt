@@ -4,13 +4,16 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.toRoute
-import com.mtdevelopment.admin.presentation.composable.OrderPreparationScreen
+import com.mtdevelopment.admin.presentation.screen.DeliveryHelperScreen
+import com.mtdevelopment.admin.presentation.screen.OrderPreparationScreen
 import com.mtdevelopment.cart.presentation.viewmodel.CartViewModel
 import com.mtdevelopment.checkout.presentation.screen.AfterPaymentScreen
 import com.mtdevelopment.checkout.presentation.screen.CheckoutScreen
@@ -30,6 +33,15 @@ fun NavGraph(
     cartViewModel: CartViewModel,
     mainViewModel: MainViewModel
 ) {
+    val shouldGoToDeliveryHelper = mainViewModel.shouldGoToDeliveryHelper.collectAsState()
+
+    LaunchedEffect(shouldGoToDeliveryHelper.value) {
+        if (shouldGoToDeliveryHelper.value) {
+            navController.navigate(DeliveryHelperScreenDestination)
+            mainViewModel.setShouldGoToDeliveryHelper(false)
+        }
+    }
+
     NavHost(
         navController = navController,
         startDestination = HomeScreenDestination(),
@@ -54,6 +66,10 @@ fun NavGraph(
                     )
                 }
             )
+        }
+
+        composable<DeliveryHelperScreenDestination> {
+            DeliveryHelperScreen()
         }
 
         composable<OrdersScreenDestination> {

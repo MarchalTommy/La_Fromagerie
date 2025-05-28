@@ -39,5 +39,3 @@ class CheeseApplication : Application() {
         }
     }
 }
-
-// TODO: List clients commands on admin dashboard to allow preparation with dates (a list of cheese with the quantity and a way to know like "5 for this command, 3 for this one" etc... filtered by dates sticky header)

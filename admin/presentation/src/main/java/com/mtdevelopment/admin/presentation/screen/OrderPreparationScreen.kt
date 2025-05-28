@@ -1,4 +1,4 @@
-package com.mtdevelopment.admin.presentation.composable
+package com.mtdevelopment.admin.presentation.screen
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState

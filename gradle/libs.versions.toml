@@ -1,6 +1,7 @@
 [versions]
 # Base
 agp = "8.7.3"
+protobuf = "3.25.5"
 kotlin = "2.1.10"
 kotlinx-coroutines = "1.9.0"
 core-ktx = "1.16.0"
@@ -15,6 +16,7 @@ paging = "3.3.6"
 lifecycle-scope = "2.8.7"
 navigation-common-ktx = "2.8.9"
 google-service = "4.4.2"
+google-service-maps = "19.2.0"
 ksp = "2.1.10-1.0.31"
 # Compose
 activity-compose = "1.10.1"
@@ -45,6 +47,7 @@ contentment = "2.0.1"
 mapbox = "11.6.1"
 mapbox-geojson = "7.3.1"
 location = "21.3.0"
+google-maps = "4.4.1"
 # Wallet
 wallet = "19.4.0"
 wallet-button = "1.0.0"
@@ -57,10 +60,12 @@ exifinterface = "1.4.0"
 
 [libraries]
 core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "core-ktx" }
+protobuf-lite = { module = "com.google.protobuf:protobuf-javalite", version.ref = "protobuf" }
 splashscreen = { group = "androidx.core", name = "core-splashscreen", version.ref = "core-splash" }
 material = { group = "com.google.android.material", name = "material", version.ref = "material" }
 
 play-service-wallet = { group = "com.google.android.gms", name = "play-services-wallet", version.ref = "wallet" }
+play-service-maps = { group = "com.google.android.gms", name = "play-services-maps", version.ref = "google-service-maps" }
 google-pay-compose = { group = "com.google.pay.button", name = "compose-pay-button", version.ref = "wallet-button" }
 
 junit = { group = "junit", name = "junit", version.ref = "junit" }
@@ -88,7 +93,7 @@ androidx-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit
 androidx-material3 = { group = "androidx.compose.material3", name = "material3" }
 
 ## ScrollBars
-scrollbar = { module = "com.github.GIGAMOLE:ComposeScrollbars", version.ref = "scrollbar"}
+scrollbar = { module = "com.github.GIGAMOLE:ComposeScrollbars", version.ref = "scrollbar" }
 
 
 ## Firebase
@@ -160,6 +165,7 @@ androidx-navigation-common-ktx = { group = "androidx.navigation", name = "naviga
 mapbox = { module = "com.mapbox.maps:android", version.ref = "mapbox" }
 mapbox-extension = { module = "com.mapbox.extension:maps-compose", version.ref = "mapbox" }
 mapbox-geojson = { module = "com.mapbox.mapboxsdk:mapbox-sdk-geojson", version.ref = "mapbox-geojson" }
+google-maps = { module = "com.google.maps.android:maps-compose", version.ref = "google-maps" }
 
 
 ## Permissions

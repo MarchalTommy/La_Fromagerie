@@ -2,6 +2,8 @@ plugins {
     alias(libs.plugins.androidLibrary)
     alias(libs.plugins.kotlinAndroid)
     alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.google.service)
+    alias(libs.plugins.ksp)
 }
 
 android {
@@ -29,6 +31,11 @@ android {
             System.getenv("CLOUDINARY_PRIVATE") ?: project.findProperty("CLOUDINARY_PRIVATE")
                 ?.toString()
         buildConfigField("String", "CLOUDINARY_PRIVATE", "\"$CLOUDINARY_PRIVATE\"")
+
+        val GOOGLE_API =
+            System.getenv("GOOGLE_API") ?: project.findProperty("GOOGLE_API")
+                ?.toString()
+        buildConfigField("String", "GOOGLE_API", "\"$GOOGLE_API\"")
     }
 
     buildTypes {
@@ -89,4 +96,14 @@ dependencies {
     implementation(libs.koin.androidx.compose)
     implementation(libs.koin.androidx.compose.navigation)
     testImplementation(libs.koin.test)
+
+    implementation(libs.ktor.client.android)
+    implementation(libs.ktor.client.core)
+    implementation(libs.ktor.client.cio)
+    implementation(libs.ktor.client.logging)
+    implementation(libs.ktor.client.auth)
+    implementation(libs.ktor.content.negociation)
+    implementation(libs.ktor.serialization.json)
+
+    implementation(libs.protobuf.lite)
 }
