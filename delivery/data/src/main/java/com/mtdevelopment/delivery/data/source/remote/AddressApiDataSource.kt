@@ -40,4 +40,27 @@ class AddressApiDataSource(
             NetWorkResult.Error(response.status, e.message ?: "")
         }
     }
+
+    suspend fun getLngLatFromAddress(address: String): NetWorkResult<Any> {
+        val response = httpClient.get {
+            url {
+                protocol = URLProtocol.HTTPS
+                host =
+                    ADDRESS_API_BASE_URL_WITHOUT_HTTPS
+                header(
+                    HttpHeaders.Accept,
+                    "application/json, application/geo+json, application/gpx+xml, img/png; charset=utf-8"
+                )
+                encodedPath = "/search/?q=${address.encodeURLPathPart()}&type=municipality"
+            }
+        }
+
+        return try {
+            NetWorkResult.Success(
+                response.body<AddressData>()
+            )
+        } catch (e: Exception) {
+            NetWorkResult.Error(response.status, e.message ?: "")
+        }
+    }
 }

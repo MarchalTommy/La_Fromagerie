@@ -1,6 +1,7 @@
 package com.mtdevelopment.lafromagerie
 
 import android.animation.ObjectAnimator
+import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import android.view.View
@@ -243,7 +244,17 @@ class MainActivity : ComponentActivity() {
                         paddingValues = paddingValues,
                         navController = navController,
                         mainViewModel = mainViewModel,
-                        cartViewModel = cartViewModel
+                        cartViewModel = cartViewModel,
+                        launchDeliveryTracking = {
+                            Intent(this, DeliveryTrackingService::class.java).also {
+                                this.startForegroundService(it)
+                            }
+                        },
+                        stopDeliveryTracking = {
+                            Intent(this, DeliveryTrackingService::class.java).also {
+                                this.stopService(it)
+                            }
+                        }
                     )
                 }
             }

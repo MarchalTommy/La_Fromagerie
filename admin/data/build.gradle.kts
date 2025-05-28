@@ -106,4 +106,5 @@ dependencies {
     implementation(libs.ktor.serialization.json)
 
     implementation(libs.protobuf.lite)
+    implementation(libs.location)
 }

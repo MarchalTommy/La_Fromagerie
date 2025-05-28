@@ -12,4 +12,6 @@ class GetOptimizedDeliveryUseCase(
         return googleRouteRepository.getOptimizedDeliveryPath(addresses)
     }
 
+    // TODO: Keep in sharedPrefs to lower API use, and keep the order index with it
+
 }

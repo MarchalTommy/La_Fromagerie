@@ -184,4 +184,10 @@ class AdminViewModel(
         )
     }
 
+    fun onError(error: String) {
+        _orderScreenState.value = _orderScreenState.value.copy(
+            error = error
+        )
+    }
+
 }

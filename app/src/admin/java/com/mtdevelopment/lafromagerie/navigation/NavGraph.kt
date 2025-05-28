@@ -31,7 +31,9 @@ fun NavGraph(
     paddingValues: PaddingValues,
     navController: NavHostController,
     cartViewModel: CartViewModel,
-    mainViewModel: MainViewModel
+    mainViewModel: MainViewModel,
+    launchDeliveryTracking: () -> Unit,
+    stopDeliveryTracking: () -> Unit
 ) {
     val shouldGoToDeliveryHelper = mainViewModel.shouldGoToDeliveryHelper.collectAsState()
 
@@ -69,7 +71,13 @@ fun NavGraph(
         }
 
         composable<DeliveryHelperScreenDestination> {
-            DeliveryHelperScreen()
+            DeliveryHelperScreen(
+                launchDeliveryTracking = {
+                    launchDeliveryTracking.invoke()
+                },
+                stopDeliveryTracking = {
+                    stopDeliveryTracking.invoke()
+                })
         }
 
         composable<OrdersScreenDestination> {

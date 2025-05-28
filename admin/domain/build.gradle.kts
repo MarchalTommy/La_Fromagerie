@@ -45,6 +45,7 @@ android {
 dependencies {
 
     implementation(project(":core:domain"))
+    implementation(project(":delivery:domain"))
 
     implementation(libs.core.ktx)
     implementation(libs.androidx.appcompat)
@@ -60,4 +61,6 @@ dependencies {
     implementation(libs.koin.androidx.compose)
     implementation(libs.koin.androidx.compose.navigation)
     testImplementation(libs.koin.test)
+
+    implementation(libs.play.service.maps)
 }

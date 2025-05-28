@@ -21,8 +21,11 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -38,7 +41,9 @@ import com.bumptech.glide.load.resource.bitmap.BitmapTransitionOptions.withCross
 import com.bumptech.glide.request.RequestOptions
 import com.mtdevelopment.admin.presentation.BuildConfig.GOOGLE_API
 import com.mtdevelopment.admin.presentation.composable.DeliveryHelperItem
+import com.mtdevelopment.admin.presentation.composable.RequestPermissionsScreen
 import com.mtdevelopment.admin.presentation.viewmodel.AdminViewModel
+import com.mtdevelopment.core.presentation.composable.ErrorOverlay
 import com.mtdevelopment.core.presentation.composable.RiveAnimation
 import com.mtdevelopment.core.util.koinViewModel
 import com.mtdevelopment.core.util.toStringDate
@@ -52,9 +57,16 @@ import java.time.format.TextStyle
 import java.util.Locale
 
 @Composable
-fun DeliveryHelperScreen() {
+fun DeliveryHelperScreen(
+    launchDeliveryTracking: () -> Unit,
+    stopDeliveryTracking: () -> Unit
+) {
     val viewModel = koinViewModel<AdminViewModel>()
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+
+    var showPermissionScreen by remember { mutableStateOf(false) }
+    var permissionsGranted by remember { mutableStateOf(false) }
 
     val todayDate = LocalDate.now().atStartOfDay(java.time.ZoneId.systemDefault())
 
@@ -105,146 +117,166 @@ fun DeliveryHelperScreen() {
         viewModel.getAllOrders()
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Text(
-            text = titleText,
-            modifier = Modifier.fillMaxWidth(),
-            style = MaterialTheme.typography.titleLarge,
-            fontSize = 24.sp,
-            textAlign = TextAlign.Center
+    if (showPermissionScreen && !permissionsGranted) {
+        RequestPermissionsScreen(
+            onPermissionsGrantedAndConfigured = {
+                permissionsGranted = true
+                showPermissionScreen = false
+            },
+            onPermissionsProcessSkippedOrDenied = {
+                showPermissionScreen = false // User chose not to grant or skip
+                viewModel.onError("Permission refusée, nous ne pourrons pas vous aider dans la livraison.")
+                // Optionally show a message that tracking won't work
+            }
         )
-
-        Text(
-            text = subtitleText,
+    } else {
+        Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 8.dp),
-            style = MaterialTheme.typography.titleSmall,
-            fontSize = 16.sp,
-            textAlign = TextAlign.Center
-        )
-
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 16.dp),
-            shape = MaterialTheme.shapes.medium
+                .fillMaxSize()
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            LazyColumn(
+            Text(
+                text = titleText,
+                modifier = Modifier.fillMaxWidth(),
+                style = MaterialTheme.typography.titleLarge,
+                fontSize = 24.sp,
+                textAlign = TextAlign.Center
+            )
+
+            Text(
+                text = subtitleText,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(max = 260.dp)
-            ) {
-                if (dailyOrders.value.isEmpty()) {
-                    item {
-                        Text(
-                            modifier = Modifier
-                                .padding(16.dp)
-                                .fillMaxWidth(),
-                            textAlign = TextAlign.Center,
-                            text = "Pas de commande à livrer.\n\nUn jour calme, parfois, c'est pas mal !"
-                        )
-                    }
-                } else {
-                    dailyOrders.value.groupBy { it.customerAddress }.forEach { address, orders ->
-                        item {
-                            // Avoiding duplicates in case of multiple orders by 1 person
-                            val names = orders.map { it.customerName }.toSet()
-                            val stringNames = names.joinToString(", ")
-                                .replace("[", "")
-                                .replace("]", "")
-                                .trim()
+                    .padding(top = 8.dp),
+                style = MaterialTheme.typography.titleSmall,
+                fontSize = 16.sp,
+                textAlign = TextAlign.Center
+            )
 
-                            // Grouping orders by address to the same entry in the list
-                            DeliveryHelperItem(
-                                name = stringNames,
-                                address = address
-                            )
-                        }
-                    }
-                }
-            }
-        }
-        if (dailyOrders.value.isNotEmpty()) {
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(vertical = 16.dp),
                 shape = MaterialTheme.shapes.medium
             ) {
-                val markersPositions = dailyOrders.value.map { it.customerAddress }.toSet()
-                val markersString = markersPositions.joinToString("&") { markerAddress ->
-                    "markers=label:${dailyOrders.value.find { it.customerAddress == markerAddress }?.customerName?.trim()}|${markerAddress}"
-                }
-
-                GlideImage(
+                LazyColumn(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp)),
-                    imageModel = {
-                        "https://maps.googleapis.com/maps/api/staticmap?" +
-                                "size=400x260&" +
-                                "scale=2&" +
-                                "maptype=roadmap&" +
-                                markersString +
-                                "&key=${GOOGLE_API}"
-                    },
-                    imageOptions = ImageOptions(contentScale = ContentScale.Fit),
-                    requestBuilder = {
-                        Glide.with(LocalContext.current)
-                            .asBitmap()
-                            .apply(
-                                RequestOptions().diskCacheStrategy(DiskCacheStrategy.ALL)
-                            ).thumbnail(0.6f)
-                            .transition(withCrossFade())
-                    },
-                    loading = {
-                        Box(modifier = Modifier.matchParentSize()) {
-                            CircularProgressIndicator(
+                        .heightIn(max = 260.dp)
+                ) {
+                    if (dailyOrders.value.isEmpty()) {
+                        item {
+                            Text(
                                 modifier = Modifier
-                                    .fillMaxWidth()
-                                    .align(Alignment.Center),
-                                color = MaterialTheme.colorScheme.primary
+                                    .padding(16.dp)
+                                    .fillMaxWidth(),
+                                textAlign = TextAlign.Center,
+                                text = "Pas de commande à livrer.\n\nUn jour calme, parfois, c'est pas mal !"
                             )
                         }
-                    },
-                    failure = {
-                        Text(text = "image request failed.")
-                    })
-            }
+                    } else {
+                        dailyOrders.value.groupBy { it.customerAddress }
+                            .forEach { address, orders ->
+                                item {
+                                    // Avoiding duplicates in case of multiple orders by 1 person
+                                    val names = orders.map { it.customerName }.toSet()
+                                    val stringNames = names.joinToString(", ")
+                                        .replace("[", "")
+                                        .replace("]", "")
+                                        .trim()
 
-            Button(
-                modifier = Modifier,
-                onClick = {
-                    viewModel.onLoading(true)
-                    vibratePhoneClick(context = context)
-                    viewModel.getOptimisedPath(
-                        dailyOrders.value.map { it.customerAddress }
-                    ) { latlngList ->
-                        var link = "https://www.google.com/maps/dir/8_la_vessoye_25560_boujailles/"
-
-                        latlngList.forEach {
-                            link = link.plus(it.first).plus(",").plus(it.second).plus("/")
-                        }
-
-                        viewModel.onLoading(false)
-                        val intent = Intent(Intent.ACTION_VIEW, link.toUri())
-                        context.startActivity(intent)
+                                    // Grouping orders by address to the same entry in the list
+                                    DeliveryHelperItem(
+                                        name = stringNames,
+                                        address = address
+                                    )
+                                }
+                            }
                     }
-                },
-                shape = Shapes().medium
-            ) {
-                Icon(imageVector = Icons.Default.Place, contentDescription = "Livraison")
+                }
+            }
+            if (dailyOrders.value.isNotEmpty()) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 16.dp),
+                    shape = MaterialTheme.shapes.medium
+                ) {
+                    val markersPositions = dailyOrders.value.map { it.customerAddress }.toSet()
+                    val markersString = markersPositions.joinToString("&") { markerAddress ->
+                        "markers=label:${dailyOrders.value.find { it.customerAddress == markerAddress }?.customerName?.trim()}|${markerAddress}"
+                    }
 
-                Text(
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                    text = "Démarrer la livraison"
-                )
+                    GlideImage(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp)),
+                        imageModel = {
+                            "https://maps.googleapis.com/maps/api/staticmap?" +
+                                    "size=400x260&" +
+                                    "scale=2&" +
+                                    "maptype=roadmap&" +
+                                    markersString +
+                                    "&key=${GOOGLE_API}"
+                        },
+                        imageOptions = ImageOptions(contentScale = ContentScale.Fit),
+                        requestBuilder = {
+                            Glide.with(LocalContext.current)
+                                .asBitmap()
+                                .apply(
+                                    RequestOptions().diskCacheStrategy(DiskCacheStrategy.ALL)
+                                ).thumbnail(0.6f)
+                                .transition(withCrossFade())
+                        },
+                        loading = {
+                            Box(modifier = Modifier.matchParentSize()) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .align(Alignment.Center),
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        },
+                        failure = {
+                            Text(text = "image request failed.")
+                        })
+                }
+
+                Button(
+                    modifier = Modifier,
+                    onClick = {
+                        vibratePhoneClick(context = context)
+                        showPermissionScreen = true
+                        if (permissionsGranted) {
+                            viewModel.onLoading(true)
+                            viewModel.getOptimisedPath(
+                                dailyOrders.value.map { it.customerAddress }
+                            ) { latlngList ->
+                                launchDeliveryTracking.invoke()
+
+                                var link =
+                                    "https://www.google.com/maps/dir/8_la_vessoye_25560_boujailles/"
+                                latlngList.forEach {
+                                    link =
+                                        link.plus(it.first).plus(",").plus(it.second).plus("/")
+                                }
+                                viewModel.onLoading(false)
+                                val intent = Intent(Intent.ACTION_VIEW, link.toUri())
+                                context.startActivity(intent)
+                            }
+                        }
+                    },
+                    shape = Shapes().medium
+                ) {
+                    Icon(imageVector = Icons.Default.Place, contentDescription = "Livraison")
+
+                    Text(
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        text = "Démarrer la livraison"
+                    )
+                }
             }
         }
 
@@ -253,6 +285,15 @@ fun DeliveryHelperScreen() {
             isLoading = state.value.isLoading,
             modifier = Modifier.fillMaxSize(),
             contentDescription = "Loading animation"
+        )
+
+        // Error
+        ErrorOverlay(
+            isShown = !state.value.error.isNullOrEmpty(),
+            message = state.value.error ?: "Une erreur est survenue",
+            onDismiss = {
+                viewModel.onError("")
+            }
         )
     }
 }
