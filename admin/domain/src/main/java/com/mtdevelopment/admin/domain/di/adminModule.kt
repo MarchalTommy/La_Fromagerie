@@ -8,8 +8,10 @@ import com.mtdevelopment.admin.domain.usecase.DetermineNextDeliveryStopUseCase
 import com.mtdevelopment.admin.domain.usecase.GetAllOrdersUseCase
 import com.mtdevelopment.admin.domain.usecase.GetCurrentLocationUseCase
 import com.mtdevelopment.admin.domain.usecase.GetOptimizedDeliveryUseCase
+import com.mtdevelopment.admin.domain.usecase.GetShouldShowBatterieOptimizationUseCase
 import com.mtdevelopment.admin.domain.usecase.UpdateDeliveryPathUseCase
 import com.mtdevelopment.admin.domain.usecase.UpdateProductUseCase
+import com.mtdevelopment.admin.domain.usecase.UpdateShouldShowBatterieOptimizationUseCase
 import com.mtdevelopment.admin.domain.usecase.UploadImageUseCase
 import org.koin.dsl.module
 
@@ -27,7 +29,9 @@ val adminDomainModule = module {
 
     factory { GetAllOrdersUseCase(get()) }
 
-    factory { GetOptimizedDeliveryUseCase(get()) }
+    factory { UpdateShouldShowBatterieOptimizationUseCase(get()) }
+    factory { GetOptimizedDeliveryUseCase(get(), get()) }
     factory { GetCurrentLocationUseCase(get()) }
-    factory { DetermineNextDeliveryStopUseCase(get()) }
+    factory { DetermineNextDeliveryStopUseCase() }
+    factory { GetShouldShowBatterieOptimizationUseCase(get()) }
 }

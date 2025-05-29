@@ -49,10 +49,10 @@ import com.bumptech.glide.Glide
 import com.bumptech.glide.load.engine.DiskCacheStrategy
 import com.bumptech.glide.load.resource.bitmap.BitmapTransitionOptions.withCrossFade
 import com.bumptech.glide.request.RequestOptions
+import com.mtdevelopment.core.domain.toStringPrice
 import com.mtdevelopment.core.model.ProductType
 import com.mtdevelopment.core.presentation.R
 import com.mtdevelopment.core.presentation.sharedModels.UiProductObject
-import com.mtdevelopment.core.util.toStringPrice
 import com.mtdevelopment.core.util.vibratePhoneClick
 import com.skydoves.landscapist.ImageOptions
 import com.skydoves.landscapist.glide.GlideImage

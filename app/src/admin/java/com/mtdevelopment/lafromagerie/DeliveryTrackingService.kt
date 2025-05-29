@@ -5,14 +5,18 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
+import android.content.ContentValues.TAG
 import android.content.Intent
 import android.os.IBinder
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import com.mtdevelopment.admin.domain.model.OptimizedRouteWithOrders
 import com.mtdevelopment.admin.domain.usecase.DetermineNextDeliveryStopUseCase
 import com.mtdevelopment.admin.domain.usecase.GetAllOrdersUseCase
 import com.mtdevelopment.admin.domain.usecase.GetCurrentLocationUseCase
 import com.mtdevelopment.admin.domain.usecase.GetOptimizedDeliveryUseCase
+import com.mtdevelopment.admin.presentation.R.drawable
+import com.mtdevelopment.core.domain.toStringDate
 import com.mtdevelopment.core.model.Order
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -20,13 +24,10 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
+import java.time.LocalDate
 import kotlin.coroutines.cancellation.CancellationException
 
 class DeliveryTrackingService : Service(), KoinComponent {
@@ -40,32 +41,34 @@ class DeliveryTrackingService : Service(), KoinComponent {
     private val getOptimizedDeliveryUseCase: GetOptimizedDeliveryUseCase by inject()
 
     private var todaysOrders: List<Order> = emptyList()
-    private var optimizedRouteWaypoints: List<Pair<Double, Double>> = emptyList()
+    private var optimizedRouteWaypoints: OptimizedRouteWithOrders = OptimizedRouteWithOrders(
+        emptyList(), emptyList()
+    )
 
     companion object {
+        const val ACTION_STOP_UPDATE = "stopUpdate"
         const val NOTIFICATION_ID = 123
         const val NOTIFICATION_CHANNEL_ID = "delivery_tracking_channel"
-        private const val TAG = "DeliveryTrackingSvc" // Pour les logs
+        const val ACTION_STOP_SERVICE_FROM_NOTIFICATION = "stopService"
     }
 
     override fun onCreate() {
         super.onCreate()
-        Log.d(TAG, "Service onCreate")
         createNotificationChannel()
     }
 
     override fun onBind(intent: Intent?): IBinder? {
-        Log.d(TAG, "Service onBind")
         return null
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        Log.d(TAG, "Service onStartCommand - Intent: $intent")
-        // startForeground doit être appelé dans les 5 secondes sur Android O+
-        startForeground(NOTIFICATION_ID, createInitialNotification())
-        Log.d(TAG, "Service started in foreground")
-
-        fetchOrdersAndRoute()
+        if (intent != null && intent.action == ACTION_STOP_SERVICE_FROM_NOTIFICATION) {
+            stopSelf()
+        } else {
+            // startForeground doit être appelé dans les 5 secondes sur Android O+
+            startForeground(NOTIFICATION_ID, createInitialNotification())
+            fetchOrdersAndRoute()
+        }
 
         return START_STICKY // Le service redémarrera s'il est tué par le système
     }
@@ -73,58 +76,31 @@ class DeliveryTrackingService : Service(), KoinComponent {
     private fun fetchOrdersAndRoute() {
         serviceScope.launch {
             try {
-                Log.d(TAG, "Fetching orders...")
                 getAllOrdersUseCase.invoke { ordersResult ->
-                    Log.d(TAG, "getAllOrdersUseCase callback. Orders: ${ordersResult?.size}")
                     val allOrders = ordersResult ?: emptyList()
 
-                    val dateFormat = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
-                    val todayStr = dateFormat.format(Date())
-                    todaysOrders = allOrders.filter { it.deliveryDate == todayStr }
-                    Log.d(TAG, "Today's orders: ${todaysOrders.size}")
+                    val todayStr =
+                        LocalDate.now().atStartOfDay(java.time.ZoneId.systemDefault())
+                            .toInstant().toEpochMilli().toStringDate()
 
+                    todaysOrders = allOrders.filter { it.deliveryDate == todayStr }
                     if (todaysOrders.isNotEmpty()) {
-                        Log.d(
-                            TAG,
-                            "todaysOrders is not empty (${todaysOrders.size}). Preparing to fetch optimized route."
-                        ) // LOG 1
-                        Log.d(
-                            TAG,
-                            "ServiceScope isActive: ${serviceScope.isActive}, isCancelled: ${serviceScope.coroutineContext[Job]?.isCancelled}"
-                        ) // AJOUTEZ CE LOG
-                        serviceScope.launch { // Coroutine pour la route optimisée
-                            Log.d(TAG, "Coroutine for optimized route fetch: LAUNCHED.") // LOG 2
+                        serviceScope.launch {
                             try {
                                 val addresses = todaysOrders.map { it.customerAddress }
-                                Log.d(TAG, "Addresses for route: $addresses") // LOG 3
-                                Log.d(TAG, "Calling getOptimizedDeliveryUseCase.invoke...") // LOG 4
 
                                 optimizedRouteWaypoints =
-                                    getOptimizedDeliveryUseCase.invoke(addresses) ?: emptyList()
+                                    getOptimizedDeliveryUseCase.invoke(addresses, todaysOrders)
 
-                                Log.d(
-                                    TAG,
-                                    "getOptimizedDeliveryUseCase.invoke finished. Waypoints count: ${optimizedRouteWaypoints.size}"
-                                ) // LOG 5
-
-                                if (optimizedRouteWaypoints.isNotEmpty()) {
+                                if (optimizedRouteWaypoints.optimizedRoute.isNotEmpty()) {
                                     startLocationTracking()
                                 } else {
-                                    Log.w(
-                                        TAG,
-                                        "Optimized route returned no waypoints."
-                                    ) // LOG 6 (Warning)
                                     updateNotification(
                                         "Aucun itinéraire optimisé trouvé.",
                                         "Vérifiez les adresses des commandes."
                                     )
                                 }
                             } catch (e: CancellationException) {
-                                Log.w(
-                                    TAG,
-                                    "Coroutine for optimized route was cancelled.",
-                                    e
-                                ) // LOG 7 (Cancellation)
                                 throw e // Re-throw cancellation exceptions
                             } catch (e: Exception) {
                                 Log.e(
@@ -139,7 +115,6 @@ class DeliveryTrackingService : Service(), KoinComponent {
                             }
                         }
                     } else {
-                        Log.d(TAG, "No deliveries for today.")
                         updateNotification(
                             "Aucune livraison pour aujourd'hui.",
                             "Revenez plus tard."
@@ -155,7 +130,6 @@ class DeliveryTrackingService : Service(), KoinComponent {
 
 
     private fun startLocationTracking() {
-        Log.d(TAG, "Starting location tracking...")
         serviceScope.launch {
             getCurrentLocationUseCase()
                 .catch { e ->
@@ -166,36 +140,31 @@ class DeliveryTrackingService : Service(), KoinComponent {
                     )
                 } // Capter les erreurs du flow
                 .collectLatest { currentLocation ->
-                    Log.d(TAG, "Current location: $currentLocation")
-                    if (todaysOrders.isNotEmpty() && optimizedRouteWaypoints.isNotEmpty()) {
+                    if (optimizedRouteWaypoints.optimizedOrders.isNotEmpty() && optimizedRouteWaypoints.optimizedRoute.isNotEmpty()) {
                         val nextStopOrder = determineNextDeliveryStopUseCase.invoke(
                             currentLocation,
-                            todaysOrders,
                             optimizedRouteWaypoints
                         )
 
                         if (nextStopOrder != null) {
                             val customerName = nextStopOrder.customerName
                             val orderContent = formatOrderContent(nextStopOrder)
-                            Log.d(TAG, "Next stop: $customerName, Order: $orderContent")
                             updateNotification("Prochain arrêt: $customerName", orderContent)
                         } else {
-                            Log.d(TAG, "No next stop determined (end of route or issue).")
                             updateNotification(
                                 "Dernière livraison effectuée ou itinéraire terminé.",
-                                ""
+                                "À bientôt !"
                             )
                             stopSelf()
                         }
                     } else {
-                        Log.d(TAG, "Location update received but no orders/waypoints to process.")
+                        stopSelf()
                     }
                 }
         }
     }
 
     private fun createInitialNotification(): Notification {
-        Log.d(TAG, "Creating initial notification")
         val notificationIntent = Intent(this, MainActivity::class.java)
         val pendingIntentFlags =
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
@@ -215,14 +184,20 @@ class DeliveryTrackingService : Service(), KoinComponent {
     }
 
     private fun updateNotification(title: String, content: String) {
-        Log.d(TAG, "Updating notification: Title='$title', Content='$content'")
         val notificationIntent = Intent(this, MainActivity::class.java)
         val pendingIntentFlags =
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         val pendingIntent =
             PendingIntent.getActivity(this, 0, notificationIntent, pendingIntentFlags)
         val smallIconRes = R.drawable.appicon_simpler
-
+        val stopUpdateIntent = Intent(this, NotificationBroadcastReceiver::class.java).apply {
+            action = ACTION_STOP_UPDATE
+            putExtra(EXTRA_NOTIFICATION_ID, 0)
+        }
+        val stopUpdateIntentFlags =
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        val stopUpdatingPendingIntent: PendingIntent =
+            PendingIntent.getBroadcast(this, 0, stopUpdateIntent, stopUpdateIntentFlags)
 
         val notification = NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID)
             .setContentTitle(title)
@@ -231,19 +206,23 @@ class DeliveryTrackingService : Service(), KoinComponent {
             .setSmallIcon(smallIconRes)
             .setContentIntent(pendingIntent)
             .setOngoing(true)
-            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .addAction(
+                drawable.outline_cancel_24,
+                "Arrêter le suivi",
+                stopUpdatingPendingIntent
+            )
             .build()
 
         val notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
         notificationManager.notify(NOTIFICATION_ID, notification)
-        Log.d(TAG, "Notification updated/posted with ID: $NOTIFICATION_ID")
     }
 
     private fun createNotificationChannel() {
         // Vérifier la version d'Android (Oreo et plus)
         val channelName = "Suivi de Livraison"
         val channelDescription = "Notifications pour le suivi des livraisons en cours"
-        val importance = NotificationManager.IMPORTANCE_LOW
+        val importance = NotificationManager.IMPORTANCE_HIGH
 
         val channel =
             NotificationChannel(NOTIFICATION_CHANNEL_ID, channelName, importance).apply {
@@ -252,7 +231,6 @@ class DeliveryTrackingService : Service(), KoinComponent {
 
         val notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
         notificationManager.createNotificationChannel(channel)
-        Log.d(TAG, "Notification channel '$NOTIFICATION_CHANNEL_ID' created.")
     }
 
     private fun formatOrderContent(order: Order): String {
@@ -264,6 +242,5 @@ class DeliveryTrackingService : Service(), KoinComponent {
     override fun onDestroy() {
         super.onDestroy()
         serviceScope.cancel()
-        Log.d(TAG, "Service onDestroy, coroutines cancelled.")
     }
 }

@@ -6,5 +6,19 @@ import org.koin.dsl.module
 fun adminPresentationModule() = listOf(adminPresentationModule)
 
 val adminPresentationModule = module {
-    single { AdminViewModel(get(), get(), get(), get(), get(), get(), get(), get(), get()) }
+    single {
+        AdminViewModel(
+            get(),
+            get(),
+            get(),
+            get(),
+            get(),
+            get(),
+            get(),
+            get(),
+            get(),
+            get(),
+            get()
+        )
+    }
 }

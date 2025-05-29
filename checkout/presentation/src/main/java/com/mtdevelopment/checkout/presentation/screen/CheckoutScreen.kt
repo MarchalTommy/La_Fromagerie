@@ -39,11 +39,11 @@ import com.google.pay.button.PayButton
 import com.mtdevelopment.checkout.presentation.BuildConfig
 import com.mtdevelopment.checkout.presentation.composable.UserInfoFormComposable
 import com.mtdevelopment.checkout.presentation.viewmodel.CheckoutViewModel
+import com.mtdevelopment.core.domain.toStringPrice
 import com.mtdevelopment.core.presentation.composable.ErrorOverlay
 import com.mtdevelopment.core.presentation.composable.RiveAnimation
 import com.mtdevelopment.core.util.ScreenSize
 import com.mtdevelopment.core.util.rememberScreenSize
-import com.mtdevelopment.core.util.toStringPrice
 import org.koin.androidx.compose.koinViewModel
 import java.util.Locale
 

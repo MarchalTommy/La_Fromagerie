@@ -26,7 +26,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.mtdevelopment.cart.presentation.viewmodel.CartViewModel
-import com.mtdevelopment.core.util.toStringPrice
+import com.mtdevelopment.core.domain.toStringPrice
 import com.mtdevelopment.core.util.vibratePhoneClick
 import com.mtdevelopment.core.util.vibratePhoneClickBig
 import kotlinx.coroutines.launch

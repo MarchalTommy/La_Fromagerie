@@ -24,7 +24,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -43,11 +42,11 @@ import com.mtdevelopment.admin.presentation.BuildConfig.GOOGLE_API
 import com.mtdevelopment.admin.presentation.composable.DeliveryHelperItem
 import com.mtdevelopment.admin.presentation.composable.RequestPermissionsScreen
 import com.mtdevelopment.admin.presentation.viewmodel.AdminViewModel
+import com.mtdevelopment.core.domain.toStringDate
+import com.mtdevelopment.core.domain.toTimeStamp
 import com.mtdevelopment.core.presentation.composable.ErrorOverlay
 import com.mtdevelopment.core.presentation.composable.RiveAnimation
 import com.mtdevelopment.core.util.koinViewModel
-import com.mtdevelopment.core.util.toStringDate
-import com.mtdevelopment.core.util.toTimeStamp
 import com.mtdevelopment.core.util.vibratePhoneClick
 import com.skydoves.landscapist.ImageOptions
 import com.skydoves.landscapist.glide.GlideImage
@@ -61,9 +60,10 @@ fun DeliveryHelperScreen(
     launchDeliveryTracking: () -> Unit,
     stopDeliveryTracking: () -> Unit
 ) {
+    // TODO: Maybe add a button to stop the delivery when it's started
+
     val viewModel = koinViewModel<AdminViewModel>()
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
 
     var showPermissionScreen by remember { mutableStateOf(false) }
     var permissionsGranted by remember { mutableStateOf(false) }
@@ -110,18 +110,39 @@ fun DeliveryHelperScreen(
                 )
             } ${todayDate.toInstant().toEpochMilli().toStringDate()}"
         }
-
     }
 
     LaunchedEffect(Unit) {
         viewModel.getAllOrders()
     }
 
+    fun onClick() {
+        viewModel.onLoading(true)
+        viewModel.getOptimisedPath(
+            dailyOrders.value.map { it.customerAddress }
+        ) { optimizedOrdersList ->
+            launchDeliveryTracking.invoke()
+
+            var link =
+                "https://www.google.com/maps/dir/8_la_vessoye_25560_boujailles/"
+            optimizedOrdersList.optimizedRoute.forEach {
+                link =
+                    link.plus(it.first).plus(",").plus(it.second).plus("/")
+            }
+            viewModel.onLoading(false)
+            val intent = Intent(Intent.ACTION_VIEW, link.toUri())
+            context.startActivity(intent)
+        }
+    }
+
     if (showPermissionScreen && !permissionsGranted) {
         RequestPermissionsScreen(
+            shouldShowOptimization = state.value.shouldShowBatterieOptimization,
             onPermissionsGrantedAndConfigured = {
                 permissionsGranted = true
                 showPermissionScreen = false
+                viewModel.updateShouldShowBatterieOptimization(false)
+                onClick()
             },
             onPermissionsProcessSkippedOrDenied = {
                 showPermissionScreen = false // User chose not to grant or skip
@@ -250,22 +271,7 @@ fun DeliveryHelperScreen(
                         vibratePhoneClick(context = context)
                         showPermissionScreen = true
                         if (permissionsGranted) {
-                            viewModel.onLoading(true)
-                            viewModel.getOptimisedPath(
-                                dailyOrders.value.map { it.customerAddress }
-                            ) { latlngList ->
-                                launchDeliveryTracking.invoke()
-
-                                var link =
-                                    "https://www.google.com/maps/dir/8_la_vessoye_25560_boujailles/"
-                                latlngList.forEach {
-                                    link =
-                                        link.plus(it.first).plus(",").plus(it.second).plus("/")
-                                }
-                                viewModel.onLoading(false)
-                                val intent = Intent(Intent.ACTION_VIEW, link.toUri())
-                                context.startActivity(intent)
-                            }
+                            onClick()
                         }
                     },
                     shape = Shapes().medium

@@ -27,11 +27,11 @@ import com.mtdevelopment.checkout.domain.usecase.SaveCreatedCheckoutUseCase
 import com.mtdevelopment.checkout.domain.usecase.SavePaymentStateUseCase
 import com.mtdevelopment.checkout.domain.usecase.UpdateOrderStatus
 import com.mtdevelopment.checkout.presentation.model.PaymentScreenState
+import com.mtdevelopment.core.domain.toStringDate
 import com.mtdevelopment.core.model.Order
 import com.mtdevelopment.core.model.OrderStatus
 import com.mtdevelopment.core.usecase.ClearCartUseCase
 import com.mtdevelopment.core.usecase.GetIsNetworkConnectedUseCase
-import com.mtdevelopment.core.util.toStringDate
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted

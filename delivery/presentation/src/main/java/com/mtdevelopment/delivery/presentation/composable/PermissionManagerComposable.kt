@@ -11,7 +11,7 @@ import androidx.compose.ui.platform.LocalContext
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import com.mapbox.android.core.permissions.PermissionsManager.Companion.areLocationPermissionsGranted
-import com.mtdevelopment.core.util.calculateDistance
+import com.mtdevelopment.core.domain.calculateDistance
 import com.mtdevelopment.delivery.presentation.model.UiDeliveryPath
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch

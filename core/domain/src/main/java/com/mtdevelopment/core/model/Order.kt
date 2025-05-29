@@ -1,5 +1,8 @@
 package com.mtdevelopment.core.model
 
+import kotlinx.serialization.Serializable
+
+@Serializable
 data class Order(
     val id: String,
     val customerName: String,

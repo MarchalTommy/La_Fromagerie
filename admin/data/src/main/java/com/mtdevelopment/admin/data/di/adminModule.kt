@@ -1,12 +1,14 @@
 package com.mtdevelopment.admin.data.di
 
 import com.google.common.net.HttpHeaders
+import com.mtdevelopment.admin.data.repository.AdminDatastorePreferenceImpl
 import com.mtdevelopment.admin.data.repository.CloudinaryRepositoryImpl
 import com.mtdevelopment.admin.data.repository.FirebaseAdminRepositoryImpl
 import com.mtdevelopment.admin.data.repository.GoogleRouteRepositoryImpl
 import com.mtdevelopment.admin.data.repository.LocationRepositoryImpl
 import com.mtdevelopment.admin.data.source.FirestoreAdminDatasource
 import com.mtdevelopment.admin.data.source.GoogleRouteDataSource
+import com.mtdevelopment.admin.domain.repository.AdminDatastorePreference
 import com.mtdevelopment.admin.domain.repository.CloudinaryRepository
 import com.mtdevelopment.admin.domain.repository.FirebaseAdminRepository
 import com.mtdevelopment.admin.domain.repository.GoogleRouteRepository
@@ -37,6 +39,8 @@ val adminDataModule = module {
     single<CloudinaryRepository> { CloudinaryRepositoryImpl(get()) }
     single<GoogleRouteRepository> { GoogleRouteRepositoryImpl(get()) }
     single<LocationRepository> { LocationRepositoryImpl(get()) }
+
+    single<AdminDatastorePreference> { AdminDatastorePreferenceImpl(get()) }
 }
 
 val provideGoogleRouteDatasource = module {

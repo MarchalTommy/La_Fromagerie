@@ -66,7 +66,7 @@ import com.mtdevelopment.core.presentation.composable.ErrorOverlay
 import com.mtdevelopment.core.presentation.composable.RiveAnimation
 import com.mtdevelopment.core.util.ScreenSize
 import com.mtdevelopment.core.util.rememberScreenSize
-import com.mtdevelopment.core.util.toStringPrice
+import com.mtdevelopment.core.domain.toStringPrice
 import com.mtdevelopment.core.util.vibratePhoneClick
 import com.skydoves.landscapist.ImageOptions
 import com.skydoves.landscapist.glide.GlideImage

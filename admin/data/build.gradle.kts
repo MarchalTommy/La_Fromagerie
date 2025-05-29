@@ -58,12 +58,8 @@ android {
         }
     }
 
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_1_8
-        targetCompatibility = JavaVersion.VERSION_1_8
-    }
-    kotlinOptions {
-        jvmTarget = "1.8"
+    kotlin {
+        jvmToolchain(17)
     }
 }
 
@@ -104,6 +100,10 @@ dependencies {
     implementation(libs.ktor.client.auth)
     implementation(libs.ktor.content.negociation)
     implementation(libs.ktor.serialization.json)
+
+    implementation(libs.kotlinx.coroutines)
+    implementation(libs.kotlinx.coroutines.service)
+    implementation(libs.datastore.preferences)
 
     implementation(libs.protobuf.lite)
     implementation(libs.location)

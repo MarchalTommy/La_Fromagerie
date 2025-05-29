@@ -3,16 +3,20 @@ package com.mtdevelopment.admin.presentation.viewmodel
 import androidx.core.net.toUri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.mtdevelopment.admin.domain.model.OptimizedRouteWithOrders
 import com.mtdevelopment.admin.domain.usecase.AddNewPathUseCase
 import com.mtdevelopment.admin.domain.usecase.AddNewProductUseCase
 import com.mtdevelopment.admin.domain.usecase.DeletePathUseCase
 import com.mtdevelopment.admin.domain.usecase.DeleteProductUseCase
 import com.mtdevelopment.admin.domain.usecase.GetAllOrdersUseCase
 import com.mtdevelopment.admin.domain.usecase.GetOptimizedDeliveryUseCase
+import com.mtdevelopment.admin.domain.usecase.GetShouldShowBatterieOptimizationUseCase
 import com.mtdevelopment.admin.domain.usecase.UpdateDeliveryPathUseCase
 import com.mtdevelopment.admin.domain.usecase.UpdateProductUseCase
+import com.mtdevelopment.admin.domain.usecase.UpdateShouldShowBatterieOptimizationUseCase
 import com.mtdevelopment.admin.domain.usecase.UploadImageUseCase
 import com.mtdevelopment.admin.presentation.model.OrderScreenState
+import com.mtdevelopment.core.domain.toTimeStamp
 import com.mtdevelopment.core.model.DeliveryPath
 import com.mtdevelopment.core.presentation.sharedModels.UiProductObject
 import com.mtdevelopment.core.presentation.sharedModels.toDomainProduct
@@ -20,6 +24,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import org.koin.core.component.KoinComponent
+import java.time.Instant
 
 class AdminViewModel(
     private val updateProductUseCase: UpdateProductUseCase,
@@ -30,7 +35,9 @@ class AdminViewModel(
     private val addNewDeliveryPathUseCase: AddNewPathUseCase,
     private val getAllOrdersUseCase: GetAllOrdersUseCase,
     private val uploadImageUseCase: UploadImageUseCase,
-    private val getOptimizedDeliveryUseCase: GetOptimizedDeliveryUseCase
+    private val getOptimizedDeliveryUseCase: GetOptimizedDeliveryUseCase,
+    private val shouldShowBatterieOptimizationUseCase: UpdateShouldShowBatterieOptimizationUseCase,
+    private val getShouldShowBatterieOptimizationUseCase: GetShouldShowBatterieOptimizationUseCase
 ) : ViewModel(), KoinComponent {
 
     ///////////////////////////////////////////////////////////////////////////
@@ -38,6 +45,16 @@ class AdminViewModel(
     ///////////////////////////////////////////////////////////////////////////
     private val _orderScreenState = MutableStateFlow(OrderScreenState())
     val orderScreenState = _orderScreenState.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            getShouldShowBatterieOptimizationUseCase.invoke().collect {
+                _orderScreenState.value = _orderScreenState.value.copy(
+                    shouldShowBatterieOptimization = it
+                )
+            }
+        }
+    }
 
     ///////////////////////////////////////////////////////////////////////////
     // Products
@@ -168,11 +185,23 @@ class AdminViewModel(
     // DELIVERY HELPER
     ///////////////////////////////////////////////////////////////////////////
 
-    fun getOptimisedPath(addresses: List<String>, onSuccess: (List<Pair<Double, Double>>) -> Unit) {
+    fun getOptimisedPath(addresses: List<String>, onSuccess: (OptimizedRouteWithOrders) -> Unit) {
         viewModelScope.launch {
-            val result = getOptimizedDeliveryUseCase.invoke(addresses)
-            onSuccess.invoke(result ?: emptyList())
+            val dailyOrders = _orderScreenState.value.orders.filter {
+                it.deliveryDate.toTimeStamp() == Instant.now().toEpochMilli()
+            }
+            val result = getOptimizedDeliveryUseCase.invoke(addresses, dailyOrders)
+            onSuccess.invoke(result)
         }
+    }
+
+    fun updateShouldShowBatterieOptimization(shouldShow: Boolean) {
+        viewModelScope.launch {
+            shouldShowBatterieOptimizationUseCase.invoke(shouldShow = shouldShow)
+        }
+        _orderScreenState.value = _orderScreenState.value.copy(
+            shouldShowBatterieOptimization = shouldShow
+        )
     }
 
     ///////////////////////////////////////////////////////////////////////////
