@@ -10,6 +10,10 @@ interface AddressApiRepository {
         zip: Int
     ): CityInformation?
 
+    suspend fun geocodeAddress(
+        address: String
+    ): CityInformation?
+
     suspend fun getAutoCompleteSuggestions(
         query: String
     ): List<AutoCompleteSuggestion?>

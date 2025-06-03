@@ -43,11 +43,11 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
+import com.mtdevelopment.core.domain.toLongPrice
+import com.mtdevelopment.core.domain.toStringPrice
 import com.mtdevelopment.core.model.ProductType
 import com.mtdevelopment.core.presentation.sharedModels.UiProductObject
 import com.mtdevelopment.core.presentation.theme.ui.black70
-import com.mtdevelopment.core.util.toLongPrice
-import com.mtdevelopment.core.util.toStringPrice
 
 // TODO: Check why bug when picture + data, but not when just picture or just data
 @Preview(showBackground = true)

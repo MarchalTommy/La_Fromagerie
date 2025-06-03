@@ -40,6 +40,17 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/provider_paths" />
         </provider>
+        <service
+            android:name="com.mtdevelopment.lafromagerie.DeliveryTrackingService"
+            android:foregroundServiceType="location" />
+        <receiver
+            android:name=".NotificationBroadcastReceiver"
+            android:enabled="true"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="stopUpdate" />
+            </intent-filter>
+        </receiver>
     </application>
 
 </manifest>

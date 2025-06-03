@@ -67,8 +67,8 @@ import com.gigamole.composescrollbars.scrolltype.ScrollbarsScrollType
 import com.gigamole.composescrollbars.scrolltype.knobtype.ScrollbarsStaticKnobType
 import com.mtdevelopment.admin.presentation.composable.ProductEditField
 import com.mtdevelopment.admin.presentation.model.AdminUiDeliveryPath
+import com.mtdevelopment.core.domain.move
 import com.mtdevelopment.core.presentation.theme.ui.black70
-import com.mtdevelopment.core.util.move
 import com.mtdevelopment.delivery.domain.model.AutoCompleteSuggestion
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch

@@ -65,6 +65,10 @@ dependencies {
     androidTestImplementation(libs.androidx.ui.test.junit4)
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
+    implementation(libs.kotlinx.serialization.json)
+    implementation(libs.kotlinx.coroutines)
+    implementation(libs.kotlinx.coroutines.service)
+
 
     implementation(platform(libs.koin.bom))
     implementation(libs.koin.core)
@@ -75,6 +79,11 @@ dependencies {
 
     implementation(libs.landscapist)
     implementation(libs.rive.android)
+
+    implementation(libs.location)
+    implementation(libs.accompanist.permissions)
+
+    implementation(libs.contentment)
 
 //    https://github.com/GIGAMOLE/ComposeScrollbars
     implementation(libs.scrollbar)

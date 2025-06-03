@@ -1,14 +1,18 @@
 package com.mtdevelopment.admin.data.di
 
 import com.google.common.net.HttpHeaders
+import com.mtdevelopment.admin.data.repository.AdminDatastorePreferenceImpl
 import com.mtdevelopment.admin.data.repository.CloudinaryRepositoryImpl
 import com.mtdevelopment.admin.data.repository.FirebaseAdminRepositoryImpl
 import com.mtdevelopment.admin.data.repository.GoogleRouteRepositoryImpl
+import com.mtdevelopment.admin.data.repository.LocationRepositoryImpl
 import com.mtdevelopment.admin.data.source.FirestoreAdminDatasource
 import com.mtdevelopment.admin.data.source.GoogleRouteDataSource
+import com.mtdevelopment.admin.domain.repository.AdminDatastorePreference
 import com.mtdevelopment.admin.domain.repository.CloudinaryRepository
 import com.mtdevelopment.admin.domain.repository.FirebaseAdminRepository
 import com.mtdevelopment.admin.domain.repository.GoogleRouteRepository
+import com.mtdevelopment.admin.domain.repository.LocationRepository
 import com.mtdevelopment.core.data.Constants.GOOGLE_ROUTE_BASE_URL_WITHOUT_HTTPS
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
@@ -34,6 +38,9 @@ val adminDataModule = module {
     single<FirebaseAdminRepository> { FirebaseAdminRepositoryImpl(get()) }
     single<CloudinaryRepository> { CloudinaryRepositoryImpl(get()) }
     single<GoogleRouteRepository> { GoogleRouteRepositoryImpl(get()) }
+    single<LocationRepository> { LocationRepositoryImpl(get()) }
+
+    single<AdminDatastorePreference> { AdminDatastorePreferenceImpl(get()) }
 }
 
 val provideGoogleRouteDatasource = module {
@@ -44,13 +51,6 @@ val provideGoogleRouteDatasource = module {
                 host = GOOGLE_ROUTE_BASE_URL_WITHOUT_HTTPS
             }
         }
-//        install(Auth) {
-//            bearer {
-//                loadTokens {
-//                    BearerTokens(GOOGLE_API, null)
-//                }
-//            }
-//        }
         install(Logging) {
             logger = Logger.ANDROID
             level = LogLevel.ALL
