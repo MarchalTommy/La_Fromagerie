@@ -11,7 +11,6 @@ class GetOptimizedDeliveryUseCase(
     private val adminDatastorePreference: AdminDatastorePreference
 ) {
 
-    // TODO: CLEANER MY DUDE
     suspend operator fun invoke(
         addresses: List<String>,
         dailyOrders: List<Order>

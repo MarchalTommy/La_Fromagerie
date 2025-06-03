@@ -9,6 +9,7 @@ import com.mtdevelopment.admin.domain.usecase.AddNewProductUseCase
 import com.mtdevelopment.admin.domain.usecase.DeletePathUseCase
 import com.mtdevelopment.admin.domain.usecase.DeleteProductUseCase
 import com.mtdevelopment.admin.domain.usecase.GetAllOrdersUseCase
+import com.mtdevelopment.admin.domain.usecase.GetIsInTrackingModeUseCase
 import com.mtdevelopment.admin.domain.usecase.GetOptimizedDeliveryUseCase
 import com.mtdevelopment.admin.domain.usecase.GetShouldShowBatterieOptimizationUseCase
 import com.mtdevelopment.admin.domain.usecase.UpdateDeliveryPathUseCase
@@ -22,6 +23,7 @@ import com.mtdevelopment.core.presentation.sharedModels.UiProductObject
 import com.mtdevelopment.core.presentation.sharedModels.toDomainProduct
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.koin.core.component.KoinComponent
 import java.time.Instant
@@ -35,6 +37,7 @@ class AdminViewModel(
     private val addNewDeliveryPathUseCase: AddNewPathUseCase,
     private val getAllOrdersUseCase: GetAllOrdersUseCase,
     private val uploadImageUseCase: UploadImageUseCase,
+    private val isInTrackingModeUseCase: GetIsInTrackingModeUseCase,
     private val getOptimizedDeliveryUseCase: GetOptimizedDeliveryUseCase,
     private val shouldShowBatterieOptimizationUseCase: UpdateShouldShowBatterieOptimizationUseCase,
     private val getShouldShowBatterieOptimizationUseCase: GetShouldShowBatterieOptimizationUseCase
@@ -162,7 +165,6 @@ class AdminViewModel(
     ///////////////////////////////////////////////////////////////////////////
     // Orders
     ///////////////////////////////////////////////////////////////////////////
-
     fun getAllOrders() {
         viewModelScope.launch {
             _orderScreenState.value = _orderScreenState.value.copy(
@@ -184,7 +186,6 @@ class AdminViewModel(
     ///////////////////////////////////////////////////////////////////////////
     // DELIVERY HELPER
     ///////////////////////////////////////////////////////////////////////////
-
     fun getOptimisedPath(addresses: List<String>, onSuccess: (OptimizedRouteWithOrders) -> Unit) {
         viewModelScope.launch {
             val dailyOrders = _orderScreenState.value.orders.filter {
@@ -217,6 +218,26 @@ class AdminViewModel(
         _orderScreenState.value = _orderScreenState.value.copy(
             error = error
         )
+    }
+
+    fun getTrackingStatus() {
+        viewModelScope.launch {
+            isInTrackingModeUseCase.invoke().collect { isInTrackingMode ->
+                _orderScreenState.update {
+                    it.copy(
+                        isInTrackingMode = isInTrackingMode
+                    )
+                }
+            }
+        }
+    }
+
+    fun getTrackingStatusOnce(status: (Boolean) -> Unit) {
+        viewModelScope.launch {
+            isInTrackingModeUseCase.invoke().collect {
+                status.invoke(it)
+            }
+        }
     }
 
 }

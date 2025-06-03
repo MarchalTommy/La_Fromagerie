@@ -18,6 +18,7 @@ val adminPresentationModule = module {
             get(),
             get(),
             get(),
+            get(),
             get()
         )
     }

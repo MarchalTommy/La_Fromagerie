@@ -13,5 +13,9 @@ interface AdminDatastorePreference {
 
     suspend fun updateShouldShowBatterieOptimization(shouldShow: Boolean)
 
+    val isInTrackingModeFlow: Flow<Boolean>
+
+    suspend fun setIsInTrackingMode(isInTrackingMode: Boolean)
+
     suspend fun resetDailyDelivery()
 }

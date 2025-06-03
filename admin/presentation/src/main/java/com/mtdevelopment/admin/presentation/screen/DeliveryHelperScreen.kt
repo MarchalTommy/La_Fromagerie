@@ -50,7 +50,6 @@ import com.mtdevelopment.core.util.koinViewModel
 import com.mtdevelopment.core.util.vibratePhoneClick
 import com.skydoves.landscapist.ImageOptions
 import com.skydoves.landscapist.glide.GlideImage
-import java.time.Instant
 import java.time.LocalDate
 import java.time.format.TextStyle
 import java.util.Locale
@@ -60,8 +59,6 @@ fun DeliveryHelperScreen(
     launchDeliveryTracking: () -> Unit,
     stopDeliveryTracking: () -> Unit
 ) {
-    // TODO: Maybe add a button to stop the delivery when it's started
-
     val viewModel = koinViewModel<AdminViewModel>()
     val context = LocalContext.current
 
@@ -71,6 +68,11 @@ fun DeliveryHelperScreen(
     val todayDate = LocalDate.now().atStartOfDay(java.time.ZoneId.systemDefault())
 
     val state = viewModel.orderScreenState.collectAsState()
+
+    val isInTracking = remember(state.value) {
+        state.value.isInTrackingMode
+    }
+
     val dailyOrders = remember(state.value) {
         mutableStateOf(
             state.value.orders.filter {
@@ -87,17 +89,27 @@ fun DeliveryHelperScreen(
         }
     }
 
-    val subtitleText = remember(dailyOrders.value) {
+    val nextOrderDate = remember(state.value.orders) {
+        if (state.value.orders.isNotEmpty()) {
+            val filteredValue = state.value.orders.filter {
+                it.deliveryDate.toTimeStamp() > todayDate.toInstant().toEpochMilli()
+            }
+            if (filteredValue.isNotEmpty()) {
+                filteredValue.sortedBy { it.deliveryDate.toTimeStamp() }[0]
+            } else {
+                null
+            }
+        } else {
+            null
+        }
+    }
+
+    val subtitleText = remember(dailyOrders.value, state.value.orders) {
         if (dailyOrders.value.isEmpty()) {
-            if (state.value.orders.isNotEmpty()) {
+            if (state.value.orders.isNotEmpty() && nextOrderDate != null
+            ) {
                 "Prochaine livraison le ${
-                    state.value.orders.map { it.deliveryDate }
-                        .minByOrNull {
-                            java.time.Duration.between(
-                                Instant.ofEpochMilli(it.toTimeStamp()),
-                                todayDate.toInstant()
-                            )
-                        }
+                    nextOrderDate.deliveryDate
                 }"
             } else {
                 "Aucune date de livraison n'est prévue pour l'instant."
@@ -114,6 +126,7 @@ fun DeliveryHelperScreen(
 
     LaunchedEffect(Unit) {
         viewModel.getAllOrders()
+        viewModel.getTrackingStatus()
     }
 
     fun onClick() {
@@ -269,9 +282,13 @@ fun DeliveryHelperScreen(
                     modifier = Modifier,
                     onClick = {
                         vibratePhoneClick(context = context)
-                        showPermissionScreen = true
-                        if (permissionsGranted) {
-                            onClick()
+                        if (isInTracking) {
+                            stopDeliveryTracking.invoke()
+                        } else {
+                            showPermissionScreen = true
+                            if (permissionsGranted) {
+                                onClick()
+                            }
                         }
                     },
                     shape = Shapes().medium
@@ -280,7 +297,11 @@ fun DeliveryHelperScreen(
 
                     Text(
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                        text = "Démarrer la livraison"
+                        text = if (isInTracking) {
+                            "Arrêter la livraison"
+                        } else {
+                            "Démarrer la livraison"
+                        }
                     )
                 }
             }

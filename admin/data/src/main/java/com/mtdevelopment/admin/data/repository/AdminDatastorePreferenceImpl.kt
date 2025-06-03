@@ -40,7 +40,6 @@ class AdminDatastorePreferenceImpl(private val context: Context) : AdminDatastor
     }
 
     private val shouldShowBatterieOptimizationKey = booleanPreferencesKey("batterie_optimization")
-
     override val shouldShowBatterieOptimizationFlow: Flow<Boolean> =
         context.dataStore.data.map { preferences ->
             preferences[shouldShowBatterieOptimizationKey] == true
@@ -49,6 +48,18 @@ class AdminDatastorePreferenceImpl(private val context: Context) : AdminDatastor
     override suspend fun updateShouldShowBatterieOptimization(shouldShow: Boolean) {
         context.dataStore.edit { settings ->
             settings[shouldShowBatterieOptimizationKey] = shouldShow
+        }
+    }
+
+    private val isInTrackingModeKey = booleanPreferencesKey("is_in_tracking_mode")
+    override val isInTrackingModeFlow: Flow<Boolean> =
+        context.dataStore.data.map { preferences ->
+            preferences[isInTrackingModeKey] == true
+        }
+
+    override suspend fun setIsInTrackingMode(isInTrackingMode: Boolean) {
+        context.dataStore.edit { settings ->
+            settings[isInTrackingModeKey] = isInTrackingMode
         }
     }
 

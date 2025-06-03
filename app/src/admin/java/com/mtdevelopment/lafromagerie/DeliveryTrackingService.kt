@@ -15,6 +15,7 @@ import com.mtdevelopment.admin.domain.usecase.DetermineNextDeliveryStopUseCase
 import com.mtdevelopment.admin.domain.usecase.GetAllOrdersUseCase
 import com.mtdevelopment.admin.domain.usecase.GetCurrentLocationUseCase
 import com.mtdevelopment.admin.domain.usecase.GetOptimizedDeliveryUseCase
+import com.mtdevelopment.admin.domain.usecase.SetIsInTrackingModeUseCase
 import com.mtdevelopment.admin.presentation.R.drawable
 import com.mtdevelopment.core.domain.toStringDate
 import com.mtdevelopment.core.model.Order
@@ -24,6 +25,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
@@ -39,6 +41,7 @@ class DeliveryTrackingService : Service(), KoinComponent {
     private val determineNextDeliveryStopUseCase: DetermineNextDeliveryStopUseCase by inject()
     private val getAllOrdersUseCase: GetAllOrdersUseCase by inject()
     private val getOptimizedDeliveryUseCase: GetOptimizedDeliveryUseCase by inject()
+    private val setIsInTrackingModeUseCase: SetIsInTrackingModeUseCase by inject()
 
     private var todaysOrders: List<Order> = emptyList()
     private var optimizedRouteWaypoints: OptimizedRouteWithOrders = OptimizedRouteWithOrders(
@@ -63,7 +66,10 @@ class DeliveryTrackingService : Service(), KoinComponent {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent != null && intent.action == ACTION_STOP_SERVICE_FROM_NOTIFICATION) {
-            stopSelf()
+            serviceScope.launch {
+                setIsInTrackingModeUseCase.invoke(false)
+                stopSelf()
+            }
         } else {
             // startForeground doit être appelé dans les 5 secondes sur Android O+
             startForeground(NOTIFICATION_ID, createInitialNotification())
@@ -131,14 +137,17 @@ class DeliveryTrackingService : Service(), KoinComponent {
 
     private fun startLocationTracking() {
         serviceScope.launch {
-            getCurrentLocationUseCase()
+            getCurrentLocationUseCase.invoke()
                 .catch { e ->
                     Log.e(
                         TAG,
                         "Error in location flow",
                         e
                     )
-                } // Capter les erreurs du flow
+                }
+                .distinctUntilChanged { old, new ->
+                    old.latitude != new.latitude || old.longitude != new.longitude
+                }
                 .collectLatest { currentLocation ->
                     if (optimizedRouteWaypoints.optimizedOrders.isNotEmpty() && optimizedRouteWaypoints.optimizedRoute.isNotEmpty()) {
                         val nextStopOrder = determineNextDeliveryStopUseCase.invoke(
@@ -147,6 +156,7 @@ class DeliveryTrackingService : Service(), KoinComponent {
                         )
 
                         if (nextStopOrder != null) {
+                            setIsInTrackingModeUseCase.invoke(true)
                             val customerName = nextStopOrder.customerName
                             val orderContent = formatOrderContent(nextStopOrder)
                             updateNotification("Prochain arrêt: $customerName", orderContent)
@@ -155,9 +165,11 @@ class DeliveryTrackingService : Service(), KoinComponent {
                                 "Dernière livraison effectuée ou itinéraire terminé.",
                                 "À bientôt !"
                             )
+                            setIsInTrackingModeUseCase.invoke(false)
                             stopSelf()
                         }
                     } else {
+                        setIsInTrackingModeUseCase.invoke(false)
                         stopSelf()
                     }
                 }
@@ -240,7 +252,11 @@ class DeliveryTrackingService : Service(), KoinComponent {
     }
 
     override fun onDestroy() {
-        super.onDestroy()
-        serviceScope.cancel()
+        serviceScope.launch {
+            setIsInTrackingModeUseCase.invoke(false)
+            super.onDestroy()
+        }.invokeOnCompletion {
+            serviceScope.cancel()
+        }
     }
 }

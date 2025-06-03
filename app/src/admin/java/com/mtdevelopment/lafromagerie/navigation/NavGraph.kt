@@ -14,6 +14,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.toRoute
 import com.mtdevelopment.admin.presentation.screen.DeliveryHelperScreen
 import com.mtdevelopment.admin.presentation.screen.OrderPreparationScreen
+import com.mtdevelopment.admin.presentation.viewmodel.AdminViewModel
 import com.mtdevelopment.cart.presentation.viewmodel.CartViewModel
 import com.mtdevelopment.checkout.presentation.screen.AfterPaymentScreen
 import com.mtdevelopment.checkout.presentation.screen.CheckoutScreen
@@ -21,6 +22,7 @@ import com.mtdevelopment.core.presentation.MainViewModel
 import com.mtdevelopment.core.presentation.theme.ui.ScaleTransitionDirection
 import com.mtdevelopment.core.presentation.theme.ui.scaleIntoContainer
 import com.mtdevelopment.core.presentation.theme.ui.scaleOutOfContainer
+import com.mtdevelopment.core.util.koinViewModel
 import com.mtdevelopment.delivery.presentation.screen.DeliveryOptionScreen
 import com.mtdevelopment.details.presentation.composable.DetailScreen
 import com.mtdevelopment.home.presentation.composable.HomeScreen
@@ -35,7 +37,16 @@ fun NavGraph(
     launchDeliveryTracking: () -> Unit,
     stopDeliveryTracking: () -> Unit
 ) {
+    val adminViewModel = koinViewModel<AdminViewModel>()
     val shouldGoToDeliveryHelper = mainViewModel.shouldGoToDeliveryHelper.collectAsState()
+
+    LaunchedEffect(Unit) {
+        adminViewModel.getTrackingStatusOnce() {
+            if (it) {
+                navController.navigate(DeliveryHelperScreenDestination)
+            }
+        }
+    }
 
     LaunchedEffect(shouldGoToDeliveryHelper.value) {
         if (shouldGoToDeliveryHelper.value) {
@@ -77,6 +88,7 @@ fun NavGraph(
                 },
                 stopDeliveryTracking = {
                     stopDeliveryTracking.invoke()
+                    navController.navigate(HomeScreenDestination(shouldRefresh = false))
                 })
         }
 
