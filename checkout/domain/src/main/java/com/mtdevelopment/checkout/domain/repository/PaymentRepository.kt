@@ -1,9 +1,9 @@
 package com.mtdevelopment.checkout.domain.repository
 
 import com.google.android.gms.wallet.PaymentsClient
+import com.mtdevelopment.checkout.domain.model.Checkout
 import com.mtdevelopment.checkout.domain.model.GooglePayData
 import com.mtdevelopment.checkout.domain.model.NewCheckoutResult
-import com.mtdevelopment.checkout.domain.model.ProcessCheckoutResult
 import com.mtdevelopment.core.model.Order
 import com.mtdevelopment.core.model.OrderStatus
 import kotlinx.coroutines.flow.Flow
@@ -37,8 +37,9 @@ interface PaymentRepository {
 
     fun processCheckout(
         checkoutId: String,
-        googlePayData: GooglePayData
-    ): Flow<ProcessCheckoutResult>
+        googlePayData: GooglePayData,
+        handle3dsRedirect: (redirectUrl: String?) -> Unit
+    ): Flow<Checkout>
 
     ///////////////////////////////////////////////////////////////////////////
     // ORDERS

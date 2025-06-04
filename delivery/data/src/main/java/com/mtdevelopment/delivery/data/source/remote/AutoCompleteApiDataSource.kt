@@ -18,7 +18,7 @@ class AutoCompleteApiDataSource(
     private val json: Json
 ) {
 
-    suspend fun getAutoCompleteSuggestions(query: String): NetWorkResult<Any> {
+    suspend fun getAutoCompleteSuggestions(query: String): NetWorkResult<AutoCompleteSuggestions> {
         val response = httpClient.get {
             url {
                 protocol = URLProtocol.HTTPS
@@ -38,7 +38,7 @@ class AutoCompleteApiDataSource(
                 response.body<AutoCompleteSuggestions>()
             )
         } catch (e: Exception) {
-            NetWorkResult.Error(response.status, e.message ?: "")
+            NetWorkResult.Error(response.status.toString(), e.message ?: "")
         }
     }
 }

@@ -12,8 +12,8 @@ data class ProcessCheckoutResponse(
 ) {
     @Serializable
     data class NextStep(
-        @SerialName("full")
-        val full: String? = null,
+//        @SerialName("full")
+//        val full: String? = null,
         @SerialName("mechanism")
         val mechanism: List<String?>? = null,
         @SerialName("method")
@@ -21,16 +21,24 @@ data class ProcessCheckoutResponse(
         @SerialName("payload")
         val payload: Payload? = null,
         @SerialName("url")
-        val url: String? = null
+        val url: String? = null,
+        @SerialName("redirect_url")
+        val redirectUrl: String? = null
     ) {
         @Serializable
         data class Payload(
-            @SerialName("cs")
-            val cs: String? = null,
-            @SerialName("rs")
-            val rs: String? = null,
-            @SerialName("tx")
-            val tx: String? = null
+            @SerialName("PaReq")
+            val paReq: String? = null,
+            @SerialName("MD")
+            val md: String? = null,
+            @SerialName("TermUrl")
+            val termUrl: String? = null,
+//            @SerialName("cs")
+//            val cs: String? = null,
+//            @SerialName("rs")
+//            val rs: String? = null,
+//            @SerialName("tx")
+//            val tx: String? = null
         )
     }
 }
@@ -40,15 +48,19 @@ fun ProcessCheckoutResponse.toProcessCheckoutResult() = ProcessCheckoutResult(
 )
 
 fun ProcessCheckoutResponse.NextStep.toNextStep() = ProcessCheckoutResult.NextStep(
-    full = this.full,
+//    full = this.full,
     mechanism = this.mechanism,
     method = this.method,
     payload = this.payload?.toPayload(),
-    url = this.url
+    url = this.url,
+    redirectUrl = this.redirectUrl
 )
 
 fun ProcessCheckoutResponse.NextStep.Payload.toPayload() = ProcessCheckoutResult.NextStep.Payload(
-    cs = this.cs,
-    rs = this.rs,
-    tx = this.tx
+//    cs = this.cs,
+//    rs = this.rs,
+//    tx = this.tx
+    paReq = this.paReq,
+    md = this.md,
+    termUrl = this.termUrl
 )

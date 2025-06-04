@@ -2,8 +2,6 @@ package com.mtdevelopment.delivery.data.repository
 
 import com.google.android.gms.maps.model.LatLng
 import com.mtdevelopment.core.util.NetWorkResult
-import com.mtdevelopment.delivery.data.model.response.addressData.AddressData
-import com.mtdevelopment.delivery.data.model.response.autocomplete.AutoCompleteSuggestions
 import com.mtdevelopment.delivery.data.source.remote.AddressApiDataSource
 import com.mtdevelopment.delivery.data.source.remote.AutoCompleteApiDataSource
 import com.mtdevelopment.delivery.domain.model.AutoCompleteSuggestion
@@ -23,9 +21,9 @@ class AddressApiRepositoryImpl(
         }
 
         val properties =
-            (result as NetWorkResult<AddressData>).data?.features?.first()?.properties
+            (result as? NetWorkResult.Success)?.data?.features?.first()?.properties
         val geometry =
-            (result as NetWorkResult<AddressData>).data?.features?.first()?.geometry
+            (result as? NetWorkResult.Success)?.data?.features?.first()?.geometry
 
         return if (geometry != null) {
             CityInformation(
@@ -49,9 +47,9 @@ class AddressApiRepositoryImpl(
         }
 
         val properties =
-            (result as NetWorkResult<AddressData>).data?.features?.first()?.properties
+            (result as? NetWorkResult.Success)?.data?.features?.first()?.properties
         val geometry =
-            (result as NetWorkResult<AddressData>).data?.features?.first()?.geometry
+            (result as? NetWorkResult.Success)?.data?.features?.first()?.geometry
 
         return if (geometry != null) {
             CityInformation(
@@ -74,15 +72,16 @@ class AddressApiRepositoryImpl(
             return emptyList()
         }
 
-        val cleanedList = (result as? NetWorkResult<AutoCompleteSuggestions>)?.data?.results?.map {
-            AutoCompleteSuggestion(
-                city = it?.city,
-                postCode = it?.zipcode,
-                fulltext = it?.fulltext,
-                lat = it?.y,
-                long = it?.x
-            )
-        }
+        val cleanedList =
+            (result as? NetWorkResult.Success)?.data?.results?.map {
+                AutoCompleteSuggestion(
+                    city = it?.city,
+                    postCode = it?.zipcode,
+                    fulltext = it?.fulltext,
+                    lat = it?.y,
+                    long = it?.x
+                )
+            }
 
         return if (cleanedList?.isNotEmpty() == true) {
             cleanedList

@@ -35,6 +35,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.google.android.gms.common.api.ApiException
 import com.google.android.gms.common.api.ResolvableApiException
+import com.google.android.gms.wallet.PaymentData
 import com.google.pay.button.PayButton
 import com.mtdevelopment.checkout.presentation.BuildConfig
 import com.mtdevelopment.checkout.presentation.composable.UserInfoFormComposable
@@ -59,24 +60,25 @@ fun CheckoutScreen(
     val googlePayLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartIntentSenderForResult()
     ) { activityResult ->
-        val isSuccess = when (activityResult.resultCode) {
-            RESULT_OK -> {
-                activityResult.data.let {
-                    true
+        if (activityResult.resultCode == RESULT_OK) {
+            activityResult.data?.let { intent ->
+                // Extraire PaymentData de l'intent
+                val paymentData = PaymentData.getFromIntent(intent)
+                paymentData?.let {
+                    // ICI: appeler setPaymentData
+                    checkoutViewModel.setPaymentData(it)
+                } ?: run {
+                    // Gérer le cas où paymentData est null (ne devrait pas arriver si RESULT_OK)
+                    checkoutViewModel.setPaymentError("Erreur lors de la récupération des données de paiement Google Pay.")
                 }
             }
-
-            else -> {
-                false
-            }
-            //CommonStatusCodes.CANCELED -> The user canceled
-            //CommonStatusCodes.DEVELOPER_ERROR -> The API returned an error (it.status: Status)
-            //else -> Handle internal and other unexpected errors
-        }
-        if (isSuccess) {
-            checkoutViewModel.setGooglePaySuccess(true)
         } else {
-            checkoutViewModel.setGooglePaySuccess(false)
+            // L'utilisateur a annulé ou une erreur s'est produite dans l'interface Google Pay
+            Log.w(
+                TAG,
+                "Google Pay a été annulé ou a échoué. ResultCode: ${activityResult.resultCode}"
+            )
+            checkoutViewModel.setPaymentError("Paiement Google Pay annulé ou échoué.")
         }
     }
 
@@ -204,7 +206,6 @@ fun CheckoutScreen(
             fontSize = 26.sp
         )
 
-        // TODO: DEBUG dELIVERY PATH, CAN'T TEST BECAUSE EVERYTHING SEEMS TOO FAR ?
         PayButton(
             modifier = Modifier
                 .testTag("payButton")
@@ -213,46 +214,46 @@ fun CheckoutScreen(
             onClick = {
                 checkoutViewModel.createOrder() { isSuccess ->
                     if (isSuccess) {
-//                checkoutViewModel.createCheckout {
-                        uiData.value.totalPrice?.let { price ->
-                            val task = checkoutViewModel.getLoadPaymentDataTask(price)
-                            task.addOnCompleteListener { completedTask ->
-                                if (completedTask.isSuccessful) {
-                                    completedTask.result.let {
-                                        Log.i("Google Pay result", it.toJson())
-                                        checkoutViewModel.setGooglePaySuccess(true)
-                                    }
-                                } else {
-                                    when (val exception = completedTask.exception) {
-                                        is ResolvableApiException -> {
-                                            googlePayLauncher.launch(
-                                                IntentSenderRequest.Builder(exception.resolution)
-                                                    .build()
-                                            )
+                        checkoutViewModel.createCheckout {
+                            uiData.value.totalPrice?.let { price ->
+                                val task = checkoutViewModel.getLoadPaymentDataTask(price)
+                                task.addOnCompleteListener { completedTask ->
+                                    if (completedTask.isSuccessful) {
+                                        completedTask.result.let {
+                                            Log.i("Google Pay result", it.toJson())
+                                            checkoutViewModel.setPaymentData(it)
                                         }
+                                    } else {
+                                        when (val exception = completedTask.exception) {
+                                            is ResolvableApiException -> {
+                                                googlePayLauncher.launch(
+                                                    IntentSenderRequest.Builder(exception.resolution)
+                                                        .build()
+                                                )
+                                            }
 
-                                        is ApiException -> {
-                                            Log.e(
-                                                "Google Pay API error",
-                                                "Error code: ${exception.statusCode}, Message: ${exception.message}"
-                                            )
-                                        }
+                                            is ApiException -> {
+                                                Log.e(
+                                                    "Google Pay API error",
+                                                    "Error code: ${exception.statusCode}, Message: ${exception.message}"
+                                                )
+                                            }
 
-                                        else -> {
-                                            Log.e(
-                                                "Google Pay API error",
-                                                "Unexpected non API exception"
-                                            )
+                                            else -> {
+                                                Log.e(
+                                                    "Google Pay API error",
+                                                    "Unexpected non API exception"
+                                                )
+                                            }
                                         }
                                     }
                                 }
-                            }
 
-                        }
-                            ?: run {
-                                onPricingError()
                             }
-//                }
+                                ?: run {
+                                    onPricingError()
+                                }
+                        }
                     } else {
                         checkoutViewModel.setPaymentError("Une erreur est survenue lors de la création de la commande.\nMerci de réessayer ultérieurement et de contacter nos équipes si le problème persiste !")
                     }

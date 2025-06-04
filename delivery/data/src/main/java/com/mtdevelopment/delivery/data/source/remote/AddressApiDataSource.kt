@@ -18,7 +18,7 @@ class AddressApiDataSource(
     private val json: Json
 ) {
 
-    suspend fun getLngLatFromCity(cityName: String, zip: Int): NetWorkResult<Any> {
+    suspend fun getLngLatFromCity(cityName: String, zip: Int): NetWorkResult<AddressData> {
         val response = httpClient.get {
             url {
                 protocol = URLProtocol.HTTPS
@@ -37,11 +37,11 @@ class AddressApiDataSource(
                 response.body<AddressData>()
             )
         } catch (e: Exception) {
-            NetWorkResult.Error(response.status, e.message ?: "")
+            NetWorkResult.Error(response.status.toString(), e.message ?: "")
         }
     }
 
-    suspend fun getLngLatFromAddress(address: String): NetWorkResult<Any> {
+    suspend fun getLngLatFromAddress(address: String): NetWorkResult<AddressData> {
         val response = httpClient.get {
             url {
                 protocol = URLProtocol.HTTPS
@@ -60,7 +60,7 @@ class AddressApiDataSource(
                 response.body<AddressData>()
             )
         } catch (e: Exception) {
-            NetWorkResult.Error(response.status, e.message ?: "")
+            NetWorkResult.Error(response.status.toString(), e.message ?: "")
         }
     }
 }
