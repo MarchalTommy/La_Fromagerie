@@ -1,6 +1,8 @@
 package com.mtdevelopment.checkout.data.remote.model.response.sumUp
 
 
+import com.mtdevelopment.checkout.domain.model.Checkout
+import com.mtdevelopment.checkout.domain.model.Transaction
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -96,4 +98,68 @@ enum class CHECKOUT_TRANSACTION_ENTRY_MODE(val value: String) {
 @Serializable
 enum class CHECKOUT_TRANSACTION_PAYMENT_TYPE(val value: String) {
     ECOM("ECOM"), RECURRING("RECURRING"), BOLETO("BOLETO")
+}
+
+/**
+ * Mappe un objet CheckoutResponse.Transaction (source) vers un objet Transaction (cible).
+ */
+fun CheckoutResponse.Transaction.toDomainTransaction(): Transaction {
+    return Transaction(
+        amount = this.amount,
+        currency = this.currency,
+        id = this.id,
+        installmentsCount = this.installmentsCount,
+        paymentType = this.paymentType?.value, // Mappe l'enum source vers sa valeur String
+        status = this.status?.value,           // Mappe l'enum source vers sa valeur String
+        timestamp = this.timestamp,
+        transactionCode = this.transactionCode,
+        authCode = this.authCode,
+        entryMode = this.entryMode?.value,     // Mappe l'enum source vers sa valeur String
+        internalId = this.internalId,
+        merchantCode = this.merchantCode,
+        tipAmount = this.tipAmount?.toDouble(), // Convertit Int? en Double?
+        vatAmount = this.vatAmount?.toDouble()  // Convertit Int? en Double?
+    )
+}
+
+fun CheckoutResponse.toDomainCheckout(): Checkout {
+    val domainAmount = this.amount
+        ?: throw IllegalArgumentException("CheckoutResponse.amount ne peut pas être nul lors du mappage vers Checkout.amount")
+    val domainCheckoutReference = this.checkoutReference
+        ?: throw IllegalArgumentException("CheckoutResponse.checkoutReference ne peut pas être nul lors du mappage vers Checkout.checkoutReference")
+    val domainCurrency = this.currency
+        ?: throw IllegalArgumentException("CheckoutResponse.currency ne peut pas être nul lors du mappage vers Checkout.currency")
+    val domainMerchantCode = this.merchantCode
+        ?: throw IllegalArgumentException("CheckoutResponse.merchantCode ne peut pas être nul lors du mappage vers Checkout.merchantCode")
+
+    val domainTransactions: List<Transaction>? = this.transactions
+        ?.mapNotNull { it?.toDomainTransaction() }
+
+    // Dérive paymentType de la première transaction, si disponible
+    val paymentTypeFromTransaction = domainTransactions?.firstOrNull()?.paymentType
+
+    val domainStatus: com.mtdevelopment.checkout.domain.model.CHECKOUT_STATUS? =
+        this.status?.let { sourceStatus ->
+            enumValues<com.mtdevelopment.checkout.domain.model.CHECKOUT_STATUS>().find { it.value == sourceStatus.value }
+        }
+
+    return Checkout(
+        amount = domainAmount,
+        checkoutReference = domainCheckoutReference,
+        currency = domainCurrency,
+        customerId = this.customerId,
+        date = this.date,
+        description = this.description,
+        id = this.id,
+        merchantCode = domainMerchantCode,
+        payToEmail = this.payToEmail,
+        paymentType = paymentTypeFromTransaction,
+        personalDetails = null, // Pas de mappage direct depuis CheckoutResponse pour personalDetails
+        purpose = null,         // Pas de mappage direct pour purpose; CHECKOUT_PURPOSE est un nouvel enum
+        redirectUrl = null,     // Pas de mappage direct depuis CheckoutResponse pour redirectUrl
+        returnUrl = this.returnUrl,
+        status = domainStatus,
+        transactions = domainTransactions,
+        validUntil = this.validUntil
+    )
 }
