@@ -153,7 +153,7 @@ class PaymentRepositoryImpl(
                 ),
                 purpose = CHECKOUT_CREATION_BODY_PURPOSE.CHECKOUT,
 //                merchantCode = "BuildConfig.SUMUP_MERCHANT_ID",
-                merchantCode = BuildConfig.SUMUP_MERCHANT_ID_TEST
+                merchantCode = BuildConfig.SUMUP_MERCHANT_ID
             )
         ).transform { value ->
             if (
