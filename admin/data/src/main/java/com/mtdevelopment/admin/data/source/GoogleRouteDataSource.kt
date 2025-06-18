@@ -23,7 +23,7 @@ class GoogleRouteDataSource(
     private val json: Json
 ) {
 
-    suspend fun getOptimizedRoute(addressesList: List<String>): NetWorkResult<Any> {
+    suspend fun getOptimizedRoute(addressesList: List<String>): NetWorkResult<GoogleOptimizedComputedRouteResponse> {
 
         val intermediatesWaypointsList = addressesList.map {
             WaypointData(
@@ -81,7 +81,7 @@ class GoogleRouteDataSource(
             }
         } catch (e: Exception) {
             e.printStackTrace()
-            return NetWorkResult.Error(null, e.message ?: "")
+            return NetWorkResult.Error("", e.message ?: "")
         }
         return try {
             val result =
@@ -90,7 +90,7 @@ class GoogleRouteDataSource(
                 result
             )
         } catch (e: Exception) {
-            NetWorkResult.Error(response.status, e.message ?: "")
+            NetWorkResult.Error(response.status.toString(), e.message ?: "")
         }
     }
 
