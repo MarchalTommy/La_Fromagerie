@@ -47,7 +47,6 @@ fun AddressAutocompleteTextField(
     showDropdown: Boolean,
     focusRequester: FocusRequester,
     focusManager: FocusManager,
-    onFocusChange: (Boolean) -> Unit,
     onDropDownDismiss: () -> Unit,
     onAddressValidated: (address: String, suggestion: AutoCompleteSuggestion?) -> Unit,
     onValueChange: (String) -> Unit
@@ -96,8 +95,6 @@ fun AddressAutocompleteTextField(
                                 validateCurrentInput()
                             }
                         }
-                    } else {
-                        onFocusChange.invoke(focusState.isFocused)
                     }
                 },
             label = { Text(text = "Entrez une adresse") },

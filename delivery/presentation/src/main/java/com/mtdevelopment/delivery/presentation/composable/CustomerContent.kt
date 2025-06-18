@@ -46,7 +46,6 @@ import com.mtdevelopment.delivery.presentation.model.UiDeliveryPath
 import com.mtdevelopment.delivery.presentation.state.DeliveryUiDataState
 import com.mtdevelopment.delivery.presentation.viewmodel.DeliveryViewModel
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.IOException
@@ -136,14 +135,6 @@ fun CustomerContent(
             },
             leadingIcon = {
                 Icon(Icons.Rounded.Person, "")
-            },
-            onFocusChange = {
-                if (it) {
-                    scope.launch {
-                        delay(500)
-                        scrollState.animateScrollTo(scrollState.maxValue)
-                    }
-                }
             }
         )
 
@@ -161,14 +152,6 @@ fun CustomerContent(
             },
             onValueChange = {
                 deliveryViewModel.setAddressFieldText(it)
-            },
-            onFocusChange = {
-                if (it) {
-                    scope.launch {
-                        delay(500)
-                        scrollState.animateScrollTo(scrollState.maxValue)
-                    }
-                }
             },
             onAddressValidated = { string, suggestion ->
                 if (suggestion != null) {

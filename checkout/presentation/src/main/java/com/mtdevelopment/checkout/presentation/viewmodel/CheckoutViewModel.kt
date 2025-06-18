@@ -116,6 +116,14 @@ class CheckoutViewModel(
         }
     }
 
+    fun updateCheckoutNote(note: String) {
+        _paymentScreenState.update {
+            it.copy(
+                checkoutNote = note
+            )
+        }
+    }
+
     /**
      * Determine the user's ability to pay with a payment method supported by your app and display
      * a Google Pay payment button.

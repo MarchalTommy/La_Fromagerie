@@ -14,5 +14,6 @@ data class PaymentScreenState(
     val totalPrice: Long? = null,
     val deliveryDate: Long? = null,
     val checkoutResult: NewCheckoutResult? = null,
-    var orderId: String? = null
+    var orderId: String? = null,
+    var checkoutNote: String? = null
 )
