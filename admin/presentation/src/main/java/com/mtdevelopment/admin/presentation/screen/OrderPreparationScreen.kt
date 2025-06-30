@@ -36,6 +36,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.unit.dp
 import com.mtdevelopment.admin.presentation.viewmodel.AdminViewModel
+import com.mtdevelopment.core.domain.toTimeStamp
 import com.mtdevelopment.core.model.Order
 import com.mtdevelopment.core.presentation.composable.ErrorOverlay
 import com.mtdevelopment.core.presentation.composable.RiveAnimation
@@ -72,7 +73,8 @@ fun OrderPreparationScreen() {
 fun OrderPreparationList(
     orders: List<Order>
 ) {
-    val nextDeliveryDates = orders.map { it.deliveryDate }.sorted().toSet()
+    val nextDeliveryDates =
+        orders.map { it.deliveryDate }.sortedByDescending { it.toTimeStamp() }.toSet()
     val ordersByDeliveryDate = orders.groupBy { it.deliveryDate }
 
     LazyColumn {
@@ -133,6 +135,7 @@ fun OrderPreparationList(
     }
 }
 
+// TODO: Fix : Quantity error on some occasion -> Multiple orders by same client name.
 @Composable
 fun OrderPreparationListItem(
     modifier: Modifier = Modifier,

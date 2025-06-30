@@ -12,7 +12,8 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun DeliveryHelperItem(
     name: String,
-    address: String
+    address: String,
+    note: String?
 ) {
     Column(
         modifier = Modifier
@@ -28,5 +29,13 @@ fun DeliveryHelperItem(
             text = address,
             style = MaterialTheme.typography.bodyMedium
         )
+        if (note != null && note.isNotBlank()) {
+            Text(
+                modifier = Modifier,
+                text = note,
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.primary
+            )
+        }
     }
 }

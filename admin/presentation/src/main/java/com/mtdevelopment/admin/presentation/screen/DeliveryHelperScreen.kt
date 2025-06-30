@@ -223,7 +223,8 @@ fun DeliveryHelperScreen(
                                     // Grouping orders by address to the same entry in the list
                                     DeliveryHelperItem(
                                         name = stringNames,
-                                        address = address
+                                        address = address,
+                                        note = orders.find { it.customerAddress == address }?.note
                                     )
                                 }
                             }

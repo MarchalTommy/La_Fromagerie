@@ -388,7 +388,8 @@ class CheckoutViewModel(
                         deliveryDate = _paymentScreenState.value.deliveryDate?.toStringDate() ?: "",
                         orderDate = Timestamp.now().toDate().time.toStringDate(),
                         products = orderProduct,
-                        status = OrderStatus.PENDING
+                        status = OrderStatus.PENDING,
+                        note = _paymentScreenState.value.checkoutNote.toString()
                     )
                 )
             )

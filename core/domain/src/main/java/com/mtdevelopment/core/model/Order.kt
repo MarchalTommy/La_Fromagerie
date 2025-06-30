@@ -10,5 +10,6 @@ data class Order(
     val deliveryDate: String,
     val orderDate: String,
     val products: Map<String, Int>,
-    val status: OrderStatus
+    val status: OrderStatus,
+    val note: String?
 )

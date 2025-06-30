@@ -239,6 +239,12 @@ fun CheckoutScreen(
                         text = "Ici vous pouvez nous aider à vous livrer !\n" +
                                 "Par exemple si la glacière de livraison se trouve derrière la maison, ou que vous voulez clarifier quelque chose qui semble important lors de la livraison."
                     )
+                },
+                isError = uiData.value.checkoutNote?.length != null && uiData.value.checkoutNote?.length!! >= 251,
+                supportingText = {
+                    Text(
+                        text = "${uiData.value.checkoutNote?.length ?: 0}/250"
+                    )
                 }
             )
 

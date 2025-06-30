@@ -20,7 +20,9 @@ data class OrderData(
     @SerialName("products")
     val products: Map<String, Int>,
     @SerialName("status")
-    val status: OrderStatus
+    val status: OrderStatus,
+    @SerialName("note")
+    val note: String?
 )
 
 fun OrderData.toOrder(): Order {
@@ -31,7 +33,8 @@ fun OrderData.toOrder(): Order {
         deliveryDate = delivery_date,
         orderDate = order_date,
         products = products,
-        status = status
+        status = status,
+        note = note
     )
 }
 
@@ -43,6 +46,7 @@ fun Order.toOrderData(): OrderData {
         delivery_date = deliveryDate,
         order_date = orderDate,
         products = products,
-        status = status
+        status = status,
+        note = note
     )
 }
