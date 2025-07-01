@@ -9,5 +9,6 @@ data class LocalCheckoutInformation(
     val buyerAddress: String? = null,
     val cartItems: CartItems? = null,
     val totalPrice: Long? = null,
-    val deliveryDate: Long? = null
+    val deliveryDate: Long? = null,
+    val billingAddress: String? = null
 )

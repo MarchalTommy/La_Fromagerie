@@ -9,6 +9,8 @@ data class UserInformation(
     val name: String,
     @SerializedName("address")
     val address: String,
+    @SerializedName("billingAddress")
+    val billingAddress: String,
     @SerializedName("lastSelectedPath")
     val lastSelectedPath: String
 )

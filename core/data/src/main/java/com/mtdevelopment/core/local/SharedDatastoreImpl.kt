@@ -69,7 +69,8 @@ class SharedDatastoreImpl(private val context: Context) : SharedDatastore {
                 UserInformation(
                     name = "",
                     address = "",
-                    lastSelectedPath = ""
+                    lastSelectedPath = "",
+                    billingAddress = ""
                 )
             }
         }

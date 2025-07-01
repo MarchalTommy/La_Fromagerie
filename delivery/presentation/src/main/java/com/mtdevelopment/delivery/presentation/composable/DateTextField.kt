@@ -62,7 +62,8 @@ fun DateTextField(
                 } else {
                     "Sélectionnez une des dates disponible"
                 },
-                Modifier.background(Color.Transparent)
+                Modifier.background(Color.Transparent),
+                style = MaterialTheme.typography.labelSmall
             )
         },
         textStyle = MaterialTheme.typography.bodyLarge,

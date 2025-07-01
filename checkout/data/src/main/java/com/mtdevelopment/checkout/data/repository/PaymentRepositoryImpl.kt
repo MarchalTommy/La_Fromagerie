@@ -132,6 +132,9 @@ class PaymentRepositoryImpl(
         TODO("Not yet implemented")
     }
 
+
+    // TODO: Fix personal details to have name, address, billing address, etc...
+
     // TODO: Create checkout when clicking on google pay button
     // TODO: Save checkout reference securely, locally and remotely
     override fun createNewCheckout(

@@ -254,7 +254,7 @@ fun CheckoutScreen(
                     .fillMaxWidth()
                     .padding(horizontal = 32.dp, vertical = 16.dp),
                 onClick = {
-                    checkoutViewModel.createOrder() { isSuccess ->
+                    checkoutViewModel.createOrder { isSuccess ->
                         if (isSuccess) {
 //                checkoutViewModel.createCheckout {
                             uiData.value.totalPrice?.let { price ->

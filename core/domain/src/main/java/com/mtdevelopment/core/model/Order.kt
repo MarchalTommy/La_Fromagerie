@@ -7,6 +7,7 @@ data class Order(
     val id: String,
     val customerName: String,
     val customerAddress: String,
+    val customerBillingAddress: String,
     val deliveryDate: String,
     val orderDate: String,
     val products: Map<String, Int>,

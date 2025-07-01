@@ -41,6 +41,7 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun AddressAutocompleteTextField(
+    label: String,
     searchQuery: String,
     suggestions: List<AutoCompleteSuggestion>,
     isLoading: Boolean,
@@ -49,7 +50,8 @@ fun AddressAutocompleteTextField(
     focusManager: FocusManager,
     onDropDownDismiss: () -> Unit,
     onAddressValidated: (address: String, suggestion: AutoCompleteSuggestion?) -> Unit,
-    onValueChange: (String) -> Unit
+    onValueChange: (String) -> Unit,
+    onClick: () -> Unit
 ) {
     var isDropdownExpanded by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
@@ -95,9 +97,11 @@ fun AddressAutocompleteTextField(
                                 validateCurrentInput()
                             }
                         }
+                    } else {
+                        onClick.invoke()
                     }
                 },
-            label = { Text(text = "Entrez une adresse") },
+            label = { Text(text = label, style = MaterialTheme.typography.labelSmall) },
             trailingIcon = {
                 if (isLoading) {
                     CircularProgressIndicator(modifier = Modifier.size(24.dp))

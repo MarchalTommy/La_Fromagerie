@@ -22,7 +22,8 @@ class GetCheckoutDataUseCase(
                     buyerAddress = user.address,
                     cartItems = cart,
                     totalPrice = totalPrice ?: 0L,
-                    deliveryDate = 0L
+                    deliveryDate = 0L,
+                    billingAddress = user.billingAddress
                 )
             } else {
                 null

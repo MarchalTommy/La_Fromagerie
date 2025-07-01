@@ -37,7 +37,7 @@ fun UserInfoComposable(
         onValueChange = { text ->
             updateText.invoke(text)
         },
-        label = { Text(label) },
+        label = { Text(label, style = MaterialTheme.typography.labelSmall) },
         shape = ShapeDefaults.Medium,
         colors = OutlinedTextFieldDefaults.colors(
             disabledLabelColor = MaterialTheme.colorScheme.onSurface,
