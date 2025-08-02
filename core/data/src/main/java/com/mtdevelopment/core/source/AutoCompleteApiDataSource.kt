@@ -1,8 +1,8 @@
-package com.mtdevelopment.delivery.data.source.remote
+package com.mtdevelopment.core.source
 
+import com.mtdevelopment.core.data.Constants.ADDRESS_API_BASE_URL_WITHOUT_HTTPS
+import com.mtdevelopment.core.model.autocomplete.AutoCompleteSuggestions
 import com.mtdevelopment.core.util.NetWorkResult
-import com.mtdevelopment.delivery.data.model.Constants.ADDRESS_API_BASE_URL_WITHOUT_HTTPS
-import com.mtdevelopment.delivery.data.model.response.autocomplete.AutoCompleteSuggestions
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.get
@@ -21,9 +21,8 @@ class AutoCompleteApiDataSource(
     suspend fun getAutoCompleteSuggestions(query: String): NetWorkResult<Any> {
         val response = httpClient.get {
             url {
-                protocol = URLProtocol.HTTPS
-                host =
-                    ADDRESS_API_BASE_URL_WITHOUT_HTTPS
+                protocol = URLProtocol.Companion.HTTPS
+                host = ADDRESS_API_BASE_URL_WITHOUT_HTTPS
                 header(
                     HttpHeaders.Accept,
                     "application/json, application/geo+json, application/gpx+xml, img/png; charset=utf-8"

@@ -167,7 +167,7 @@ fun DeliveryOptionScreen(
         if (showEditDialog.value) {
             PathEditDialog(
                 path = selectedPath.value,
-                searchQuery = state.value.addressSearchQuery,
+                searchQuery = state.value.deliveryAddressSearchQuery,
                 onValidate = { newPath ->
                     if (state.value.deliveryPaths.any { it.id == newPath.id }) {
                         deliveryViewModel.setIsLoading(true)
@@ -211,10 +211,13 @@ fun DeliveryOptionScreen(
                 onError = {
                     deliveryViewModel.setIsError(it)
                 },
-                autoCompleteSuggestion = state.value.addressSuggestions,
+                autoCompleteSuggestion = state.value.deliveryAddressSuggestions,
                 showAutocompleteDropdown = state.value.showAddressSuggestions,
                 onAutoCompleteDropdownDismiss = {
-                    deliveryViewModel.setShowAddressesSuggestions(false)
+                    deliveryViewModel.setShowAddressesSuggestions(
+                        shouldShow = false,
+                        isBilling = false
+                    )
                 },
                 onAutocompleteQueryChange = {
                     deliveryViewModel.setAddressFieldText(it)

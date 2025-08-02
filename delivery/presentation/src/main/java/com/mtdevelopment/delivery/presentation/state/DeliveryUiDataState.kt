@@ -1,6 +1,6 @@
 package com.mtdevelopment.delivery.presentation.state
 
-import com.mtdevelopment.delivery.domain.model.AutoCompleteSuggestion
+import com.mtdevelopment.core.model.AutoCompleteSuggestion
 import com.mtdevelopment.delivery.presentation.model.UiDeliveryPath
 
 data class DeliveryUiDataState(

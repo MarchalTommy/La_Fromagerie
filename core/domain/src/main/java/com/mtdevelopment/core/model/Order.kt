@@ -12,5 +12,6 @@ data class Order(
     val orderDate: String,
     val products: Map<String, Int>,
     val status: OrderStatus,
-    val note: String?
+    val note: String?,
+    val isManuallyAdded: Boolean? = false
 )

@@ -42,8 +42,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import com.mtdevelopment.core.domain.calculateDistance
+import com.mtdevelopment.core.model.AutoCompleteSuggestion
+import com.mtdevelopment.core.presentation.composable.AddressAutocompleteTextField
 import com.mtdevelopment.core.presentation.composable.ErrorOverlay
-import com.mtdevelopment.delivery.domain.model.AutoCompleteSuggestion
 import com.mtdevelopment.delivery.presentation.model.UiDeliveryPath
 import com.mtdevelopment.delivery.presentation.state.DeliveryUiDataState
 import com.mtdevelopment.delivery.presentation.viewmodel.DeliveryViewModel

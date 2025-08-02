@@ -1,4 +1,4 @@
-package com.mtdevelopment.delivery.presentation.composable
+package com.mtdevelopment.core.presentation.composable
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -35,7 +35,7 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.PopupProperties
-import com.mtdevelopment.delivery.domain.model.AutoCompleteSuggestion
+import com.mtdevelopment.core.model.AutoCompleteSuggestion
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -43,7 +43,7 @@ import kotlinx.coroutines.launch
 fun AddressAutocompleteTextField(
     label: String,
     searchQuery: String,
-    suggestions: List<AutoCompleteSuggestion>,
+    suggestions: List<AutoCompleteSuggestion?>,
     isLoading: Boolean,
     showDropdown: Boolean,
     focusRequester: FocusRequester,
@@ -150,7 +150,7 @@ fun AddressAutocompleteTextField(
             properties = PopupProperties(focusable = false) // Prevents dropdown stealing focus
         ) {
             suggestions.forEach { suggestion ->
-                val suggestionText = suggestion.fulltext ?: ""
+                val suggestionText = suggestion?.fulltext ?: ""
                 DropdownMenuItem(
                     text = { Text(suggestionText) },
                     onClick = {

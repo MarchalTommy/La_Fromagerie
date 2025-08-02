@@ -1,4 +1,4 @@
-package com.mtdevelopment.delivery.data.model.response.autocomplete
+package com.mtdevelopment.core.model.autocomplete
 
 
 import androidx.annotation.Keep

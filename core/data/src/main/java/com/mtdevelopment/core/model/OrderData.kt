@@ -24,7 +24,9 @@ data class OrderData(
     @SerialName("status")
     val status: OrderStatus,
     @SerialName("note")
-    val note: String?
+    val note: String?,
+    @SerialName("is_manually_added")
+    val is_manually_added: Boolean?
 )
 
 fun OrderData.toOrder(): Order {
@@ -38,6 +40,7 @@ fun OrderData.toOrder(): Order {
         products = products,
         status = status,
         note = note,
+        isManuallyAdded = is_manually_added
     )
 }
 
@@ -52,5 +55,6 @@ fun Order.toOrderData(): OrderData {
         products = products,
         status = status,
         note = note,
+        is_manually_added = isManuallyAdded
     )
 }

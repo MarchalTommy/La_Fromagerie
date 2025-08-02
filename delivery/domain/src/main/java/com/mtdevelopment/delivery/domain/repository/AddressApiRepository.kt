@@ -1,6 +1,5 @@
 package com.mtdevelopment.delivery.domain.repository
 
-import com.mtdevelopment.delivery.domain.model.AutoCompleteSuggestion
 import com.mtdevelopment.delivery.domain.model.CityInformation
 
 interface AddressApiRepository {
@@ -13,8 +12,4 @@ interface AddressApiRepository {
     suspend fun geocodeAddress(
         address: String
     ): CityInformation?
-
-    suspend fun getAutoCompleteSuggestions(
-        query: String
-    ): List<AutoCompleteSuggestion?>
 }

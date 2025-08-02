@@ -5,12 +5,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.mtdevelopment.core.model.AutoCompleteSuggestion
 import com.mtdevelopment.core.model.UserInformation
+import com.mtdevelopment.core.usecase.GetAutocompleteSuggestionsUseCase
 import com.mtdevelopment.core.usecase.GetIsNetworkConnectedUseCase
 import com.mtdevelopment.core.usecase.SaveToDatastoreUseCase
-import com.mtdevelopment.delivery.domain.model.AutoCompleteSuggestion
 import com.mtdevelopment.delivery.domain.usecase.GetAllDeliveryPathsUseCase
-import com.mtdevelopment.delivery.domain.usecase.GetAutocompleteSuggestionsUseCase
 import com.mtdevelopment.delivery.domain.usecase.GetDeliveryPathUseCase
 import com.mtdevelopment.delivery.domain.usecase.GetUserInfoFromDatastoreUseCase
 import com.mtdevelopment.delivery.presentation.model.UiDeliveryPath
@@ -118,7 +118,6 @@ class DeliveryViewModel(
         // Autocomplete data
         ///////////////////////////////////////////////////////////////////////////
         // Cache le dropdown si la requête est vide
-        // TODO: Repair => always hidden ?
         viewModelScope.launch {
             _searchQuery.collect { query ->
                 deliveryUiDataState = if (query.isBlank()) {

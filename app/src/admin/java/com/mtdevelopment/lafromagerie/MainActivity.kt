@@ -60,6 +60,10 @@ import kotlinx.coroutines.launch
 import org.koin.androidx.viewmodel.ext.android.viewModel
 
 
+// TODO: FIX MAPVIEW, AGAIN
+// TODO: FIX ADD MANUAL DELIVERY
+// TODO: TRY AND FINISH PAYMENT
+
 class MainActivity : ComponentActivity() {
 
     private val cartViewModel: CartViewModel by viewModel()
