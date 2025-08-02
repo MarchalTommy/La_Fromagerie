@@ -111,6 +111,7 @@ class CheckoutViewModel(
                         isLoading = false,
                         buyerName = data.buyerName,
                         buyerAddress = data.buyerAddress,
+                        buyerBillingAddress = data.billingAddress,
                         totalPrice = data.totalPrice,
                         deliveryDate = data.deliveryDate,
                         cartItems = data.cartItems,
@@ -124,6 +125,14 @@ class CheckoutViewModel(
     fun updateBuyerEmail(email: String) {
         _paymentScreenState.update {
             it.copy(buyerEmail = email)
+        }
+    }
+
+    fun updateCheckoutNote(note: String) {
+        _paymentScreenState.update {
+            it.copy(
+                checkoutNote = note
+            )
         }
     }
 
@@ -367,10 +376,12 @@ class CheckoutViewModel(
                         id = orderId,
                         customerName = _paymentScreenState.value.buyerName.toString(),
                         customerAddress = _paymentScreenState.value.buyerAddress.toString(),
+                        customerBillingAddress = _paymentScreenState.value.buyerBillingAddress.toString(),
                         deliveryDate = _paymentScreenState.value.deliveryDate?.toStringDate() ?: "",
                         orderDate = Timestamp.now().toDate().time.toStringDate(),
                         products = orderProduct,
-                        status = OrderStatus.PENDING
+                        status = OrderStatus.PENDING,
+                        note = _paymentScreenState.value.checkoutNote.toString()
                     )
                 )
             )
