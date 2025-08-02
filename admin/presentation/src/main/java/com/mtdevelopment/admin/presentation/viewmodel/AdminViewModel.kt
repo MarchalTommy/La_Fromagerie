@@ -9,6 +9,7 @@ import com.mtdevelopment.admin.domain.usecase.AddNewProductUseCase
 import com.mtdevelopment.admin.domain.usecase.DeletePathUseCase
 import com.mtdevelopment.admin.domain.usecase.DeleteProductUseCase
 import com.mtdevelopment.admin.domain.usecase.GetAllOrdersUseCase
+import com.mtdevelopment.admin.domain.usecase.GetCurrentLocationOnceUseCase
 import com.mtdevelopment.admin.domain.usecase.GetIsInTrackingModeUseCase
 import com.mtdevelopment.admin.domain.usecase.GetOptimizedDeliveryUseCase
 import com.mtdevelopment.admin.domain.usecase.GetShouldShowBatterieOptimizationUseCase
@@ -48,6 +49,7 @@ class AdminViewModel(
     private val uploadImageUseCase: UploadImageUseCase,
     private val isInTrackingModeUseCase: GetIsInTrackingModeUseCase,
     private val getOptimizedDeliveryUseCase: GetOptimizedDeliveryUseCase,
+    private val getCurrentLocationOnceUseCase: GetCurrentLocationOnceUseCase,
     private val getAutocompleteSuggestionsUseCase: GetAutocompleteSuggestionsUseCase,
     private val shouldShowBatterieOptimizationUseCase: UpdateShouldShowBatterieOptimizationUseCase,
     private val getShouldShowBatterieOptimizationUseCase: GetShouldShowBatterieOptimizationUseCase,
@@ -296,6 +298,14 @@ class AdminViewModel(
         _orderScreenState.value = _orderScreenState.value.copy(
             shouldShowBatterieOptimization = shouldShow
         )
+    }
+
+    fun getCurrentLocationToStart() {
+        viewModelScope.launch {
+            _orderScreenState.value = _orderScreenState.value.copy(
+                currentAdminLocation = getCurrentLocationOnceUseCase.invoke()
+            )
+        }
     }
 
     ///////////////////////////////////////////////////////////////////////////

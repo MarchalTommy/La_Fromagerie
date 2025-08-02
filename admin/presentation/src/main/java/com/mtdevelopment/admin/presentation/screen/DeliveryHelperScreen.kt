@@ -1,6 +1,10 @@
 package com.mtdevelopment.admin.presentation.screen
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -34,6 +38,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.engine.DiskCacheStrategy
@@ -131,15 +136,15 @@ fun DeliveryHelperScreen(
         viewModel.getTrackingStatus()
     }
 
-    // --- Event Handlers ---
-    fun onStartDeliveryClick() {
+    fun startDelivery() {
         viewModel.onLoading(true)
+        viewModel.getCurrentLocationToStart()
         viewModel.getOptimisedPath(dailyOrders.value.map { it.customerAddress }) { optimizedOrdersList ->
             launchDeliveryTracking()
 
-            // TODO: Replace that with current localisation
             var link =
-                "https://www.google.com/maps/dir/8_la_vessoye_25560_boujailles/"
+                "https://www.google.com/maps/dir/${state.value.currentAdminLocation?.latitude},${state.value.currentAdminLocation?.longitude}/"
+
             optimizedOrdersList.optimizedRoute.forEach {
                 link =
                     link.plus(it.first).plus(",").plus(it.second).plus("/")
@@ -147,6 +152,31 @@ fun DeliveryHelperScreen(
             viewModel.onLoading(false)
             val intent = Intent(Intent.ACTION_VIEW, link.toUri())
             context.startActivity(intent)
+        }
+    }
+
+    val requestPermissionLauncher =
+        rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
+            if (isGranted) {
+                startDelivery()
+            } else {
+                viewModel.onError("Permission de localisation refusée")
+            }
+        }
+
+    // --- Event Handlers ---
+    fun onStartDeliveryClick() {
+        when (PackageManager.PERMISSION_GRANTED) {
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.ACCESS_FINE_LOCATION
+            ) -> {
+                startDelivery()
+            }
+
+            else -> {
+                requestPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+            }
         }
     }
 
@@ -180,9 +210,6 @@ fun DeliveryHelperScreen(
         )
     )
 }
-
-// TODO: Finish / redo this in better, I just can't think straight here, too hot, too tired..
-// Maybe a dialogState ? Think and do better, this just sucks for now, I can't continue like that.
 
 // --- 2. Dumb Composable (View) ---
 // This composable only displays UI based on the parameters it receives.

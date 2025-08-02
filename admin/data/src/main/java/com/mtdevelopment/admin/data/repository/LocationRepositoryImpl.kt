@@ -15,6 +15,8 @@ import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.launch
+import kotlin.coroutines.resume
+import kotlin.coroutines.suspendCoroutine
 
 class LocationRepositoryImpl(
     private val context: Context,
@@ -55,6 +57,18 @@ class LocationRepositoryImpl(
         // When the flow is closed, remove location updates
         awaitClose {
             fusedLocationClient.removeLocationUpdates(locationCallback)
+        }
+    }
+
+    @SuppressLint("MissingPermission")
+    override suspend fun getCurrentLocationOnce(): CurrentLocation? {
+        return suspendCoroutine { continuation ->
+            fusedLocationClient.lastLocation
+                .addOnSuccessListener { location ->
+                    if (location != null) {
+                        continuation.resume(CurrentLocation(location.latitude, location.longitude))
+                    }
+                }
         }
     }
 

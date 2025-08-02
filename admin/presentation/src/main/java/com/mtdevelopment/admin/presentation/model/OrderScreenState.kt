@@ -1,5 +1,6 @@
 package com.mtdevelopment.admin.presentation.model
 
+import com.mtdevelopment.admin.domain.repository.CurrentLocation
 import com.mtdevelopment.core.model.AutoCompleteSuggestion
 import com.mtdevelopment.core.model.Order
 
@@ -16,5 +17,7 @@ data class OrderScreenState(
     val shouldShowBatterieOptimization: Boolean = false,
     val isInTrackingMode: Boolean = false,
     val isLoading: Boolean = false,
-    val error: String? = null
+    val error: String? = null,
+
+    val currentAdminLocation: CurrentLocation? = null,
 )

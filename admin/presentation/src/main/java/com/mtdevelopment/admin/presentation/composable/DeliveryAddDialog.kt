@@ -143,7 +143,13 @@ fun DeliveryAddDialog(
                     focusManager = focusManager,
                     onDropDownDismiss = onDropDownDismiss,
                     onAddressValidated = { address, suggestions ->
-
+                        tempOrder.value = tempOrder.value.copy(
+                            customerAddress = address,
+                            customerBillingAddress = address
+                        )
+                        suggestions?.let {
+                            onSuggestionSelected.invoke(it)
+                        }
                     },
                     onClick = {
 

@@ -6,6 +6,7 @@ import com.mtdevelopment.admin.domain.usecase.DeletePathUseCase
 import com.mtdevelopment.admin.domain.usecase.DeleteProductUseCase
 import com.mtdevelopment.admin.domain.usecase.DetermineNextDeliveryStopUseCase
 import com.mtdevelopment.admin.domain.usecase.GetAllOrdersUseCase
+import com.mtdevelopment.admin.domain.usecase.GetCurrentLocationOnceUseCase
 import com.mtdevelopment.admin.domain.usecase.GetCurrentLocationUseCase
 import com.mtdevelopment.admin.domain.usecase.GetIsInTrackingModeUseCase
 import com.mtdevelopment.admin.domain.usecase.GetOptimizedDeliveryUseCase
@@ -34,6 +35,7 @@ val adminDomainModule = module {
     factory { UpdateShouldShowBatterieOptimizationUseCase(get()) }
     factory { GetOptimizedDeliveryUseCase(get(), get()) }
     factory { GetCurrentLocationUseCase(get()) }
+    factory { GetCurrentLocationOnceUseCase(get()) }
     factory { DetermineNextDeliveryStopUseCase() }
     factory { GetShouldShowBatterieOptimizationUseCase(get()) }
     factory { SetIsInTrackingModeUseCase(get()) }
