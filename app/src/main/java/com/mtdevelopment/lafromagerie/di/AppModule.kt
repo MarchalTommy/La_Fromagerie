@@ -39,12 +39,16 @@ import com.mtdevelopment.core.data.Constants.OPEN_ROUTE_BASE_URL_WITHOUT_HTTPS
 import com.mtdevelopment.core.data.Constants.SUM_UP_BASE_URL_WITHOUT_HTTPS
 import com.mtdevelopment.core.local.SharedDatastoreImpl
 import com.mtdevelopment.core.presentation.MainViewModel
+import com.mtdevelopment.core.repository.AutocompleteRepository
+import com.mtdevelopment.core.repository.AutocompleteRepositoryImpl
 import com.mtdevelopment.core.repository.NetworkRepository
 import com.mtdevelopment.core.repository.NetworkRepositoryImpl
 import com.mtdevelopment.core.repository.SharedDatastore
+import com.mtdevelopment.core.source.AutoCompleteApiDataSource
 import com.mtdevelopment.core.usecase.ClearCartUseCase
 import com.mtdevelopment.core.usecase.ClearDatastoreUseCase
 import com.mtdevelopment.core.usecase.ClearOrderUseCase
+import com.mtdevelopment.core.usecase.GetAutocompleteSuggestionsUseCase
 import com.mtdevelopment.core.usecase.GetIsNetworkConnectedUseCase
 import com.mtdevelopment.core.usecase.SaveToDatastoreUseCase
 import com.mtdevelopment.delivery.data.BuildConfig.OPEN_ROUTE_TOKEN
@@ -54,14 +58,12 @@ import com.mtdevelopment.delivery.data.repository.RoomDeliveryRepositoryImpl
 import com.mtdevelopment.delivery.data.source.local.DeliveryDatabase
 import com.mtdevelopment.delivery.data.source.local.dao.DeliveryDao
 import com.mtdevelopment.delivery.data.source.remote.AddressApiDataSource
-import com.mtdevelopment.delivery.data.source.remote.AutoCompleteApiDataSource
 import com.mtdevelopment.delivery.data.source.remote.FirestoreDeliveryDataSource
 import com.mtdevelopment.delivery.data.source.remote.OpenRouteDataSource
 import com.mtdevelopment.delivery.domain.repository.AddressApiRepository
 import com.mtdevelopment.delivery.domain.repository.FirestorePathRepository
 import com.mtdevelopment.delivery.domain.repository.RoomDeliveryRepository
 import com.mtdevelopment.delivery.domain.usecase.GetAllDeliveryPathsUseCase
-import com.mtdevelopment.delivery.domain.usecase.GetAutocompleteSuggestionsUseCase
 import com.mtdevelopment.delivery.domain.usecase.GetDeliveryPathUseCase
 import com.mtdevelopment.delivery.domain.usecase.GetUserInfoFromDatastoreUseCase
 import com.mtdevelopment.delivery.presentation.viewmodel.DeliveryViewModel
@@ -110,10 +112,10 @@ fun appModule() = listOf(
 
 val mainAppModule = module {
     single<NetworkRepository> { NetworkRepositoryImpl(get()) }
+    single<AutocompleteRepository> { AutocompleteRepositoryImpl(get()) }
     single<PaymentRepository> { PaymentRepositoryImpl(get(), get(), get()) }
     single<AddressApiRepository> {
         AddressApiRepositoryImpl(
-            get(),
             get()
         )
     }

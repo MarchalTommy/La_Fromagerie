@@ -156,7 +156,10 @@ class FirestoreAdminDatasource(
                         order_date = item.data?.get("order_date").toString(),
                         products = item.data?.get("products") as? Map<String, Int>
                             ?: emptyMap(),
-                        status = OrderStatus.valueOf(item.data?.get("status").toString())
+                        status = OrderStatus.valueOf(item.data?.get("status").toString()),
+                        note = item.data?.get("note") as? String,
+                        billing_address = item.data?.get("billing_address").toString(),
+                        is_manually_added = item.data?.get("is_manually_added") as? Boolean
                     )
                 })
             }

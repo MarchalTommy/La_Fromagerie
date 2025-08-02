@@ -158,7 +158,7 @@ fun HomeScreen(
             }
         ) {
             Text(
-                text = "Préparer les commandes",
+                text = "Commandes",
                 style = MaterialTheme.typography.titleMedium
             )
         }

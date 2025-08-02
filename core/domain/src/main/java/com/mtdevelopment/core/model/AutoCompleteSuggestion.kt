@@ -1,4 +1,4 @@
-package com.mtdevelopment.delivery.domain.model
+package com.mtdevelopment.core.model
 
 data class AutoCompleteSuggestion(
     val city: String? = null,

@@ -72,12 +72,12 @@ fun DeliveryOptionScreen(
 
     Surface(
         modifier = Modifier
+            .imePadding()
             .fillMaxSize()
             .verticalScroll(
                 state = scrollState,
                 enabled = state.value.columnScrollingEnabled && state.value.isError.isEmpty()
             )
-            .imePadding()
     ) {
         Column(
             modifier = Modifier

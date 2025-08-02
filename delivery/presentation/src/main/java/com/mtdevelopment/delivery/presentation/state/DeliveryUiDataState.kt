@@ -1,6 +1,6 @@
 package com.mtdevelopment.delivery.presentation.state
 
-import com.mtdevelopment.delivery.domain.model.AutoCompleteSuggestion
+import com.mtdevelopment.core.model.AutoCompleteSuggestion
 import com.mtdevelopment.delivery.presentation.model.UiDeliveryPath
 
 data class DeliveryUiDataState(
@@ -9,10 +9,15 @@ data class DeliveryUiDataState(
     val dateFieldText: String = "",
     val userNameFieldText: String = "",
 
-    val addressSearchQuery: String = "",
-    val addressSuggestions: List<AutoCompleteSuggestion> = emptyList(),
+    val deliveryAddressSearchQuery: String = "",
+    val deliveryAddressSuggestions: List<AutoCompleteSuggestion> = emptyList(),
+
+    val billingAddressSearchQuery: String = "",
+    val billingAddressSuggestions: List<AutoCompleteSuggestion> = emptyList(),
+
     val addressSuggestionsLoading: Boolean = false,
     val showAddressSuggestions: Boolean = false,
+    val showBillingAddressSuggestions: Boolean = false,
 
     val shouldShowLocalisationPermission: Boolean = false,
     val localisationSuccess: Boolean = false,
@@ -26,5 +31,6 @@ data class DeliveryUiDataState(
     val userCityLocation: Pair<Double, Double>? = null,
     val selectedPath: UiDeliveryPath? = null,
 
-    val deliveryPaths: List<UiDeliveryPath> = emptyList()
+    val deliveryPaths: List<UiDeliveryPath> = emptyList(),
+    val isBillingDifferent: Boolean = false
 )

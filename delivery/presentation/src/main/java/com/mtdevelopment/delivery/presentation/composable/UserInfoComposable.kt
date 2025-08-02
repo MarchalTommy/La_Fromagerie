@@ -15,7 +15,6 @@ import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusManager
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 
@@ -28,19 +27,17 @@ fun UserInfoComposable(
     imeAction: ImeAction,
     focusRequester: FocusRequester,
     focusManager: FocusManager,
-    onFocusChange: (Boolean) -> Unit
 ) {
     OutlinedTextField(
         modifier = Modifier
             .padding(start = 8.dp, end = 8.dp)
             .fillMaxWidth()
-            .focusRequester(focusRequester)
-            .onFocusChanged { onFocusChange.invoke(it.isFocused) },
+            .focusRequester(focusRequester),
         value = fieldText,
         onValueChange = { text ->
             updateText.invoke(text)
         },
-        label = { Text(label) },
+        label = { Text(label, style = MaterialTheme.typography.labelSmall) },
         shape = ShapeDefaults.Medium,
         colors = OutlinedTextFieldDefaults.colors(
             disabledLabelColor = MaterialTheme.colorScheme.onSurface,

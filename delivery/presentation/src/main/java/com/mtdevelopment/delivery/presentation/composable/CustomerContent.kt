@@ -10,6 +10,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -20,6 +21,7 @@ import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonColors
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DatePickerState
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -40,13 +42,13 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import com.mtdevelopment.core.domain.calculateDistance
+import com.mtdevelopment.core.model.AutoCompleteSuggestion
+import com.mtdevelopment.core.presentation.composable.AddressAutocompleteTextField
 import com.mtdevelopment.core.presentation.composable.ErrorOverlay
-import com.mtdevelopment.delivery.domain.model.AutoCompleteSuggestion
 import com.mtdevelopment.delivery.presentation.model.UiDeliveryPath
 import com.mtdevelopment.delivery.presentation.state.DeliveryUiDataState
 import com.mtdevelopment.delivery.presentation.viewmodel.DeliveryViewModel
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.IOException
@@ -67,11 +69,11 @@ fun CustomerContent(
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
 
-    LaunchedEffect(state.value.addressSearchQuery == "" || state.value.deliveryPaths.isNotEmpty()) {
-        if (state.value.addressSearchQuery != "") {
+    LaunchedEffect(state.value.deliveryAddressSearchQuery == "" || state.value.deliveryPaths.isNotEmpty()) {
+        if (state.value.deliveryAddressSearchQuery != "") {
             checkLocationEligibility(
                 context = context,
-                address = state.value.addressSearchQuery,
+                address = state.value.deliveryAddressSearchQuery,
                 location = null,
                 allPaths = state.value.deliveryPaths,
                 onResult = { eligibility, city, userLocation, selectedPath ->
@@ -96,11 +98,11 @@ fun CustomerContent(
 
         val isButtonEnabled = remember(
             state.value.userNameFieldText,
-            state.value.addressSearchQuery,
+            state.value.deliveryAddressSearchQuery,
             state.value.dateFieldText
         ) {
             state.value.userNameFieldText.isNotBlank()
-                    && state.value.addressSearchQuery.isNotBlank()
+                    && state.value.deliveryAddressSearchQuery.isNotBlank()
                     && state.value.dateFieldText.isNotBlank()
         }
 
@@ -113,7 +115,7 @@ fun CustomerContent(
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        if (state.value.addressSearchQuery.isBlank() || state.value.userNameFieldText.isBlank()) {
+        if (state.value.deliveryAddressSearchQuery.isBlank() || state.value.userNameFieldText.isBlank()) {
             Text(
                 modifier = Modifier
                     .padding(bottom = 8.dp, start = 16.dp, end = 16.dp)
@@ -136,39 +138,44 @@ fun CustomerContent(
             },
             leadingIcon = {
                 Icon(Icons.Rounded.Person, "")
-            },
-            onFocusChange = {
-                if (it) {
-                    scope.launch {
-                        delay(500)
-                        scrollState.animateScrollTo(scrollState.maxValue)
-                    }
-                }
             }
         )
 
         Spacer(modifier = Modifier.height(8.dp))
 
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Checkbox(
+                checked = state.value.isBillingDifferent,
+                onCheckedChange = {
+                    deliveryViewModel.setIsBillingDifferent(it)
+                }
+            )
+            Text(
+                text = "Adresse de facturation différente de l'adresse de livraison",
+                style = MaterialTheme.typography.bodyLarge,
+                modifier = Modifier.padding(start = 16.dp)
+            )
+        }
+
+
         AddressAutocompleteTextField(
-            searchQuery = state.value.addressSearchQuery,
-            suggestions = state.value.addressSuggestions,
+            label = "Adresse de livraison",
+            searchQuery = state.value.deliveryAddressSearchQuery,
+            suggestions = state.value.deliveryAddressSuggestions,
             isLoading = state.value.addressSuggestionsLoading,
             showDropdown = state.value.showAddressSuggestions,
             focusRequester = focusRequester,
             focusManager = focusManager,
             onDropDownDismiss = {
-                deliveryViewModel.setShowAddressesSuggestions(false)
+                deliveryViewModel.setShowAddressesSuggestions(false, isBilling = false)
             },
             onValueChange = {
                 deliveryViewModel.setAddressFieldText(it)
-            },
-            onFocusChange = {
-                if (it) {
-                    scope.launch {
-                        delay(500)
-                        scrollState.animateScrollTo(scrollState.maxValue)
-                    }
-                }
             },
             onAddressValidated = { string, suggestion ->
                 if (suggestion != null) {
@@ -197,11 +204,43 @@ fun CustomerContent(
                     )
                 }
             },
+            onClick = {
+                deliveryViewModel.startAutocomplete(isBilling = false)
+            }
         )
+
+        if (state.value.isBillingDifferent) {
+            Spacer(modifier = Modifier.height(8.dp))
+            AddressAutocompleteTextField(
+                label = "Adresse de facturation",
+                searchQuery = state.value.billingAddressSearchQuery,
+                suggestions = state.value.billingAddressSuggestions,
+                isLoading = state.value.addressSuggestionsLoading,
+                showDropdown = state.value.showBillingAddressSuggestions,
+                focusRequester = focusRequester,
+                focusManager = focusManager,
+                onDropDownDismiss = {
+                    deliveryViewModel.setShowAddressesSuggestions(false, isBilling = true)
+                },
+                onValueChange = {
+                    deliveryViewModel.setAddressFieldText(it, isBilling = true)
+                },
+                onAddressValidated = { string, suggestion ->
+                    if (suggestion != null) {
+                        deliveryViewModel.onSuggestionSelected(suggestion, isBilling = true)
+                    } else {
+                        deliveryViewModel.setAddressFieldText(string, isBilling = true)
+                    }
+                },
+                onClick = {
+                    deliveryViewModel.startAutocomplete(isBilling = true)
+                }
+            )
+        }
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        if (state.value.localisationSuccess || state.value.selectedPath != null || state.value.userLocationOnPath || state.value.addressSearchQuery != "") {
+        if (state.value.localisationSuccess || state.value.selectedPath != null || state.value.userLocationOnPath || state.value.deliveryAddressSearchQuery != "") {
             LocalisationTextComposable(
                 selectedPath = state.value.selectedPath,
                 geolocIsOnPath = state.value.userLocationOnPath && state.value.localisationSuccess,

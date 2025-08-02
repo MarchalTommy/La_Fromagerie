@@ -31,7 +31,7 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.PopupProperties
-import com.mtdevelopment.delivery.domain.model.AutoCompleteSuggestion
+import com.mtdevelopment.core.model.AutoCompleteSuggestion
 
 @Composable
 fun CityPostalCodeAutocompleteTextField(

@@ -1,4 +1,4 @@
-package com.mtdevelopment.delivery.presentation.composable
+package com.mtdevelopment.core.presentation.composable
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -35,22 +35,23 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.PopupProperties
-import com.mtdevelopment.delivery.domain.model.AutoCompleteSuggestion
+import com.mtdevelopment.core.model.AutoCompleteSuggestion
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @Composable
 fun AddressAutocompleteTextField(
+    label: String,
     searchQuery: String,
-    suggestions: List<AutoCompleteSuggestion>,
+    suggestions: List<AutoCompleteSuggestion?>,
     isLoading: Boolean,
     showDropdown: Boolean,
     focusRequester: FocusRequester,
     focusManager: FocusManager,
-    onFocusChange: (Boolean) -> Unit,
     onDropDownDismiss: () -> Unit,
     onAddressValidated: (address: String, suggestion: AutoCompleteSuggestion?) -> Unit,
-    onValueChange: (String) -> Unit
+    onValueChange: (String) -> Unit,
+    onClick: () -> Unit
 ) {
     var isDropdownExpanded by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
@@ -97,10 +98,10 @@ fun AddressAutocompleteTextField(
                             }
                         }
                     } else {
-                        onFocusChange.invoke(focusState.isFocused)
+                        onClick.invoke()
                     }
                 },
-            label = { Text(text = "Entrez une adresse") },
+            label = { Text(text = label, style = MaterialTheme.typography.labelSmall) },
             trailingIcon = {
                 if (isLoading) {
                     CircularProgressIndicator(modifier = Modifier.size(24.dp))
@@ -149,7 +150,7 @@ fun AddressAutocompleteTextField(
             properties = PopupProperties(focusable = false) // Prevents dropdown stealing focus
         ) {
             suggestions.forEach { suggestion ->
-                val suggestionText = suggestion.fulltext ?: ""
+                val suggestionText = suggestion?.fulltext ?: ""
                 DropdownMenuItem(
                     text = { Text(suggestionText) },
                     onClick = {

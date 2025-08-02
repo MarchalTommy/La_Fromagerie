@@ -5,12 +5,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.mtdevelopment.core.model.AutoCompleteSuggestion
 import com.mtdevelopment.core.model.UserInformation
+import com.mtdevelopment.core.usecase.GetAutocompleteSuggestionsUseCase
 import com.mtdevelopment.core.usecase.GetIsNetworkConnectedUseCase
 import com.mtdevelopment.core.usecase.SaveToDatastoreUseCase
-import com.mtdevelopment.delivery.domain.model.AutoCompleteSuggestion
 import com.mtdevelopment.delivery.domain.usecase.GetAllDeliveryPathsUseCase
-import com.mtdevelopment.delivery.domain.usecase.GetAutocompleteSuggestionsUseCase
 import com.mtdevelopment.delivery.domain.usecase.GetDeliveryPathUseCase
 import com.mtdevelopment.delivery.domain.usecase.GetUserInfoFromDatastoreUseCase
 import com.mtdevelopment.delivery.presentation.model.UiDeliveryPath
@@ -85,7 +85,7 @@ class DeliveryViewModel(
                 deliveryUiDataState = if (query.isBlank()) {
                     deliveryUiDataState.copy(
                         showAddressSuggestions = false,
-                        addressSuggestions = emptyList()
+                        deliveryAddressSuggestions = emptyList()
                     )
                 } else {
                     deliveryUiDataState.copy(showAddressSuggestions = true)
@@ -107,34 +107,24 @@ class DeliveryViewModel(
         viewModelScope.launch {
             val userInfo = getUserInfoFromDatastoreUseCase.invoke().firstOrNull()
             deliveryUiDataState = deliveryUiDataState.copy(
-                addressSearchQuery = userInfo?.address ?: "",
                 userNameFieldText = userInfo?.name ?: "",
-                selectedPath = deliveryUiDataState.deliveryPaths.firstOrNull { it.name == userInfo?.lastSelectedPath }
+                deliveryAddressSearchQuery = userInfo?.address ?: "",
+                selectedPath = deliveryUiDataState.deliveryPaths.firstOrNull { it.name == userInfo?.lastSelectedPath },
             )
-            deliveryUiDataState = deliveryUiDataState.copy(isLoading = false)
+            deliveryUiDataState = deliveryUiDataState.copy()
         }
 
         ///////////////////////////////////////////////////////////////////////////
         // Autocomplete data
         ///////////////////////////////////////////////////////////////////////////
-        viewModelScope.launch {
-            _searchQuery
-                .debounce(300)
-                .distinctUntilChanged()
-                .filter { it.isNotBlank() }
-                .filter { it.length >= 5 }
-                .collectLatest { query ->
-                    fetchAddressSuggestions(query)
-                }
-        }
-
         // Cache le dropdown si la requête est vide
         viewModelScope.launch {
             _searchQuery.collect { query ->
                 deliveryUiDataState = if (query.isBlank()) {
                     deliveryUiDataState.copy(
                         showAddressSuggestions = false,
-                        addressSuggestions = emptyList()
+                        deliveryAddressSuggestions = emptyList(),
+                        billingAddressSuggestions = emptyList()
                     )
                 } else {
                     deliveryUiDataState.copy(showAddressSuggestions = true)
@@ -145,14 +135,15 @@ class DeliveryViewModel(
 
     fun saveUserInfo(onError: () -> Unit = {}) {
         viewModelScope.launch {
-            if (deliveryUiDataState.selectedPath == null || deliveryUiDataState.addressSearchQuery.isBlank()) {
+            if (deliveryUiDataState.selectedPath == null || deliveryUiDataState.deliveryAddressSearchQuery.isBlank()) {
                 onError.invoke()
                 return@launch
             }
             saveToDatastoreUseCase.invoke(
                 userInformation = UserInformation(
                     name = deliveryUiDataState.userNameFieldText,
-                    address = deliveryUiDataState.addressSearchQuery,
+                    address = deliveryUiDataState.deliveryAddressSearchQuery,
+                    billingAddress = deliveryUiDataState.billingAddressSearchQuery,
                     lastSelectedPath = deliveryUiDataState.selectedPath?.name ?: ""
                 )
             )
@@ -185,21 +176,34 @@ class DeliveryViewModel(
                 deliveryUiDataState = deliveryUiDataState.copy(
                     isLoading = false,
                     isError = "Une erreur est survenue lors du chargement des parcours de livraison.\n" +
-                            "Si le problème persiste merci de nous contacter !"
+                            "Si le problème persiste merci de nous contacter !",
                 )
             })
     }
 
-    private fun fetchAddressSuggestions(query: String) {
+    fun startAutocomplete(isBilling: Boolean = false) {
+        viewModelScope.launch {
+            _searchQuery
+                .debounce(300)
+                .distinctUntilChanged()
+                .filter { it.isNotBlank() }
+                .filter { it.length >= 5 }
+                .collectLatest { query ->
+                    fetchAddressSuggestions(query, isBilling)
+                }
+        }
+    }
+
+    private fun fetchAddressSuggestions(query: String, isBilling: Boolean = false) {
         setAddressesSuggestionsLoading(true)
         viewModelScope.launch {
             try {
                 val suggestions = getAutocompleteSuggestionsUseCase.invoke(query)
-                setAddressesSuggestions(suggestions.mapNotNull { it })
-                setShowAddressesSuggestions(suggestions.isNotEmpty())
+                setAddressesSuggestions(suggestions.mapNotNull { it }, isBilling = isBilling)
+                setShowAddressesSuggestions(suggestions.isNotEmpty(), isBilling = isBilling)
             } catch (e: Exception) {
-                setShowAddressesSuggestions(false)
-                setAddressesSuggestions(emptyList())
+                setShowAddressesSuggestions(false, isBilling = isBilling)
+                setAddressesSuggestions(emptyList(), isBilling = isBilling)
                 // Afficher un message à l'utilisateur
                 println("Erreur lors de la récupération des suggestions: ${e.message}")
             } finally {
@@ -208,10 +212,10 @@ class DeliveryViewModel(
         }
     }
 
-    fun onSuggestionSelected(suggestion: AutoCompleteSuggestion) {
-        suggestion.fulltext?.let { setAddressQuerySelected(it) }
+    fun onSuggestionSelected(suggestion: AutoCompleteSuggestion, isBilling: Boolean = false) {
+        suggestion.fulltext?.let { setAddressQuerySelected(it, isBilling) }
 
-        if (suggestion.lat != null && suggestion.lat != 0.0) {
+        if (suggestion.lat != null && suggestion.lat != 0.0 && !isBilling) {
             updateUserCityLocation(Pair(suggestion.lat ?: 0.0, suggestion.long ?: 0.0))
         }
     }
@@ -236,33 +240,58 @@ class DeliveryViewModel(
         deliveryUiDataState = deliveryUiDataState.copy(userNameFieldText = name)
     }
 
-    fun setAddressFieldText(address: String) {
+    fun setAddressFieldText(address: String, isBilling: Boolean = false) {
+        deliveryUiDataState = if (isBilling) {
+            deliveryUiDataState.copy(billingAddressSearchQuery = address)
+        } else {
+            deliveryUiDataState.copy(deliveryAddressSearchQuery = address)
+        }
         _searchQuery.value = address
-        deliveryUiDataState = deliveryUiDataState.copy(addressSearchQuery = address)
     }
 
     fun setIsLoading(isLoading: Boolean) {
         deliveryUiDataState = deliveryUiDataState.copy(isLoading = isLoading)
     }
 
-    fun setAddressQuerySelected(query: String) {
-        deliveryUiDataState = deliveryUiDataState.copy(addressSearchQuery = query)
+    fun setAddressQuerySelected(query: String, isBilling: Boolean = false) {
+        deliveryUiDataState = if (isBilling) {
+            deliveryUiDataState.copy(billingAddressSearchQuery = query)
+        } else {
+            updateLocalisationState(false)
+            deliveryUiDataState.copy(deliveryAddressSearchQuery = query)
+        }
         _searchQuery.value = ""
-        setAddressesSuggestions(emptyList())
-        setShowAddressesSuggestions(false)
-        updateLocalisationState(false)
+        setAddressesSuggestions(emptyList(), isBilling = isBilling)
+        setShowAddressesSuggestions(false, isBilling = isBilling)
     }
 
-    fun setAddressesSuggestions(suggestions: List<AutoCompleteSuggestion>) {
-        deliveryUiDataState = deliveryUiDataState.copy(addressSuggestions = suggestions)
+    fun setAddressesSuggestions(
+        suggestions: List<AutoCompleteSuggestion>,
+        isBilling: Boolean = false
+    ) {
+        deliveryUiDataState = if (isBilling) {
+            deliveryUiDataState.copy(
+                billingAddressSuggestions = suggestions,
+                deliveryAddressSuggestions = emptyList()
+            )
+        } else {
+            deliveryUiDataState.copy(
+                deliveryAddressSuggestions = suggestions,
+                billingAddressSuggestions = emptyList()
+            )
+        }
     }
 
     fun setAddressesSuggestionsLoading(isLoading: Boolean) {
         deliveryUiDataState = deliveryUiDataState.copy(addressSuggestionsLoading = isLoading)
     }
 
-    fun setShowAddressesSuggestions(shouldShow: Boolean) {
-        deliveryUiDataState = deliveryUiDataState.copy(showAddressSuggestions = shouldShow)
+    fun setShowAddressesSuggestions(shouldShow: Boolean, isBilling: Boolean) {
+        deliveryUiDataState = if (isBilling) {
+            deliveryUiDataState.copy(showBillingAddressSuggestions = shouldShow)
+        } else {
+            deliveryUiDataState.copy(showAddressSuggestions = shouldShow)
+        }
     }
 
     fun setIsError(isError: String) {
@@ -283,6 +312,10 @@ class DeliveryViewModel(
 
     fun updateSelectedPath(path: UiDeliveryPath?) {
         deliveryUiDataState = deliveryUiDataState.copy(selectedPath = path)
+    }
+
+    fun setIsBillingDifferent(isDifferent: Boolean) {
+        deliveryUiDataState = deliveryUiDataState.copy(isBillingDifferent = isDifferent)
     }
 
     ///////////////////////////////////////////////////////////////////////////

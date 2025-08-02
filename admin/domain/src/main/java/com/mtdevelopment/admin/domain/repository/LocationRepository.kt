@@ -10,4 +10,5 @@ interface LocationRepository {
 
     suspend fun stopLocationUpdates()
 
+    suspend fun getCurrentLocationOnce(): CurrentLocation?
 }
