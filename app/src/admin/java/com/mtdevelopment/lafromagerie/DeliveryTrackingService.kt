@@ -161,7 +161,11 @@ class DeliveryTrackingService : Service(), KoinComponent {
                             val orderContent = formatOrderContent(nextStopOrder)
                             updateNotification(
                                 "Prochain arrêt: $customerName",
-                                orderContent + "\nNote du client : ${nextStopOrder.note}"
+                                orderContent + if (nextStopOrder.note?.isNotBlank() == true) {
+                                    "\nNote du client : ${nextStopOrder.note}"
+                                } else {
+                                    ""
+                                }
                             )
                         } else {
                             updateNotification(

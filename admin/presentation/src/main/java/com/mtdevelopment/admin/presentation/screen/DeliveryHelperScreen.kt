@@ -3,6 +3,7 @@ package com.mtdevelopment.admin.presentation.screen
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
@@ -25,10 +26,13 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -40,6 +44,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.engine.DiskCacheStrategy
 import com.bumptech.glide.load.resource.bitmap.BitmapTransitionOptions.withCrossFade
@@ -48,6 +55,7 @@ import com.google.android.gms.common.util.CollectionUtils.listOf
 import com.mtdevelopment.admin.presentation.BuildConfig.GOOGLE_API
 import com.mtdevelopment.admin.presentation.composable.DeliveryAddDialog
 import com.mtdevelopment.admin.presentation.composable.DeliveryHelperItem
+import com.mtdevelopment.admin.presentation.composable.RequestPermissionsScreen
 import com.mtdevelopment.admin.presentation.model.DeliverHelperDialogState
 import com.mtdevelopment.admin.presentation.viewmodel.AdminViewModel
 import com.mtdevelopment.core.domain.toStringDate
@@ -65,6 +73,7 @@ import java.time.format.TextStyle
 import java.util.Collections.emptyList
 import java.util.Locale
 
+
 // --- 1. Smart Composable (Controller) ---
 // This composable handles logic, state, and ViewModel interactions.
 @Composable
@@ -75,6 +84,53 @@ fun DeliveryHelperScreen(
     val viewModel = koinViewModel<AdminViewModel>()
     val context = LocalContext.current
     val state = viewModel.orderScreenState.collectAsState()
+
+    var hasPermissions by remember {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            mutableStateOf(
+                ContextCompat.checkSelfPermission(
+                    context,
+                    Manifest.permission.POST_NOTIFICATIONS
+                ) == PackageManager.PERMISSION_GRANTED && ContextCompat.checkSelfPermission(
+                    context,
+                    Manifest.permission.ACCESS_FINE_LOCATION
+                ) == PackageManager.PERMISSION_GRANTED
+            )
+        } else {
+            mutableStateOf(
+                ContextCompat.checkSelfPermission(
+                    context,
+                    Manifest.permission.ACCESS_FINE_LOCATION
+                ) == PackageManager.PERMISSION_GRANTED
+            )
+        }
+    }
+
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                hasPermissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    ContextCompat.checkSelfPermission(
+                        context,
+                        Manifest.permission.POST_NOTIFICATIONS
+                    ) == PackageManager.PERMISSION_GRANTED && ContextCompat.checkSelfPermission(
+                        context,
+                        Manifest.permission.ACCESS_FINE_LOCATION
+                    ) == PackageManager.PERMISSION_GRANTED
+                } else {
+                    ContextCompat.checkSelfPermission(
+                        context,
+                        Manifest.permission.ACCESS_FINE_LOCATION
+                    ) == PackageManager.PERMISSION_GRANTED
+                }
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
 
     // State derived from the ViewModel state
     val todayDate = LocalDate.now().atStartOfDay(ZoneId.systemDefault())
@@ -186,29 +242,41 @@ fun DeliveryHelperScreen(
 
     // --- UI ---
     // Pass all the calculated state and event handlers to the dumb composable
-    DeliveryHelperScreenContent(
-        titleText = titleText,
-        subtitleText = subtitleText,
-        dailyOrders = dailyOrders.value,
-        isInTracking = state.value.isInTrackingMode,
-        isLoading = state.value.isLoading,
-        error = state.value.error,
-        onStartDeliveryClick = ::onStartDeliveryClick,
-        onStopDeliveryClick = ::onStopDeliveryClick,
-        dialogState = DeliverHelperDialogState(
-            onDismissError = { viewModel.onError("") },
-            autocompleteSearchQuery = state.value.searchQuery,
-            suggestions = state.value.suggestions,
-            autocompleteShowDropdown = state.value.showSuggestions,
-            autocompleteOnValueChange = { viewModel.setAddressText(it) },
-            autocompleteOnDropDownDismiss = { viewModel.setShowAddressesSuggestions(false) },
-            autocompleteOnSuggestionSelected = { viewModel.onSuggestionSelected(it) },
-            dialogOnConfirm = { viewModel.addOrder(it) },
-            dialogOnShow = { viewModel.setDialogVisibility(true) },
-            dialogOnDismiss = { viewModel.setDialogVisibility(false) },
-            shouldShowDialog = state.value.shouldShowDialog
+    if (hasPermissions) {
+        DeliveryHelperScreenContent(
+            titleText = titleText,
+            subtitleText = subtitleText,
+            dailyOrders = dailyOrders.value,
+            isInTracking = state.value.isInTrackingMode,
+            isLoading = state.value.isLoading,
+            error = state.value.error,
+            onStartDeliveryClick = ::onStartDeliveryClick,
+            onStopDeliveryClick = ::onStopDeliveryClick,
+            dialogState = DeliverHelperDialogState(
+                onDismissError = { viewModel.onError("") },
+                autocompleteSearchQuery = state.value.searchQuery,
+                suggestions = state.value.suggestions,
+                autocompleteShowDropdown = state.value.showSuggestions,
+                autocompleteOnValueChange = { viewModel.setAddressText(it) },
+                autocompleteOnDropDownDismiss = { viewModel.setShowAddressesSuggestions(false) },
+                autocompleteOnSuggestionSelected = { viewModel.onSuggestionSelected(it) },
+                dialogOnConfirm = { viewModel.addOrder(it) },
+                dialogOnShow = { viewModel.setDialogVisibility(true) },
+                dialogOnDismiss = { viewModel.setDialogVisibility(false) },
+                shouldShowDialog = state.value.shouldShowDialog
+            )
         )
-    )
+    } else {
+        RequestPermissionsScreen(
+            shouldShowOptimization = true,
+            onPermissionsGrantedAndConfigured = {
+                hasPermissions = true
+            },
+            onPermissionsProcessSkippedOrDenied = {
+                viewModel.onError("Les permissions sont nécessaires pour continuer")
+            }
+        )
+    }
 }
 
 // --- 2. Dumb Composable (View) ---
