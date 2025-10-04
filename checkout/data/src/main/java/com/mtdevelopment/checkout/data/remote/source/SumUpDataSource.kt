@@ -31,6 +31,9 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.isActive
 
+// TODO:   Error processing checkout ac86fa64-d0d0-4072-ae23-d48463525e12: 500 Internal Server Error.
+//  Body: {"error_code":"INTERNAL_SERVER_ERROR","message":"Internal Server Error"}
+
 // Classe interne pour marquer le succès initial du PUT avec un statut 202
 private data class InitialPutAccepted(val checkoutId: String)
 
@@ -96,8 +99,6 @@ class SumUpDataSource(private val httpClient: HttpClient) {
         }
     }
 
-    // TODO: FINISH THIS SHIT ONCE THEY ANSWER ME, AS I'M CURRENTLY FACING AN ISSUE ->
-    //  Erreur 409: Conflict. Détail: {"error_code":"NON_EXTDEV_PAYMENT_METHOD","message":"Payment method not allowed for ExtDev accounts"}
     @OptIn(ExperimentalCoroutinesApi::class)
     fun processCheckout(
         requestBody: ProcessCheckoutRequest,
