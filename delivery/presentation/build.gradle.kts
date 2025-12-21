@@ -7,7 +7,7 @@ plugins {
 
 android {
     namespace = "com.mtdevelopment.delivery.presentation"
-    compileSdk = 35
+    compileSdk = 36
     android.buildFeatures.buildConfig = true
 
     defaultConfig {
@@ -86,6 +86,7 @@ dependencies {
     implementation(libs.landscapist)
     implementation(libs.rive.android)
     implementation(libs.lottie)
+    implementation(libs.material.icons)
 
     implementation(platform(libs.koin.bom))
     implementation(libs.koin.core)

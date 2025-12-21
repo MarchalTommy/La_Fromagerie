@@ -131,8 +131,10 @@ fun CartView(
             item("Footer") {
                 CartFooter(
                     modifier = Modifier
-                        .animateItemPlacement(
-                            animationSpec = tween(300)
+                        .animateItem(
+                            placementSpec = tween(300),
+                            fadeInSpec = null,
+                            fadeOutSpec = null
                         )
                         .fillMaxWidth(),
                     totalAmount = state?.cartItems?.totalPrice?.toStringPrice() ?: "",

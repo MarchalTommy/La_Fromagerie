@@ -132,14 +132,14 @@ fun RiveAnimation(
                     factory = { context ->
                         riveAnimationView = RiveAnimationView(context).apply {
                             setRiveResource(
-                                resId,
-                                artboardName,
-                                animationName,
-                                stateMachineName,
-                                autoplay,
-                                fit,
-                                alignment,
-                                loop
+                                resId = resId,
+                                artboardName = artboardName,
+                                animationName = animationName,
+                                stateMachineName = stateMachineName,
+                                autoplay = autoplay,
+                                fit = fit,
+                                loop = loop,
+                                alignment = alignment
                             )
                         }
                         listener?.let {
