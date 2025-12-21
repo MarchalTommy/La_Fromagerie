@@ -1,6 +1,6 @@
 [versions]
 # Base
-agp = "8.13.2"
+agp = "9.0.0-rc01"
 protobuf = "4.33.2"
 kotlin = "2.3.0"
 kotlinx-coroutines = "1.10.2"
@@ -31,7 +31,7 @@ dotlottie = "0.6.2"
 cloudinary = "3.1.2"
 icons = "1.7.8"
 # DI
-koin-bom = "3.5.6"
+koin-bom = "4.1.1"
 # Network
 ktor = "3.3.3"
 # Firebase
@@ -48,7 +48,7 @@ contentment = "2.0.1"
 mapbox = "11.6.1"
 mapbox-geojson = "7.3.1"
 location = "21.3.0"
-google-maps = "4.4.1"
+google-maps = "7.0.0"
 # Wallet
 wallet = "19.5.0"
 wallet-button = "1.2.0"
