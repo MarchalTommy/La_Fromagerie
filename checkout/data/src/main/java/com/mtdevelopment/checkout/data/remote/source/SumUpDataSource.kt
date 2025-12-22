@@ -7,6 +7,8 @@ import com.mtdevelopment.checkout.data.remote.model.response.sumUp.CHECKOUT_STAT
 import com.mtdevelopment.checkout.data.remote.model.response.sumUp.CheckoutResponse
 import com.mtdevelopment.checkout.data.remote.model.response.sumUp.NewCheckoutResponse
 import com.mtdevelopment.checkout.data.remote.model.response.sumUp.ProcessCheckoutResponse
+import com.mtdevelopment.checkout.data.remote.model.response.sumUp.toNextStep
+import com.mtdevelopment.checkout.domain.model.ProcessCheckoutResult
 import com.mtdevelopment.core.util.NetWorkResult
 import com.mtdevelopment.core.util.toResultFlow
 import io.ktor.client.HttpClient
@@ -102,7 +104,7 @@ class SumUpDataSource(private val httpClient: HttpClient) {
     @OptIn(ExperimentalCoroutinesApi::class)
     fun processCheckout(
         requestBody: ProcessCheckoutRequest,
-        is3DSecure: (String?) -> Unit
+        on3DSecureRequired: (ProcessCheckoutResult.NextStep) -> Unit
     ): Flow<NetWorkResult<CheckoutResponse>> {
 
         val checkoutIdToProcess = requestBody.id ?: return flowOf(
@@ -122,12 +124,11 @@ class SumUpDataSource(private val httpClient: HttpClient) {
 
             when (result.status) {
                 HttpStatusCode.Accepted -> {
-                    // Le traitement a été accepté, il faut lancer la requête 3DS, nous devons poller.
-                    is3DSecure.invoke(result.body<ProcessCheckoutResponse>().nextStep?.url)
-                    Log.i(
-                        "ProcessCheckoutInfo",
-                        "Checkout $checkoutIdToProcess processing accepted (202). Starting polling."
-                    )
+                    val response3DS = result.body<ProcessCheckoutResponse>()
+                    // On notifie l'UI qu'une action est requise avec TOUTES les infos
+                    response3DS.nextStep?.let { on3DSecureRequired(it.toNextStep()) }
+
+                    Log.i("ProcessCheckoutInfo", "3DS Required. Polling started.")
                     NetWorkResult.Success(InitialPutAccepted(checkoutIdToProcess))
                 }
 

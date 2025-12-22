@@ -14,7 +14,7 @@ data class ProcessCheckoutRequest(
     @SerialName("id")
     val id: String?,
     @SerialName("payment_type")
-    val paymentType: String? = "google_pay"
+    val paymentType: String
 ) {
     @Serializable
     data class GooglePay(

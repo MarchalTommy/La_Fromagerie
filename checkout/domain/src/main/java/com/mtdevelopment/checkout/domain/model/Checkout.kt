@@ -46,7 +46,7 @@ data class Transaction(
     val transactionCode: String? = null,
     val authCode: String? = null,
     val entryMode: String? = null,
-    val internalId: Int? = null,
+    val internalId: Long? = null,
     val merchantCode: String? = null,
     val tipAmount: Double? = null,
     val vatAmount: Double? = null

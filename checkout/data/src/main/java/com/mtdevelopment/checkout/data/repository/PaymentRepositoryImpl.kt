@@ -19,6 +19,7 @@ import com.mtdevelopment.checkout.data.remote.source.SumUpDataSource
 import com.mtdevelopment.checkout.domain.model.Checkout
 import com.mtdevelopment.checkout.domain.model.GooglePayData
 import com.mtdevelopment.checkout.domain.model.NewCheckoutResult
+import com.mtdevelopment.checkout.domain.model.ProcessCheckoutResult
 import com.mtdevelopment.checkout.domain.repository.PaymentRepository
 import com.mtdevelopment.core.data.Constants
 import com.mtdevelopment.core.model.Order
@@ -136,7 +137,8 @@ class PaymentRepositoryImpl(
         TODO("Not yet implemented")
     }
 
-    // TODO: Create checkout when clicking on google pay button
+    // TODO: FIX -> Item systematically is EARL Des LAizinnes
+    // TODO: FIX -> New orders not in delivery of the admin app
     // TODO: Save checkout reference securely, locally and remotely
     override fun createNewCheckout(
         amount: Double,
@@ -151,6 +153,7 @@ class PaymentRepositoryImpl(
                 personalDetails = PersonalDetails(
 
                 ),
+                redirectUrl = BuildConfig.SUMUP_REDIRECT_URL,
                 purpose = CHECKOUT_CREATION_BODY_PURPOSE.CHECKOUT,
 //                merchantCode = "BuildConfig.SUMUP_MERCHANT_ID",
                 merchantCode = BuildConfig.SUMUP_MERCHANT_ID
@@ -166,12 +169,13 @@ class PaymentRepositoryImpl(
     override fun processCheckout(
         checkoutId: String,
         googlePayData: GooglePayData,
-        handle3dsRedirect: (redirectUrl: String?) -> Unit
+        on3DSecureRequired: (ProcessCheckoutResult.NextStep) -> Unit
     ): Flow<Checkout> {
 
         val processCheckoutRequest = ProcessCheckoutRequest(
             id = checkoutId,
             currency = "EUR",
+            paymentType = "google_pay",
             googlePay = ProcessCheckoutRequest.GooglePay(
                 apiVersion = googlePayData.apiVersion,
                 apiVersionMinor = googlePayData.apiVersionMinor,
@@ -181,7 +185,7 @@ class PaymentRepositoryImpl(
 
         return sumUpDataSource.processCheckout(
             requestBody = processCheckoutRequest,
-            is3DSecure = handle3dsRedirect
+            on3DSecureRequired = on3DSecureRequired
         ).mapNotNull { networkResult -> // networkResult est NetWorkResult<CheckoutResponse>
             when (networkResult) {
                 is NetWorkResult.Success -> {
