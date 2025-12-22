@@ -30,6 +30,11 @@ android {
                 ?.toString()
         buildConfigField("String", "SUMUP_MERCHANT_ID", "\"$SUMUP_MERCHANT_ID\"")
 
+        val SUMUP_REDIRECT_URL =
+            System.getenv("SUMUP_REDIRECT_URL") ?: project.findProperty("SUMUP_REDIRECT_URL")
+                ?.toString()
+        buildConfigField("String", "SUMUP_REDIRECT_URL", "\"$SUMUP_REDIRECT_URL\"")
+
         val SUMUP_MERCHANT_ID_TEST = System.getenv("SUMUP_MERCHANT_ID_TEST") ?: project.findProperty("SUMUP_MERCHANT_ID_TEST")
             ?.toString()
         buildConfigField("String", "SUMUP_MERCHANT_ID_TEST", "\"$SUMUP_MERCHANT_ID_TEST\"")

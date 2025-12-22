@@ -29,6 +29,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -53,6 +54,8 @@ fun CheckoutScreen(
     onNavigatePaymentSuccess: (String) -> Unit
 ) {
 
+    val context = LocalContext.current
+
     val screenSize: ScreenSize = rememberScreenSize()
     val checkoutViewModel = koinViewModel<CheckoutViewModel>()
     val uiData = checkoutViewModel.paymentScreenState.collectAsState()
@@ -66,7 +69,7 @@ fun CheckoutScreen(
                 val paymentData = PaymentData.getFromIntent(intent)
                 paymentData?.let {
                     // ICI: appeler setPaymentData
-                    checkoutViewModel.setPaymentData(it)
+                    checkoutViewModel.setPaymentData(context = context, paymentData = it)
                 } ?: run {
                     // Gérer le cas où paymentData est null (ne devrait pas arriver si RESULT_OK)
                     checkoutViewModel.setPaymentError("Erreur lors de la récupération des données de paiement Google Pay.")
@@ -221,7 +224,10 @@ fun CheckoutScreen(
                                     if (completedTask.isSuccessful) {
                                         completedTask.result.let {
                                             Log.i("Google Pay result", it.toJson())
-                                            checkoutViewModel.setPaymentData(it)
+                                            checkoutViewModel.setPaymentData(
+                                                context = context,
+                                                paymentData = it
+                                            )
                                         }
                                     } else {
                                         when (val exception = completedTask.exception) {

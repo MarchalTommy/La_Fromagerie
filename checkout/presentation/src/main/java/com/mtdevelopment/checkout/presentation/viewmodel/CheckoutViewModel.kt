@@ -1,5 +1,7 @@
 package com.mtdevelopment.checkout.presentation.viewmodel
 
+import android.content.Context
+import android.content.Intent
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -11,6 +13,7 @@ import com.google.android.gms.wallet.PaymentsClient
 import com.google.firebase.Timestamp
 import com.google.firebase.crashlytics.FirebaseCrashlytics
 import com.mtdevelopment.checkout.domain.model.GooglePayData
+import com.mtdevelopment.checkout.domain.model.ProcessCheckoutResult
 import com.mtdevelopment.checkout.domain.usecase.CreateNewCheckoutUseCase
 import com.mtdevelopment.checkout.domain.usecase.CreateNewOrderUseCase
 import com.mtdevelopment.checkout.domain.usecase.CreatePaymentsClientUseCase
@@ -27,6 +30,7 @@ import com.mtdevelopment.checkout.domain.usecase.SaveCheckoutReferenceUseCase
 import com.mtdevelopment.checkout.domain.usecase.SaveCreatedCheckoutUseCase
 import com.mtdevelopment.checkout.domain.usecase.SavePaymentStateUseCase
 import com.mtdevelopment.checkout.domain.usecase.UpdateOrderStatus
+import com.mtdevelopment.checkout.presentation.ThreeDSecureActivity
 import com.mtdevelopment.checkout.presentation.model.PaymentScreenState
 import com.mtdevelopment.core.domain.toPriceDouble
 import com.mtdevelopment.core.domain.toStringDate
@@ -228,7 +232,11 @@ class CheckoutViewModel(
         }
     }
 
-    private suspend fun processCheckout(paymentDataItem: GooglePayData, checkoutId: String) {
+    private suspend fun processCheckout(
+        context: Context,
+        paymentDataItem: GooglePayData,
+        checkoutId: String
+    ) {
         // TODO: Now, loader until fetch again checkouts from SumUp to see if completed !
 
         // This is google pay status ->
@@ -238,9 +246,8 @@ class CheckoutViewModel(
                 processSumUpCheckoutUseCase.invoke(
                     checkoutId = checkoutId,
                     googlePayData = paymentDataItem,
-                    is3DSecure = {
-                        Log.d("CHECKOUT PROCESSED", "3D SECURE REQUESTED -> $it")
-                        // Polling should continue in background for 2 minutes max
+                    on3DSecureRequired = { nextStep ->
+                        launch3DSActivity(context, nextStep)
                     }
                 ).collect { finalResponse ->
                     // Thanks to the polling, it should only reach this point after either paid or error.
@@ -255,7 +262,7 @@ class CheckoutViewModel(
         }
     }
 
-    fun setPaymentData(paymentData: PaymentData) {
+    fun setPaymentData(context: Context, paymentData: PaymentData) {
         viewModelScope.launch {
             _paymentScreenState.update {
                 it.copy(
@@ -270,7 +277,7 @@ class CheckoutViewModel(
                 if (it.status.equals("pending", true)) {
                     val paymentDataItem =
                         json.decodeFromString<GooglePayData>(paymentData.toJson())
-                    processCheckout(paymentDataItem, it.id ?: "")
+                    processCheckout(context, paymentDataItem, it.id ?: "")
                 }
             }
         }
@@ -368,6 +375,25 @@ class CheckoutViewModel(
                 )
             )
         }
+    }
+
+    private fun launch3DSActivity(context: Context, nextStep: ProcessCheckoutResult.NextStep) {
+        val intent = Intent(context, ThreeDSecureActivity::class.java).apply {
+            putExtra(ThreeDSecureActivity.EXTRA_URL, nextStep.url)
+            putExtra(ThreeDSecureActivity.EXTRA_METHOD, nextStep.method)
+            putExtra(ThreeDSecureActivity.EXTRA_REDIRECT_URL, nextStep.redirectUrl)
+
+            // Conversion du Payload (data class) en HashMap pour le passer à l'Intent
+            val params = HashMap<String, String>()
+            nextStep.payload?.let { p ->
+                p.paReq?.let { params["PaReq"] = it }
+                p.md?.let { params["MD"] = it }
+                p.termUrl?.let { params["TermUrl"] = it }
+                // Ajoutez les autres champs si nécessaire
+            }
+            putExtra(ThreeDSecureActivity.EXTRA_PAYLOAD_PARAMS, params)
+        }
+        context.startActivity(intent)
     }
 
     ///////////////////////////////////////////////////////////////////////////
