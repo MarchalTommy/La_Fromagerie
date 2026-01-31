@@ -111,7 +111,6 @@ class CheckoutViewModel(
                         isLoading = false,
                         buyerName = data.buyerName,
                         buyerAddress = data.buyerAddress,
-                        buyerBillingAddress = data.billingAddress,
                         totalPrice = data.totalPrice,
                         deliveryDate = data.deliveryDate,
                         cartItems = data.cartItems,
@@ -122,11 +121,9 @@ class CheckoutViewModel(
         }
     }
 
-    fun updateCheckoutNote(note: String) {
+    fun updateBuyerEmail(email: String) {
         _paymentScreenState.update {
-            it.copy(
-                checkoutNote = note
-            )
+            it.copy(buyerEmail = email)
         }
     }
 
@@ -218,6 +215,11 @@ class CheckoutViewModel(
         viewModelScope.launch {
             createNewCheckoutUseCase.invoke(
                 amount = paymentScreenState.value.totalPrice?.toPriceDouble() ?: 0.0,
+                description = paymentScreenState.value.cartItems?.cartItems?.joinToString(", ") { "${it?.quantity} x ${it?.name}" }
+                    ?: "",
+                buyerName = paymentScreenState.value.buyerName.toString(),
+                buyerAddress = paymentScreenState.value.buyerAddress.toString(),
+                buyerEmail = paymentScreenState.value.buyerEmail.toString(),
                 reference = checkoutRef
             ).collect { checkout ->
                 saveCheckoutReferenceUseCase.invoke(checkoutRef)
@@ -365,12 +367,10 @@ class CheckoutViewModel(
                         id = orderId,
                         customerName = _paymentScreenState.value.buyerName.toString(),
                         customerAddress = _paymentScreenState.value.buyerAddress.toString(),
-                        customerBillingAddress = _paymentScreenState.value.buyerBillingAddress.toString(),
                         deliveryDate = _paymentScreenState.value.deliveryDate?.toStringDate() ?: "",
                         orderDate = Timestamp.now().toDate().time.toStringDate(),
                         products = orderProduct,
-                        status = OrderStatus.PENDING,
-                        note = _paymentScreenState.value.checkoutNote.toString()
+                        status = OrderStatus.PENDING
                     )
                 )
             )

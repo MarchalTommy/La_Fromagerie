@@ -11,8 +11,10 @@ import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
@@ -27,9 +29,12 @@ import androidx.compose.material3.contentColorFor
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -60,15 +65,16 @@ fun CheckoutScreen(
     val checkoutViewModel = koinViewModel<CheckoutViewModel>()
     val uiData = checkoutViewModel.paymentScreenState.collectAsState()
 
+    val focusRequester = remember { FocusRequester() }
+    val focusManager = LocalFocusManager.current
+
     val googlePayLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartIntentSenderForResult()
     ) { activityResult ->
         if (activityResult.resultCode == RESULT_OK) {
             activityResult.data?.let { intent ->
-                // Extraire PaymentData de l'intent
                 val paymentData = PaymentData.getFromIntent(intent)
                 paymentData?.let {
-                    // ICI: appeler setPaymentData
                     checkoutViewModel.setPaymentData(context = context, paymentData = it)
                 } ?: run {
                     // Gérer le cas où paymentData est null (ne devrait pas arriver si RESULT_OK)
@@ -195,6 +201,18 @@ fun CheckoutScreen(
                     text = "${uiData.value.buyerAddress}",
                     style = MaterialTheme.typography.bodyMedium,
                     fontSize = 20.sp
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // TODO: VOIR LÉGALITÉ ET AUTOMATISATION POUR FACTURE
+
+                Text(
+                    modifier = Modifier.padding(start = 12.dp, end = 12.dp, top = 12.dp),
+                    text = "Vous pourrez retrouver une trace de votre achat sur votre Google Wallet.",
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold
                 )
 
                 // TODO: Add a mapBoxComposable with given address (need state rework first)

@@ -34,7 +34,14 @@ interface PaymentRepository {
 
     suspend fun getCheckoutFromId(id: String)
 
-    fun createNewCheckout(amount: Double, reference: String): Flow<NewCheckoutResult>
+    fun createNewCheckout(
+        amount: Double,
+        description: String,
+        buyerName: String,
+        buyerAddress: String,
+        buyerEmail: String,
+        reference: String
+    ): Flow<NewCheckoutResult>
 
     fun processCheckout(
         checkoutId: String,
