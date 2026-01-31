@@ -121,6 +121,12 @@ class CheckoutViewModel(
         }
     }
 
+    fun updateBuyerEmail(email: String) {
+        _paymentScreenState.update {
+            it.copy(buyerEmail = email)
+        }
+    }
+
     /**
      * Determine the user's ability to pay with a payment method supported by your app and display
      * a Google Pay payment button.
@@ -209,6 +215,11 @@ class CheckoutViewModel(
         viewModelScope.launch {
             createNewCheckoutUseCase.invoke(
                 amount = paymentScreenState.value.totalPrice?.toPriceDouble() ?: 0.0,
+                description = paymentScreenState.value.cartItems?.cartItems?.joinToString(", ") { "${it?.quantity} x ${it?.name}" }
+                    ?: "",
+                buyerName = paymentScreenState.value.buyerName.toString(),
+                buyerAddress = paymentScreenState.value.buyerAddress.toString(),
+                buyerEmail = paymentScreenState.value.buyerEmail.toString(),
                 reference = checkoutRef
             ).collect { checkout ->
                 saveCheckoutReferenceUseCase.invoke(checkoutRef)

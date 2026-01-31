@@ -6,6 +6,7 @@ import com.google.android.gms.wallet.IsReadyToPayRequest
 import com.google.android.gms.wallet.PaymentsClient
 import com.google.android.gms.wallet.Wallet
 import com.mtdevelopment.checkout.data.BuildConfig
+import com.mtdevelopment.checkout.data.remote.model.request.Address
 import com.mtdevelopment.checkout.data.remote.model.request.CHECKOUT_CREATION_BODY_PURPOSE
 import com.mtdevelopment.checkout.data.remote.model.request.CheckoutCreationBody
 import com.mtdevelopment.checkout.data.remote.model.request.PersonalDetails
@@ -137,11 +138,14 @@ class PaymentRepositoryImpl(
         TODO("Not yet implemented")
     }
 
-    // TODO: FIX -> Item systematically is EARL Des LAizinnes
     // TODO: FIX -> New orders not in delivery of the admin app
     // TODO: Save checkout reference securely, locally and remotely
     override fun createNewCheckout(
         amount: Double,
+        description: String,
+        buyerName: String,
+        buyerAddress: String,
+        buyerEmail: String,
         reference: String
     ): Flow<NewCheckoutResult> {
         return sumUpDataSource.createNewCheckout(
@@ -151,8 +155,13 @@ class PaymentRepositoryImpl(
                 currency = "EUR",
                 id = "${reference.hashCode()}_${System.currentTimeMillis()}",
                 personalDetails = PersonalDetails(
-
+                    firstName = buyerName,
+                    email = buyerEmail,
+                    address = Address(
+                        firstLine = buyerAddress
+                    )
                 ),
+                description = description,
                 redirectUrl = BuildConfig.SUMUP_REDIRECT_URL,
                 purpose = CHECKOUT_CREATION_BODY_PURPOSE.CHECKOUT,
 //                merchantCode = "BuildConfig.SUMUP_MERCHANT_ID",
