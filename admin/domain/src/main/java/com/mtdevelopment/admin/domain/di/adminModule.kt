@@ -15,6 +15,8 @@ import com.mtdevelopment.admin.domain.usecase.UpdateDeliveryPathUseCase
 import com.mtdevelopment.admin.domain.usecase.UpdateProductUseCase
 import com.mtdevelopment.admin.domain.usecase.UpdateShouldShowBatterieOptimizationUseCase
 import com.mtdevelopment.admin.domain.usecase.UploadImageUseCase
+import com.mtdevelopment.admin.domain.usecase.GetPreparationStatusesUseCase
+import com.mtdevelopment.admin.domain.usecase.UpdatePreparationStatusUseCase
 import org.koin.dsl.module
 
 fun adminDomainModule() = listOf(adminDomainModule)
@@ -38,4 +40,7 @@ val adminDomainModule = module {
     factory { GetShouldShowBatterieOptimizationUseCase(get()) }
     factory { SetIsInTrackingModeUseCase(get()) }
     factory { GetIsInTrackingModeUseCase(get()) }
+
+    factory { GetPreparationStatusesUseCase(get()) }
+    factory { UpdatePreparationStatusUseCase(get()) }
 }

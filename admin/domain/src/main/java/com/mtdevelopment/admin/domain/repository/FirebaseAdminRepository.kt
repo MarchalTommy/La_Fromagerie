@@ -2,6 +2,7 @@ package com.mtdevelopment.admin.domain.repository
 
 import com.mtdevelopment.core.model.DeliveryPath
 import com.mtdevelopment.core.model.Order
+import com.mtdevelopment.core.model.PreparationStatus
 import com.mtdevelopment.core.model.Product
 
 interface FirebaseAdminRepository {
@@ -23,5 +24,9 @@ interface FirebaseAdminRepository {
     suspend fun deleteDeliveryPath(path: DeliveryPath): Result<Unit>
 
     suspend fun getAllOrders(onSuccess: (List<Order>?) -> Unit)
+
+    suspend fun getPreparationStatuses(onSuccess: (List<PreparationStatus>?) -> Unit)
+
+    suspend fun updatePreparationStatus(status: PreparationStatus): Result<Unit>
 
 }

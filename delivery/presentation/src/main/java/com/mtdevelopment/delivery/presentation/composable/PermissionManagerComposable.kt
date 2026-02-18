@@ -118,6 +118,7 @@ private suspend fun checkLocationEligibility(
         val geocoder = Geocoder(context)
         var userCity: String?
         var userAddress: String? = null
+        var userStreet: String? = null
         val isNearPathCity: Boolean
         var closestDistance = Double.MAX_VALUE
         var matchingPathForCity: UiDeliveryPath? = null
@@ -141,6 +142,7 @@ private suspend fun checkLocationEligibility(
                 }
             userCity = addresses?.firstOrNull()?.locality
             userAddress = addresses?.firstOrNull()?.getAddressLine(0)
+            userStreet = addresses?.firstOrNull()?.thoroughfare
         } catch (e: IOException) {
             userCity = null // ou "Erreur Geocoder"
         } catch (e: IllegalArgumentException) {
@@ -149,26 +151,47 @@ private suspend fun checkLocationEligibility(
 
 
         // 2. Vérifier la proximité et si la ville est dans un parcours
+        val pathsInCity = mutableListOf<UiDeliveryPath>()
+
         for (path in allPaths) {
             for (cityInfo in path.cities) {
                 val cityName = cityInfo.first
-                val cityLocation = path.locations!![path.cities.indexOf(cityInfo)]
+                // Check safety of locations access
+                val cityIndex = path.cities.indexOf(cityInfo)
+                if (path.locations != null && path.locations.size > cityIndex) {
+                    val cityLocation = path.locations[cityIndex]
 
-                // Calculer la distance
-                val distance = calculateDistance(
-                    userLocation.first, userLocation.second,
-                    cityLocation.first, cityLocation.second
-                )
+                    // Calculer la distance
+                    val distance = calculateDistance(
+                        userLocation.first, userLocation.second,
+                        cityLocation.first, cityLocation.second
+                    )
 
-                if (distance < closestDistance) {
-                    closestDistance = distance.toDouble()
-                }
-
-                // Vérifier si la ville géocodée correspond à une ville du parcours
-                if (userCity != null && userCity.equals(cityName, ignoreCase = true)) {
-                    matchingPathForCity = path
+                    if (distance < closestDistance) {
+                        closestDistance = distance.toDouble()
+                    }
                 }
             }
+
+            // Collect paths matching city
+            if (userCity != null && path.cities.any { it.first.equals(userCity, ignoreCase = true) }) {
+                pathsInCity.add(path)
+            }
+        }
+
+        // Resolve matching path with street granularity
+        if (pathsInCity.isNotEmpty()) {
+             // 1. Try exact street match
+             if (userStreet != null) {
+                 matchingPathForCity = pathsInCity.find { path ->
+                     path.streets.any { it.equals(userStreet, ignoreCase = true) }
+                 }
+             }
+
+             // 2. If no street match, look for generic path (no streets defined)
+             if (matchingPathForCity == null) {
+                 matchingPathForCity = pathsInCity.find { it.streets.isEmpty() }
+             }
         }
 
         isNearPathCity = closestDistance <= MAX_DISTANCE_FOR_PICKUP_METERS

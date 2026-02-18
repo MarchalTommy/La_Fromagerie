@@ -8,6 +8,7 @@ import com.mtdevelopment.admin.data.model.DataDeliveryPath
 import com.mtdevelopment.core.model.OrderData
 import com.mtdevelopment.core.model.OrderStatus
 import com.mtdevelopment.core.model.ProductData
+import com.mtdevelopment.core.model.PreparationStatusData
 import kotlinx.coroutines.tasks.await
 import java.time.Instant
 
@@ -160,5 +161,32 @@ class FirestoreAdminDatasource(
                     )
                 })
             }
+    }
+
+    ///////////////////////////////////////////////////////////////////////////
+    // PREPARATION STATUS
+    ///////////////////////////////////////////////////////////////////////////
+    suspend fun getPreparationStatuses(): Result<List<PreparationStatusData>> {
+        return try {
+            val result = firestore.collection("preparation_status")
+                .get()
+                .await()
+            val list = result.documents.mapNotNull { it.toObject(PreparationStatusData::class.java) }
+            Result.success(list)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun updatePreparationStatus(status: PreparationStatusData): Result<Unit> {
+        return try {
+            firestore.collection("preparation_status")
+                .document(status.id)
+                .set(status)
+                .await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
     }
 }

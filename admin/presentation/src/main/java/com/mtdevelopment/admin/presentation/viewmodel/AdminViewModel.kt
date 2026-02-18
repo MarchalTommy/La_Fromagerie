@@ -16,6 +16,9 @@ import com.mtdevelopment.admin.domain.usecase.UpdateDeliveryPathUseCase
 import com.mtdevelopment.admin.domain.usecase.UpdateProductUseCase
 import com.mtdevelopment.admin.domain.usecase.UpdateShouldShowBatterieOptimizationUseCase
 import com.mtdevelopment.admin.domain.usecase.UploadImageUseCase
+import com.mtdevelopment.admin.domain.usecase.GetPreparationStatusesUseCase
+import com.mtdevelopment.admin.domain.usecase.UpdatePreparationStatusUseCase
+import com.mtdevelopment.core.model.PreparationStatus
 import com.mtdevelopment.admin.presentation.model.OrderScreenState
 import com.mtdevelopment.core.domain.toTimeStamp
 import com.mtdevelopment.core.model.DeliveryPath
@@ -40,7 +43,9 @@ class AdminViewModel(
     private val isInTrackingModeUseCase: GetIsInTrackingModeUseCase,
     private val getOptimizedDeliveryUseCase: GetOptimizedDeliveryUseCase,
     private val shouldShowBatterieOptimizationUseCase: UpdateShouldShowBatterieOptimizationUseCase,
-    private val getShouldShowBatterieOptimizationUseCase: GetShouldShowBatterieOptimizationUseCase
+    private val getShouldShowBatterieOptimizationUseCase: GetShouldShowBatterieOptimizationUseCase,
+    private val getPreparationStatusesUseCase: GetPreparationStatusesUseCase,
+    private val updatePreparationStatusUseCase: UpdatePreparationStatusUseCase
 ) : ViewModel(), KoinComponent {
 
     ///////////////////////////////////////////////////////////////////////////
@@ -180,6 +185,11 @@ class AdminViewModel(
                     isLoading = false
                 )
             })
+            getPreparationStatusesUseCase.invoke(onSuccess = {
+                _orderScreenState.update { state ->
+                    state.copy(preparationStatuses = it ?: emptyList())
+                }
+            })
         }
     }
 
@@ -240,4 +250,21 @@ class AdminViewModel(
         }
     }
 
+
+    fun updatePreparationStatus(status: PreparationStatus) {
+        viewModelScope.launch {
+            // Optimistic update
+            _orderScreenState.update { state ->
+                val newStatuses = state.preparationStatuses.toMutableList()
+                val index = newStatuses.indexOfFirst { it.id == status.id }
+                if (index != -1) {
+                    newStatuses[index] = status
+                } else {
+                    newStatuses.add(status)
+                }
+                state.copy(preparationStatuses = newStatuses)
+            }
+            updatePreparationStatusUseCase.invoke(status)
+        }
+    }
 }

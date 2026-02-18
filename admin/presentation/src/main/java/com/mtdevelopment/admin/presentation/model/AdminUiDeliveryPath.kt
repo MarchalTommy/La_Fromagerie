@@ -7,11 +7,13 @@ data class AdminUiDeliveryPath(
     val name: String,
     val cities: List<Pair<String, Int>>,
     val deliveryDay: String,
+    val streets: List<String> = emptyList(),
 )
 
 fun AdminUiDeliveryPath.toDomainDeliveryPath() = DeliveryPath(
     id = id,
     pathName = name,
     availableCities = cities,
-    deliveryDay = deliveryDay
+    deliveryDay = deliveryDay,
+    streets = streets
 )
