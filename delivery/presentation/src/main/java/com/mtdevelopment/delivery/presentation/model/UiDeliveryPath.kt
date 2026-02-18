@@ -10,6 +10,7 @@ data class UiDeliveryPath(
     val cities: List<Pair<String, Int>>,
     val locations: List<Pair<Double, Double>>?,
     val deliveryDay: String,
+    val streets: List<String> = emptyList(),
     val geoJson: GeoJsonFeatureCollection?
 )
 
@@ -20,6 +21,7 @@ fun DeliveryPath.toUiDeliveryPath(): UiDeliveryPath {
         cities = this.availableCities,
         locations = this.locations,
         deliveryDay = deliveryDay,
+        streets = this.streets,
         geoJson = geoJson
     )
 }
@@ -29,7 +31,8 @@ fun UiDeliveryPath.toAdminUiDeliveryPath(): AdminUiDeliveryPath {
         id = this.id,
         name = this.name,
         cities = this.cities,
-        deliveryDay = deliveryDay
+        deliveryDay = deliveryDay,
+        streets = this.streets
     )
 }
 
@@ -40,6 +43,7 @@ fun AdminUiDeliveryPath.toUiDeliveryPath(): UiDeliveryPath {
         cities = this.cities,
         locations = null,
         deliveryDay = deliveryDay,
+        streets = this.streets,
         geoJson = null
     )
 }

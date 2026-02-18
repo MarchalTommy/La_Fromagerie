@@ -113,12 +113,14 @@ fun PathEditDialog(
                 name = if (path?.name == "Ajouter un parcours") "Nouveau Parcours" else path?.name
                     ?: "",
                 cities = path?.cities ?: emptyList(),
-                deliveryDay = path?.deliveryDay ?: ""
+                deliveryDay = path?.deliveryDay ?: "",
+                streets = path?.streets ?: emptyList()
             )
         )
     }
 
     val tempNewCity = remember { mutableStateOf(Pair("", 0)) }
+    val streetsInput = remember { mutableStateOf(path?.streets?.joinToString(", ") ?: "") }
 
     var isDropdownExpanded by remember { mutableStateOf(false) }
 
@@ -187,6 +189,19 @@ fun PathEditDialog(
                     isError = tempPath.value.name.isEmpty(),
                     imeAction = ImeAction.Next,
                     focusRequester = focusRequester,
+                    focusManager = focusManager,
+                )
+                // Rues (optionnel)
+                ProductEditField(
+                    modifier = Modifier.fillMaxWidth(),
+                    title = "Rues (optionnel, séparées par virgule)",
+                    value = streetsInput.value,
+                    onValueChange = { input ->
+                        streetsInput.value = input
+                        val streetsList = input.split(",").map { it.trim() }.filter { it.isNotBlank() }
+                        tempPath.value = tempPath.value.copy(streets = streetsList)
+                    },
+                    imeAction = ImeAction.Next,
                     focusManager = focusManager,
                 )
 

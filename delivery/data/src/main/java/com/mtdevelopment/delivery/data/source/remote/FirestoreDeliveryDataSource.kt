@@ -23,6 +23,8 @@ class FirestoreDeliveryDataSource(
                         cities = item.data?.get("cities") as? List<String>,
                         deliveryDay = item.data?.get("delivery_day").toString(),
                         postcodes = item.data?.get("postcodes") as? List<Int>
+                            ?: emptyList(),
+                        streets = item.data?.get("streets") as? List<String>
                             ?: emptyList()
                     )
                 })
@@ -48,6 +50,8 @@ class FirestoreDeliveryDataSource(
                         cities = it.documents[0].data?.get("cities") as? List<String>,
                         deliveryDay = it.documents[0].data?.get("delivery_day").toString(),
                         postcodes = it.documents[0].data?.get("postcodes") as? List<Int>
+                            ?: emptyList(),
+                        streets = it.documents[0].data?.get("streets") as? List<String>
                             ?: emptyList()
                     )
                 )

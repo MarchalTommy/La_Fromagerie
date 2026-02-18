@@ -113,4 +113,18 @@ class FirebaseAdminRepositoryImpl(
         return firestore.saveNewDatabasePathsUpdate(timestamp)
     }
 
+
+    override suspend fun getPreparationStatuses(onSuccess: (List<PreparationStatus>?) -> Unit) {
+        val result = firestore.getPreparationStatuses()
+        result.onSuccess { list ->
+            onSuccess(list.map { it.toDomain() })
+        }
+        result.onFailure {
+            onSuccess(null)
+        }
+    }
+
+    override suspend fun updatePreparationStatus(status: PreparationStatus): Result<Unit> {
+        return firestore.updatePreparationStatus(status.toData())
+    }
 }

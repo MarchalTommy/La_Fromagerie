@@ -85,6 +85,7 @@ class FirestorePathRepositoryImpl(
                                 availableCities = zippedCities,
                                 locations = locations,
                                 deliveryDay = pathData.deliveryDay,
+                                streets = pathData.streets ?: emptyList(),
                                 geoJson = geoJsonData // Use null if withGeoJson is false
                             )
                         }
@@ -124,7 +125,8 @@ class FirestorePathRepositoryImpl(
                             availableCities = listOfZipped[0],
                             geoJson = null,
                             deliveryDay = "",
-                            locations = null
+                            locations = null,
+                            streets = path.streets ?: emptyList()
                         )
                     )
                 } else {
