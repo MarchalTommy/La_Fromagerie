@@ -1,6 +1,7 @@
 package com.mtdevelopment.checkout.domain.repository
 
 import com.google.android.gms.wallet.PaymentsClient
+import com.mtdevelopment.checkout.domain.model.Checkout
 import com.mtdevelopment.checkout.domain.model.GooglePayData
 import com.mtdevelopment.checkout.domain.model.NewCheckoutResult
 import com.mtdevelopment.checkout.domain.model.ProcessCheckoutResult
@@ -33,12 +34,20 @@ interface PaymentRepository {
 
     suspend fun getCheckoutFromId(id: String)
 
-    fun createNewCheckout(amount: Double, reference: String): Flow<NewCheckoutResult>
+    fun createNewCheckout(
+        amount: Double,
+        description: String,
+        buyerName: String,
+        buyerAddress: String,
+        buyerEmail: String,
+        reference: String
+    ): Flow<NewCheckoutResult>
 
     fun processCheckout(
         checkoutId: String,
-        googlePayData: GooglePayData
-    ): Flow<ProcessCheckoutResult>
+        googlePayData: GooglePayData,
+        on3DSecureRequired: (ProcessCheckoutResult.NextStep) -> Unit
+    ): Flow<Checkout>
 
     ///////////////////////////////////////////////////////////////////////////
     // ORDERS

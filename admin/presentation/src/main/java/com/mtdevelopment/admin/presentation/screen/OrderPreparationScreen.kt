@@ -38,6 +38,7 @@ import androidx.compose.ui.unit.dp
 import com.mtdevelopment.admin.presentation.viewmodel.AdminViewModel
 import com.mtdevelopment.core.domain.toTimeStamp
 import com.mtdevelopment.core.model.Order
+import com.mtdevelopment.core.model.PreparationStatus
 import com.mtdevelopment.core.presentation.composable.ErrorOverlay
 import com.mtdevelopment.core.presentation.composable.RiveAnimation
 import com.mtdevelopment.core.util.koinViewModel
@@ -52,7 +53,9 @@ fun OrderPreparationScreen() {
     }
 
     OrderPreparationList(
-        orders = state.value.orders
+        orders = state.value.orders,
+        preparationStatuses = state.value.preparationStatuses,
+        onUpdateStatus = { viewModel.updatePreparationStatus(it) }
     )
 
     RiveAnimation(
@@ -71,7 +74,9 @@ fun OrderPreparationScreen() {
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun OrderPreparationList(
-    orders: List<Order>
+    orders: List<Order>,
+    preparationStatuses: List<PreparationStatus>,
+    onUpdateStatus: (PreparationStatus) -> Unit
 ) {
     val nextDeliveryDates =
         orders.map { it.deliveryDate }.sortedByDescending { it.toTimeStamp() }.toSet()
@@ -128,6 +133,9 @@ fun OrderPreparationList(
                         product = item.first,
                         quantity = item.second,
                         itemsPerClients = ordersByDeliveryDate[deliveryDate] ?: listOf(),
+                        deliveryDate = deliveryDate,
+                        preparationStatuses = preparationStatuses,
+                        onUpdateStatus = onUpdateStatus
                     )
                 }
             }
@@ -142,28 +150,32 @@ fun OrderPreparationListItem(
     product: String,
     quantity: Int,
     itemsPerClients: List<Order>,
+    deliveryDate: String,
+    preparationStatuses: List<PreparationStatus>,
+    onUpdateStatus: (PreparationStatus) -> Unit
 ) {
 
-    val mapClientToProducts = mutableMapOf<String, MutableList<Pair<String, Int>>>()
+    val mapClientToProducts = mutableMapOf<String, MutableMap<String, Int>>()
     itemsPerClients.forEach { order ->
-        order.products.forEach { (product, quantity) ->
+        order.products.forEach { (prod, qty) ->
             if (mapClientToProducts[order.customerName] == null) {
-                mapClientToProducts[order.customerName] = mutableListOf(Pair(product, quantity))
+                mapClientToProducts[order.customerName] = mutableMapOf(prod to qty)
             } else {
-                mapClientToProducts[order.customerName]!!.add(Pair(product, quantity))
+                mapClientToProducts[order.customerName]!![prod] = (mapClientToProducts[order.customerName]!![prod] ?: 0) + qty
             }
         }
     }
 
     val showDetails = remember { mutableStateOf(false) }
-    val isDone = remember { mutableStateOf(false) }
+    val statusId = "${deliveryDate.replace("/", "")}_${product.replace(" ", "")}"
+    val isDone = preparationStatuses.find { it.id == statusId }?.isPrepared ?: false
 
     val rotation = animateFloatAsState(
         targetValue = if (showDetails.value) 180f else 0f
     )
 
     val itemColor = animateColorAsState(
-        targetValue = if (isDone.value) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainer
+        targetValue = if (isDone) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainer
     )
 
     Card(
@@ -219,20 +231,26 @@ fun OrderPreparationListItem(
                 Column {
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    mapClientToProducts.forEach { (client, items) ->
-                        val goodProduct = items.find { it.first == product }
-                        if (goodProduct != null && goodProduct.second > 0) {
-                            Text("${goodProduct.second} -> $client")
+                    mapClientToProducts.forEach { (client, productsMap) ->
+                        val productQuantity = productsMap[product]
+                        if (productQuantity != null && productQuantity > 0) {
+                            Text("$productQuantity -> $client")
                         }
-
                     }
 
                     Box(
                         modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd
                     ) {
                         Checkbox(
-                            checked = isDone.value, onCheckedChange = {
-                                isDone.value = it
+                            checked = isDone, onCheckedChange = { isChecked ->
+                                onUpdateStatus(
+                                    PreparationStatus(
+                                        id = statusId,
+                                        date = deliveryDate,
+                                        productName = product,
+                                        isPrepared = isChecked
+                                    )
+                                )
                             })
                     }
                 }

@@ -30,7 +30,8 @@ class CloudinaryRepositoryImpl(
 
         val signature = Cloudinary().apiSignRequest(
             paramsToSign,
-            BuildConfig.CLOUDINARY_PRIVATE
+            BuildConfig.CLOUDINARY_PRIVATE,
+            1
         )
 
         val options = mutableMapOf<String, Any>(

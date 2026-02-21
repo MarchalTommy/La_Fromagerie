@@ -10,11 +10,10 @@ data class PaymentScreenState(
     val isGooglePayAvailable: Boolean = false,
     val buyerName: String? = null,
     val buyerAddress: String? = null,
-    val buyerBillingAddress: String? = null,
+    val buyerEmail: String? = null,
     val cartItems: CartItems? = null,
     val totalPrice: Long? = null,
     val deliveryDate: Long? = null,
     val checkoutResult: NewCheckoutResult? = null,
-    var orderId: String? = null,
-    var checkoutNote: String? = null
+    var orderId: String? = null
 )

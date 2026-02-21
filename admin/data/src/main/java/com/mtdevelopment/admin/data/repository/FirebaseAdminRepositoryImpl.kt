@@ -5,6 +5,9 @@ import com.mtdevelopment.admin.data.source.FirestoreAdminDatasource
 import com.mtdevelopment.admin.domain.repository.FirebaseAdminRepository
 import com.mtdevelopment.core.model.DeliveryPath
 import com.mtdevelopment.core.model.Order
+import com.mtdevelopment.core.model.PreparationStatus
+import com.mtdevelopment.core.model.toData
+import com.mtdevelopment.core.model.toDomain
 import com.mtdevelopment.core.model.toOrder
 import com.mtdevelopment.core.model.toProductData
 
@@ -102,6 +105,20 @@ class FirebaseAdminRepositoryImpl(
         })
     }
 
+    override suspend fun getPreparationStatuses(onSuccess: (List<PreparationStatus>?) -> Unit) {
+        val result = firestore.getPreparationStatuses()
+        result.onSuccess { list ->
+            onSuccess(list.map { it.toDomain() })
+        }
+        result.onFailure {
+            onSuccess(null)
+        }
+    }
+
+    override suspend fun updatePreparationStatus(status: PreparationStatus): Result<Unit> {
+        return firestore.updatePreparationStatus(status.toData())
+    }
+
     ///////////////////////////////////////////////////////////////////////////
     // Database Update Timestamp
     ///////////////////////////////////////////////////////////////////////////
@@ -112,5 +129,4 @@ class FirebaseAdminRepositoryImpl(
     override suspend fun saveNewDatabasePathsUpdate(timestamp: Long): Result<Unit> {
         return firestore.saveNewDatabasePathsUpdate(timestamp)
     }
-
 }

@@ -4,7 +4,6 @@ import com.mtdevelopment.core.util.NetWorkResult
 import com.mtdevelopment.delivery.data.source.remote.FirestoreDeliveryDataSource
 import com.mtdevelopment.delivery.data.source.remote.OpenRouteDataSource
 import com.mtdevelopment.delivery.domain.model.DeliveryPath
-import com.mtdevelopment.delivery.domain.model.GeoJsonFeatureCollection
 import com.mtdevelopment.delivery.domain.repository.AddressApiRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -72,7 +71,7 @@ class FirestorePathRepositoryImpl(
                                     onFailure.invoke()
                                     null
                                 } else {
-                                    (result as NetWorkResult<GeoJsonFeatureCollection>).data
+                                    (result as? NetWorkResult.Success)?.data
                                 }
 
                             } else {
@@ -86,6 +85,7 @@ class FirestorePathRepositoryImpl(
                                 availableCities = zippedCities,
                                 locations = locations,
                                 deliveryDay = pathData.deliveryDay,
+                                streets = pathData.streets ?: emptyList(),
                                 geoJson = geoJsonData // Use null if withGeoJson is false
                             )
                         }
@@ -125,7 +125,8 @@ class FirestorePathRepositoryImpl(
                             availableCities = listOfZipped[0],
                             geoJson = null,
                             deliveryDay = "",
-                            locations = null
+                            locations = null,
+                            streets = path.streets ?: emptyList()
                         )
                     )
                 } else {

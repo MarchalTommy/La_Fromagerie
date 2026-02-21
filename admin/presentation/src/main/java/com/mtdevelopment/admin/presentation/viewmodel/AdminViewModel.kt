@@ -9,7 +9,6 @@ import com.mtdevelopment.admin.domain.usecase.AddNewProductUseCase
 import com.mtdevelopment.admin.domain.usecase.DeletePathUseCase
 import com.mtdevelopment.admin.domain.usecase.DeleteProductUseCase
 import com.mtdevelopment.admin.domain.usecase.GetAllOrdersUseCase
-import com.mtdevelopment.admin.domain.usecase.GetCurrentLocationOnceUseCase
 import com.mtdevelopment.admin.domain.usecase.GetIsInTrackingModeUseCase
 import com.mtdevelopment.admin.domain.usecase.GetOptimizedDeliveryUseCase
 import com.mtdevelopment.admin.domain.usecase.GetShouldShowBatterieOptimizationUseCase
@@ -17,27 +16,21 @@ import com.mtdevelopment.admin.domain.usecase.UpdateDeliveryPathUseCase
 import com.mtdevelopment.admin.domain.usecase.UpdateProductUseCase
 import com.mtdevelopment.admin.domain.usecase.UpdateShouldShowBatterieOptimizationUseCase
 import com.mtdevelopment.admin.domain.usecase.UploadImageUseCase
+import com.mtdevelopment.admin.domain.usecase.GetPreparationStatusesUseCase
+import com.mtdevelopment.admin.domain.usecase.UpdatePreparationStatusUseCase
+import com.mtdevelopment.core.model.PreparationStatus
 import com.mtdevelopment.admin.presentation.model.OrderScreenState
 import com.mtdevelopment.core.domain.toTimeStamp
-import com.mtdevelopment.core.model.AutoCompleteSuggestion
 import com.mtdevelopment.core.model.DeliveryPath
-import com.mtdevelopment.core.model.Order
 import com.mtdevelopment.core.presentation.sharedModels.UiProductObject
 import com.mtdevelopment.core.presentation.sharedModels.toDomainProduct
-import com.mtdevelopment.core.usecase.GetAutocompleteSuggestionsUseCase
-import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.debounce
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.koin.core.component.KoinComponent
 import java.time.Instant
 
-@OptIn(FlowPreview::class)
 class AdminViewModel(
     private val updateProductUseCase: UpdateProductUseCase,
     private val deleteProductUseCase: DeleteProductUseCase,
@@ -49,10 +42,10 @@ class AdminViewModel(
     private val uploadImageUseCase: UploadImageUseCase,
     private val isInTrackingModeUseCase: GetIsInTrackingModeUseCase,
     private val getOptimizedDeliveryUseCase: GetOptimizedDeliveryUseCase,
-    private val getCurrentLocationOnceUseCase: GetCurrentLocationOnceUseCase,
-    private val getAutocompleteSuggestionsUseCase: GetAutocompleteSuggestionsUseCase,
     private val shouldShowBatterieOptimizationUseCase: UpdateShouldShowBatterieOptimizationUseCase,
     private val getShouldShowBatterieOptimizationUseCase: GetShouldShowBatterieOptimizationUseCase,
+    private val getPreparationStatusesUseCase: GetPreparationStatusesUseCase,
+    private val updatePreparationStatusUseCase: UpdatePreparationStatusUseCase
 ) : ViewModel(), KoinComponent {
 
     ///////////////////////////////////////////////////////////////////////////
@@ -60,9 +53,6 @@ class AdminViewModel(
     ///////////////////////////////////////////////////////////////////////////
     private val _orderScreenState = MutableStateFlow(OrderScreenState())
     val orderScreenState = _orderScreenState.asStateFlow()
-
-    // Private autocomplete query state
-    private val _searchQuery = MutableStateFlow("")
 
     init {
         viewModelScope.launch {
@@ -72,86 +62,6 @@ class AdminViewModel(
                 )
             }
         }
-        viewModelScope.launch {
-            _searchQuery
-                .debounce(300)
-                .distinctUntilChanged()
-                .filter { it.isNotBlank() }
-                .filter { it.length >= 2 }
-                .collectLatest { query ->
-                    fetchAddressSuggestions(query)
-                }
-        }
-
-        // Cache le dropdown si la requête est vide
-        viewModelScope.launch {
-            _searchQuery.collect { query ->
-                _orderScreenState.value = if (query.isBlank()) {
-                    orderScreenState.value.copy(
-                        showSuggestions = false,
-                        suggestions = emptyList()
-                    )
-                } else {
-                    _orderScreenState.value.copy(showSuggestions = true)
-                }
-            }
-        }
-    }
-
-    ///////////////////////////////////////////////////////////////////////////
-    // Autocomplete
-    ///////////////////////////////////////////////////////////////////////////
-    private fun fetchAddressSuggestions(query: String) {
-        _orderScreenState.value = _orderScreenState.value.copy(
-            suggestionsLoading = true
-        )
-        viewModelScope.launch {
-            try {
-                val suggestions = getAutocompleteSuggestionsUseCase.invoke(query)
-                _orderScreenState.value = _orderScreenState.value.copy(
-                    suggestions = suggestions.mapNotNull { it },
-                    suggestionsLoading = false,
-                    showSuggestions = suggestions.isNotEmpty()
-                )
-            } catch (e: Exception) {
-                _orderScreenState.value = _orderScreenState.value.copy(
-                    suggestions = emptyList(),
-                    suggestionsLoading = false,
-                    showSuggestions = false
-                )
-                // Afficher un message à l'utilisateur
-                println("Erreur lors de la récupération des suggestions: ${e.message}")
-            }
-        }
-    }
-
-    fun addOrder(order: Order) {
-        viewModelScope.launch {
-            _orderScreenState.value = _orderScreenState.value.copy(
-                orders = _orderScreenState.value.orders + order
-            )
-        }
-    }
-
-    fun onSuggestionSelected(suggestion: AutoCompleteSuggestion) {
-        suggestion.fulltext?.let {
-            _orderScreenState.value = _orderScreenState.value.copy(
-                searchQuery = it
-            )
-        }
-    }
-
-    fun setShowAddressesSuggestions(shouldShow: Boolean) {
-        _orderScreenState.value = _orderScreenState.value.copy(showSuggestions = shouldShow)
-    }
-
-    fun setAddressText(address: String) {
-        _orderScreenState.value = _orderScreenState.value.copy(searchQuery = address)
-        _searchQuery.value = address
-    }
-
-    fun setDialogVisibility(isVisible: Boolean) {
-        _orderScreenState.value = _orderScreenState.value.copy(shouldShowDialog = isVisible)
     }
 
     ///////////////////////////////////////////////////////////////////////////
@@ -275,6 +185,11 @@ class AdminViewModel(
                     isLoading = false
                 )
             })
+            getPreparationStatusesUseCase.invoke(onSuccess = {
+                _orderScreenState.update { state ->
+                    state.copy(preparationStatuses = it ?: emptyList())
+                }
+            })
         }
     }
 
@@ -298,14 +213,6 @@ class AdminViewModel(
         _orderScreenState.value = _orderScreenState.value.copy(
             shouldShowBatterieOptimization = shouldShow
         )
-    }
-
-    fun getCurrentLocationToStart() {
-        viewModelScope.launch {
-            _orderScreenState.value = _orderScreenState.value.copy(
-                currentAdminLocation = getCurrentLocationOnceUseCase.invoke()
-            )
-        }
     }
 
     ///////////////////////////////////////////////////////////////////////////
@@ -343,4 +250,21 @@ class AdminViewModel(
         }
     }
 
+
+    fun updatePreparationStatus(status: PreparationStatus) {
+        viewModelScope.launch {
+            // Optimistic update
+            _orderScreenState.update { state ->
+                val newStatuses = state.preparationStatuses.toMutableList()
+                val index = newStatuses.indexOfFirst { it.id == status.id }
+                if (index != -1) {
+                    newStatuses[index] = status
+                } else {
+                    newStatuses.add(status)
+                }
+                state.copy(preparationStatuses = newStatuses)
+            }
+            updatePreparationStatusUseCase.invoke(status)
+        }
+    }
 }

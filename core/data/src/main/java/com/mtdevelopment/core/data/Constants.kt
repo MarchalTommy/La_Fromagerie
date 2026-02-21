@@ -38,8 +38,7 @@ object Constants {
     // GOOGLE PAY CONSTANTS
     ///////////////////////////////////////////////////////////////////////////
 
-    // TODO: set to WalletConstants.ENVIRONMENT_PRODUCTION after validation with Google : https://developers.google.com/pay/api/android/guides/test-and-deploy/integration-checklist
-    const val PAYMENTS_ENVIRONMENT = WalletConstants.ENVIRONMENT_TEST
+    const val PAYMENTS_ENVIRONMENT = WalletConstants.ENVIRONMENT_PRODUCTION
 
     val SUPPORTED_NETWORKS = listOf(
         "MASTERCARD",

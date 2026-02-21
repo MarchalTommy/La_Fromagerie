@@ -76,6 +76,7 @@ dependencies {
 
     implementation(libs.landscapist)
     implementation(libs.rive.android)
+    implementation(libs.material.icons)
 
     implementation(platform(libs.koin.bom))
     implementation(libs.koin.core)

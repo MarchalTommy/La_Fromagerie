@@ -7,7 +7,7 @@ plugins {
 
 android {
     namespace = "com.mtdevelopment.checkout.data"
-    compileSdk = 35
+    compileSdk = 36
     android.buildFeatures.buildConfig = true
 
     defaultConfig {
@@ -29,6 +29,11 @@ android {
             System.getenv("SUMUP_MERCHANT_ID") ?: project.findProperty("SUMUP_MERCHANT_ID")
                 ?.toString()
         buildConfigField("String", "SUMUP_MERCHANT_ID", "\"$SUMUP_MERCHANT_ID\"")
+
+        val SUMUP_REDIRECT_URL =
+            System.getenv("SUMUP_REDIRECT_URL") ?: project.findProperty("SUMUP_REDIRECT_URL")
+                ?.toString()
+        buildConfigField("String", "SUMUP_REDIRECT_URL", "\"$SUMUP_REDIRECT_URL\"")
 
         val SUMUP_MERCHANT_ID_TEST = System.getenv("SUMUP_MERCHANT_ID_TEST") ?: project.findProperty("SUMUP_MERCHANT_ID_TEST")
             ?.toString()

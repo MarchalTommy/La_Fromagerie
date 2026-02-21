@@ -4,5 +4,6 @@ data class DeliveryPath(
     val id: String,
     val pathName: String,
     val availableCities: List<Pair<String, Int>>,
-    val deliveryDay: String
+    val deliveryDay: String,
+    val streets: List<String> = emptyList()
 )

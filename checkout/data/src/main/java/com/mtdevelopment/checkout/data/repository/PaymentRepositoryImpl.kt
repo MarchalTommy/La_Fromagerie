@@ -1,19 +1,23 @@
 package com.mtdevelopment.checkout.data.repository
 
 import android.content.Context
+import android.util.Log
 import com.google.android.gms.wallet.IsReadyToPayRequest
 import com.google.android.gms.wallet.PaymentsClient
 import com.google.android.gms.wallet.Wallet
 import com.mtdevelopment.checkout.data.BuildConfig
+import com.mtdevelopment.checkout.data.remote.model.request.Address
 import com.mtdevelopment.checkout.data.remote.model.request.CHECKOUT_CREATION_BODY_PURPOSE
 import com.mtdevelopment.checkout.data.remote.model.request.CheckoutCreationBody
 import com.mtdevelopment.checkout.data.remote.model.request.PersonalDetails
 import com.mtdevelopment.checkout.data.remote.model.request.ProcessCheckoutRequest
 import com.mtdevelopment.checkout.data.remote.model.request.toPaymentData
+import com.mtdevelopment.checkout.data.remote.model.response.sumUp.CHECKOUT_STATUS
+import com.mtdevelopment.checkout.data.remote.model.response.sumUp.toDomainCheckout
 import com.mtdevelopment.checkout.data.remote.model.response.sumUp.toNewCheckoutResult
-import com.mtdevelopment.checkout.data.remote.model.response.sumUp.toProcessCheckoutResult
 import com.mtdevelopment.checkout.data.remote.source.FirestoreOrderDataSource
 import com.mtdevelopment.checkout.data.remote.source.SumUpDataSource
+import com.mtdevelopment.checkout.domain.model.Checkout
 import com.mtdevelopment.checkout.domain.model.GooglePayData
 import com.mtdevelopment.checkout.domain.model.NewCheckoutResult
 import com.mtdevelopment.checkout.domain.model.ProcessCheckoutResult
@@ -22,7 +26,9 @@ import com.mtdevelopment.core.data.Constants
 import com.mtdevelopment.core.model.Order
 import com.mtdevelopment.core.model.OrderStatus
 import com.mtdevelopment.core.model.toOrderData
+import com.mtdevelopment.core.util.NetWorkResult
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.flow.transform
 import kotlinx.coroutines.tasks.await
 import org.json.JSONArray
@@ -132,13 +138,14 @@ class PaymentRepositoryImpl(
         TODO("Not yet implemented")
     }
 
-
-    // TODO: Fix personal details to have name, address, billing address, etc...
-
-    // TODO: Create checkout when clicking on google pay button
+    // TODO: FIX -> New orders not in delivery of the admin app
     // TODO: Save checkout reference securely, locally and remotely
     override fun createNewCheckout(
         amount: Double,
+        description: String,
+        buyerName: String,
+        buyerAddress: String,
+        buyerEmail: String,
         reference: String
     ): Flow<NewCheckoutResult> {
         return sumUpDataSource.createNewCheckout(
@@ -146,16 +153,23 @@ class PaymentRepositoryImpl(
                 checkoutReference = reference,
                 amount = amount,
                 currency = "EUR",
-                id = "${reference.hashCode()}",
+                id = "${reference.hashCode()}_${System.currentTimeMillis()}",
                 personalDetails = PersonalDetails(
-
+                    firstName = buyerName,
+                    email = buyerEmail,
+                    address = Address(
+                        firstLine = buyerAddress
+                    )
                 ),
+                description = description,
+                redirectUrl = BuildConfig.SUMUP_REDIRECT_URL,
                 purpose = CHECKOUT_CREATION_BODY_PURPOSE.CHECKOUT,
 //                merchantCode = "BuildConfig.SUMUP_MERCHANT_ID",
-                merchantCode = BuildConfig.SUMUP_MERCHANT_ID_TEST
+                merchantCode = BuildConfig.SUMUP_MERCHANT_ID
             )
         ).transform { value ->
-            if (value.data != null) {
+            if (
+                (value as? NetWorkResult.Success)?.data != null) {
                 emit(value.data!!.toNewCheckoutResult())
             }
         }
@@ -163,19 +177,52 @@ class PaymentRepositoryImpl(
 
     override fun processCheckout(
         checkoutId: String,
-        googlePayData: GooglePayData
-    ): Flow<ProcessCheckoutResult> {
-        return sumUpDataSource.processCheckout(
-            ProcessCheckoutRequest(
-                id = checkoutId,
-                currency = "EUR",
-                googlePay = ProcessCheckoutRequest.GooglePay(
-                    apiVersion = googlePayData.apiVersion,
-                    apiVersionMinor = googlePayData.apiVersionMinor,
-                    paymentMethodData = googlePayData.paymentMethodData?.toPaymentData()
-                )
+        googlePayData: GooglePayData,
+        on3DSecureRequired: (ProcessCheckoutResult.NextStep) -> Unit
+    ): Flow<Checkout> {
+
+        val processCheckoutRequest = ProcessCheckoutRequest(
+            id = checkoutId,
+            currency = "EUR",
+            paymentType = "google_pay",
+            googlePay = ProcessCheckoutRequest.GooglePay(
+                apiVersion = googlePayData.apiVersion,
+                apiVersionMinor = googlePayData.apiVersionMinor,
+                paymentMethodData = googlePayData.paymentMethodData?.toPaymentData()
             )
-        ).transform { value -> value.data?.toProcessCheckoutResult() }
+        )
+
+        return sumUpDataSource.processCheckout(
+            requestBody = processCheckoutRequest,
+            on3DSecureRequired = on3DSecureRequired
+        ).mapNotNull { networkResult -> // networkResult est NetWorkResult<CheckoutResponse>
+            when (networkResult) {
+                is NetWorkResult.Success -> {
+                    val checkoutResponse = networkResult.data // Ceci est CheckoutResponse
+                    // Le DataSource est censé avoir attendu un statut final.
+                    if (checkoutResponse.status == CHECKOUT_STATUS.PAID || checkoutResponse.status == CHECKOUT_STATUS.FAILED) {
+                        checkoutResponse.toDomainCheckout()
+                    } else {
+                        // Ce cas ne devrait pas arriver si le DataSource respecte le contrat de ne retourner que l'état final.
+                        Log.w(
+                            "ProcessCheckout",
+                            "DataSource returned non-final status: ${checkoutResponse.status} for checkout ${checkoutResponse.id}"
+                        )
+                        // Pour l'instant, on le filtre en retournant null (mapNotNull).
+                        // Alternativement, si DomainCheckout peut représenter PENDING : checkoutResponse.toDomainCheckout()
+                        null
+                    }
+                }
+
+                is NetWorkResult.Error -> {
+                    Log.e(
+                        "ProcessCheckout",
+                        "Error: ${networkResult.message} (${networkResult.code})"
+                    )
+                    throw Throwable(networkResult.message)
+                }
+            }
+        }
     }
 
     ///////////////////////////////////////////////////////////////////////////

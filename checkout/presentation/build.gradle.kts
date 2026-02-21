@@ -7,7 +7,7 @@ plugins {
 
 android {
     namespace = "com.mtdevelopment.checkout.presentation"
-    compileSdk = 35
+    compileSdk = 36
     android.buildFeatures.buildConfig = true
 
     defaultConfig {
@@ -15,6 +15,11 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles("consumer-rules.pro")
+
+        val SUMUP_REDIRECT_URL =
+            System.getenv("SUMUP_REDIRECT_URL") ?: project.findProperty("SUMUP_REDIRECT_URL")
+                ?.toString()
+        buildConfigField("String", "SUMUP_REDIRECT_URL", "\"$SUMUP_REDIRECT_URL\"")
     }
 
     buildTypes {
@@ -78,6 +83,7 @@ dependencies {
     implementation(libs.landscapist)
     implementation(libs.rive.android)
     implementation(libs.lottie)
+    implementation(libs.material.icons)
 
     implementation(platform(libs.koin.bom))
     implementation(libs.koin.core)

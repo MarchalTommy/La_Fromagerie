@@ -1,11 +1,11 @@
 package com.mtdevelopment.admin.data.repository
 
-import com.mtdevelopment.admin.data.model.GoogleOptimizedComputedRouteResponse
 import com.mtdevelopment.admin.data.source.GoogleRouteDataSource
 import com.mtdevelopment.admin.domain.model.OptimizedRouteWithOrders
 import com.mtdevelopment.admin.domain.repository.GoogleRouteRepository
 import com.mtdevelopment.core.domain.reorderList
 import com.mtdevelopment.core.model.Order
+import com.mtdevelopment.core.util.NetWorkResult
 
 class GoogleRouteRepositoryImpl(
     private val googleRouteDataSource: GoogleRouteDataSource
@@ -17,7 +17,7 @@ class GoogleRouteRepositoryImpl(
     ): OptimizedRouteWithOrders {
 
         val result = googleRouteDataSource.getOptimizedRoute(addressesList = addresses)
-        val response = result.data as? GoogleOptimizedComputedRouteResponse
+        val response = (result as? NetWorkResult.Success)?.data
 
         val indexes =
             response?.routes?.firstOrNull()?.optimizedIntermediateWaypointIndex ?: listOf()

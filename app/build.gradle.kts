@@ -10,7 +10,7 @@ plugins {
 
 android {
     namespace = "com.mtdevelopment.lafromagerie"
-    compileSdk = 35
+    compileSdk = 36
     android.buildFeatures.buildConfig = true
 
     signingConfigs {
@@ -41,7 +41,7 @@ android {
     defaultConfig {
         applicationId = "com.mtdevelopment.lafromagerie"
         minSdk = 26
-        targetSdk = 35
+        targetSdk = 36
         versionCode = 13
         versionName = "1.9.0"
 
@@ -92,6 +92,9 @@ android {
         jniLibs.pickFirsts.add("**/libc++_shared.so")
     }
 }
+//configurations.all {
+//    exclude(group = "com.google.firebase", module = "protolite-well-known-types")
+//}
 
 dependencies {
 
@@ -131,6 +134,7 @@ dependencies {
     androidTestImplementation(libs.androidx.ui.test.junit4)
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
+    implementation(libs.material.icons)
 
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.navigation.compose)
