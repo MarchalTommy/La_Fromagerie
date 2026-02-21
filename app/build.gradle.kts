@@ -92,6 +92,9 @@ android {
         jniLibs.pickFirsts.add("**/libc++_shared.so")
     }
 }
+//configurations.all {
+//    exclude(group = "com.google.firebase", module = "protolite-well-known-types")
+//}
 
 dependencies {
 

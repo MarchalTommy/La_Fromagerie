@@ -1,14 +1,14 @@
 package com.mtdevelopment.admin.data.source
 
+import com.google.firebase.Firebase
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.ktx.firestore
-import com.google.firebase.ktx.Firebase
+import com.google.firebase.firestore.firestore
 import com.mtdevelopment.admin.data.model.DataDeliveryPath
 import com.mtdevelopment.core.model.OrderData
 import com.mtdevelopment.core.model.OrderStatus
-import com.mtdevelopment.core.model.ProductData
 import com.mtdevelopment.core.model.PreparationStatusData
+import com.mtdevelopment.core.model.ProductData
 import kotlinx.coroutines.tasks.await
 import java.time.Instant
 
