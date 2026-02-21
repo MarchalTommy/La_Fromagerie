@@ -1,6 +1,5 @@
 plugins {
     alias(libs.plugins.androidLibrary)
-    alias(libs.plugins.kotlinAndroid)
 }
 
 android {
@@ -25,7 +24,6 @@ android {
     }
     
     kotlin {
-        jvmToolchain(17)
     }
 }
 

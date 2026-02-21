@@ -1,6 +1,5 @@
 plugins {
     alias(libs.plugins.androidLibrary)
-    alias(libs.plugins.kotlinAndroid)
     alias(libs.plugins.compose.compiler)
 }
 
@@ -41,7 +40,6 @@ android {
         }
     }
     kotlin {
-        jvmToolchain(17)
     }
 }
 
@@ -60,6 +58,8 @@ dependencies {
     implementation(libs.androidx.material3)
     implementation(libs.material.icons)
     testImplementation(libs.junit)
+    testImplementation(libs.mockk)
+    testImplementation(libs.kotlinx.coroutines.test)
     androidTestImplementation(libs.junit)
     androidTestImplementation(libs.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))
