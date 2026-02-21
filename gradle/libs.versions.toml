@@ -57,7 +57,8 @@ gson = "2.13.2"
 serialization = "1.10.0"
 scrollbar = "1.0.4"
 exifinterface = "1.4.2"
-
+# Testing
+mockk = "1.13.10"
 
 [libraries]
 core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "core-ktx" }
@@ -72,6 +73,7 @@ google-pay-compose = { group = "com.google.pay.button", name = "compose-pay-butt
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-test-ext-junit = { group = "androidx.test.ext", name = "junit", version.ref = "androidx-test-ext-junit" }
 espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espresso-core" }
+mockk = { module = "io.mockk:mockk", version.ref = "mockk" }
 
 lifecycle-runtime-ktx = { group = "androidx.lifecycle", name = "lifecycle-runtime-ktx", version.ref = "lifecycle-runtime-ktx" }
 lifecycle-viewmodel-ktx = { module = "androidx.lifecycle:lifecycle-viewmodel-ktx", version.ref = "lifecycle-scope" }
@@ -79,7 +81,7 @@ lifecycle-viewmodel = { module = "androidx.lifecycle:lifecycle-viewmodel", versi
 
 kotlinx-coroutines = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "kotlinx-coroutines" }
 kotlinx-coroutines-service = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-play-services", version.ref = "kotlinx-coroutines" }
-
+kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kotlinx-coroutines" }
 
 ## Compose
 activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activity-compose" }
@@ -193,4 +195,3 @@ kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", versi
 firebase-crashlytics-plugin = { id = "com.google.firebase.crashlytics", version.ref = "crashlytics" }
 google-service = { id = "com.google.gms.google-services", version.ref = "google-service" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
-

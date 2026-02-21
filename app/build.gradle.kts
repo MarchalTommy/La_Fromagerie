@@ -1,6 +1,5 @@
 plugins {
     alias(libs.plugins.androidApplication)
-    alias(libs.plugins.kotlinAndroid)
     alias(libs.plugins.compose.compiler)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.google.service)
@@ -80,7 +79,6 @@ android {
     }
 
     kotlin {
-        jvmToolchain(17)
     }
     buildFeatures {
         compose = true

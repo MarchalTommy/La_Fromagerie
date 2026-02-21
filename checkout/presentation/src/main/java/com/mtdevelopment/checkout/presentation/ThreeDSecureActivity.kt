@@ -2,6 +2,7 @@ package com.mtdevelopment.checkout.presentation
 
 import android.annotation.SuppressLint
 import android.app.Activity
+import android.net.Uri
 import android.os.Bundle
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
@@ -51,19 +52,35 @@ class ThreeDSecureActivity : AppCompatActivity() {
         webView.settings.javaScriptEnabled = true
         webView.settings.domStorageEnabled = true
 
+        val targetUri = try {
+            Uri.parse(targetRedirect)
+        } catch (e: Exception) {
+            null
+        }
+
         webView.webViewClient = object : WebViewClient() {
             override fun shouldOverrideUrlLoading(
                 view: WebView?,
                 request: WebResourceRequest?
             ): Boolean {
                 val loadingUrl = request?.url?.toString() ?: return false
+                val loadingUri = request?.url
 
                 // DÉTECTION DU SUCCÈS / FIN
                 // Si l'URL chargée par la banque correspond à votre URL de retour (ex: votresite.com/success)
                 // Cela signifie que la banque a fini son travail.
-                if (loadingUrl.startsWith(targetRedirect)) {
+                if (targetUri != null && loadingUri != null &&
+                    loadingUri.scheme == targetUri.scheme &&
+                    loadingUri.host == targetUri.host &&
+                    loadingUri.path?.startsWith(targetUri.path ?: "") == true
+                ) {
                     // On ferme l'activité, le Polling qui tourne en fond dans le Repository
                     // va détecter le changement de statut (PENDING -> PAID/FAILED)
+                    setResult(Activity.RESULT_OK)
+                    finish()
+                    return true
+                } else if (loadingUrl.startsWith(targetRedirect)) {
+                    // Fallback check
                     setResult(Activity.RESULT_OK)
                     finish()
                     return true

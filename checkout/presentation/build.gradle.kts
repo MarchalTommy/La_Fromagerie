@@ -1,11 +1,12 @@
 plugins {
     alias(libs.plugins.androidLibrary)
-    alias(libs.plugins.kotlinAndroid)
     alias(libs.plugins.compose.compiler)
     alias(libs.plugins.kotlin.serialization)
 }
 
 android {
+    kotlin {
+    }
     namespace = "com.mtdevelopment.checkout.presentation"
     compileSdk = 36
     android.buildFeatures.buildConfig = true
@@ -43,7 +44,6 @@ android {
     }
 
     kotlin {
-        jvmToolchain(17)
     }
 }
 
@@ -64,6 +64,8 @@ dependencies {
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
     testImplementation(libs.junit)
+    testImplementation(libs.mockk)
+    testImplementation(libs.kotlinx.coroutines.test)
     androidTestImplementation(libs.junit)
     androidTestImplementation(libs.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))

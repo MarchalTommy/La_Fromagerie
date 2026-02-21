@@ -24,6 +24,7 @@ import com.mtdevelopment.core.domain.toTimeStamp
 import com.mtdevelopment.core.model.DeliveryPath
 import com.mtdevelopment.core.presentation.sharedModels.UiProductObject
 import com.mtdevelopment.core.presentation.sharedModels.toDomainProduct
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -170,21 +171,27 @@ class AdminViewModel(
     ///////////////////////////////////////////////////////////////////////////
     // Orders
     ///////////////////////////////////////////////////////////////////////////
+    private var ordersJob: Job? = null
+
     fun getAllOrders() {
-        viewModelScope.launch {
+        if (ordersJob?.isActive == true) return
+
+        ordersJob = viewModelScope.launch {
             _orderScreenState.value = _orderScreenState.value.copy(
                 isLoading = true
             )
-
+            getAllOrdersUseCase.invoke().collect { orders ->
+                _orderScreenState.update { state ->
+                    state.copy(
+                        orders = orders,
+                        isLoading = false,
+                        error = null
+                    )
+                }
+            }
         }
+
         viewModelScope.launch {
-            getAllOrdersUseCase.invoke(onSuccess = {
-                _orderScreenState.value = _orderScreenState.value.copy(
-                    orders = it ?: emptyList(),
-                    error = if (it == null) "Error fetching orders" else null,
-                    isLoading = false
-                )
-            })
             getPreparationStatusesUseCase.invoke(onSuccess = {
                 _orderScreenState.update { state ->
                     state.copy(preparationStatuses = it ?: emptyList())

@@ -4,6 +4,7 @@ import com.mtdevelopment.core.model.DeliveryPath
 import com.mtdevelopment.core.model.Order
 import com.mtdevelopment.core.model.PreparationStatus
 import com.mtdevelopment.core.model.Product
+import kotlinx.coroutines.flow.Flow
 
 interface FirebaseAdminRepository {
 
@@ -23,7 +24,7 @@ interface FirebaseAdminRepository {
 
     suspend fun deleteDeliveryPath(path: DeliveryPath): Result<Unit>
 
-    suspend fun getAllOrders(onSuccess: (List<Order>?) -> Unit)
+    fun getAllOrders(): Flow<List<Order>>
 
     suspend fun getPreparationStatuses(onSuccess: (List<PreparationStatus>?) -> Unit)
 

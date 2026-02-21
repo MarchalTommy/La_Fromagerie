@@ -10,6 +10,7 @@ class CreateNewCheckoutUseCase(
         description: String,
         buyerName: String,
         buyerAddress: String,
+        billingAddress: String,
         buyerEmail: String,
         reference: String
     ) =
@@ -18,6 +19,7 @@ class CreateNewCheckoutUseCase(
             description,
             buyerName,
             buyerAddress,
+            billingAddress,
             buyerEmail,
             reference
         )

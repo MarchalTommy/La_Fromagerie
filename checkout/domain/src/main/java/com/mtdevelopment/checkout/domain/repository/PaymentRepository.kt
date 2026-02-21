@@ -39,6 +39,7 @@ interface PaymentRepository {
         description: String,
         buyerName: String,
         buyerAddress: String,
+        billingAddress: String,
         buyerEmail: String,
         reference: String
     ): Flow<NewCheckoutResult>
