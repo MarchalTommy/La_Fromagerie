@@ -145,6 +145,7 @@ class PaymentRepositoryImpl(
         description: String,
         buyerName: String,
         buyerAddress: String,
+        billingAddress: String,
         buyerEmail: String,
         reference: String
     ): Flow<NewCheckoutResult> {
@@ -158,7 +159,7 @@ class PaymentRepositoryImpl(
                     firstName = buyerName,
                     email = buyerEmail,
                     address = Address(
-                        firstLine = buyerAddress
+                        firstLine = billingAddress
                     )
                 ),
                 description = description,

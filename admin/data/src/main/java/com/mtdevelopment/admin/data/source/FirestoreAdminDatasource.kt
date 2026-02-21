@@ -9,6 +9,9 @@ import com.mtdevelopment.core.model.OrderData
 import com.mtdevelopment.core.model.OrderStatus
 import com.mtdevelopment.core.model.PreparationStatusData
 import com.mtdevelopment.core.model.ProductData
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
 import java.time.Instant
 
@@ -138,32 +141,37 @@ class FirestoreAdminDatasource(
     ///////////////////////////////////////////////////////////////////////////
     // ORDERS
     ///////////////////////////////////////////////////////////////////////////
-    fun getAllOrders(
-        onSuccess: (List<OrderData>) -> Unit,
-        onFailure: () -> Unit
-    ) {
-        firestore.collection("orders")
-            .get()
-            .addOnFailureListener {
-                onFailure.invoke()
+    fun getAllOrders(): Flow<List<OrderData>> = callbackFlow {
+        val listenerRegistration = firestore.collection("orders")
+            .addSnapshotListener { value, error ->
+                if (error != null) {
+                    close(error)
+                    return@addSnapshotListener
+                }
+
+                if (value != null) {
+                    val orders = value.documents.map { item ->
+                        OrderData(
+                            id = item.id,
+                            customer_name = item.data?.get("customer_name").toString(),
+                            customer_address = item.data?.get("customer_address").toString(),
+                            delivery_date = item.data?.get("delivery_date").toString(),
+                            order_date = item.data?.get("order_date").toString(),
+                            products = item.data?.get("products") as? Map<String, Int>
+                                ?: emptyMap(),
+                            status = OrderStatus.valueOf(item.data?.get("status").toString()),
+                            note = item.data?.get("note") as? String,
+                            billing_address = item.data?.get("billing_address").toString(),
+                            is_manually_added = item.data?.get("is_manually_added") as? Boolean
+                        )
+                    }
+                    trySend(orders)
+                }
             }
-            .addOnSuccessListener {
-                onSuccess.invoke(it.documents.map { item ->
-                    OrderData(
-                        id = item.id,
-                        customer_name = item.data?.get("customer_name").toString(),
-                        customer_address = item.data?.get("customer_address").toString(),
-                        delivery_date = item.data?.get("delivery_date").toString(),
-                        order_date = item.data?.get("order_date").toString(),
-                        products = item.data?.get("products") as? Map<String, Int>
-                            ?: emptyMap(),
-                        status = OrderStatus.valueOf(item.data?.get("status").toString()),
-                        note = item.data?.get("note") as? String,
-                        billing_address = item.data?.get("billing_address").toString(),
-                        is_manually_added = item.data?.get("is_manually_added") as? Boolean
-                    )
-                })
-            }
+
+        awaitClose {
+            listenerRegistration.remove()
+        }
     }
 
     ///////////////////////////////////////////////////////////////////////////

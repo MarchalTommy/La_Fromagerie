@@ -19,17 +19,24 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardColors
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.contentColorFor
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -106,11 +113,13 @@ fun CheckoutScreen(
     }
 
     Column(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState()),
     ) {
         Card(
             modifier = Modifier
-                .heightIn(min = 0.dp, max = (screenSize.height / 5) * 2)
+                .heightIn(min = 0.dp, max = (screenSize.height / 5) * 3) // Increased max height
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 8.dp)
                 .focusable(true),
@@ -164,12 +173,24 @@ fun CheckoutScreen(
                         )
                     }
                 }
+
+                // NOTE FIELD
+                item {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    OutlinedTextField(
+                        value = uiData.value.note ?: "",
+                        onValueChange = { checkoutViewModel.updateNote(it) },
+                        label = { Text("Note pour la commande (optionnel)") },
+                        modifier = Modifier.fillMaxWidth(),
+                        maxLines = 3
+                    )
+                }
             }
         }
 
         Card(
             modifier = Modifier
-                .heightIn(min = 0.dp, max = (screenSize.height / 5) * 2)
+                .heightIn(min = 0.dp)
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 8.dp)
                 .focusable(true),
@@ -198,14 +219,52 @@ fun CheckoutScreen(
                 )
                 Text(
                     modifier = Modifier.padding(top = 4.dp),
-                    text = "${uiData.value.buyerAddress}",
+                    text = "Livraison: ${uiData.value.buyerAddress}",
                     style = MaterialTheme.typography.bodyMedium,
                     fontSize = 20.sp
                 )
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // TODO: VOIR LÉGALITÉ ET AUTOMATISATION POUR FACTURE
+                // BILLING ADDRESS
+                var isBillingDifferent by remember { mutableStateOf(false) }
+                // Init checkbox state based on data if needed, but for now default false is fine if billing == buyer
+                // Or better:
+                LaunchedEffect(uiData.value.billingAddress, uiData.value.buyerAddress) {
+                   if (uiData.value.billingAddress != null && uiData.value.billingAddress != uiData.value.buyerAddress) {
+                       isBillingDifferent = true
+                   }
+                }
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(
+                        checked = isBillingDifferent,
+                        onCheckedChange = { isChecked ->
+                            isBillingDifferent = isChecked
+                            if (!isChecked) {
+                                // Reset billing address to buyer address if unchecked
+                                checkoutViewModel.updateBillingAddress(uiData.value.buyerAddress ?: "")
+                            } else {
+                                // If checked, keep current or set to empty/buyer address to start editing
+                                if (uiData.value.billingAddress.isNullOrBlank()) {
+                                     checkoutViewModel.updateBillingAddress(uiData.value.buyerAddress ?: "")
+                                }
+                            }
+                        }
+                    )
+                    Text(text = "Adresse de facturation différente")
+                }
+
+                if (isBillingDifferent) {
+                    OutlinedTextField(
+                        value = uiData.value.billingAddress ?: "",
+                        onValueChange = { checkoutViewModel.updateBillingAddress(it) },
+                        label = { Text("Adresse de facturation") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
 
                 Text(
                     modifier = Modifier.padding(start = 12.dp, end = 12.dp, top = 12.dp),
@@ -214,8 +273,6 @@ fun CheckoutScreen(
                     fontSize = 16.sp,
                     fontWeight = FontWeight.SemiBold
                 )
-
-                // TODO: Add a mapBoxComposable with given address (need state rework first)
             }
         }
 

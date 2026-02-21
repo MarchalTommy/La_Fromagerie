@@ -10,6 +10,8 @@ import com.mtdevelopment.core.model.toData
 import com.mtdevelopment.core.model.toDomain
 import com.mtdevelopment.core.model.toOrder
 import com.mtdevelopment.core.model.toProductData
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 
 class FirebaseAdminRepositoryImpl(
     private val firestore: FirestoreAdminDatasource
@@ -91,18 +93,12 @@ class FirebaseAdminRepositoryImpl(
     // ORDERS
     ///////////////////////////////////////////////////////////////////////////
 
-    override suspend fun getAllOrders(onSuccess: (List<Order>?) -> Unit) {
-        firestore.getAllOrders(onSuccess = { orders ->
-            onSuccess.invoke(
-                orders.map {
-                    it.toOrder()
-                }
-            )
-        }, onFailure = {
-            onSuccess.invoke(
-                null
-            )
-        })
+    override fun getAllOrders(): Flow<List<Order>> {
+        return firestore.getAllOrders().map { orders ->
+            orders.map {
+                it.toOrder()
+            }
+        }
     }
 
     override suspend fun getPreparationStatuses(onSuccess: (List<PreparationStatus>?) -> Unit) {
