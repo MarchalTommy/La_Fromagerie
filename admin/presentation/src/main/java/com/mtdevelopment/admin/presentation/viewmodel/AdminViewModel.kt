@@ -57,7 +57,6 @@ class AdminViewModel(
     private val getShouldShowBatterieOptimizationUseCase: GetShouldShowBatterieOptimizationUseCase,
     private val getPreparationStatusesUseCase: GetPreparationStatusesUseCase,
     private val updatePreparationStatusUseCase: UpdatePreparationStatusUseCase
-    private val getShouldShowBatterieOptimizationUseCase: GetShouldShowBatterieOptimizationUseCase,
 ) : ViewModel(), KoinComponent {
 
     ///////////////////////////////////////////////////////////////////////////

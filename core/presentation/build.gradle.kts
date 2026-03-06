@@ -65,6 +65,7 @@ dependencies {
     implementation(libs.androidx.ui)
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling)
+    implementation(libs.material.icons)
     implementation(libs.activity.compose)
     implementation(libs.navigation.compose)
 

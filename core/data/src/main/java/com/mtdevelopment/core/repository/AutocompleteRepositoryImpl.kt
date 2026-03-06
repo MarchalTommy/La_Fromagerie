@@ -16,7 +16,7 @@ class AutocompleteRepositoryImpl(
             return emptyList()
         }
 
-        val cleanedList = (result as? NetWorkResult<AutoCompleteSuggestions>)?.data?.results?.map {
+        val cleanedList = (result as? NetWorkResult.Success<AutoCompleteSuggestions>)?.data?.results?.map {
             AutoCompleteSuggestion(
                 city = it?.city,
                 postCode = it?.zipcode,
