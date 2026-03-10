@@ -4,7 +4,7 @@ plugins {
 
 android {
     namespace = "com.mtdevelopment.auth"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         minSdk = 26
@@ -23,7 +23,7 @@ android {
         }
     }
     
-    
+
 }
 
 dependencies {
