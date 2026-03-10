@@ -1,7 +1,6 @@
 plugins {
     alias(libs.plugins.androidLibrary)
-    alias(libs.plugins.kotlinAndroid)
-    alias(libs.plugins.compose.compiler)
+        alias(libs.plugins.compose.compiler)
 }
 
 android {
@@ -34,9 +33,7 @@ android {
             dimension = "version"
         }
     }
-    kotlin {
-        jvmToolchain(17)
-    }
+    
     buildFeatures {
         compose = true
     }

@@ -1,7 +1,6 @@
 plugins {
     alias(libs.plugins.androidLibrary)
-    alias(libs.plugins.kotlinAndroid)
-    alias(libs.plugins.kotlin.serialization)
+        alias(libs.plugins.kotlin.serialization)
 }
 
 android {
@@ -32,9 +31,7 @@ android {
         }
     }
 
-    kotlin {
-        jvmToolchain(17)
-    }
+    
 }
 
 dependencies {

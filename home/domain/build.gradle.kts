@@ -1,7 +1,6 @@
 plugins {
     alias(libs.plugins.androidLibrary)
-    alias(libs.plugins.kotlinAndroid)
-}
+    }
 
 android {
     namespace = "com.mtdevelopment.home.domain"
@@ -33,9 +32,7 @@ android {
             dimension = "version"
         }
     }
-    kotlin {
-        jvmToolchain(17)
-    }
+    
 }
 
 dependencies {
