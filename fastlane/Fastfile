@@ -111,14 +111,25 @@ platform :android do
 
   desc "Deploy to firebase App Distribution"
   lane :distribute do |options|
-	firebase_app_distribution(
-	app: "#{APP_ID}",
-	firebase_cli_token: "#{FIREBASE_CLI_TOKEN}",
-	android_artifact_type: "APK",
-	android_artifact_path: "#{ARTIFACT_PATH}",
-	testers: "#{TESTERS}",
-	release_notes: "#{CHANGELOG}"
-  )
+    firebase_app_distribution(
+      app: options[:APP_ID],
+      groups: options[:TESTERS],
+      release_notes: options[:CHANGELOG],
+      apk_path: options[:ARTIFACT_PATH],
+      service_credentials_file: "/opt/buildagent/external/firebase-key.json"
+    )
   end
+
+# OLD -->
+#   lane :distribute do |options|
+# 	firebase_app_distribution(
+# 	app: "#{APP_ID}",
+# 	firebase_cli_token: "#{FIREBASE_CLI_TOKEN}",
+# 	android_artifact_type: "APK",
+# 	android_artifact_path: "#{ARTIFACT_PATH}",
+# 	testers: "#{TESTERS}",
+# 	release_notes: "#{CHANGELOG}"
+#   )
+#   end
 
 end
