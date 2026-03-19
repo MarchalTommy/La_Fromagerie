@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.androidLibrary)
-    }
+    alias(libs.plugins.kotlinAndroid)
+}
 
 android {
     namespace = "com.mtdevelopment.auth"

@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.androidApplication)
-        alias(libs.plugins.compose.compiler)
+    alias(libs.plugins.kotlinAndroid)
+    alias(libs.plugins.compose.compiler)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.google.service)
     alias(libs.plugins.firebase.crashlytics.plugin)
@@ -80,9 +81,6 @@ android {
 
     buildFeatures {
         compose = true
-    }
-    composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.13"
     }
     packaging {
         jniLibs.pickFirsts.add("**/libc++_shared.so")
