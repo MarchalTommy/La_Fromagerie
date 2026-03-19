@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.androidApplication)
-        alias(libs.plugins.compose.compiler)
+    alias(libs.plugins.kotlinAndroid)
+    alias(libs.plugins.compose.compiler)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.google.service)
     alias(libs.plugins.firebase.crashlytics.plugin)
