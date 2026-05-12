@@ -22,6 +22,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 
+/**
+ * Composable for the cart's footer, displaying the total amount and a button to proceed to checkout.
+ * It also handles the display of a message when the device is offline.
+ * 
+ * @param modifier Modifier for the layout.
+ * @param totalAmount The formatted total price of the cart.
+ * @param hasItems Whether the cart has items (controls visibility).
+ * @param canShowDelivery Whether the device is connected to the internet, allowing the user to proceed.
+ * @param onPayClick Callback when the checkout button is clicked.
+ */
 @Composable
 fun CartFooter(
     modifier: Modifier,
@@ -55,6 +65,8 @@ fun CartFooter(
                     style = MaterialTheme.typography.titleLarge
                 )
             }
+
+            // Show checkout button only if online, otherwise show a friendly offline message.
             if (canShowDelivery) {
                 Button(modifier = Modifier
                     .align(Alignment.CenterHorizontally)

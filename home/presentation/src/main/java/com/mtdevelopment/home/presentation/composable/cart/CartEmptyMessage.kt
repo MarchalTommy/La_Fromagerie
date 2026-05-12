@@ -12,6 +12,10 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 
+/**
+ * Composable displayed when the cart is empty.
+ * @param alphaAnimation An [Animatable] used to control the transparency of the message for entrance/exit animations.
+ */
 @Composable
 fun CartEmptyMessage(
     alphaAnimation: Animatable<Float, AnimationVector1D>

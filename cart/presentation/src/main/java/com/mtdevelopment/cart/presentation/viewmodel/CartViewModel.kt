@@ -16,6 +16,10 @@ import com.mtdevelopment.core.usecase.SaveToDatastoreUseCase
 import kotlinx.coroutines.launch
 import org.koin.core.component.KoinComponent
 
+/**
+ * ViewModel responsible for managing the shopping cart state and operations.
+ * It handles adding, removing, and updating product quantities, as well as persisting the cart to DataStore.
+ */
 class CartViewModel(
     getIsNetworkConnectedUseCase: GetIsNetworkConnectedUseCase,
     private val saveToDatastoreUseCase: SaveToDatastoreUseCase,
@@ -24,8 +28,14 @@ class CartViewModel(
 
     // TODO: Add a way to save a "preferred cart" with stuff you usually order
 
+    /**
+     * Flow indicating the current network connection status.
+     */
     val isConnected = getIsNetworkConnectedUseCase()
 
+    /**
+     * The current UI state of the cart.
+     */
     var cartUiState by mutableStateOf(CartUiState())
         private set
 
@@ -35,12 +45,20 @@ class CartViewModel(
         )
     }
 
+    /**
+     * Updates the visibility of the cart UI.
+     */
     fun setCartVisibility(value: Boolean) {
         cartUiState = cartUiState.copy(
             isCartVisible = value
         )
     }
 
+    /**
+     * Adds a product to the cart. If the item already exists, its quantity is incremented.
+     * @param valueAsUiObject The product to add, provided as a UI model.
+     * @param valueAsCartItem The product to add, provided as a cart item model.
+     */
     fun addCartObject(valueAsUiObject: UiProductObject? = null, valueAsCartItem: CartItem? = null) {
         viewModelScope.launch {
             val cartItem = valueAsUiObject?.toCartItem() ?: valueAsCartItem
@@ -48,13 +66,15 @@ class CartViewModel(
             var mutableContent =
                 (cartUiState.cartItems?.cartItems as? MutableList) ?: mutableListOf()
             val selectedItem = mutableContent.find { it?.name == cartItem?.name }
+
             if (selectedItem != null) {
+                // Item already in cart, increment quantity
                 selectedItem.quantity++
             } else if (mutableContent.isNotEmpty()) {
-                // Looks weird but it's because I can't add to a list that does NOT exist...
+                // New item, add it to existing list
                 mutableContent.add(cartItem?.apply { quantity = 1 })
             } else {
-                // So if it does not exist, I create it.
+                // First item in cart
                 mutableContent = mutableListOf(cartItem?.apply { quantity = 1 })
             }
 
@@ -62,6 +82,10 @@ class CartViewModel(
         }
     }
 
+    /**
+     * Decrements the quantity of an item in the cart.
+     * If quantity reaches 1, it stays in the cart unless [totallyRemoveObject] is called.
+     */
     fun removeCartObject(value: CartItem) {
         viewModelScope.launch {
             val mutableContent =
@@ -75,6 +99,9 @@ class CartViewModel(
         }
     }
 
+    /**
+     * Removes an item completely from the cart regardless of its quantity.
+     */
     fun totallyRemoveObject(value: CartItem) {
         viewModelScope.launch {
             val cleanedList =
@@ -85,6 +112,10 @@ class CartViewModel(
         }
     }
 
+    /**
+     * Persists the current cart content to the DataStore and updates the UI state.
+     * Also calculates the total price of the cart.
+     */
     private fun saveToDataStore(cartContent: List<CartItem>) {
         val newCartObject = if (cartUiState.cartItems != null) {
             cartUiState.cartItems?.copy(
@@ -121,17 +152,27 @@ class CartViewModel(
         }
     }
 
+    /**
+     * Saves the product currently being interacted with in the UI.
+     */
     fun saveClickedItem(value: UiProductObject) {
         cartUiState = cartUiState.copy(
             currentItem = value
         )
     }
 
+    /**
+     * Resets the cart state.
+     * // TODO: This should probably also clear the DataStore.
+     */
     fun resetCart(withVisibility: Boolean = false) {
         setCartVisibility(!withVisibility)
         cartUiState.cartItems = null
     }
 
+    /**
+     * Loads the cart data from the DataStore and updates the UI state.
+     */
     fun loadCart(withVisibility: Boolean = false) {
         viewModelScope.launch {
             getCartDataUseCase.invoke().collect { data ->

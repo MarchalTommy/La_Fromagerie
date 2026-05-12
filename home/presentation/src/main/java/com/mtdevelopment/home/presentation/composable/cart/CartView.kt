@@ -31,6 +31,14 @@ import com.mtdevelopment.core.util.vibratePhoneClick
 import com.mtdevelopment.core.util.vibratePhoneClickBig
 import kotlinx.coroutines.launch
 
+/**
+ * Main composable for the shopping cart view, displayed as a [ModalBottomSheet].
+ * It manages the display of cart items, empty state, and total amount.
+ * 
+ * @param cartViewModel The ViewModel providing the cart state and actions.
+ * @param onDismiss Callback when the bottom sheet is dismissed.
+ * @param onNavigateToCheckout Callback to trigger navigation to the checkout screen.
+ */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun CartView(
@@ -74,6 +82,7 @@ fun CartView(
                 .padding(16.dp)
                 .fillMaxSize()
         ) {
+            // Display empty message if cart is empty
             item {
                 val alphaAnimation = remember {
                     Animatable(1f)
@@ -86,6 +95,8 @@ fun CartView(
                     CartEmptyMessage(alphaAnimation = alphaAnimation)
                 }
             }
+
+            // List of cart items
             items(items = state?.cartItems?.cartItems ?: emptyList(), key = { it?.name ?: "" }) {
                 val itemVisibility = remember {
                     Animatable(1f)
@@ -104,6 +115,7 @@ fun CartView(
                     onRemoveOne = {
                         vibratePhoneClick(context)
                         coroutineScope.launch {
+                            // If it's the last item of this type, animate its disappearance before removing it from state
                             if ((it?.quantity ?: 0) <= 1) {
                                 itemVisibility.animateTo(
                                     targetValue = 0f,
@@ -128,6 +140,7 @@ fun CartView(
                 )
             }
 
+            // Cart summary and checkout button
             item("Footer") {
                 CartFooter(
                     modifier = Modifier

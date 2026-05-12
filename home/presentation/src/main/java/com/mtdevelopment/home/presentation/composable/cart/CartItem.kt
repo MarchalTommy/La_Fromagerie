@@ -32,6 +32,16 @@ import androidx.compose.ui.unit.dp
 import com.mtdevelopment.core.model.CartItem
 import kotlinx.coroutines.launch
 
+/**
+ * Composable representing a single item in the shopping cart.
+ * It features controls to increment/decrement quantity and supports swipe-to-dismiss for removal.
+ * 
+ * @param modifier Modifier for the item layout.
+ * @param item The cart item to display.
+ * @param onRemoveOne Callback to decrement item quantity.
+ * @param onAddMore Callback to increment item quantity.
+ * @param onRemoveAll Callback to remove the item entirely.
+ */
 @Preview
 @Composable
 fun CartItem(
@@ -42,10 +52,12 @@ fun CartItem(
     onRemoveAll: () -> Unit = {}
 ) {
     val coroutineScope = rememberCoroutineScope()
+    // State management for swipe-to-dismiss functionality
     val dismissState = rememberSwipeToDismissBoxState(
         confirmValueChange = {
             when (it) {
                 SwipeToDismissBoxValue.StartToEnd -> {
+                    // Trigger total removal on swipe from start to end
                     onRemoveAll.invoke()
                 }
 
@@ -55,7 +67,7 @@ fun CartItem(
             }
             return@rememberSwipeToDismissBoxState true
         },
-        // positional threshold of 20%
+        // positional threshold of 20% to trigger dismiss
         positionalThreshold = { it * .20f }
     )
 
@@ -77,11 +89,13 @@ fun CartItem(
         ) {
             if (item != null) {
                 Row {
+                    // Manual delete button
                     IconButton(
                         modifier = Modifier
                             .padding(4.dp),
                         onClick = {
                             coroutineScope.launch {
+                                // Trigger swipe animation programmatically
                                 dismissState.dismiss(SwipeToDismissBoxValue.StartToEnd)
                             }
                         }
@@ -102,6 +116,7 @@ fun CartItem(
                 Row(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
+                    // Quantity controls
                     IconButton(onClick = { onRemoveOne.invoke() }) {
                         Icon(
                             modifier = Modifier
@@ -132,6 +147,9 @@ fun CartItem(
     }
 }
 
+/**
+ * Background UI displayed during the swipe-to-dismiss gesture.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DismissBackground(dismissState: SwipeToDismissBoxState) {
