@@ -12,10 +12,22 @@ import com.mtdevelopment.admin.domain.repository.CloudinaryRepository
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resume
 
+/**
+ * Implementation of [CloudinaryRepository] using the Cloudinary Android SDK.
+ * This class handles secure image uploads by generating a client-side signature.
+ */
 class CloudinaryRepositoryImpl(
     private val firestoreAdminDatasource: FirestoreAdminDatasource
 ) : CloudinaryRepository {
 
+    /**
+     * Uploads an image to Cloudinary using [MediaManager].
+     * The process involves:
+     * 1. Generating a signature using local private keys (BuildConfig).
+     * 2. Configuring [MediaManager] with options.
+     * 3. Handling the upload lifecycle via [UploadCallback].
+     * 4. Resuming the coroutine with the resulting image URL.
+     */
     override suspend fun uploadImageToCloudinary(
         imageUri: Uri
     ): Result<String> = suspendCancellableCoroutine { continuation ->
@@ -28,6 +40,8 @@ class CloudinaryRepositoryImpl(
             "timestamp" to timestamp
         )
 
+        // Generating a secure signature to allow unsigned-like upload from client but still authenticated
+        // // TODO: Ideally, signature generation should happen on a secure backend to avoid exposing CLOUDINARY_PRIVATE in the app.
         val signature = Cloudinary().apiSignRequest(
             paramsToSign,
             BuildConfig.CLOUDINARY_PRIVATE,
@@ -41,28 +55,26 @@ class CloudinaryRepositoryImpl(
             "api_key" to BuildConfig.CLOUDINARY_PUBLIC
         )
 
-        // Construction de la requête d'upload
+        // Requesting upload via MediaManager
         val requestId = MediaManager.get().upload(imageUri)
             .options(options)
-            .option("resource_type", "image") // Bonne pratique : spécifier le type
+            .option("resource_type", "image") // Best practice: specify resource type
             .callback(object : UploadCallback {
                 override fun onStart(requestId: String?) {
                     Log.d("CloudinaryRepo", "Upload started ($requestId)")
-                    // notifier la progression ici si nécessaire
                 }
 
                 override fun onProgress(requestId: String?, bytes: Long, totalBytes: Long) {
                     val progress =
                         if (totalBytes > 0) ((bytes.toDouble() / totalBytes.toDouble()) * 100).toInt() else 0
                     Log.d("CloudinaryRepo", "Upload progress ($requestId): $progress%")
-                    // Mettre à jour l'état de progression dans le ViewModel si besoin
                 }
 
                 override fun onSuccess(requestId: String?, resultData: MutableMap<Any?, Any?>?) {
                     val secureUrl = resultData?.get("secure_url") as? String
                     val url = resultData?.get("url") as? String
 
-                    if (continuation.isActive) { // Vérifier si la coroutine est toujours active
+                    if (continuation.isActive) {
                         if (secureUrl != null) {
                             Log.i(
                                 "CloudinaryRepo",
@@ -96,22 +108,25 @@ class CloudinaryRepositoryImpl(
                 }
 
                 override fun onReschedule(requestId: String?, error: ErrorInfo?) {
-                    // L'upload est replanifié (ex: perte réseau), géré par le SDK
+                    // Upload rescheduled (e.g., network loss), managed by SDK
                     Log.w(
                         "CloudinaryRepo",
                         "Upload Rescheduled ($requestId): ${error?.description}"
                     )
                 }
             })
-            .dispatch() // Démarre l'upload
+            .dispatch()
 
-        // Gestion de l'annulation de la coroutine : annuler l'upload Cloudinary
+        // Handle coroutine cancellation by cancelling the Cloudinary upload request
         continuation.invokeOnCancellation {
             Log.d("CloudinaryRepo", "Coroutine cancelled, cancelling Cloudinary request $requestId")
             MediaManager.get().cancelRequest(requestId)
         }
     }
 
+    /**
+     * Saves the resulting Cloudinary URL to Firestore for the specified product.
+     */
     override suspend fun saveImageUrlToFirestore(
         cloudinaryUrl: String,
         productId: String,

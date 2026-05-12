@@ -43,11 +43,18 @@ import com.mtdevelopment.core.presentation.composable.ErrorOverlay
 import com.mtdevelopment.core.presentation.composable.RiveAnimation
 import com.mtdevelopment.core.util.koinViewModel
 
+/**
+ * Screen for administrative order preparation.
+ * It displays a list of orders grouped by delivery date.
+ * For each date, it aggregates the total quantity needed for each product,
+ * helping the administrator to prepare the right amount of goods.
+ */
 @Composable
 fun OrderPreparationScreen() {
     val viewModel = koinViewModel<AdminViewModel>()
     val state = viewModel.orderScreenState.collectAsState()
 
+    // Fetch orders and statuses when the screen is first displayed
     LaunchedEffect(Unit) {
         viewModel.getAllOrders()
     }
@@ -58,6 +65,7 @@ fun OrderPreparationScreen() {
         onUpdateStatus = { viewModel.updatePreparationStatus(it) }
     )
 
+    // Loading and Error overlays
     RiveAnimation(
         isLoading = state.value.isLoading,
         modifier = Modifier.fillMaxSize(),
@@ -71,6 +79,9 @@ fun OrderPreparationScreen() {
 
 }
 
+/**
+ * Displays the list of delivery dates as sticky headers, with aggregated products under each date.
+ */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun OrderPreparationList(
@@ -78,6 +89,7 @@ fun OrderPreparationList(
     preparationStatuses: List<PreparationStatus>,
     onUpdateStatus: (PreparationStatus) -> Unit
 ) {
+    // Sort and unique delivery dates
     val nextDeliveryDates =
         orders.map { it.deliveryDate }.sortedByDescending { it.toTimeStamp() }.toSet()
     val ordersByDeliveryDate = orders.groupBy { it.deliveryDate }
@@ -87,8 +99,8 @@ fun OrderPreparationList(
         for (deliveryDate in nextDeliveryDates) {
             if (ordersByDeliveryDate[deliveryDate] != null && ordersByDeliveryDate[deliveryDate]!!.isNotEmpty()) {
 
-                // This is the way to get a good final map like {Beurre=4, Banane=13, Fromage=2, Lait=1}
-                // Doing it here and using the ordersByDeliveryDate allows us to only show the orders dedicated to this date.
+                // Aggregate product quantities for the current delivery date.
+                // e.g., if Order A has 2 Milk and Order B has 3 Milk, results in {Milk=5}
                 val quantityForProducts: Map<String, Int> =
                     ordersByDeliveryDate[deliveryDate]!!.fold(mutableMapOf()) { accumulator, currentMap ->
                         currentMap.products.forEach { (product, quantity) ->
@@ -115,6 +127,7 @@ fun OrderPreparationList(
                 }
 
                 items(items = quantityForProducts.toList()) { item ->
+                    // Handle padding for first, last, or single items
                     val modifier = when {
                         quantityForProducts.toList().size == 1 ->
                             Modifier.padding(vertical = 16.dp)
@@ -143,7 +156,12 @@ fun OrderPreparationList(
     }
 }
 
-// TODO: Fix : Quantity error on some occasion -> Multiple orders by same client name.
+/**
+ * Individual item representing an aggregated product.
+ * It can be expanded to see which customers ordered this specific product and their respective quantities.
+ * // TODO: Fix : Quantity error on some occasion -> Multiple orders by same client name.
+ * // TODO: Investigate if grouping should be done by client ID instead of client name to avoid collisions.
+ */
 @Composable
 fun OrderPreparationListItem(
     modifier: Modifier = Modifier,
@@ -155,6 +173,7 @@ fun OrderPreparationListItem(
     onUpdateStatus: (PreparationStatus) -> Unit
 ) {
 
+    // Map each client to their products for this delivery date
     val mapClientToProducts = mutableMapOf<String, MutableMap<String, Int>>()
     itemsPerClients.forEach { order ->
         order.products.forEach { (prod, qty) ->
@@ -167,6 +186,7 @@ fun OrderPreparationListItem(
     }
 
     val showDetails = remember { mutableStateOf(false) }
+    // Generate a unique ID for the preparation status of this product on this date
     val statusId = "${deliveryDate.replace("/", "")}_${product.replace(" ", "")}"
     val isDone = preparationStatuses.find { it.id == statusId }?.isPrepared ?: false
 
@@ -221,7 +241,7 @@ fun OrderPreparationListItem(
                         Icon(
                             modifier = Modifier.rotate(rotation.value),
                             imageVector = Icons.Default.KeyboardArrowDown,
-                            contentDescription = null
+                            contentDescription = "Show details"
                         )
                     }
                 }
@@ -231,6 +251,7 @@ fun OrderPreparationListItem(
                 Column {
                     Spacer(modifier = Modifier.height(16.dp))
 
+                    // Detail: List each client who ordered this product
                     mapClientToProducts.forEach { (client, productsMap) ->
                         val productQuantity = productsMap[product]
                         if (productQuantity != null && productQuantity > 0) {

@@ -11,18 +11,25 @@ import com.mtdevelopment.core.model.toDomain
 import com.mtdevelopment.core.model.toOrder
 import com.mtdevelopment.core.model.toProductData
 
+/**
+ * Implementation of [FirebaseAdminRepository] that interacts with [FirestoreAdminDatasource].
+ * This implementation ensures that every time a product or a delivery path is modified (added, updated, or deleted),
+ * a global timestamp in the database is updated to signal changes to other clients.
+ */
 class FirebaseAdminRepositoryImpl(
     private val firestore: FirestoreAdminDatasource
 ) : FirebaseAdminRepository {
 
     ///////////////////////////////////////////////////////////////////////////
-    // Product
+    // Product Management
+    // Each modification triggers a call to saveNewDatabaseProductsUpdate.
     ///////////////////////////////////////////////////////////////////////////
     override suspend fun addNewProduct(product: com.mtdevelopment.core.model.Product): Result<Unit> {
         val result = firestore.addNewProduct(product = product.toProductData())
         var finalResult: Result<Unit>? = null
 
         result.onSuccess {
+            // Signal database update for products
             finalResult = saveNewDatabaseProductsUpdate(System.currentTimeMillis())
         }
 
@@ -34,6 +41,7 @@ class FirebaseAdminRepositoryImpl(
         var finalResult: Result<Unit>? = null
 
         result.onSuccess {
+            // Signal database update for products
             finalResult = saveNewDatabaseProductsUpdate(System.currentTimeMillis())
         }
 
@@ -45,6 +53,7 @@ class FirebaseAdminRepositoryImpl(
         var finalResult: Result<Unit>? = null
 
         result.onSuccess {
+            // Signal database update for products
             finalResult = saveNewDatabaseProductsUpdate(System.currentTimeMillis())
         }
 
@@ -52,13 +61,15 @@ class FirebaseAdminRepositoryImpl(
     }
 
     //////////////////////////////////////////////////////////////////////////
-    // Delivery Paths
+    // Delivery Path Management
+    // Each modification triggers a call to saveNewDatabasePathsUpdate.
     ///////////////////////////////////////////////////////////////////////////
     override suspend fun addNewDeliveryPath(path: DeliveryPath): Result<Unit> {
         val result = firestore.addNewDeliveryPath(path = path.toDataDeliveryPath())
         var finalResult: Result<Unit>? = null
 
         result.onSuccess {
+            // Signal database update for delivery paths
             finalResult = saveNewDatabasePathsUpdate(System.currentTimeMillis())
         }
 
@@ -70,6 +81,7 @@ class FirebaseAdminRepositoryImpl(
         var finalResult: Result<Unit>? = null
 
         result.onSuccess {
+            // Signal database update for delivery paths
             finalResult = saveNewDatabasePathsUpdate(System.currentTimeMillis())
         }
 
@@ -81,6 +93,7 @@ class FirebaseAdminRepositoryImpl(
         var finalResult: Result<Unit>? = null
 
         result.onSuccess {
+            // Signal database update for delivery paths
             finalResult = saveNewDatabasePathsUpdate(System.currentTimeMillis())
         }
 
@@ -88,9 +101,12 @@ class FirebaseAdminRepositoryImpl(
     }
 
     ///////////////////////////////////////////////////////////////////////////
-    // ORDERS
+    // Order and Status Management
     ///////////////////////////////////////////////////////////////////////////
 
+    /**
+     * Retrieves all orders and maps them from data models to domain models.
+     */
     override suspend fun getAllOrders(onSuccess: (List<Order>?) -> Unit) {
         firestore.getAllOrders(onSuccess = { orders ->
             onSuccess.invoke(
@@ -105,6 +121,9 @@ class FirebaseAdminRepositoryImpl(
         })
     }
 
+    /**
+     * Retrieves preparation statuses and maps them from data models to domain models.
+     */
     override suspend fun getPreparationStatuses(onSuccess: (List<PreparationStatus>?) -> Unit) {
         val result = firestore.getPreparationStatuses()
         result.onSuccess { list ->
@@ -115,12 +134,15 @@ class FirebaseAdminRepositoryImpl(
         }
     }
 
+    /**
+     * Updates a preparation status in the database.
+     */
     override suspend fun updatePreparationStatus(status: PreparationStatus): Result<Unit> {
         return firestore.updatePreparationStatus(status.toData())
     }
 
     ///////////////////////////////////////////////////////////////////////////
-    // Database Update Timestamp
+    // Global Update Triggers
     ///////////////////////////////////////////////////////////////////////////
     override suspend fun saveNewDatabaseProductsUpdate(timestamp: Long): Result<Unit> {
         return firestore.saveNewDatabaseProductUpdate(timestamp)

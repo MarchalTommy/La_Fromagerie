@@ -74,8 +74,15 @@ import java.util.Collections.emptyList
 import java.util.Locale
 
 
-// --- 1. Smart Composable (Controller) ---
-// This composable handles logic, state, and ViewModel interactions.
+/**
+ * Smart Composable (Controller) for the Delivery Helper feature.
+ * This component manages:
+ * - Runtime permissions (Location, Notifications).
+ * - Lifecycle observers to refresh permissions state.
+ * - Filtering orders for the current day.
+ * - Triggering route optimization via the ViewModel.
+ * - Launching external Google Maps for navigation.
+ */
 @Composable
 fun DeliveryHelperScreen(
     launchDeliveryTracking: () -> Unit = {},
@@ -85,6 +92,7 @@ fun DeliveryHelperScreen(
     val context = LocalContext.current
     val state = viewModel.orderScreenState.collectAsState()
 
+    // Permission state management
     var hasPermissions by remember {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             mutableStateOf(
@@ -106,6 +114,7 @@ fun DeliveryHelperScreen(
         }
     }
 
+    // Observe lifecycle to re-check permissions when coming back to the app
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
@@ -132,7 +141,8 @@ fun DeliveryHelperScreen(
         }
     }
 
-    // State derived from the ViewModel state
+    // State derivation: Filtering orders for today
+    // // TODO: This date calculation may be subject to timezone discrepancies.
     val todayDate = LocalDate.now().atStartOfDay(ZoneId.systemDefault())
 
     val dailyOrders = remember(state.value) {
@@ -151,6 +161,7 @@ fun DeliveryHelperScreen(
         }
     }
 
+    // Find the next upcoming delivery date if today is empty
     val nextOrderDate = remember(state.value.orders) {
         if (state.value.orders.isNotEmpty()) {
             val filteredValue = state.value.orders.filter {
@@ -186,18 +197,27 @@ fun DeliveryHelperScreen(
         }
     }
 
-    // Effect to fetch initial data
+    // Initial data load
     LaunchedEffect(Unit) {
         viewModel.getAllOrders()
         viewModel.getTrackingStatus()
     }
 
+    /**
+     * Starts the delivery process:
+     * 1. Fetches current location.
+     * 2. Requests optimized path from Google.
+     * 3. Constructs a Google Maps multi-stop URL.
+     * 4. Launches the Google Maps app.
+     */
     fun startDelivery() {
         viewModel.onLoading(true)
         viewModel.getCurrentLocationToStart()
         viewModel.getOptimisedPath(dailyOrders.value.map { it.customerAddress }) { optimizedOrdersList ->
             launchDeliveryTracking()
 
+            // Building Google Maps Intent URL
+            // // TODO: Use a safer URL builder or Uri.Builder for better readability and safety.
             var link =
                 "https://www.google.com/maps/dir/${state.value.currentAdminLocation?.latitude},${state.value.currentAdminLocation?.longitude}/"
 
@@ -240,8 +260,7 @@ fun DeliveryHelperScreen(
         stopDeliveryTracking()
     }
 
-    // --- UI ---
-    // Pass all the calculated state and event handlers to the dumb composable
+    // Rendering content or permission request screen
     if (hasPermissions) {
         DeliveryHelperScreenContent(
             titleText = titleText,
@@ -279,9 +298,10 @@ fun DeliveryHelperScreen(
     }
 }
 
-// --- 2. Dumb Composable (View) ---
-// This composable only displays UI based on the parameters it receives.
-// It has no ViewModel, no context (except for Glide), and no complex logic.
+/**
+ * Dumb Composable (View) for the Delivery Helper.
+ * It is stateless and only displays data provided via parameters.
+ */
 @Composable
 fun DeliveryHelperScreenContent(
     titleText: String,
@@ -342,6 +362,7 @@ fun DeliveryHelperScreenContent(
                             )
                         }
                     } else {
+                        // Grouping multiple orders for the same address
                         dailyOrders.groupBy { it.customerAddress }
                             .forEach { (address, orders) ->
                                 item {
@@ -380,6 +401,7 @@ fun DeliveryHelperScreenContent(
                     .padding(vertical = 16.dp),
                 shape = MaterialTheme.shapes.medium
             ) {
+                // Static Map Preview
                 val markersPositions = dailyOrders.map { it.customerAddress }.toSet()
                 val markersString = markersPositions.joinToString("&") { markerAddress ->
                     "markers=label:${dailyOrders.find { it.customerAddress == markerAddress }?.customerName?.trim()}|${markerAddress}"
@@ -436,14 +458,13 @@ fun DeliveryHelperScreenContent(
         }
     }
 
-    // Loading animation
+    // Overlays
     RiveAnimation(
         isLoading = isLoading,
         modifier = Modifier.fillMaxSize(),
         contentDescription = "Loading animation"
     )
 
-    // Error
     ErrorOverlay(
         isShown = !error.isNullOrEmpty(),
         message = error ?: "Une erreur est survenue",
@@ -452,6 +473,7 @@ fun DeliveryHelperScreenContent(
         }
     )
 
+    // Manual stop addition dialog
     if (dialogState?.shouldShowDialog == true) {
         DeliveryAddDialog(
             suggestions = dialogState.suggestions,
@@ -473,7 +495,7 @@ fun DeliveryHelperScreenContent(
                 dialogState.dialogOnConfirm(tempOrder)
             },
             onError = {
-//                dialogState.onDismissError.invoke()
+                // // TODO: Handle internal dialog error if necessary
             }
         )
     }

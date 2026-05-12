@@ -12,12 +12,17 @@ import com.mtdevelopment.core.model.ProductData
 import kotlinx.coroutines.tasks.await
 import java.time.Instant
 
+/**
+ * Data source for administrative Firestore operations.
+ * It provides methods for managing products, delivery paths, orders, and preparation statuses.
+ * Most methods are [suspend] and use [await] for better coroutine integration.
+ */
 class FirestoreAdminDatasource(
     private val firestore: FirebaseFirestore
 ) {
 
     ///////////////////////////////////////////////////////////////////////////
-    // PRODUCTS
+    // Product Management
     ///////////////////////////////////////////////////////////////////////////
     suspend fun addNewProduct(product: ProductData): Result<Unit> {
         return try {
@@ -30,6 +35,9 @@ class FirestoreAdminDatasource(
         }
     }
 
+    /**
+     * Updates only the image URL for a specific document.
+     */
     suspend fun saveImageUrlToFirestore(
         cloudinaryUrl: String,
         productId: String,
@@ -73,6 +81,9 @@ class FirestoreAdminDatasource(
         }
     }
 
+    /**
+     * Updates the global timestamp for product changes.
+     */
     suspend fun saveNewDatabaseProductUpdate(timestamp: Long): Result<Unit> {
         return try {
             firestore.collection("database_update")
@@ -86,7 +97,7 @@ class FirestoreAdminDatasource(
     }
 
     ///////////////////////////////////////////////////////////////////////////
-    // DELIVERY PATH
+    // Delivery Path Management
     ///////////////////////////////////////////////////////////////////////////
     suspend fun addNewDeliveryPath(path: DataDeliveryPath): Result<Unit> {
         return try {
@@ -123,6 +134,9 @@ class FirestoreAdminDatasource(
         }
     }
 
+    /**
+     * Updates the global timestamp for delivery path changes.
+     */
     suspend fun saveNewDatabasePathsUpdate(timestamp: Long): Result<Unit> {
         return try {
             firestore.collection("database_update")
@@ -136,8 +150,14 @@ class FirestoreAdminDatasource(
     }
 
     ///////////////////////////////////////////////////////////////////////////
-    // ORDERS
+    // Order Management
     ///////////////////////////////////////////////////////////////////////////
+
+    /**
+     * Fetches all orders from the "orders" collection.
+     * // TODO: This method uses callbacks instead of [suspend]. Consider refactoring for consistency.
+     * // TODO: Manual mapping is used here; consider using [toObject] if models align perfectly.
+     */
     fun getAllOrders(
         onSuccess: (List<OrderData>) -> Unit,
         onFailure: () -> Unit
@@ -167,7 +187,7 @@ class FirestoreAdminDatasource(
     }
 
     ///////////////////////////////////////////////////////////////////////////
-    // PREPARATION STATUS
+    // Preparation Status Management
     ///////////////////////////////////////////////////////////////////////////
     suspend fun getPreparationStatuses(): Result<List<PreparationStatusData>> {
         return try {

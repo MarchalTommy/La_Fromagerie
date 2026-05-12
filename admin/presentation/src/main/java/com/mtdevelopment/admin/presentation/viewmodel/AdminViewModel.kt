@@ -12,23 +12,21 @@ import com.mtdevelopment.admin.domain.usecase.GetAllOrdersUseCase
 import com.mtdevelopment.admin.domain.usecase.GetCurrentLocationOnceUseCase
 import com.mtdevelopment.admin.domain.usecase.GetIsInTrackingModeUseCase
 import com.mtdevelopment.admin.domain.usecase.GetOptimizedDeliveryUseCase
+import com.mtdevelopment.admin.domain.usecase.GetPreparationStatusesUseCase
 import com.mtdevelopment.admin.domain.usecase.GetShouldShowBatterieOptimizationUseCase
 import com.mtdevelopment.admin.domain.usecase.UpdateDeliveryPathUseCase
+import com.mtdevelopment.admin.domain.usecase.UpdatePreparationStatusUseCase
 import com.mtdevelopment.admin.domain.usecase.UpdateProductUseCase
 import com.mtdevelopment.admin.domain.usecase.UpdateShouldShowBatterieOptimizationUseCase
 import com.mtdevelopment.admin.domain.usecase.UploadImageUseCase
-import com.mtdevelopment.admin.domain.usecase.GetPreparationStatusesUseCase
-import com.mtdevelopment.admin.domain.usecase.UpdatePreparationStatusUseCase
-import com.mtdevelopment.core.model.PreparationStatus
 import com.mtdevelopment.admin.presentation.model.OrderScreenState
 import com.mtdevelopment.core.domain.toTimeStamp
 import com.mtdevelopment.core.model.AutoCompleteSuggestion
 import com.mtdevelopment.core.model.DeliveryPath
-import com.mtdevelopment.core.model.Order
+import com.mtdevelopment.core.model.PreparationStatus
 import com.mtdevelopment.core.presentation.sharedModels.UiProductObject
 import com.mtdevelopment.core.presentation.sharedModels.toDomainProduct
 import com.mtdevelopment.core.usecase.GetAutocompleteSuggestionsUseCase
-import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
@@ -40,6 +38,15 @@ import kotlinx.coroutines.launch
 import org.koin.core.component.KoinComponent
 import java.time.Instant
 
+/**
+ * ViewModel for the administrative part of the application.
+ * It manages various features:
+ * - Product management (add, update, delete with image upload).
+ * - Delivery path management (CRUD operations on paths).
+ * - Order management (retrieving and updating preparation statuses).
+ * - Delivery helper (route optimization and tracking).
+ * - Address autocomplete for adding new orders manually.
+ */
 class AdminViewModel(
     private val updateProductUseCase: UpdateProductUseCase,
     private val deleteProductUseCase: DeleteProductUseCase,
@@ -60,15 +67,18 @@ class AdminViewModel(
 ) : ViewModel(), KoinComponent {
 
     ///////////////////////////////////////////////////////////////////////////
-    // States
+    // UI State
     ///////////////////////////////////////////////////////////////////////////
     private val _orderScreenState = MutableStateFlow(OrderScreenState())
     val orderScreenState = _orderScreenState.asStateFlow()
 
-    // Private autocomplete query state
+    /**
+     * Internal state for debouncing address autocomplete queries.
+     */
     private val _searchQuery = MutableStateFlow("")
 
     init {
+        // Observe battery optimization preference
         viewModelScope.launch {
             getShouldShowBatterieOptimizationUseCase.invoke().collect {
                 _orderScreenState.value = _orderScreenState.value.copy(
@@ -76,18 +86,19 @@ class AdminViewModel(
                 )
             }
         }
+
+        // Debounced search for address suggestions
         viewModelScope.launch {
             _searchQuery
-                .debounce(300)
+                .debounce(300) // Avoid flooding the API
                 .distinctUntilChanged()
-                .filter { it.isNotBlank() }
-                .filter { it.length >= 2 }
+                .filter { it.isNotBlank() && it.length >= 2 }
                 .collectLatest { query ->
                     fetchAddressSuggestions(query)
                 }
         }
 
-        // Cache le dropdown si la requête est vide
+        // Manage suggestion list visibility based on query
         viewModelScope.launch {
             _searchQuery.collect { query ->
                 _orderScreenState.value = if (query.isBlank()) {
@@ -103,7 +114,7 @@ class AdminViewModel(
     }
 
     ///////////////////////////////////////////////////////////////////////////
-    // Autocomplete
+    // Address Autocomplete
     ///////////////////////////////////////////////////////////////////////////
     private fun fetchAddressSuggestions(query: String) {
         _orderScreenState.value = _orderScreenState.value.copy(
@@ -123,17 +134,8 @@ class AdminViewModel(
                     suggestionsLoading = false,
                     showSuggestions = false
                 )
-                // Afficher un message à l'utilisateur
-                println("Erreur lors de la récupération des suggestions: ${e.message}")
+                println("Error fetching suggestions: ${e.message}")
             }
-        }
-    }
-
-    fun addOrder(order: Order) {
-        viewModelScope.launch {
-            _orderScreenState.value = _orderScreenState.value.copy(
-                orders = _orderScreenState.value.orders + order
-            )
         }
     }
 
@@ -154,13 +156,13 @@ class AdminViewModel(
         _searchQuery.value = address
     }
 
-    fun setDialogVisibility(isVisible: Boolean) {
-        _orderScreenState.value = _orderScreenState.value.copy(shouldShowDialog = isVisible)
-    }
+    ///////////////////////////////////////////////////////////////////////////
+    // Product Operations
+    ///////////////////////////////////////////////////////////////////////////
 
-    ///////////////////////////////////////////////////////////////////////////
-    // Products
-    ///////////////////////////////////////////////////////////////////////////
+    /**
+     * Updates a product. If a local image URI is provided, it is uploaded to Cloudinary first.
+     */
     fun updateProduct(
         product: UiProductObject,
         onLoading: (Boolean) -> Unit,
@@ -169,6 +171,8 @@ class AdminViewModel(
     ) {
         viewModelScope.launch {
             onLoading.invoke(true)
+            // Handle image upload if it's a local URI
+            // // TODO: If image upload fails, should we still proceed with product update?
             product.imageUrl?.toUri()?.let {
                 uploadImageUseCase.invoke(
                     imageUri = it,
@@ -191,14 +195,13 @@ class AdminViewModel(
 
     fun deleteProduct(product: UiProductObject) {
         viewModelScope.launch {
-            deleteProductUseCase.invoke(product.toDomainProduct(), onSuccess = {
-
-            }, onError = {
-
-            })
+            deleteProductUseCase.invoke(product.toDomainProduct(), onSuccess = {}, onError = {})
         }
     }
 
+    /**
+     * Adds a new product. If a local image URI is provided, it is uploaded to Cloudinary first.
+     */
     fun addNewProduct(
         product: UiProductObject,
         onLoading: (Boolean) -> Unit,
@@ -228,7 +231,7 @@ class AdminViewModel(
     }
 
     ///////////////////////////////////////////////////////////////////////////
-    // Delivery Paths
+    // Delivery Path Operations
     ///////////////////////////////////////////////////////////////////////////
     fun updateDeliveryPath(path: DeliveryPath, onSuccess: () -> Unit, onFailure: () -> Unit) {
         viewModelScope.launch {
@@ -262,8 +265,12 @@ class AdminViewModel(
     }
 
     ///////////////////////////////////////////////////////////////////////////
-    // Orders
+    // Order and Status Operations
     ///////////////////////////////////////////////////////////////////////////
+
+    /**
+     * Fetches all orders and preparation statuses.
+     */
     fun getAllOrders() {
         viewModelScope.launch {
             _orderScreenState.value = _orderScreenState.value.copy(
@@ -287,11 +294,36 @@ class AdminViewModel(
         }
     }
 
+    /**
+     * Updates a preparation status with optimistic UI update.
+     */
+    fun updatePreparationStatus(status: PreparationStatus) {
+        viewModelScope.launch {
+            // Optimistic update
+            _orderScreenState.update { state ->
+                val newStatuses = state.preparationStatuses.toMutableList()
+                val index = newStatuses.indexOfFirst { it.id == status.id }
+                if (index != -1) {
+                    newStatuses[index] = status
+                } else {
+                    newStatuses.add(status)
+                }
+                state.copy(preparationStatuses = newStatuses)
+            }
+            updatePreparationStatusUseCase.invoke(status)
+        }
+    }
+
     ///////////////////////////////////////////////////////////////////////////
-    // DELIVERY HELPER
+    // Delivery Helper & Tracking
     ///////////////////////////////////////////////////////////////////////////
+
+    /**
+     * Calculates an optimized path for today's orders.
+     */
     fun getOptimisedPath(addresses: List<String>, onSuccess: (OptimizedRouteWithOrders) -> Unit) {
         viewModelScope.launch {
+            // // TODO: 'toTimeStamp' and date comparison needs to be robust against timezone issues.
             val dailyOrders = _orderScreenState.value.orders.filter {
                 it.deliveryDate.toTimeStamp() == Instant.now().toEpochMilli()
             }
@@ -317,8 +349,20 @@ class AdminViewModel(
         }
     }
 
+    fun getTrackingStatus() {
+        viewModelScope.launch {
+            isInTrackingModeUseCase.invoke().collect { isInTrackingMode ->
+                _orderScreenState.update {
+                    it.copy(
+                        isInTrackingMode = isInTrackingMode
+                    )
+                }
+            }
+        }
+    }
+
     ///////////////////////////////////////////////////////////////////////////
-    // UI
+    // General UI Management
     ///////////////////////////////////////////////////////////////////////////
     fun onLoading(isLoading: Boolean) {
         _orderScreenState.value = _orderScreenState.value.copy(
@@ -332,41 +376,7 @@ class AdminViewModel(
         )
     }
 
-    fun getTrackingStatus() {
-        viewModelScope.launch {
-            isInTrackingModeUseCase.invoke().collect { isInTrackingMode ->
-                _orderScreenState.update {
-                    it.copy(
-                        isInTrackingMode = isInTrackingMode
-                    )
-                }
-            }
-        }
-    }
-
-    fun getTrackingStatusOnce(status: (Boolean) -> Unit) {
-        viewModelScope.launch {
-            isInTrackingModeUseCase.invoke().collect {
-                status.invoke(it)
-            }
-        }
-    }
-
-
-    fun updatePreparationStatus(status: PreparationStatus) {
-        viewModelScope.launch {
-            // Optimistic update
-            _orderScreenState.update { state ->
-                val newStatuses = state.preparationStatuses.toMutableList()
-                val index = newStatuses.indexOfFirst { it.id == status.id }
-                if (index != -1) {
-                    newStatuses[index] = status
-                } else {
-                    newStatuses.add(status)
-                }
-                state.copy(preparationStatuses = newStatuses)
-            }
-            updatePreparationStatusUseCase.invoke(status)
-        }
+    fun setDialogVisibility(isVisible: Boolean) {
+        _orderScreenState.value = _orderScreenState.value.copy(shouldShowDialog = isVisible)
     }
 }
