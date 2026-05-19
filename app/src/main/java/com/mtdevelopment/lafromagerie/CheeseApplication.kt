@@ -12,13 +12,22 @@ import org.koin.android.ext.koin.androidLogger
 import org.koin.core.context.startKoin
 import org.koin.core.logger.Level
 
+/**
+ * Main application class for LaFromagerie.
+ * Handles the global initialization of critical services:
+ * 1. Firebase: Used for data storage (Firestore) and analytics/crashlytics.
+ * 2. Cloudinary: Used for product image hosting and upload.
+ * 3. Koin: Dependency injection framework used across all modules.
+ */
 class CheeseApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
 
+        // 1. Initialize Firebase
         Firebase.initialize(this)
 
+        // 2. Initialize Cloudinary MediaManager
         try {
             val config = mapOf("cloud_name" to "dzgaywpmz")
             MediaManager.init(this, config)
@@ -27,12 +36,13 @@ class CheeseApplication : Application() {
             Log.e("YourApplication", "Failed to initialize Cloudinary", e)
         }
 
+        // 3. Initialize Koin Dependency Injection
         startKoin {
             androidLogger(level = Level.DEBUG)
 
             androidContext(this@CheeseApplication)
 
-            // Place Koin Modules here !
+            // Loads common appModule and flavor-specific modules (Admin/Client)
             modules(
                 appModule() + flavorModules()
             )

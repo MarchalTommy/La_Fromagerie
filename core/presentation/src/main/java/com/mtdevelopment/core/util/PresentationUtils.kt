@@ -21,7 +21,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.koin.compose.currentKoinScope
 import java.io.ByteArrayOutputStream
@@ -32,6 +31,10 @@ import kotlin.math.max
 import kotlin.math.roundToInt
 import kotlin.math.sqrt
 
+/**
+ * Triggers a standard haptic click feedback on the device.
+ * Adapts to different Android API levels for consistent feel.
+ */
 fun vibratePhoneClick(context: Context) {
     if (Build.VERSION.SDK_INT < 34) {
         val vibrator = context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
@@ -57,6 +60,9 @@ fun vibratePhoneClick(context: Context) {
     }
 }
 
+/**
+ * Triggers a strong haptic feedback (heavy click), usually for significant actions like deletions.
+ */
 fun vibratePhoneClickBig(context: Context) {
     if (Build.VERSION.SDK_INT < 34) {
         val vibrator = context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
@@ -80,9 +86,9 @@ fun vibratePhoneClickBig(context: Context) {
     }
 }
 
-/*
-Thanks to this article for that method :
-https://medium.com/mercadona-tech/type-safety-in-navigation-compose-23c03e3d74a5
+/**
+ * Helper to create a [NavType] for serializable objects using Kotlin Serialization.
+ * Allows passing complex data classes as navigation arguments.
  */
 inline fun <reified T : Any> serializableType(
     isNullableAllowed: Boolean = false,
@@ -100,6 +106,9 @@ inline fun <reified T : Any> serializableType(
     }
 }
 
+/**
+ * Composable utility to inject a Koin ViewModel directly into a Composable.
+ */
 @Composable
 inline fun <reified T : ViewModel> koinViewModel(): T {
     val scope = currentKoinScope()
@@ -108,11 +117,19 @@ inline fun <reified T : ViewModel> koinViewModel(): T {
     }
 }
 
+/**
+ * Utility for compressing images before upload.
+ * It handles:
+ * 1. Resizing based on megapixel limits.
+ * 2. Intelligent downsampling to save memory.
+ * 3. EXIF orientation correction (rotation).
+ * 4. Iterative quality compression to meet file size limits.
+ */
 object ImageCompressor {
 
     private const val MAX_MEGAPIXELS = 25.0
     private const val MAX_SIZE_BYTES = 10 * 1024 * 1024 // 10 MB
-    private const val MIN_COMPRESSION_QUALITY = 50 // Qualité minimale JPEG/WEBP
+    private const val MIN_COMPRESSION_QUALITY = 50 
 
     /**
      * Compresses an image from a given Uri to meet resolution and size constraints.
@@ -127,14 +144,14 @@ object ImageCompressor {
         var outputStream: FileOutputStream? = null
         var tempFile: File? = null
         var bitmap: Bitmap?
-        val rotatedBitmap: Bitmap?  // Pour gérer la rotation
+        val rotatedBitmap: Bitmap?
 
         try {
-            // --- 1. Lire les dimensions et le type MIME sans charger l'image ---
+            // --- 1. Read dimensions without loading into memory ---
             val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
             inputStream = context.contentResolver.openInputStream(imageUri)
             BitmapFactory.decodeStream(inputStream, null, options)
-            inputStream?.close() // Fermer le premier flux
+            inputStream?.close()
 
             val originalWidth = options.outWidth
             val originalHeight = options.outHeight
@@ -143,92 +160,64 @@ object ImageCompressor {
                 return@withContext null
             }
             val originalMegapixels = (originalWidth * originalHeight) / 1_000_000.0
-            Log.d(
-                "ImageCompressor",
-                "Original dims: ${originalWidth}x${originalHeight} (${
-                    String.format(
-                        "%.2f",
-                        originalMegapixels
-                    )
-                } MPx)"
-            )
 
-            // --- 2. Calculer le facteur de scale et les dimensions cibles ---
+            // --- 2. Calculate scale factor ---
             var targetWidth = originalWidth
             var targetHeight = originalHeight
             if (originalMegapixels > MAX_MEGAPIXELS) {
                 val scaleFactor = sqrt(MAX_MEGAPIXELS / originalMegapixels)
                 targetWidth = (originalWidth * scaleFactor).roundToInt()
                 targetHeight = (originalHeight * scaleFactor).roundToInt()
-                Log.d(
-                    "ImageCompressor",
-                    "Scaling needed. Target dims: ${targetWidth}x$targetHeight"
-                )
-            } else {
-                Log.d("ImageCompressor", "No scaling needed based on megapixels.")
             }
 
-            // --- 3. Calculer inSampleSize pour économiser la mémoire au décodage ---
+            // --- 3. Calculate inSampleSize for efficient decoding ---
             options.inSampleSize =
                 calculateInSampleSize(originalWidth, originalHeight, targetWidth, targetHeight)
-            Log.d("ImageCompressor", "Using inSampleSize: ${options.inSampleSize}")
 
-            // --- 4. Décoder le Bitmap (potentiellement sous-échantillonné) ---
+            // --- 4. Decode the Bitmap ---
             options.inJustDecodeBounds = false
-            // Note: On API 21+, BitmapFactory peut souvent réutiliser le Bitmap si mutable
-            // options.inMutable = true
-            inputStream = context.contentResolver.openInputStream(imageUri) // Réouvrir le flux
+            inputStream = context.contentResolver.openInputStream(imageUri) 
             bitmap = BitmapFactory.decodeStream(inputStream, null, options)
-            inputStream?.close() // Fermer le flux
+            inputStream?.close()
 
             if (bitmap == null) {
-                Log.e("ImageCompressor", "Failed to decode bitmap for URI: $imageUri")
                 return@withContext null
             }
-            Log.d("ImageCompressor", "Decoded bitmap size: ${bitmap.width}x${bitmap.height}")
 
 
-            // --- 5. Redimensionner précisément si nécessaire ---
-            // (Si inSampleSize n'a pas donné la taille exacte ou si on réduisait sans inSampleSize > 1)
+            // --- 5. Precise scaling if necessary ---
             if (bitmap.width > targetWidth || bitmap.height > targetHeight) {
-                Log.d(
-                    "ImageCompressor",
-                    "Performing precise scaling to ${targetWidth}x$targetHeight"
-                )
                 val scaledBitmap =
                     bitmap.scale(targetWidth, targetHeight)
-                if (scaledBitmap != bitmap) { // createScaledBitmap peut retourner l'original si pas de scaling
-                    bitmap.recycle() // Libérer l'ancien bitmap
+                if (scaledBitmap != bitmap) {
+                    bitmap.recycle() 
                 }
                 bitmap = scaledBitmap
             }
 
 
-            // --- 6. Gérer l'Orientation EXIF ---
+            // --- 6. Handle EXIF Orientation ---
             inputStream =
-                context.contentResolver.openInputStream(imageUri) // Encore une fois pour EXIF
+                context.contentResolver.openInputStream(imageUri) 
             val orientation =
                 inputStream?.use { ExifUtil.getOrientation(it) } ?: ExifInterface.ORIENTATION_NORMAL
             inputStream?.close()
 
             if (orientation != ExifInterface.ORIENTATION_NORMAL && orientation != ExifInterface.ORIENTATION_UNDEFINED) {
-                Log.d("ImageCompressor", "Applying EXIF orientation: $orientation")
                 rotatedBitmap = ExifUtil.rotateBitmap(
                     bitmap,
                     orientation
-                ) // Utilise la fonction helper ci-dessous
-                if (rotatedBitmap != bitmap) { // Si une rotation a eu lieu
-                    bitmap.recycle() // Libérer l'ancien
+                )
+                if (rotatedBitmap != bitmap) {
+                    bitmap.recycle() 
                     bitmap = rotatedBitmap
                 }
-            } else {
-                Log.d("ImageCompressor", "No EXIF rotation needed.")
             }
 
 
-            // --- 7. Compresser en ajustant la qualité pour la taille ---
+            // --- 7. Iterative compression to target size ---
             val byteStream = ByteArrayOutputStream()
-            var currentQuality = 95 // Commencer avec une haute qualité
+            var currentQuality = 95 
             val format = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                 Bitmap.CompressFormat.WEBP_LOSSY
             } else {
@@ -236,30 +225,18 @@ object ImageCompressor {
             }
 
             do {
-                byteStream.reset() // Vider le flux avant chaque tentative
-                Log.d(
-                    "ImageCompressor",
-                    "Compressing with format $format, quality $currentQuality..."
-                )
+                byteStream.reset()
                 bitmap.compress(format, currentQuality, byteStream)
                 val size = byteStream.size()
-                Log.d("ImageCompressor", "Compressed size: ${size / 1024} KB")
 
                 if (size <= MAX_SIZE_BYTES) {
-                    break // Taille OK
+                    break 
                 }
-                currentQuality -= 5 // Réduire la qualité
+                currentQuality -= 5 
             } while (currentQuality >= MIN_COMPRESSION_QUALITY)
 
-            if (byteStream.size() > MAX_SIZE_BYTES) {
-                Log.w(
-                    "ImageCompressor",
-                    "Could not compress below ${MAX_SIZE_BYTES / 1024 / 1024}MB even at quality $MIN_COMPRESSION_QUALITY. Using result anyway."
-                )
-            }
-
-            // --- 8. Sauvegarder dans un fichier temporaire ---
-            val outputDir = context.cacheDir // Utiliser le dossier cache
+            // --- 8. Save to temporary file ---
+            val outputDir = context.cacheDir 
             val extension = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                 when (format) {
                     Bitmap.CompressFormat.WEBP_LOSSY -> ".webp"
@@ -270,44 +247,30 @@ object ImageCompressor {
             }
             tempFile = File.createTempFile("compressed_", extension, outputDir)
             outputStream = FileOutputStream(tempFile)
-            outputStream.write(byteStream.toByteArray()) // Écrire les données compressées
-            Log.d("ImageCompressor", "Compressed file saved to: ${tempFile.absolutePath}")
+            outputStream.write(byteStream.toByteArray())
 
-            // --- 9. Obtenir l'URI via FileProvider ---
-            // !! Nécessite la configuration de FileProvider dans AndroidManifest.xml !!
-            // et un fichier res/xml/provider_paths.xml
+            // --- 9. Provide URI via FileProvider ---
             val authority = "${context.packageName}.provider"
             val tempUri = FileProvider.getUriForFile(context, authority, tempFile)
-            Log.d("ImageCompressor", "Compressed file URI: $tempUri")
 
-            return@withContext tempUri // Succès !
+            return@withContext tempUri 
 
         } catch (e: Exception) {
             Log.e("ImageCompressor", "Error during image compression", e)
-            // Tenter de supprimer le fichier temporaire en cas d'erreur
             try {
                 tempFile?.takeIf { it.exists() }?.delete()
             } catch (cleanEx: Exception) {
-                Log.e("ImageCompressor", "Error cleaning up temp file", cleanEx)
             }
-            return@withContext null // Échec
+            return@withContext null 
         } finally {
-            // --- 10. Nettoyage ---
             try {
                 inputStream?.close()
                 outputStream?.close()
-                // Le bitmap original est recyclé lors du scaling ou de la rotation si nécessaire.
-                // Le dernier bitmap en usage (bitmap ou rotatedBitmap) n'a pas besoin d'être recyclé ici
-                // car il est géré par le système une fois qu'il n'est plus référencé.
-                // Explicitement appeler bitmap.recycle() ici pourrait causer des problèmes si l'URI
-                // est utilisée immédiatement. Laissons le GC faire son travail.
             } catch (e: Exception) {
-                Log.e("ImageCompressor", "Error closing streams", e)
             }
         }
     }
 
-    // Fonction helper pour calculer inSampleSize
     private fun calculateInSampleSize(
         currentWidth: Int,
         currentHeight: Int,
@@ -318,26 +281,24 @@ object ImageCompressor {
         if (currentHeight > reqHeight || currentWidth > reqWidth) {
             val halfHeight: Int = currentHeight / 2
             val halfWidth: Int = currentWidth / 2
-            // Calculate the largest inSampleSize value that is a power of 2 and keeps both
-            // height and width larger than or equal to the requested height and width.
             while (halfHeight / inSampleSize >= reqHeight && halfWidth / inSampleSize >= reqWidth) {
                 inSampleSize *= 2
             }
         }
-        // S'assurer qu'on ne réduit pas trop si une seule dimension est très grande
         if (currentWidth / inSampleSize < reqWidth || currentHeight / inSampleSize < reqHeight) {
-            // Peut nécessiter un ajustement plus fin, mais cette base est standard
-            if (inSampleSize > 1) inSampleSize /= 2 // Revenir en arrière si on a trop réduit
+            if (inSampleSize > 1) inSampleSize /= 2 
         }
 
-        return max(1, inSampleSize) // Assurer au moins 1
+        return max(1, inSampleSize) 
     }
 }
 
+/**
+ * Utility for reading EXIF data and rotating bitmaps accordingly.
+ */
 object ExifUtil {
     fun getOrientation(inputStream: InputStream): Int {
         return try {
-            // Utiliser androidx.exifinterface
             val exifInterface = ExifInterface(inputStream)
             exifInterface.getAttributeInt(
                 ExifInterface.TAG_ORIENTATION,
@@ -378,16 +339,13 @@ object ExifUtil {
         return try {
             val rotatedBitmap =
                 Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
-            Log.d("ExifUtil", "Bitmap rotated successfully for orientation $orientation")
-            // Ne recyclez pas l'original ici si createBitmap retourne la même instance (pas de rotation)
-            // Le code appelant gérera le recyclage si une nouvelle instance est créée
             rotatedBitmap
         } catch (e: OutOfMemoryError) {
             Log.e("ExifUtil", "OOM while rotating bitmap", e)
-            bitmap // Retourner l'original en cas d'erreur mémoire
+            bitmap 
         } catch (e: Exception) {
             Log.e("ExifUtil", "Error rotating bitmap", e)
-            bitmap // Retourner l'original en cas d'autre erreur
+            bitmap 
         }
     }
 }

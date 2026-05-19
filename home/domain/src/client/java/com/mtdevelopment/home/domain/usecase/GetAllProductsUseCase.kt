@@ -8,12 +8,34 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
+/**
+ * Use case to retrieve all products for the client view, implementing a synchronization 
+ * strategy between remote Firestore and local Room database.
+ * 
+ * Logic flow:
+ * 1. Checks if a refresh is needed via the `shouldRefreshProducts` flag in [SharedDatastore].
+ * 2. If refresh is needed:
+ *    - Fetches all products from [FirebaseHomeRepository].
+ *    - Persists each product into the local [RoomHomeRepository].
+ *    - Performs cleanup: deletes local products no longer present on the server.
+ *    - Resets the `shouldRefreshProducts` flag.
+ *    - Returns the list sorted by availability and name.
+ * 3. If no refresh is needed:
+ *    - Fetches products from local [RoomHomeRepository] for speed and offline access.
+ *    - Returns the list sorted by availability and name.
+ */
 class GetAllProductsUseCase(
     private val firebaseHomeRepository: FirebaseHomeRepository,
     private val roomHomeRepository: RoomHomeRepository,
     private val sharedDatastore: SharedDatastore
 ) {
 
+    /**
+     * Executes the use case.
+     * @param scope CoroutineScope for background database operations.
+     * @param onSuccess Callback invoked with the sorted list of [Product].
+     * @param onFailure Callback invoked on network error.
+     */
     suspend operator fun invoke(
         scope: CoroutineScope,
         onSuccess: (List<Product>) -> Unit,
@@ -22,14 +44,10 @@ class GetAllProductsUseCase(
 
         val shouldRefresh = sharedDatastore.shouldRefreshProducts.first()
 
-        /**
-         * If locally known last firestore update timestamp is different from the one on the server, we need to update.
-         * Else, fetch from room.
-         */
         if (shouldRefresh) {
             firebaseHomeRepository.getAllProducts(onSuccess = { productsList ->
                 /**
-                 * Persist all products from firebase to room
+                 * Cache synchronization: Persist new/updated products to Room
                  */
                 productsList.forEach { product ->
                     scope.launch {
@@ -39,13 +57,12 @@ class GetAllProductsUseCase(
 
                 scope.launch {
                     /**
-                     * Reset refresh needed flag
+                     * Mark local cache as synchronized
                      */
                     sharedDatastore.setShouldRefreshProducts(false)
 
                     /**
-                     * Delete all products from room that are not in firebase,
-                     * in case products got removed
+                     * Cache cleanup: Remove local products no longer on server
                      */
                     roomHomeRepository.getProducts { localProductsList ->
                         localProductsList.forEach { entity ->
@@ -58,6 +75,7 @@ class GetAllProductsUseCase(
                     }
                 }
 
+                // Sorting: Available products first, then alphabetically by name
                 val orderedProducts = productsList.sortedWith(
                     compareByDescending<Product> { it.isAvailable }
                         .thenBy { it.name }
@@ -66,6 +84,7 @@ class GetAllProductsUseCase(
                 onSuccess(orderedProducts)
             }, onFailure)
         } else {
+            // Fast path: Load from local database
             scope.launch {
                 roomHomeRepository.getProducts { localProductsList ->
                     val orderedProducts = localProductsList.sortedWith(

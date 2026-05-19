@@ -8,10 +8,23 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 
+/**
+ * Use case to check for global database updates on the server.
+ * It compares the remote update timestamps for products and delivery paths with the locally stored ones.
+ * If a mismatch is detected, it flags the local cache as needing a refresh.
+ */
 class GetLastFirestoreDatabaseUpdateUseCase(
     private val firebaseHomeRepository: FirebaseHomeRepository,
     private val sharedDatastore: SharedDatastore
 ) {
+    /**
+     * Executes the use case.
+     * Logic:
+     * 1. Fetches current "last update" timestamps from [SharedDatastore].
+     * 2. Fetches latest "last update" timestamps from [FirebaseHomeRepository].
+     * 3. Compares both. If the remote timestamp is newer or different, it sets a refresh flag in [SharedDatastore].
+     * 4. Updates the local timestamps in [SharedDatastore] to match the server.
+     */
     suspend operator fun invoke(
         onSuccess: () -> Unit, onFailure: () -> Unit
     ) {
@@ -48,11 +61,11 @@ class GetLastFirestoreDatabaseUpdateUseCase(
                     shouldRefreshPaths.tryEmit(true)
                 }
 
-                // UPDATE REFRESH FLAGS
+                // UPDATE REFRESH FLAGS IN DATASTORE
                 sharedDatastore.setShouldRefreshProducts(shouldRefreshProducts.value)
                 sharedDatastore.setShouldRefreshPaths(shouldRefreshPaths.value)
 
-                // UPDATE SAVED TIMESTAMPS
+                // UPDATE SAVED TIMESTAMPS IN DATASTORE
                 sharedDatastore.lastFirestoreProductsUpdate(newProductUpdateTimestamp.value)
                 sharedDatastore.lastFirestorePathsUpdate(newPathUpdateTimestamp.value)
 

@@ -42,6 +42,16 @@ import com.mtdevelopment.home.presentation.composable.cart.CartView
 import com.mtdevelopment.home.presentation.viewmodel.HomeViewModel
 import kotlinx.coroutines.launch
 
+/**
+ * Main dashboard screen for the customer.
+ * Displays a grid of products, a floating action button for the cart with a quantity badge,
+ * and handles adding items to the cart with a bouncy animation.
+ * 
+ * Key behaviors:
+ * 1. Splash Screen: Signals [mainViewModel] to remove the splash screen once the first product image loads.
+ * 2. Animations: Provides a spring-based scale animation on the cart FAB when an item is added.
+ * 3. Cart Integration: Opens the [CartView] bottom sheet when the FAB is clicked.
+ */
 @Composable
 fun HomeScreen(
     mainViewModel: MainViewModel,
@@ -56,6 +66,7 @@ fun HomeScreen(
 
     val homeViewModel = koinViewModel<HomeViewModel>()
 
+    // Animatable for the cart FAB scale effect
     val scaleCart = remember { Animatable(1f) }
 
     val cartState = cartViewModel.cartUiState
@@ -63,8 +74,12 @@ fun HomeScreen(
     var showEditDialog by remember { mutableStateOf(false) }
     var editedProduct by remember { mutableStateOf<UiProductObject?>(null) }
 
+    // Flag to track when the initial UI is ready (images loaded)
     var hasLoadedFirstPic by remember { mutableStateOf(false) }
 
+    /**
+     * Triggers a spring-based scale animation on the cart button to give visual feedback.
+     */
     fun animateAddingToCart() {
         coroutineScope.launch {
             scaleCart.animateTo(
@@ -84,6 +99,7 @@ fun HomeScreen(
         }
     }
 
+    // Once the first image is loaded, we can safely hide the splash screen
     LaunchedEffect(hasLoadedFirstPic) {
         if (hasLoadedFirstPic) {
             mainViewModel.setCanRemoveSplash()
@@ -94,6 +110,7 @@ fun HomeScreen(
         Rive.init(context)
     }
 
+    // React to manual refresh requests
     LaunchedEffect(shouldRefresh) {
         if (shouldRefresh) {
             homeViewModel.refreshProducts()
@@ -101,6 +118,7 @@ fun HomeScreen(
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
+        // Product Catalog Grid
         LazyVerticalGrid(
             modifier = Modifier
                 .fillMaxSize()
@@ -112,7 +130,7 @@ fun HomeScreen(
                 ProductItem(
                     modifier = if (productListItem.id == homeState.products.last().id) {
                         Modifier.padding(
-                            bottom = 64.dp
+                            bottom = 64.dp // Extra padding for the last item to avoid being covered by FAB
                         )
                     } else {
                         Modifier
@@ -139,6 +157,7 @@ fun HomeScreen(
             }
         }
 
+        // Floating Action Button for the Cart
         BadgedBox(
             modifier = Modifier
                 .align(Alignment.BottomEnd)
@@ -177,6 +196,7 @@ fun HomeScreen(
             }
         }
 
+        // Cart Bottom Sheet
         if (cartState.isCartVisible) {
             CartView(
                 cartViewModel = cartViewModel,
@@ -185,13 +205,14 @@ fun HomeScreen(
                 },
                 onNavigateToCheckout = {
                     cartState.cartItems.let {
+                        // Reset cart state and close sheet before navigating to delivery/checkout
                         cartViewModel.resetCart(withVisibility = true)
                         navigateToDelivery.invoke()
                     }
                 })
         }
 
-        // Loading animation
+        // Loading Overlay (Rive animation)
         RiveAnimation(
             isLoading = homeState.isLoading,
             modifier = Modifier.fillMaxSize(),

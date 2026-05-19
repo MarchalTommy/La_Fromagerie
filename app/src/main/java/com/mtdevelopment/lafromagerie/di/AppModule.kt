@@ -97,6 +97,10 @@ import kotlinx.serialization.json.Json
 import org.koin.androidx.viewmodel.dsl.viewModelOf
 import org.koin.dsl.module
 
+/**
+ * Main Koin module composition for the application.
+ * Groups together all specialized modules for network, persistence, and business logic.
+ */
 fun appModule() = listOf(
     mainAppModule,
     provideJson,
@@ -110,7 +114,12 @@ fun appModule() = listOf(
     provideSumUpDataSource
 )
 
+/**
+ * Core business logic module.
+ * Defines repositories, use cases, and ViewModels.
+ */
 val mainAppModule = module {
+    // Repositories
     single<NetworkRepository> { NetworkRepositoryImpl(get()) }
     single<AutocompleteRepository> { AutocompleteRepositoryImpl(get()) }
     single<PaymentRepository> { PaymentRepositoryImpl(get(), get(), get()) }
@@ -136,6 +145,7 @@ val mainAppModule = module {
         )
     }
 
+    // Use Cases (Factories)
     factory { GetCheckoutDataUseCase(get()) }
     factory { SaveToDatastoreUseCase(get()) }
     factory { GetCartDataUseCase(get()) }
@@ -179,9 +189,11 @@ val mainAppModule = module {
     factory { GetAllProductsUseCase(get(), get(), get()) }
     factory { GetAllCheesesUseCase(get()) }
 
+    // Databases
     factory { HomeDatabase(get()) }
     factory { DeliveryDatabase(get()) }
 
+    // ViewModels
     viewModelOf(::HomeViewModel)
     viewModelOf(::MainViewModel)
     viewModelOf(::DeliveryViewModel)
@@ -189,6 +201,9 @@ val mainAppModule = module {
     viewModelOf(::CheckoutViewModel)
 }
 
+/**
+ * JSON serialization configuration.
+ */
 val provideJson = module {
     single<Json> {
         Json {
@@ -198,11 +213,17 @@ val provideJson = module {
     }
 }
 
+/**
+ * Persistence layer (DataStore) module.
+ */
 val provideDatastore = module {
     single<CheckoutDatastorePreference> { CheckoutDatastorePreferenceImpl(get()) }
     single<SharedDatastore> { SharedDatastoreImpl(get()) }
 }
 
+/**
+ * Firebase Firestore module.
+ */
 val provideFirebaseDatabase = module {
     single<FirebaseFirestore> { Firebase.firestore }
     single<FirestoreDatabase> { FirestoreDatabase(get()) }
@@ -218,6 +239,10 @@ val provideFirebaseDatabase = module {
     }
 }
 
+/**
+ * Ktor client for OpenRouteService API.
+ * Configures base URL, Bearer authentication, and logging.
+ */
 val provideOpenRouteDatasource = module {
     val client = HttpClient(CIO) {
         install(DefaultRequest) {
@@ -254,6 +279,9 @@ val provideOpenRouteDatasource = module {
     }
 }
 
+/**
+ * Ktor client for the French Government Address API.
+ */
 val provideAddressApiDataSource = module {
     val client = HttpClient(CIO) {
         install(DefaultRequest) {
@@ -283,6 +311,9 @@ val provideAddressApiDataSource = module {
     }
 }
 
+/**
+ * Ktor client for Address Autocomplete suggestions.
+ */
 val provideAutoCompleteApiDataSource = module {
     val client = HttpClient(CIO) {
         install(DefaultRequest) {
@@ -312,6 +343,10 @@ val provideAutoCompleteApiDataSource = module {
     }
 }
 
+/**
+ * Ktor client for SumUp Payment API.
+ * Uses a private key for Bearer authentication.
+ */
 val provideSumUpDataSource = module {
     val client = HttpClient(CIO) {
         install(DefaultRequest) {
@@ -348,10 +383,16 @@ val provideSumUpDataSource = module {
     }
 }
 
+/**
+ * Android system Geocoder module.
+ */
 val provideGeocoder = module {
     single { Geocoder(get()) }
 }
 
+/**
+ * Room Database and DAOs module.
+ */
 val provideRoomFromagerieDatabase = module {
     single { provideDataBase(get()) }
     single { provideHomeDao(get()) }
@@ -362,6 +403,9 @@ fun provideHomeDao(db: FromagerieDatabase): HomeDao = db.homeDao
 fun provideDeliveryDao(db: FromagerieDatabase): DeliveryDao =
     db.deliveryDao
 
+/**
+ * Builder for the local Room database.
+ */
 fun provideDataBase(application: Application): FromagerieDatabase =
     Room.databaseBuilder(
         application,

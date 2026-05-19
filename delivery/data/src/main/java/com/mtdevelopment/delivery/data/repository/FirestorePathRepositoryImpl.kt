@@ -10,21 +10,34 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 
+/**
+ * Implementation of [FirestorePathRepository] that reconstructs a full [DeliveryPath]
+ * by combining data from multiple sources:
+ * 1. Firestore: Primary path metadata (names, cities, postcodes).
+ * 2. Address API: Translates city/zip into geographic center coordinates.
+ * 3. OpenRouteService: Provides the road-based GeoJSON geometry between city centers.
+ */
 class FirestorePathRepositoryImpl(
     private val firestore: FirestoreDeliveryDataSource,
     private val openRouteService: OpenRouteDataSource,
     private val addressApiRepository: AddressApiRepository
 ) : com.mtdevelopment.delivery.domain.repository.FirestorePathRepository {
 
+    /**
+     * Fetches all delivery paths and enriches them with geographic data.
+     * 
+     * Orchestration Logic:
+     * 1. Fetches raw path data from Firestore.
+     * 2. For each path, launches asynchronous geocoding requests for all covered cities.
+     * 3. Awaits geocoding results to establish the geographic center of the path.
+     * 4. If [withGeoJson] is true, fetches the driving route (geometry) from OpenRouteService.
+     * 5. Filters out any paths where geocoding failed to ensure data integrity.
+     */
     override fun getAllDeliveryPaths(
         withGeoJson: Boolean,
         onSuccess: (List<DeliveryPath?>) -> Unit,
         onFailure: () -> Unit
     ) {
-        /**
-         * LET ME EXPLAIN !
-         * First, we get paths from firestore
-         */
         firestore.getAllDeliveryPaths(onSuccess = { pathList ->
             CoroutineScope(Dispatchers.IO).launch {
                 // Prepare data for reverse geocoding
@@ -34,7 +47,7 @@ class FirestorePathRepositoryImpl(
 
                 val deferredCityInfoList = pathsWithCities.map { path ->
                     val zippedCities = path.cities!! zip path.postcodes!!
-                    // Launch async calls for reverse geocoding
+                    // Launch async calls for reverse geocoding in parallel for efficiency
                     val deferredCities = zippedCities.map { cityPair ->
                         async {
                             addressApiRepository.reverseGeocodeCity(
@@ -86,7 +99,7 @@ class FirestorePathRepositoryImpl(
                                 locations = locations,
                                 deliveryDay = pathData.deliveryDay,
                                 streets = pathData.streets ?: emptyList(),
-                                geoJson = geoJsonData // Use null if withGeoJson is false
+                                geoJson = geoJsonData 
                             )
                         }
                     }
@@ -103,6 +116,9 @@ class FirestorePathRepositoryImpl(
         }, onFailure = onFailure)
     }
 
+    /**
+     * Fetches a single delivery path by name (partial reconstruction without geographic enrichment).
+     */
     override fun getDeliveryPath(
         pathName: String,
         onSuccess: (DeliveryPath?) -> Unit,
