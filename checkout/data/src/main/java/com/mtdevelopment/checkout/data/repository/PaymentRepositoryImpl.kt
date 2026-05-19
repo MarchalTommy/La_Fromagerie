@@ -37,23 +37,32 @@ import org.json.JSONObject
 import java.math.BigDecimal
 import java.math.RoundingMode
 
+/**
+ * Implementation of [PaymentRepository] that manages both Google Pay integration and SumUp payment gateway.
+ */
 class PaymentRepositoryImpl(
     private val context: Context,
     private val sumUpDataSource: SumUpDataSource,
     private val firestoreOrderDataSource: FirestoreOrderDataSource,
-//    private val datastore: CheckoutDatastorePreferenceImpl
 ) : PaymentRepository {
 
     ///////////////////////////////////////////////////////////////////////////
-    // GOOGLE PAY PART
+    // GOOGLE PAY CONFIGURATION
     ///////////////////////////////////////////////////////////////////////////
 
     private lateinit var client: PaymentsClient
 
+    /**
+     * Base request JSON template for Google Pay API.
+     */
     private val baseRequest = JSONObject()
         .put("apiVersion", 2)
         .put("apiVersionMinor", 0)
 
+    /**
+     * Tokenization parameters that tell Google Pay how to encrypt the payment data.
+     * These parameters are typically provided by the payment gateway (SumUp).
+     */
     private val gatewayTokenizationSpecification: JSONObject =
         JSONObject()
             .put("type", "PAYMENT_GATEWAY")
@@ -63,6 +72,9 @@ class PaymentRepositoryImpl(
 
     private val allowedCardAuthMethods = JSONArray(Constants.SUPPORTED_METHODS)
 
+    /**
+     * Defines the supported card payment methods.
+     */
     private fun baseCardPaymentMethod(): JSONObject =
         JSONObject()
             .put("type", "CARD")
@@ -72,11 +84,20 @@ class PaymentRepositoryImpl(
                     .put("allowedCardNetworks", allowedCardNetworks)
             )
 
+    /**
+     * Full configuration for card payments, including tokenization info.
+     */
     private val cardPaymentMethod: JSONObject = baseCardPaymentMethod()
         .put("tokenizationSpecification", gatewayTokenizationSpecification)
 
+    /**
+     * The list of payment methods accepted by this app for Google Pay.
+     */
     override val allowedPaymentMethods: JSONArray = JSONArray().put(cardPaymentMethod)
 
+    /**
+     * Builds the request to check if the user is ready to pay with Google Pay.
+     */
     override fun isReadyToPayRequest(): JSONObject? =
         try {
             baseRequest
@@ -85,6 +106,9 @@ class PaymentRepositoryImpl(
             null
         }
 
+    /**
+     * Queries the Google Pay API to see if the payment button should be displayed.
+     */
     override suspend fun canUseGooglePay(): Boolean {
         val request = IsReadyToPayRequest.fromJson(isReadyToPayRequest().toString())
         return client.isReadyToPay(request).await()
@@ -93,6 +117,9 @@ class PaymentRepositoryImpl(
     private val merchantInfo: JSONObject =
         JSONObject().put("merchantName", "EARL Des Laizinnes")
 
+    /**
+     * Initializes the Google Pay client with the appropriate environment (TEST or PRODUCTION).
+     */
     override fun createPaymentsClient(): PaymentsClient {
         val walletOptions = Wallet.WalletOptions.Builder()
             .setEnvironment(Constants.PAYMENTS_ENVIRONMENT)
@@ -101,6 +128,9 @@ class PaymentRepositoryImpl(
         return client
     }
 
+    /**
+     * Builds the transaction info object required for the payment sheet.
+     */
     private fun getTransactionInfo(price: String): JSONObject =
         JSONObject()
             .put("totalPrice", price)
@@ -108,6 +138,10 @@ class PaymentRepositoryImpl(
             .put("countryCode", Constants.COUNTRY_CODE)
             .put("currencyCode", Constants.CURRENCY_CODE)
 
+    /**
+     * Prepares the full data request to launch the Google Pay sheet.
+     * @param priceCents The amount to charge, in cents.
+     */
     override fun getPaymentDataRequest(priceCents: Long): JSONObject =
         baseRequest
             .put("allowedPaymentMethods", allowedPaymentMethods)
@@ -119,7 +153,8 @@ class PaymentRepositoryImpl(
     private val CENTS = BigDecimal(100)
 
     /**
-     * Converts cents to a string format accepted by [getPaymentDataRequest].
+     * Converts cents (Long) to a string format with 2 decimal places (e.g., 1050 -> "10.50").
+     * This format is required by the Google Pay JSON API.
      */
     private fun Long.centsToString() = BigDecimal(this)
         .divide(CENTS)
@@ -127,19 +162,23 @@ class PaymentRepositoryImpl(
         .toString()
 
     ///////////////////////////////////////////////////////////////////////////
-    // SUMUP PART
+    // SUMUP INTEGRATION
     ///////////////////////////////////////////////////////////////////////////
 
     override suspend fun getCheckoutFromRef(reference: String?) {
+        // // TODO: Implement if needed to recover lost checkout sessions by their reference string.
         TODO("Not yet implemented")
     }
 
     override suspend fun getCheckoutFromId(id: String) {
+        // // TODO: Implement if direct ID lookup from repository is needed.
         TODO("Not yet implemented")
     }
 
-    // TODO: FIX -> New orders not in delivery of the admin app
-    // TODO: Save checkout reference securely, locally and remotely
+    /**
+     * Step 3: Creates a checkout session on SumUp servers.
+     * This provides a unique ID that we then "process" with Google Pay data.
+     */
     override fun createNewCheckout(
         amount: Double,
         description: String,
@@ -164,7 +203,6 @@ class PaymentRepositoryImpl(
                 description = description,
                 redirectUrl = BuildConfig.SUMUP_REDIRECT_URL,
                 purpose = CHECKOUT_CREATION_BODY_PURPOSE.CHECKOUT,
-//                merchantCode = "BuildConfig.SUMUP_MERCHANT_ID",
                 merchantCode = BuildConfig.SUMUP_MERCHANT_ID
             )
         ).transform { value ->
@@ -175,6 +213,10 @@ class PaymentRepositoryImpl(
         }
     }
 
+    /**
+     * Step 6: Finalizes the transaction by sending the Google Pay token to SumUp.
+     * This method chains the initial authorize call with the polling mechanism in the DataSource.
+     */
     override fun processCheckout(
         checkoutId: String,
         googlePayData: GooglePayData,
@@ -195,21 +237,18 @@ class PaymentRepositoryImpl(
         return sumUpDataSource.processCheckout(
             requestBody = processCheckoutRequest,
             on3DSecureRequired = on3DSecureRequired
-        ).mapNotNull { networkResult -> // networkResult est NetWorkResult<CheckoutResponse>
+        ).mapNotNull { networkResult -> 
             when (networkResult) {
                 is NetWorkResult.Success -> {
-                    val checkoutResponse = networkResult.data // Ceci est CheckoutResponse
-                    // Le DataSource est censé avoir attendu un statut final.
+                    val checkoutResponse = networkResult.data
+                    // We only emit terminal states to the Domain layer.
                     if (checkoutResponse.status == CHECKOUT_STATUS.PAID || checkoutResponse.status == CHECKOUT_STATUS.FAILED) {
                         checkoutResponse.toDomainCheckout()
                     } else {
-                        // Ce cas ne devrait pas arriver si le DataSource respecte le contrat de ne retourner que l'état final.
                         Log.w(
                             "ProcessCheckout",
                             "DataSource returned non-final status: ${checkoutResponse.status} for checkout ${checkoutResponse.id}"
                         )
-                        // Pour l'instant, on le filtre en retournant null (mapNotNull).
-                        // Alternativement, si DomainCheckout peut représenter PENDING : checkoutResponse.toDomainCheckout()
                         null
                     }
                 }
@@ -226,7 +265,7 @@ class PaymentRepositoryImpl(
     }
 
     ///////////////////////////////////////////////////////////////////////////
-    // ORDERS
+    // ORDER MANAGEMENT
     ///////////////////////////////////////////////////////////////////////////
     override suspend fun createFirestoreOrder(order: Order): Result<Unit> {
         return firestoreOrderDataSource.createOrder(order.toOrderData())

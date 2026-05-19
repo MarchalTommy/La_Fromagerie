@@ -26,6 +26,21 @@ import com.mtdevelopment.checkout.presentation.viewmodel.CheckoutViewModel
 import com.mtdevelopment.core.util.rememberScreenSize
 import org.koin.androidx.compose.koinViewModel
 
+/**
+ * Screen displayed after a successful payment transaction.
+ * It provides visual confirmation to the user and triggers final state cleanup.
+ * 
+ * Key behaviors:
+ * 1. Upon entry, it calls [viewModel.resetAppStateAfterSuccess], which:
+ *    - Updates the Firestore order status to 'PAID'.
+ *    - Clears the shopping cart.
+ *    - Resets temporary payment state in DataStore.
+ * 2. Displays a success animation (Lottie).
+ * 3. Shows instructions regarding the email ticket/receipt.
+ * 
+ * @param clientName The name of the buyer to personalize the message.
+ * @param onHomeClick Callback to navigate back to the main catalog/home screen.
+ */
 @Composable
 fun AfterPaymentScreen(
     clientName: String?,
@@ -34,6 +49,7 @@ fun AfterPaymentScreen(
 
     val viewModel = koinViewModel<CheckoutViewModel>()
 
+    // Trigger cleanup and final status update when the success screen is reached
     LaunchedEffect(Unit) {
         viewModel.resetAppStateAfterSuccess()
     }
@@ -89,6 +105,9 @@ fun AfterPaymentScreen(
     }
 }
 
+/**
+ * Success animation using Lottie.
+ */
 @Composable
 fun SuccessAnim() {
 

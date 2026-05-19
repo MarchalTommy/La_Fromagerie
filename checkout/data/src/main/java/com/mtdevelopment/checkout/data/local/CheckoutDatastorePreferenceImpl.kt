@@ -18,15 +18,28 @@ import com.mtdevelopment.core.model.toOrder
 import com.mtdevelopment.core.model.toOrderData
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
+/**
+ * Implementation of [CheckoutDatastorePreference] using Jetpack DataStore.
+ * This class handles persistent storage for payment-related data, including:
+ * - SumUp API authentication tokens (access and refresh).
+ * - History of checkout references for auditing or recovery.
+ * - Current checkout session results.
+ * - Final payment success status.
+ * - Temporary storage of the Order model during the payment process.
+ */
 @Keep
 class CheckoutDatastorePreferenceImpl(private val context: Context) : CheckoutDatastorePreference {
 
+    /**
+     * DataStore instance for checkout-specific settings.
+     */
     private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "checkout_settings")
 
-    // BEARER TOKEN USED TO AUTH ON SUMUP API
+    /**
+     * Key for the Bearer token used for SumUp API authentication.
+     */
     private val SUMUP_TOKEN = stringPreferencesKey("sumup_token")
     override val sumUpTokenFlow: Flow<String> = context.dataStore.data.map { preferences ->
         preferences[SUMUP_TOKEN] ?: ""
@@ -38,7 +51,9 @@ class CheckoutDatastorePreferenceImpl(private val context: Context) : CheckoutDa
         }
     }
 
-    // REFRESH TOKEN USED TO ASK A FRESH TOKEN TO SUMUP API
+    /**
+     * Key for the refresh token used to obtain a fresh access token from SumUp.
+     */
     private val SUMUP_REFRESH_TOKEN = stringPreferencesKey("sumup_refresh_token")
     override val sumUpRefreshTokenFlow: Flow<String> = context.dataStore.data.map { preferences ->
         preferences[SUMUP_REFRESH_TOKEN] ?: ""
@@ -50,7 +65,9 @@ class CheckoutDatastorePreferenceImpl(private val context: Context) : CheckoutDa
         }
     }
 
-    // VALIDITY OF THE TOKEN, TO KNOW WHEN TO REFRESH THE TOKEN FIRST
+    /**
+     * Key for the token validity duration (usually in seconds).
+     */
     private val SUMUP_TOKEN_VALIDITY = longPreferencesKey("sumup_token_validity")
     override val sumUpTokenValidityFlow: Flow<Long> = context.dataStore.data.map { preferences ->
         preferences[SUMUP_TOKEN_VALIDITY] ?: 0L
@@ -62,6 +79,10 @@ class CheckoutDatastorePreferenceImpl(private val context: Context) : CheckoutDa
         }
     }
 
+    /**
+     * Key for a set of checkout references. 
+     * Stores a history of all checkout attempts.
+     */
     private val CHECKOUT_REFERENCE = stringSetPreferencesKey("checkout_reference")
     override val checkoutReferencesFlow: Flow<List<String>> =
         context.dataStore.data.map { preferences ->
@@ -84,9 +105,14 @@ class CheckoutDatastorePreferenceImpl(private val context: Context) : CheckoutDa
         }
     }
 
+    /**
+     * Key for the most recently created checkout session result.
+     * Serialized as a JSON string.
+     */
     private val CREATED_CHECKOUT = stringPreferencesKey("created_checkout")
     override val createdCheckoutFlow: Flow<NewCheckoutResult> =
         context.dataStore.data.map { preferences ->
+            // // TODO: Handle cases where the preference might be empty or invalid JSON.
             Json.decodeFromString(preferences[CREATED_CHECKOUT] ?: "")
         }
 
@@ -96,6 +122,9 @@ class CheckoutDatastorePreferenceImpl(private val context: Context) : CheckoutDa
         }
     }
 
+    /**
+     * Key indicating if the current/last checkout was successful.
+     */
     private val IS_CHECKOUT_SUCCESS = booleanPreferencesKey("IS_CHECKOUT_SUCCESS")
     override val isCheckoutSuccessfulFlow: Flow<Boolean> =
         context.dataStore.data.map { preferences ->
@@ -108,16 +137,27 @@ class CheckoutDatastorePreferenceImpl(private val context: Context) : CheckoutDa
         }
     }
 
+    /**
+     * Resets the checkout success status.
+     */
     override suspend fun resetCheckoutStatus() {
         context.dataStore.edit {
             it.remove(IS_CHECKOUT_SUCCESS)
         }
     }
 
+    /**
+     * Key for the full Order object being processed. 
+     * Serialized as JSON.
+     */
     private val ORDER_ITEM = stringPreferencesKey("ORDER_ITEM")
     override val orderFlow: Flow<Order?>
         get() = context.dataStore.data.map { preferences ->
-            (Json.decodeFromString(preferences[ORDER_ITEM] ?: "") as OrderData?)?.toOrder()
+            try {
+                (Json.decodeFromString(preferences[ORDER_ITEM] ?: "") as OrderData?)?.toOrder()
+            } catch (e: Exception) {
+                null
+            }
         }
 
 
