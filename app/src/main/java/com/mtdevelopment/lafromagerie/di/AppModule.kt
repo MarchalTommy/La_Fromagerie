@@ -131,6 +131,9 @@ val mainAppModule = module {
 
     single<FirebaseHomeRepository> { FirebaseHomeRepositoryImpl(get()) }
     single<RoomHomeRepository> { RoomHomeRepositoryImpl(get()) }
+    single<com.mtdevelopment.home.domain.repository.ProductRepository> {
+        com.mtdevelopment.home.data.repository.ProductRepositoryImpl(get(), get(), get())
+    }
     single<RoomDeliveryRepository> {
         RoomDeliveryRepositoryImpl(
             get()
@@ -186,7 +189,7 @@ val mainAppModule = module {
 
     factory { GetLastFirestoreDatabaseUpdateUseCase(get(), get()) }
 
-    factory { GetAllProductsUseCase(get(), get(), get()) }
+    factory { GetAllProductsUseCase(get()) }
     factory { GetAllCheesesUseCase(get()) }
 
     // Databases

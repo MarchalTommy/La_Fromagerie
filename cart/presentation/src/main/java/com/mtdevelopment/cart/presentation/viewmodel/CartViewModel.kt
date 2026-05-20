@@ -1,8 +1,5 @@
 package com.mtdevelopment.cart.presentation.viewmodel
 
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mtdevelopment.cart.domain.usecase.GetCartDataUseCase
@@ -13,6 +10,10 @@ import com.mtdevelopment.core.presentation.sharedModels.UiProductObject
 import com.mtdevelopment.core.presentation.sharedModels.toCartItem
 import com.mtdevelopment.core.usecase.GetIsNetworkConnectedUseCase
 import com.mtdevelopment.core.usecase.SaveToDatastoreUseCase
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.koin.core.component.KoinComponent
 
@@ -34,24 +35,24 @@ class CartViewModel(
     val isConnected = getIsNetworkConnectedUseCase()
 
     /**
-     * The current UI state of the cart.
+     * The current UI state of the cart as a read-only StateFlow.
      */
-    var cartUiState by mutableStateOf(CartUiState())
-        private set
+    private val _cartUiState = MutableStateFlow(CartUiState())
+    val cartUiState: StateFlow<CartUiState> = _cartUiState.asStateFlow()
 
     private fun setCartItems(value: CartItems) {
-        cartUiState = cartUiState.copy(
-            cartItems = value
-        )
+        _cartUiState.update {
+            it.copy(cartItems = value)
+        }
     }
 
     /**
      * Updates the visibility of the cart UI.
      */
     fun setCartVisibility(value: Boolean) {
-        cartUiState = cartUiState.copy(
-            isCartVisible = value
-        )
+        _cartUiState.update {
+            it.copy(isCartVisible = value)
+        }
     }
 
     /**
@@ -61,24 +62,25 @@ class CartViewModel(
      */
     fun addCartObject(valueAsUiObject: UiProductObject? = null, valueAsCartItem: CartItem? = null) {
         viewModelScope.launch {
-            val cartItem = valueAsUiObject?.toCartItem() ?: valueAsCartItem
+            val incomingItem = valueAsUiObject?.toCartItem() ?: valueAsCartItem ?: return@launch
 
-            var mutableContent =
-                (cartUiState.cartItems?.cartItems as? MutableList) ?: mutableListOf()
-            val selectedItem = mutableContent.find { it?.name == cartItem?.name }
+            val currentItems =
+                _cartUiState.value.cartItems?.cartItems?.filterNotNull() ?: emptyList()
+            val mutableContent = currentItems.toMutableList()
 
-            if (selectedItem != null) {
-                // Item already in cart, increment quantity
-                selectedItem.quantity++
-            } else if (mutableContent.isNotEmpty()) {
-                // New item, add it to existing list
-                mutableContent.add(cartItem?.apply { quantity = 1 })
+            val existingItemIndex = mutableContent.indexOfFirst { it.name == incomingItem.name }
+
+            if (existingItemIndex != -1) {
+                // Item already in cart, create a new copy with incremented quantity
+                val existingItem = mutableContent[existingItemIndex]
+                mutableContent[existingItemIndex] =
+                    existingItem.copy(quantity = existingItem.quantity + 1)
             } else {
-                // First item in cart
-                mutableContent = mutableListOf(cartItem?.apply { quantity = 1 })
+                // New item, add a copy with quantity 1
+                mutableContent.add(incomingItem.copy(quantity = 1))
             }
 
-            saveToDataStore(mutableContent.mapNotNull { it })
+            saveToDataStore(mutableContent)
         }
     }
 
@@ -88,14 +90,21 @@ class CartViewModel(
      */
     fun removeCartObject(value: CartItem) {
         viewModelScope.launch {
-            val mutableContent =
-                (cartUiState.cartItems?.cartItems as? MutableList) ?: mutableListOf()
-            val selectedItem = mutableContent.find { it?.name == value.name }
-            if (selectedItem != null && selectedItem.quantity > 1) {
-                selectedItem.quantity--
+            val currentItems =
+                _cartUiState.value.cartItems?.cartItems?.filterNotNull() ?: emptyList()
+            val mutableContent = currentItems.toMutableList()
+
+            val existingItemIndex = mutableContent.indexOfFirst { it.name == value.name }
+
+            if (existingItemIndex != -1) {
+                val existingItem = mutableContent[existingItemIndex]
+                if (existingItem.quantity > 1) {
+                    mutableContent[existingItemIndex] =
+                        existingItem.copy(quantity = existingItem.quantity - 1)
+                }
             }
 
-            saveToDataStore(mutableContent.mapNotNull { it })
+            saveToDataStore(mutableContent)
         }
     }
 
@@ -104,11 +113,11 @@ class CartViewModel(
      */
     fun totallyRemoveObject(value: CartItem) {
         viewModelScope.launch {
-            val cleanedList =
-                (cartUiState.cartItems?.cartItems as? MutableList) ?: mutableListOf()
-            cleanedList.remove(value)
+            val currentItems =
+                _cartUiState.value.cartItems?.cartItems?.filterNotNull() ?: emptyList()
+            val filteredList = currentItems.filterNot { it.name == value.name }
 
-            saveToDataStore(cleanedList.mapNotNull { it })
+            saveToDataStore(filteredList)
         }
     }
 
@@ -116,49 +125,36 @@ class CartViewModel(
      * Persists the current cart content to the DataStore and updates the UI state.
      * Also calculates the total price of the cart.
      */
-    private fun saveToDataStore(cartContent: List<CartItem>) {
-        val newCartObject = if (cartUiState.cartItems != null) {
-            cartUiState.cartItems?.copy(
-                cartItems = cartContent,
-                totalPrice =
-                    cartContent.sumOf { item ->
-                        (item.price.times(item.quantity))
-                    }
-            )
-        } else {
-            CartItems(
-                cartItems = cartContent,
-                totalPrice =
-                    cartContent.sumOf { item ->
-                        (item.price.times(item.quantity))
-                    }
-            )
-        }
+    private suspend fun saveToDataStore(cartContent: List<CartItem>) {
+        val currentCartItems = _cartUiState.value.cartItems
+        val totalPrice = cartContent.sumOf { it.price * it.quantity }
+        val newCartObject = currentCartItems?.copy(
+            cartItems = cartContent,
+            totalPrice = totalPrice
+        ) ?: CartItems(cartContent, totalPrice)
 
-        viewModelScope.launch {
-            saveToDatastoreUseCase.invoke(
-                CartItems(
-                    newCartObject?.cartItems?.map {
-                        CartItem(
-                            name = it?.name ?: "",
-                            price = it?.price ?: 0L,
-                            quantity = it?.quantity ?: 0
-                        )
-                    } ?: emptyList(),
-                    newCartObject?.totalPrice ?: 0L
-                )
+        saveToDatastoreUseCase.invoke(
+            CartItems(
+                newCartObject.cartItems.map {
+                    CartItem(
+                        name = it?.name ?: "",
+                        price = it?.price ?: 0L,
+                        quantity = it?.quantity ?: 0
+                    )
+                },
+                newCartObject.totalPrice
             )
-            setCartItems(newCartObject ?: CartItems(emptyList(), 0L))
-        }
+        )
+        setCartItems(newCartObject)
     }
 
     /**
      * Saves the product currently being interacted with in the UI.
      */
     fun saveClickedItem(value: UiProductObject) {
-        cartUiState = cartUiState.copy(
-            currentItem = value
-        )
+        _cartUiState.update {
+            it.copy(currentItem = value)
+        }
     }
 
     /**
@@ -167,7 +163,9 @@ class CartViewModel(
      */
     fun resetCart(withVisibility: Boolean = false) {
         setCartVisibility(!withVisibility)
-        cartUiState.cartItems = null
+        viewModelScope.launch {
+            saveToDataStore(emptyList())
+        }
     }
 
     /**
@@ -176,14 +174,15 @@ class CartViewModel(
     fun loadCart(withVisibility: Boolean = false) {
         viewModelScope.launch {
             getCartDataUseCase.invoke().collect { data ->
-                cartUiState = cartUiState.copy(
-                    isCartVisible = withVisibility,
-                    cartItems = CartItems(
-                        cartItems = data?.cartItems ?: emptyList(),
-                        totalPrice = data?.totalPrice ?: 0L
-                    ),
-                    currentItem = cartUiState.currentItem
-                )
+                _cartUiState.update {
+                    it.copy(
+                        isCartVisible = withVisibility,
+                        cartItems = CartItems(
+                            cartItems = data?.cartItems ?: emptyList(),
+                            totalPrice = data?.totalPrice ?: 0L
+                        )
+                    )
+                }
             }
         }
     }

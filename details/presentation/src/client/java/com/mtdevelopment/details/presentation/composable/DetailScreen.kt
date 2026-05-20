@@ -56,6 +56,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.toIntRect
 import androidx.compose.ui.unit.toSize
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.engine.DiskCacheStrategy
 import com.bumptech.glide.load.resource.bitmap.BitmapTransitionOptions.withCrossFade
@@ -93,7 +94,7 @@ fun DetailScreen(
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
 
-    val state = viewModel.cartUiState
+    val state by viewModel.cartUiState.collectAsStateWithLifecycle()
     val scaleCart = remember { Animatable(1f) }
 
     // Dynamic label sizing state

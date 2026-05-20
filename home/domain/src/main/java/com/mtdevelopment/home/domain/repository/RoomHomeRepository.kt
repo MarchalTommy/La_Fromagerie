@@ -23,19 +23,16 @@ interface RoomHomeRepository {
 
     /**
      * Retrieves a specific product by its ID.
-     * @param onSuccess Callback invoked with the [Product] if found.
      */
-    suspend fun getProductById(id: String, onSuccess: (Product) -> Unit)
+    suspend fun getProductById(id: String): Product?
 
     /**
      * Retrieves all cheeses from the local database.
-     * @param onSuccess Callback invoked with the list of cheese [Product] objects.
      */
-    suspend fun getCheeses(onSuccess: (List<Product>) -> Unit)
+    suspend fun getCheeses(): List<Product>
 
     /**
      * Retrieves all products from the local database.
-     * @param onSuccess Callback invoked with the full list of [Product] objects.
      */
-    suspend fun getProducts(onSuccess: (List<Product>) -> Unit)
+    suspend fun getProducts(): List<Product>
 }

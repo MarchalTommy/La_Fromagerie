@@ -97,12 +97,13 @@ fun OrderPreparationList(
     LazyColumn {
 
         for (deliveryDate in nextDeliveryDates) {
-            if (ordersByDeliveryDate[deliveryDate] != null && ordersByDeliveryDate[deliveryDate]!!.isNotEmpty()) {
+            val ordersForDate = ordersByDeliveryDate[deliveryDate] ?: emptyList()
+            if (ordersForDate.isNotEmpty()) {
 
                 // Aggregate product quantities for the current delivery date.
                 // e.g., if Order A has 2 Milk and Order B has 3 Milk, results in {Milk=5}
                 val quantityForProducts: Map<String, Int> =
-                    ordersByDeliveryDate[deliveryDate]!!.fold(mutableMapOf()) { accumulator, currentMap ->
+                    ordersForDate.fold(mutableMapOf()) { accumulator, currentMap ->
                         currentMap.products.forEach { (product, quantity) ->
                             accumulator.merge(product, quantity, Int::plus)
                         }
@@ -173,16 +174,11 @@ fun OrderPreparationListItem(
     onUpdateStatus: (PreparationStatus) -> Unit
 ) {
 
-    // Map each client to their products for this delivery date
-    val mapClientToProducts = mutableMapOf<String, MutableMap<String, Int>>()
+    // Map each order to its products for this delivery date
+    // Key is the Order ID to avoid name collisions
+    val mapOrderIdToOrderAndProducts = mutableMapOf<String, Pair<Order, Map<String, Int>>>()
     itemsPerClients.forEach { order ->
-        order.products.forEach { (prod, qty) ->
-            if (mapClientToProducts[order.customerName] == null) {
-                mapClientToProducts[order.customerName] = mutableMapOf(prod to qty)
-            } else {
-                mapClientToProducts[order.customerName]!![prod] = (mapClientToProducts[order.customerName]!![prod] ?: 0) + qty
-            }
-        }
+        mapOrderIdToOrderAndProducts[order.id] = order to order.products
     }
 
     val showDetails = remember { mutableStateOf(false) }
@@ -252,10 +248,11 @@ fun OrderPreparationListItem(
                     Spacer(modifier = Modifier.height(16.dp))
 
                     // Detail: List each client who ordered this product
-                    mapClientToProducts.forEach { (client, productsMap) ->
+                    mapOrderIdToOrderAndProducts.forEach { (_, pair) ->
+                        val (order, productsMap) = pair
                         val productQuantity = productsMap[product]
                         if (productQuantity != null && productQuantity > 0) {
-                            Text("$productQuantity -> $client")
+                            Text("$productQuantity -> ${order.customerName}")
                         }
                     }
 

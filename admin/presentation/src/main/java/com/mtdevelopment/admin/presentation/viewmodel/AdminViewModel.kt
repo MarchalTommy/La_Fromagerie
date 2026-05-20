@@ -23,6 +23,7 @@ import com.mtdevelopment.admin.presentation.model.OrderScreenState
 import com.mtdevelopment.core.domain.toTimeStamp
 import com.mtdevelopment.core.model.AutoCompleteSuggestion
 import com.mtdevelopment.core.model.DeliveryPath
+import com.mtdevelopment.core.model.Order
 import com.mtdevelopment.core.model.PreparationStatus
 import com.mtdevelopment.core.presentation.sharedModels.UiProductObject
 import com.mtdevelopment.core.presentation.sharedModels.toDomainProduct
@@ -33,6 +34,7 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.koin.core.component.KoinComponent
@@ -295,6 +297,17 @@ class AdminViewModel(
     }
 
     /**
+     * Manually adds a temporary order to the delivery helper screen state.
+     */
+    fun addOrder(order: Order) {
+        viewModelScope.launch {
+            _orderScreenState.update { state ->
+                state.copy(orders = state.orders + order)
+            }
+        }
+    }
+
+    /**
      * Updates a preparation status with optimistic UI update.
      */
     fun updatePreparationStatus(status: PreparationStatus) {
@@ -346,6 +359,12 @@ class AdminViewModel(
             _orderScreenState.value = _orderScreenState.value.copy(
                 currentAdminLocation = getCurrentLocationOnceUseCase.invoke()
             )
+        }
+    }
+
+    fun getTrackingStatusOnce(onResult: (Boolean) -> Unit) {
+        viewModelScope.launch {
+            onResult.invoke(isInTrackingModeUseCase.invoke().first())
         }
     }
 

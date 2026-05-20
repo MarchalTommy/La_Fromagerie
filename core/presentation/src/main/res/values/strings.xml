@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="error_database_update">Mise à jour de la base de donnée impossible</string>
+    <string name="error_loading_products">Chargement des produits impossible</string>
+    <string name="error_loading_cheeses">Chargement des fromages impossible</string>
+</resources>

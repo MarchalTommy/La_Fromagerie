@@ -14,8 +14,6 @@ class GetAllCheesesUseCase(
      * @param onSuccess Callback invoked with the list of cheese [Product] objects.
      */
     suspend operator fun invoke(onSuccess: (List<Product>) -> Unit) {
-        roomHomeRepository.getCheeses {
-            onSuccess.invoke(it)
-        }
+        onSuccess(roomHomeRepository.getCheeses())
     }
 }

@@ -1,6 +1,7 @@
 package com.mtdevelopment.home.presentation.state
 
 import com.mtdevelopment.core.presentation.sharedModels.UiProductObject
+import com.mtdevelopment.core.util.UiText
 
 /**
  * UI State for the Home screen.
@@ -11,5 +12,5 @@ import com.mtdevelopment.core.presentation.sharedModels.UiProductObject
 data class HomeUiState(
     val products: List<UiProductObject> = emptyList(),
     val isLoading: Boolean = false,
-    val isError: String? = null
+    val isError: UiText? = null
 )

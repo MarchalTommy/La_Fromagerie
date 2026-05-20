@@ -27,6 +27,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import app.rive.runtime.kotlin.core.Rive
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.mtdevelopment.admin.presentation.composable.ProductEditDialog
 import com.mtdevelopment.admin.presentation.viewmodel.AdminViewModel
 import com.mtdevelopment.cart.presentation.viewmodel.CartViewModel
@@ -58,7 +59,7 @@ fun HomeScreen(
     val homeViewModel = koinViewModel<HomeViewModel>()
     val adminViewModel = koinInject<AdminViewModel>()
 
-    val homeState = homeViewModel.homeUiState
+    val homeState by homeViewModel.homeUiState.collectAsStateWithLifecycle()
     var showEditDialog by remember { mutableStateOf(false) }
     var editedProduct by remember { mutableStateOf<UiProductObject?>(null) }
 

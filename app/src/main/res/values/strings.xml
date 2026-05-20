@@ -1,3 +1,19 @@
 <resources>
     <string name="app_name">La Fromagerie</string>
+    <string name="cart_content_description">Panier</string>
+    <string name="loading_animation">Animation de chargement</string>
+    <string name="error_database_update">Mise à jour de la base de donnée impossible</string>
+    <string name="error_loading_products">Chargement des produits impossible</string>
+    <string name="error_loading_cheeses">Chargement des fromages impossible</string>
+
+    <string name="delivery_no_orders_today">Aucune livraison aujourd\'hui !</string>
+    <string name="delivery_today_title">Voici la livraison du jour !</string>
+    <string name="delivery_next_planned">Prochaine livraison le %1$s</string>
+    <string name="delivery_no_planned">Aucune date de livraison n\'est prévue pour l\'instant.</string>
+    <string name="permission_location_denied">Permission de localisation refusée</string>
+    <string name="permissions_required">Les permissions sont nécessaires pour continuer</string>
+    <string name="delivery_empty_list">Pas de commande à livrer.\n\nUn jour calme, parfois, c\'est pas mal !</string>
+    <string name="add_stop">Ajouter un arrêt</string>
+    <string name="stop_delivery">Arrêter la livraison</string>
+    <string name="start_delivery">Démarrer la livraison</string>
 </resources>

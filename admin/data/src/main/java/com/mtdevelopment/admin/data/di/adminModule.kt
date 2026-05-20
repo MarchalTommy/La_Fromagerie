@@ -13,6 +13,7 @@ import com.mtdevelopment.admin.domain.repository.CloudinaryRepository
 import com.mtdevelopment.admin.domain.repository.FirebaseAdminRepository
 import com.mtdevelopment.admin.domain.repository.GoogleRouteRepository
 import com.mtdevelopment.admin.domain.repository.LocationRepository
+import com.mtdevelopment.admin.domain.repository.SignatureProvider
 import com.mtdevelopment.core.data.Constants.GOOGLE_ROUTE_BASE_URL_WITHOUT_HTTPS
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
@@ -35,8 +36,9 @@ fun adminDataModule() = listOf(
 val adminDataModule = module {
     single<FirestoreAdminDatasource> { FirestoreAdminDatasource(get()) }
 
+    single<SignatureProvider> { com.mtdevelopment.admin.data.repository.LocalSignatureProvider() }
     single<FirebaseAdminRepository> { FirebaseAdminRepositoryImpl(get()) }
-    single<CloudinaryRepository> { CloudinaryRepositoryImpl(get()) }
+    single<CloudinaryRepository> { CloudinaryRepositoryImpl(get(), get()) }
     single<GoogleRouteRepository> { GoogleRouteRepositoryImpl(get()) }
     single<LocationRepository> { LocationRepositoryImpl(get()) }
 

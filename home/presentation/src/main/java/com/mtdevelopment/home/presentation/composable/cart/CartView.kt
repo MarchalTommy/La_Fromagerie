@@ -55,7 +55,7 @@ fun CartView(
         skipPartiallyExpanded = false,
     )
 
-    val state = cartViewModel?.cartUiState
+    val state = cartViewModel?.cartUiState?.collectAsState()?.value
 
     ModalBottomSheet(
         modifier = Modifier.fillMaxHeight(),
@@ -96,48 +96,47 @@ fun CartView(
                 }
             }
 
-            // List of cart items
-            items(items = state?.cartItems?.cartItems ?: emptyList(), key = { it?.name ?: "" }) {
+            items(
+                items = state?.cartItems?.cartItems ?: emptyList(),
+                key = { it?.name ?: "" }) { cartItem ->
                 val itemVisibility = remember {
                     Animatable(1f)
                 }
-                CartItem(
-                    modifier = Modifier
-                        .animateItem(
-                            fadeInSpec = null, fadeOutSpec = tween(350), placementSpec = tween(800)
-                        )
-                        .alpha(itemVisibility.value),
-                    item = it?.copy(quantity = state?.cartItems?.cartItems?.find { searched -> searched?.name == it.name }?.quantity!!),
+                if (cartItem != null) {
+                    CartItem(
+                        modifier = Modifier
+                            .animateItem(
+                                fadeInSpec = null,
+                                fadeOutSpec = tween(350),
+                                placementSpec = tween(800)
+                            )
+                            .alpha(itemVisibility.value),
+                        item = cartItem,
                     onAddMore = {
                         vibratePhoneClick(context)
-                        cartViewModel?.addCartObject(valueAsCartItem = it)
+                        cartViewModel?.addCartObject(valueAsCartItem = cartItem)
                     },
                     onRemoveOne = {
                         vibratePhoneClick(context)
                         coroutineScope.launch {
                             // If it's the last item of this type, animate its disappearance before removing it from state
-                            if ((it?.quantity ?: 0) <= 1) {
+                            if (cartItem.quantity <= 1) {
                                 itemVisibility.animateTo(
                                     targetValue = 0f,
                                     animationSpec = tween(200)
                                 )
-                                if (it != null) {
-                                    cartViewModel?.totallyRemoveObject(it)
-                                }
+                                cartViewModel?.totallyRemoveObject(cartItem)
                             } else {
-                                if (it != null) {
-                                    cartViewModel?.removeCartObject(it)
-                                }
+                                cartViewModel?.removeCartObject(cartItem)
                             }
                         }
                     },
                     onRemoveAll = {
                         vibratePhoneClickBig(context)
-                        if (it != null) {
-                            cartViewModel?.totallyRemoveObject(it)
-                        }
+                        cartViewModel?.totallyRemoveObject(cartItem)
                     }
-                )
+                    )
+                }
             }
 
             // Cart summary and checkout button

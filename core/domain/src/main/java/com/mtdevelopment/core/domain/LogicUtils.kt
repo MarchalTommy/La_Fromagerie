@@ -44,23 +44,31 @@ private val DATE_FORMATTER_DDMMYYYY: java.time.format.DateTimeFormatter =
         .withZone(java.time.ZoneId.systemDefault())
 
 /**
- * Parses a "dd/MM/yyyy" date string into a Unix timestamp (milliseconds).
+ * Parses a "dd/MM/yyyy" date string into a LocalDate.
  */
-fun String.toTimeStamp(): Long {
+fun String.toLocalDate(): java.time.LocalDate? {
     return try {
-        val localDate = java.time.LocalDate.parse(this, DATE_FORMATTER_DDMMYYYY)
-        localDate.atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
+        java.time.LocalDate.parse(this, DATE_FORMATTER_DDMMYYYY)
     } catch (e: Exception) {
-        0L 
+        null
     }
 }
 
 /**
+ * Parses a "dd/MM/yyyy" date string into a Unix timestamp (milliseconds).
+ * Uses UTC to ensure stable timestamps regardless of device timezone changes.
+ */
+fun String.toTimeStamp(): Long {
+    return toLocalDate()?.atStartOfDay(java.time.ZoneOffset.UTC)?.toInstant()?.toEpochMilli() ?: 0L
+}
+
+/**
  * Formats a Unix timestamp (milliseconds) into a "dd/MM/yyyy" date string.
+ * Uses UTC to ensure stable formatting.
  */
 fun Long.toStringDate(): String {
     val instant = java.time.Instant.ofEpochMilli(this)
-    return DATE_FORMATTER_DDMMYYYY.format(instant)
+    return DATE_FORMATTER_DDMMYYYY.withZone(java.time.ZoneOffset.UTC).format(instant)
 }
 
 /**

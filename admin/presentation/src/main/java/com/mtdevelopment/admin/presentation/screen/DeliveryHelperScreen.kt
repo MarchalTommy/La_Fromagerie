@@ -68,7 +68,6 @@ import com.mtdevelopment.core.util.koinViewModel
 import com.skydoves.landscapist.ImageOptions
 import com.skydoves.landscapist.glide.GlideImage
 import java.time.LocalDate
-import java.time.ZoneId
 import java.time.format.TextStyle
 import java.util.Collections.emptyList
 import java.util.Locale
@@ -142,8 +141,7 @@ fun DeliveryHelperScreen(
     }
 
     // State derivation: Filtering orders for today
-    // // TODO: This date calculation may be subject to timezone discrepancies.
-    val todayDate = LocalDate.now().atStartOfDay(ZoneId.systemDefault())
+    val todayDate = LocalDate.now().atStartOfDay(java.time.ZoneOffset.UTC)
 
     val dailyOrders = remember(state.value) {
         mutableStateOf(

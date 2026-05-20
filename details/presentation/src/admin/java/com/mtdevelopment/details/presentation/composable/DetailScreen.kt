@@ -38,6 +38,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.geometry.CornerRadius
@@ -93,7 +94,7 @@ fun DetailScreen(
     val context = LocalContext.current
     val adminViewModel = koinInject<AdminViewModel>()
 
-    val state = viewModel.cartUiState
+    val state by viewModel.cartUiState.collectAsStateWithLifecycle()
     val scaleCart = remember { Animatable(1f) }
 
     // State for custom Canvas-based labels

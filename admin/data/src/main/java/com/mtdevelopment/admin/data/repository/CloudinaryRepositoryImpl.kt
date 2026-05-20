@@ -2,13 +2,13 @@ package com.mtdevelopment.admin.data.repository
 
 import android.net.Uri
 import android.util.Log
-import com.cloudinary.Cloudinary
 import com.cloudinary.android.MediaManager
 import com.cloudinary.android.callback.ErrorInfo
 import com.cloudinary.android.callback.UploadCallback
 import com.mtdevelopment.admin.data.BuildConfig
 import com.mtdevelopment.admin.data.source.FirestoreAdminDatasource
 import com.mtdevelopment.admin.domain.repository.CloudinaryRepository
+import com.mtdevelopment.admin.domain.repository.SignatureProvider
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resume
 
@@ -17,13 +17,14 @@ import kotlin.coroutines.resume
  * This class handles secure image uploads by generating a client-side signature.
  */
 class CloudinaryRepositoryImpl(
-    private val firestoreAdminDatasource: FirestoreAdminDatasource
+    private val firestoreAdminDatasource: FirestoreAdminDatasource,
+    private val signatureProvider: SignatureProvider
 ) : CloudinaryRepository {
 
     /**
      * Uploads an image to Cloudinary using [MediaManager].
      * The process involves:
-     * 1. Generating a signature using local private keys (BuildConfig).
+     * 1. Generating a signature using the provided [SignatureProvider].
      * 2. Configuring [MediaManager] with options.
      * 3. Handling the upload lifecycle via [UploadCallback].
      * 4. Resuming the coroutine with the resulting image URL.
@@ -40,13 +41,8 @@ class CloudinaryRepositoryImpl(
             "timestamp" to timestamp
         )
 
-        // Generating a secure signature to allow unsigned-like upload from client but still authenticated
-        // // TODO: Ideally, signature generation should happen on a secure backend to avoid exposing CLOUDINARY_PRIVATE in the app.
-        val signature = Cloudinary().apiSignRequest(
-            paramsToSign,
-            BuildConfig.CLOUDINARY_PRIVATE,
-            1
-        )
+        // Delegate signature generation to the provider (can be local or remote)
+        val signature = signatureProvider.generateCloudinarySignature(paramsToSign)
 
         val options = mutableMapOf<String, Any>(
             "resource_type" to "image",

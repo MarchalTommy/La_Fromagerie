@@ -1,5 +1,15 @@
 package com.mtdevelopment.home.presentation.composable
 
+/**
+ * Main dashboard screen for the customer.
+ * Displays a grid of products, a floating action button for the cart with a quantity badge,
+ * and handles adding items to the cart with a bouncy animation.
+ * 
+ * Key behaviors:
+ * 1. Splash Screen: Signals [mainViewModel] to remove the splash screen once the first product image loads.
+ * 2. Animations: Provides a spring-based scale animation on the cart FAB when an item is added.
+ * 3. Cart Integration: Opens the [CartView] bottom sheet when the FAB is clicked.
+ */
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
@@ -32,9 +42,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.rive.runtime.kotlin.core.Rive
 import com.mtdevelopment.cart.presentation.viewmodel.CartViewModel
 import com.mtdevelopment.core.presentation.MainViewModel
+import com.mtdevelopment.core.presentation.composable.ErrorOverlay
 import com.mtdevelopment.core.presentation.composable.RiveAnimation
 import com.mtdevelopment.core.presentation.sharedModels.UiProductObject
 import com.mtdevelopment.core.util.koinViewModel
@@ -42,16 +54,6 @@ import com.mtdevelopment.home.presentation.composable.cart.CartView
 import com.mtdevelopment.home.presentation.viewmodel.HomeViewModel
 import kotlinx.coroutines.launch
 
-/**
- * Main dashboard screen for the customer.
- * Displays a grid of products, a floating action button for the cart with a quantity badge,
- * and handles adding items to the cart with a bouncy animation.
- * 
- * Key behaviors:
- * 1. Splash Screen: Signals [mainViewModel] to remove the splash screen once the first product image loads.
- * 2. Animations: Provides a spring-based scale animation on the cart FAB when an item is added.
- * 3. Cart Integration: Opens the [CartView] bottom sheet when the FAB is clicked.
- */
 @Composable
 fun HomeScreen(
     mainViewModel: MainViewModel,
@@ -69,8 +71,8 @@ fun HomeScreen(
     // Animatable for the cart FAB scale effect
     val scaleCart = remember { Animatable(1f) }
 
-    val cartState = cartViewModel.cartUiState
-    val homeState = homeViewModel.homeUiState
+    val cartState by cartViewModel.cartUiState.collectAsStateWithLifecycle()
+    val homeState by homeViewModel.homeUiState.collectAsStateWithLifecycle()
     var showEditDialog by remember { mutableStateOf(false) }
     var editedProduct by remember { mutableStateOf<UiProductObject?>(null) }
 
@@ -128,7 +130,7 @@ fun HomeScreen(
             items(items = homeState.products, key = { it.id }) { productListItem ->
 
                 ProductItem(
-                    modifier = if (productListItem.id == homeState.products.last().id) {
+                    modifier = if (homeState.products.isNotEmpty() && productListItem.id == homeState.products.last().id) {
                         Modifier.padding(
                             bottom = 64.dp // Extra padding for the last item to avoid being covered by FAB
                         )
@@ -158,29 +160,52 @@ fun HomeScreen(
         }
 
         // Floating Action Button for the Cart
-        BadgedBox(
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .graphicsLayer {
-                    scaleX = scaleCart.value
-                    scaleY = scaleCart.value
-                }
-                .padding(32.dp),
-            badge = {
-                if ((cartState.cartItems?.cartItems) != null && (cartState.cartItems?.cartItems?.size)!! > 0) {
+        val cartItems = cartState.cartItems?.cartItems
+        if (!cartItems.isNullOrEmpty()) {
+            BadgedBox(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .graphicsLayer {
+                        scaleX = scaleCart.value
+                        scaleY = scaleCart.value
+                    }
+                    .padding(32.dp),
+                badge = {
+                    val cartItemsQuantity = cartItems.sumOf { it?.quantity ?: 0 }
                     Badge(
                         containerColor = Color.Red,
                         contentColor = Color.White
                     ) {
-                        val cartItemsQuantity =
-                            cartState.cartItems?.cartItems!!.sumOf { it?.quantity ?: 0 }
                         Text("$cartItemsQuantity")
                     }
                 }
+            ) {
+                FloatingActionButton(
+                    modifier = Modifier
+                        .border(
+                            3.dp,
+                            color = MaterialTheme.colorScheme.tertiary,
+                            shape = RoundedCornerShape(16.dp)
+                        ),
+                    containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                    contentColor = MaterialTheme.colorScheme.tertiary,
+                    onClick = {
+                        cartViewModel.setCartVisibility(true)
+                    }
+                ) {
+                    Icon(imageVector = Icons.Default.ShoppingCart, contentDescription = "Cart")
+                }
             }
-        ) {
+        } else {
+            // FAB without badge if cart is empty
             FloatingActionButton(
                 modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(32.dp)
+                    .graphicsLayer {
+                        scaleX = scaleCart.value
+                        scaleY = scaleCart.value
+                    }
                     .border(
                         3.dp,
                         color = MaterialTheme.colorScheme.tertiary,
@@ -213,6 +238,10 @@ fun HomeScreen(
         }
 
         // Loading Overlay (Rive animation)
+        ErrorOverlay(
+            isShown = homeState.isError != null,
+            message = homeState.isError?.asString(),
+        )
         RiveAnimation(
             isLoading = homeState.isLoading,
             modifier = Modifier.fillMaxSize(),
