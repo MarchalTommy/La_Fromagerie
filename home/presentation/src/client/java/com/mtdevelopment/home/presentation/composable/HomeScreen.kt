@@ -230,8 +230,8 @@ fun HomeScreen(
                 },
                 onNavigateToCheckout = {
                     cartState.cartItems.let {
-                        // Reset cart state and close sheet before navigating to delivery/checkout
-                        cartViewModel.resetCart(withVisibility = true)
+                        // Hide cart sheet and navigate to delivery options without clearing the cart items
+                        cartViewModel.setCartVisibility(false)
                         navigateToDelivery.invoke()
                     }
                 })

@@ -67,7 +67,11 @@ class DeliveryViewModel(
     /**
      * Internal state for debouncing address search queries.
      */
-    private val _searchQuery = MutableStateFlow("")
+    private val _deliverySearchQuery = MutableStateFlow("")
+    private val _billingSearchQuery = MutableStateFlow("")
+
+    private var deliveryAutocompleteJob: kotlinx.coroutines.Job? = null
+    private var billingAutocompleteJob: kotlinx.coroutines.Job? = null
 
     init {
         viewModelScope.launch {
@@ -90,7 +94,7 @@ class DeliveryViewModel(
 
         // Setup debounced search for admin-side address autocomplete
         viewModelScope.launch {
-            _searchQuery
+            _deliverySearchQuery
                 .debounce(300)
                 .distinctUntilChanged()
                 .filter { it.isNotBlank() }
@@ -102,7 +106,7 @@ class DeliveryViewModel(
 
         // Manage visibility of the suggestions dropdown
         viewModelScope.launch {
-            _searchQuery.collect { query ->
+            _deliverySearchQuery.collect { query ->
                 deliveryUiDataState = if (query.isBlank()) {
                     deliveryUiDataState.copy(
                         showAddressSuggestions = false,
@@ -141,15 +145,26 @@ class DeliveryViewModel(
 
         // Setup debounced search visibility for client-side autocomplete
         viewModelScope.launch {
-            _searchQuery.collect { query ->
+            _deliverySearchQuery.collect { query ->
                 deliveryUiDataState = if (query.isBlank()) {
                     deliveryUiDataState.copy(
                         showAddressSuggestions = false,
-                        deliveryAddressSuggestions = emptyList(),
-                        billingAddressSuggestions = emptyList()
+                        deliveryAddressSuggestions = emptyList()
                     )
                 } else {
                     deliveryUiDataState.copy(showAddressSuggestions = true)
+                }
+            }
+        }
+        viewModelScope.launch {
+            _billingSearchQuery.collect { query ->
+                deliveryUiDataState = if (query.isBlank()) {
+                    deliveryUiDataState.copy(
+                        showBillingAddressSuggestions = false,
+                        billingAddressSuggestions = emptyList()
+                    )
+                } else {
+                    deliveryUiDataState.copy(showBillingAddressSuggestions = true)
                 }
             }
         }
@@ -219,15 +234,32 @@ class DeliveryViewModel(
      * @param isBilling If true, targets the billing address field instead of delivery.
      */
     fun startAutocomplete(isBilling: Boolean = false) {
-        viewModelScope.launch {
-            _searchQuery
-                .debounce(300)
-                .distinctUntilChanged()
-                .filter { it.isNotBlank() }
-                .filter { it.length >= 5 }
-                .collectLatest { query ->
-                    fetchAddressSuggestions(query, isBilling)
+        if (isBilling) {
+            if (billingAutocompleteJob == null) {
+                billingAutocompleteJob = viewModelScope.launch {
+                    _billingSearchQuery
+                        .debounce(300)
+                        .distinctUntilChanged()
+                        .filter { it.isNotBlank() }
+                        .filter { it.length >= 5 }
+                        .collectLatest { query ->
+                            fetchAddressSuggestions(query, isBilling = true)
+                        }
                 }
+            }
+        } else {
+            if (deliveryAutocompleteJob == null) {
+                deliveryAutocompleteJob = viewModelScope.launch {
+                    _deliverySearchQuery
+                        .debounce(300)
+                        .distinctUntilChanged()
+                        .filter { it.isNotBlank() }
+                        .filter { it.length >= 5 }
+                        .collectLatest { query ->
+                            fetchAddressSuggestions(query, isBilling = false)
+                        }
+                }
+            }
         }
     }
 
@@ -291,7 +323,11 @@ class DeliveryViewModel(
         } else {
             deliveryUiDataState.copy(deliveryAddressSearchQuery = address)
         }
-        _searchQuery.value = address
+        if (isBilling) {
+            _billingSearchQuery.value = address
+        } else {
+            _deliverySearchQuery.value = address
+        }
     }
 
     fun setIsLoading(isLoading: Boolean) {
@@ -309,7 +345,11 @@ class DeliveryViewModel(
             updateLocalisationState(false)
             deliveryUiDataState.copy(deliveryAddressSearchQuery = query)
         }
-        _searchQuery.value = "" // Clear query to stop suggestions
+        if (isBilling) {
+            _billingSearchQuery.value = ""
+        } else {
+            _deliverySearchQuery.value = ""
+        }
         setAddressesSuggestions(emptyList(), isBilling = isBilling)
         setShowAddressesSuggestions(false, isBilling = isBilling)
     }

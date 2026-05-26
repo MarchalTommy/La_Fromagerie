@@ -19,9 +19,6 @@ import org.koin.core.logger.Level
  * 2. Cloudinary: Used for product image hosting and upload.
  * 3. Koin: Dependency injection framework used across all modules.
  */
-// TODO: On delivery for Clients variant, when delivery and billing addresses are different, autocomplete on billing changes the delivery.
-// TODO: On delivery for Clients variant, when keyboard is up, content padding seems too big and a white bar appears on top of the keyboard.
-// TODO: On delivery for Clients variant, even when the delivery address is in a city which is part of a delivery path, I feel like we always show the "too far" message.
 class CheeseApplication : Application() {
 
     override fun onCreate() {

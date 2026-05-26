@@ -82,6 +82,29 @@ fun calculateDistance(lat1: Double, lon1: Double, lat2: Double, lon2: Double): F
 }
 
 /**
+ * Normalizes a city name by removing accents, lowercasing, replacing dashes with spaces,
+ * removing non-alphanumeric characters, and collapsing multiple spaces.
+ */
+fun String.normalizeCityName(): String {
+    val temp = java.text.Normalizer.normalize(this, java.text.Normalizer.Form.NFD)
+    val regex = "\\p{InCombiningDiacriticalMarks}+".toRegex()
+    return regex.replace(temp, "")
+        .lowercase()
+        .replace("-", " ")
+        .replace("[^a-z0-9 ]".toRegex(), "")
+        .trim()
+        .replace("\\s+".toRegex(), " ")
+}
+
+/**
+ * Compares two city names for equality after normalization.
+ */
+fun isSameCity(city1: String?, city2: String?): Boolean {
+    if (city1 == null || city2 == null) return false
+    return city1.normalizeCityName() == city2.normalizeCityName()
+}
+
+/**
  * Helper to move an element from one index to another in a [MutableList].
  */
 fun <T> MutableList<T>.move(from: Int, to: Int) {

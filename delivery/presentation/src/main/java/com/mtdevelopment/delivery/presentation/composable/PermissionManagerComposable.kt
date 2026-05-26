@@ -12,6 +12,7 @@ import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import com.mapbox.android.core.permissions.PermissionsManager.Companion.areLocationPermissionsGranted
 import com.mtdevelopment.core.domain.calculateDistance
+import com.mtdevelopment.core.domain.isSameCity
 import com.mtdevelopment.delivery.presentation.model.UiDeliveryPath
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -215,7 +216,7 @@ private suspend fun checkLocationEligibility(
             }
 
             // Path covers user's city?
-            if (userCity != null && path.cities.any { it.first.equals(userCity, ignoreCase = true) }) {
+            if (path.cities.any { isSameCity(it.first, userCity) }) {
                 pathsInCity.add(path)
             }
         }

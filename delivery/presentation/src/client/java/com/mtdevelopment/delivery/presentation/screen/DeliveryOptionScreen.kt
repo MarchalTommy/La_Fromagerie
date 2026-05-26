@@ -90,17 +90,17 @@ fun DeliveryOptionScreen(
 
     Surface(
         modifier = Modifier
-            .imePadding()
             .fillMaxSize()
-            .verticalScroll(
-                state = scrollState,
-                // Disable scrolling if an overlay (Error) is shown or if a child component is intercepting touch events
-                enabled = state.value.columnScrollingEnabled && state.value.isError.isEmpty()
-            )
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .imePadding()
+                .verticalScroll(
+                    state = scrollState,
+                    // Disable scrolling if an overlay (Error) is shown or if a child component is intercepting touch events
+                    enabled = state.value.columnScrollingEnabled && state.value.isError.isEmpty()
+                )
                 .padding(8.dp)
         ) {
             // MAP SECTION: Visualizes delivery zones
@@ -130,8 +130,6 @@ fun DeliveryOptionScreen(
                     deliveryViewModel.setIsError("Erreur lors de la sauvegarde de vos informations")
                 }
             )
-
-            Spacer(modifier = Modifier.imePadding())
         }
 
         /**
