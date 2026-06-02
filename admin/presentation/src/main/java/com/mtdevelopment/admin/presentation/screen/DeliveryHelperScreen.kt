@@ -32,6 +32,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -67,6 +68,7 @@ import com.mtdevelopment.core.presentation.composable.RiveAnimation
 import com.mtdevelopment.core.util.koinViewModel
 import com.skydoves.landscapist.ImageOptions
 import com.skydoves.landscapist.glide.GlideImage
+import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.format.TextStyle
 import java.util.Collections.emptyList
@@ -90,6 +92,7 @@ fun DeliveryHelperScreen(
     val viewModel = koinViewModel<AdminViewModel>()
     val context = LocalContext.current
     val state = viewModel.orderScreenState.collectAsState()
+    val coroutineScope = rememberCoroutineScope()
 
     // Permission state management
     var hasPermissions by remember {
@@ -210,22 +213,31 @@ fun DeliveryHelperScreen(
      */
     fun startDelivery() {
         viewModel.onLoading(true)
-        viewModel.getCurrentLocationToStart()
-        viewModel.getOptimisedPath(dailyOrders.value.map { it.customerAddress }) { optimizedOrdersList ->
-            launchDeliveryTracking()
+        coroutineScope.launch {
+            val location = viewModel.getCurrentLocationToStartSuspend()
+            viewModel.getOptimisedPath(dailyOrders.value.map { it.customerAddress }) { optimizedOrdersList ->
+                launchDeliveryTracking()
 
-            // Building Google Maps Intent URL
-            // // TODO: Use a safer URL builder or Uri.Builder for better readability and safety.
-            var link =
-                "https://www.google.com/maps/dir/${state.value.currentAdminLocation?.latitude},${state.value.currentAdminLocation?.longitude}/"
+                // Building Google Maps Intent URL
+                var link = "https://www.google.com/maps/dir/"
+                if (location != null) {
+                    link = link.plus("${location.latitude},${location.longitude}/")
+                }
 
-            optimizedOrdersList.optimizedRoute.forEach {
-                link =
-                    link.plus(it.first).plus(",").plus(it.second).plus("/")
+                if (optimizedOrdersList.optimizedRoute.isNotEmpty()) {
+                    optimizedOrdersList.optimizedRoute.forEach {
+                        link = link.plus(it.first).plus(",").plus(it.second).plus("/")
+                    }
+                } else {
+                    // FALLBACK: Use address strings directly!
+                    dailyOrders.value.forEach {
+                        link = link.plus(android.net.Uri.encode(it.customerAddress)).plus("/")
+                    }
+                }
+                viewModel.onLoading(false)
+                val intent = Intent(Intent.ACTION_VIEW, link.toUri())
+                context.startActivity(intent)
             }
-            viewModel.onLoading(false)
-            val intent = Intent(Intent.ACTION_VIEW, link.toUri())
-            context.startActivity(intent)
         }
     }
 

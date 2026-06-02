@@ -4,6 +4,7 @@ import androidx.core.net.toUri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mtdevelopment.admin.domain.model.OptimizedRouteWithOrders
+import com.mtdevelopment.admin.domain.repository.CurrentLocation
 import com.mtdevelopment.admin.domain.usecase.AddNewPathUseCase
 import com.mtdevelopment.admin.domain.usecase.AddNewProductUseCase
 import com.mtdevelopment.admin.domain.usecase.DeletePathUseCase
@@ -38,7 +39,6 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.koin.core.component.KoinComponent
-import java.time.Instant
 
 /**
  * ViewModel for the administrative part of the application.
@@ -274,23 +274,22 @@ class AdminViewModel(
      * Fetches all orders and preparation statuses.
      */
     fun getAllOrders() {
-        viewModelScope.launch {
-            _orderScreenState.value = _orderScreenState.value.copy(
-                isLoading = true
-            )
-
+        _orderScreenState.update { state ->
+            state.copy(isLoading = true)
         }
         viewModelScope.launch {
-            getAllOrdersUseCase.invoke(onSuccess = {
-                _orderScreenState.value = _orderScreenState.value.copy(
-                    orders = it ?: emptyList(),
-                    error = if (it == null) "Error fetching orders" else null,
-                    isLoading = false
-                )
-            })
-            getPreparationStatusesUseCase.invoke(onSuccess = {
+            getAllOrdersUseCase.invoke(onSuccess = { ordersList ->
                 _orderScreenState.update { state ->
-                    state.copy(preparationStatuses = it ?: emptyList())
+                    state.copy(
+                        orders = ordersList ?: emptyList(),
+                        error = if (ordersList == null) "Error fetching orders" else null,
+                        isLoading = false
+                    )
+                }
+            })
+            getPreparationStatusesUseCase.invoke(onSuccess = { statusesList ->
+                _orderScreenState.update { state ->
+                    state.copy(preparationStatuses = statusesList ?: emptyList())
                 }
             })
         }
@@ -336,9 +335,11 @@ class AdminViewModel(
      */
     fun getOptimisedPath(addresses: List<String>, onSuccess: (OptimizedRouteWithOrders) -> Unit) {
         viewModelScope.launch {
-            // // TODO: 'toTimeStamp' and date comparison needs to be robust against timezone issues.
+            val todayStart =
+                java.time.LocalDate.now().atStartOfDay(java.time.ZoneOffset.UTC).toInstant()
+                    .toEpochMilli()
             val dailyOrders = _orderScreenState.value.orders.filter {
-                it.deliveryDate.toTimeStamp() == Instant.now().toEpochMilli()
+                it.deliveryDate.toTimeStamp() == todayStart
             }
             val result = getOptimizedDeliveryUseCase.invoke(addresses, dailyOrders)
             onSuccess.invoke(result)
@@ -360,6 +361,14 @@ class AdminViewModel(
                 currentAdminLocation = getCurrentLocationOnceUseCase.invoke()
             )
         }
+    }
+
+    suspend fun getCurrentLocationToStartSuspend(): CurrentLocation? {
+        val location = getCurrentLocationOnceUseCase.invoke()
+        _orderScreenState.update {
+            it.copy(currentAdminLocation = location)
+        }
+        return location
     }
 
     fun getTrackingStatusOnce(onResult: (Boolean) -> Unit) {

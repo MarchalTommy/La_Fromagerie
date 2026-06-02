@@ -112,23 +112,21 @@ fun DeliveryOptionScreen(
                 }
             )
 
-            if (state.value.deliveryPaths.isNotEmpty()) {
-                AdminContent(
-                    pathList = state.value.deliveryPaths.map { it.toAdminUiDeliveryPath() },
-                    onPathSelected = { path ->
-                        selectedPath.value = path
-                        showEditDialog.value = true
-                    },
-                    onPathPreSelected = { preselected ->
-                        if (preselected != null) {
-                            state.value.deliveryPaths.find { it.name == preselected.name }
-                                ?.let { deliveryViewModel.updateSelectedPath(it) }
-                        } else {
-                            deliveryViewModel.updateSelectedPath(null)
-                        }
+            AdminContent(
+                pathList = state.value.deliveryPaths.map { it.toAdminUiDeliveryPath() },
+                onPathSelected = { path ->
+                    selectedPath.value = path
+                    showEditDialog.value = true
+                },
+                onPathPreSelected = { preselected ->
+                    if (preselected != null) {
+                        state.value.deliveryPaths.find { it.name == preselected.name }
+                            ?.let { deliveryViewModel.updateSelectedPath(it) }
+                    } else {
+                        deliveryViewModel.updateSelectedPath(null)
                     }
-                )
-            }
+                }
+            )
 
             Spacer(modifier = Modifier.imePadding())
         }

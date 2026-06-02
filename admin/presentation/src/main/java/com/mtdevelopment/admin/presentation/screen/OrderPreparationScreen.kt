@@ -99,7 +99,7 @@ fun OrderPreparationList(
 ) {
     // Sort and unique delivery dates
     val nextDeliveryDates =
-        orders.map { it.deliveryDate }.sortedByDescending { it.toTimeStamp() }.toSet()
+        orders.map { it.deliveryDate }.sortedBy { it.toTimeStamp() }.toSet()
     val ordersByDeliveryDate = orders.groupBy { it.deliveryDate }
 
     LazyColumn {

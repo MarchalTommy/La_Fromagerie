@@ -66,7 +66,7 @@ fun DeliveryAddDialog(
     }
 
     val todayDate =
-        LocalDate.now().atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
+        LocalDate.now().atStartOfDay(java.time.ZoneOffset.UTC).toInstant().toEpochMilli()
             .toStringDate()
 
     val tempOrder = remember {
@@ -192,7 +192,13 @@ fun DeliveryAddDialog(
                             shape = MaterialTheme.shapes.large,
                             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 16.dp),
                             onClick = {
-                                onConfirm.invoke(tempOrder.value)
+                                val finalAddress =
+                                    tempOrder.value.customerAddress.ifBlank { searchQuery }
+                                val finalOrder = tempOrder.value.copy(
+                                    customerAddress = finalAddress,
+                                    customerBillingAddress = finalAddress
+                                )
+                                onConfirm.invoke(finalOrder)
                                 onDismiss.invoke()
                             },
                         ) {
