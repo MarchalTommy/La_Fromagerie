@@ -36,16 +36,29 @@ import kotlinx.coroutines.isActive
 // TODO:   Error processing checkout ac86fa64-d0d0-4072-ae23-d48463525e12: 500 Internal Server Error.
 //  Body: {"error_code":"INTERNAL_SERVER_ERROR","message":"Internal Server Error"}
 
-// Classe interne pour marquer le succès initial du PUT avec un statut 202
+/**
+ * Internal marker to indicate that the initial PUT request to process a checkout 
+ * was accepted (202) but is still processing (e.g., waiting for 3DS or backend authorization).
+ */
 private data class InitialPutAccepted(val checkoutId: String)
 
-// Constantes pour le polling
+/**
+ * Data source for interacting with the SumUp API.
+ * This class handles the complexity of the payment lifecycle, including:
+ * - Checkout session creation.
+ * - Processing payments with Google Pay tokens.
+ * - Handling 3D Secure verification flows.
+ * - Polling for final transaction status (PAID/FAILED).
+ */
 private const val MAX_POLLING_ATTEMPTS =
-    40 // Ex: 40 tentatives * 3 secondes = 2 minute max (pour les cas 3DS par exemple)
-private const val POLLING_INTERVAL_MS = 3000L // 3 secondes
+    40 // e.g., 40 attempts * 3 seconds = 2 minutes max (covers most 3DS scenarios)
+private const val POLLING_INTERVAL_MS = 3000L // 3 seconds
 
 class SumUpDataSource(private val httpClient: HttpClient) {
 
+    /**
+     * Retrieves a list of checkout sessions, optionally filtered by reference.
+     */
     fun getCheckoutsList(reference: String? = null): Flow<NetWorkResult<List<CheckoutResponse?>>> {
         return toResultFlow {
             val response = httpClient.get {
@@ -62,6 +75,9 @@ class SumUpDataSource(private val httpClient: HttpClient) {
         }
     }
 
+    /**
+     * Fetches detailed information about a specific checkout session by its ID.
+     */
     fun getCheckoutFromId(id: String): Flow<NetWorkResult<CheckoutResponse>> {
         return toResultFlow {
             try {
@@ -86,6 +102,10 @@ class SumUpDataSource(private val httpClient: HttpClient) {
         }
     }
 
+    /**
+     * Step 3 of the payment flow: Creates a new checkout session on SumUp.
+     * This must be done before collecting payment information.
+     */
     fun createNewCheckout(body: CheckoutCreationBody): Flow<NetWorkResult<NewCheckoutResponse?>> {
         return toResultFlow {
             val response = httpClient.post {
@@ -101,6 +121,18 @@ class SumUpDataSource(private val httpClient: HttpClient) {
         }
     }
 
+    /**
+     * Step 6 of the payment flow: Processes the checkout using Google Pay data.
+     * 
+     * This method is complex because it handles the asynchronous nature of card payments:
+     * 1. Sends the initial PUT request with payment details.
+     * 2. If status is 200 (OK), the payment might be already terminal (PAID/FAILED) or PENDING.
+     * 3. If status is 202 (Accepted), it means the payment is being processed (often waiting for 3DS).
+     * 4. In case of 202 or PENDING, it initiates a polling mechanism to wait for the final status.
+     * 
+     * @param requestBody Contains the checkout ID and Google Pay tokenized data.
+     * @param on3DSecureRequired Callback triggered if the transaction requires 3DS verification.
+     */
     @OptIn(ExperimentalCoroutinesApi::class)
     fun processCheckout(
         requestBody: ProcessCheckoutRequest,
@@ -114,8 +146,8 @@ class SumUpDataSource(private val httpClient: HttpClient) {
             )
         )
 
-        return toResultFlow<Any?> { // Utilise Any? car la réponse peut être CheckoutResponse (200 OK)
-            // ou ProcessCheckoutResponse (202 Accepted) pour un 3DS
+        return toResultFlow<Any?> {
+            // The response can be CheckoutResponse (200 OK) or ProcessCheckoutResponse (202 Accepted)
             val result = httpClient.put {
                 url { path("v0.1/checkouts/$checkoutIdToProcess") }
                 contentType(ContentType.Application.Json)
@@ -124,16 +156,18 @@ class SumUpDataSource(private val httpClient: HttpClient) {
 
             when (result.status) {
                 HttpStatusCode.Accepted -> {
+                    // 202 Accepted: The payment requires further action or is being processed.
                     val response3DS = result.body<ProcessCheckoutResponse>()
-                    // On notifie l'UI qu'une action est requise avec TOUTES les infos
+
+                    // Notify UI if 3DS is required. The UI will then launch the 3DS Activity.
                     response3DS.nextStep?.let { on3DSecureRequired(it.toNextStep()) }
 
-                    Log.i("ProcessCheckoutInfo", "3DS Required. Polling started.")
+                    Log.i("ProcessCheckoutInfo", "3DS Required or Processing. Polling started.")
                     NetWorkResult.Success(InitialPutAccepted(checkoutIdToProcess))
                 }
 
                 HttpStatusCode.OK -> {
-                    // Le traitement a peut-être déjà un statut final.
+                    // 200 OK: Initial request succeeded.
                     val checkoutResponse = result.body<CheckoutResponse>()
                     Log.i(
                         "ProcessCheckoutInfo",
@@ -143,6 +177,7 @@ class SumUpDataSource(private val httpClient: HttpClient) {
                 }
 
                 else -> {
+                    // Error case
                     val errorBody = try {
                         result.body<String>()
                     } catch (e: Exception) {
@@ -159,16 +194,17 @@ class SumUpDataSource(private val httpClient: HttpClient) {
                 }
             }
         }.flatMapLatest { initialPutResult ->
+            // Chain the initial request with the polling logic if needed.
             when (initialPutResult) {
                 is NetWorkResult.Success -> {
                     when (val data = initialPutResult.data) {
                         is InitialPutAccepted -> {
-                            // Cas 202: Commencer le polling
+                            // Case 202: Start polling immediately
                             pollCheckoutStatus(data.checkoutId)
                         }
 
                         is CheckoutResponse -> {
-                            // Cas 200 initial: Vérifier le statut
+                            // Case 200: Check if it's already terminal or if we need to poll
                             if (data.status == CHECKOUT_STATUS.PENDING) {
                                 data.id?.let { pollCheckoutStatus(it) }
                                     ?: flowOf(
@@ -178,7 +214,7 @@ class SumUpDataSource(private val httpClient: HttpClient) {
                                         )
                                     )
                             } else {
-                                // Statut final (PAID, FAILED), retourner directement
+                                // Final status (PAID, FAILED) already reached
                                 flowOf(NetWorkResult.Success(data))
                             }
                         }
@@ -201,12 +237,19 @@ class SumUpDataSource(private val httpClient: HttpClient) {
         }.flowOn(Dispatchers.IO)
     }
 
+    /**
+     * Polls the SumUp API until the checkout session reaches a terminal state (PAID or FAILED).
+     * This is essential for payments that require background processing or user verification (3DS).
+     * 
+     * // TODO: If the app is killed, this polling loop stops. 
+     * // TODO: Suggest implementing a WorkManager task or a more robust state recovery mechanism on app launch to resume polling for pending checkouts.
+     */
     private fun pollCheckoutStatus(checkoutId: String): Flow<NetWorkResult<CheckoutResponse>> {
         return flow {
             for (attempt in 0 until MAX_POLLING_ATTEMPTS) {
                 if (!currentCoroutineContext().isActive) {
                     Log.i("PollCheckoutStatus", "Polling cancelled for $checkoutId")
-                    break // Sort de la boucle for
+                    break
                 }
 
                 Log.d(
@@ -215,13 +258,9 @@ class SumUpDataSource(private val httpClient: HttpClient) {
                 )
                 var shouldContinuePolling = false
 
-                // Utiliser .first() ici car getCheckoutFromId émet une seule valeur
                 val result: NetWorkResult<CheckoutResponse> = try {
                     getCheckoutFromId(checkoutId).first()
                 } catch (e: Exception) {
-                    // .first() peut lever NoSuchElementException si le Flow est vide,
-                    // mais toResultFlow garantit une émission.
-                    // Capturer d'autres exceptions potentielles de la récupération de l'élément.
                     Log.e(
                         "PollCheckoutStatus",
                         "Exception when calling getCheckoutFromId($checkoutId).first(): ${e.message}",
@@ -233,7 +272,7 @@ class SumUpDataSource(private val httpClient: HttpClient) {
                             "GET_STATUS_EXCEPTION"
                         )
                     )
-                    return@flow // Terminer le flux de polling en cas d'exception imprévue ici
+                    return@flow 
                 }
 
                 when (result) {
@@ -245,20 +284,22 @@ class SumUpDataSource(private val httpClient: HttpClient) {
                         )
                         when (checkoutResponse.status) {
                             CHECKOUT_STATUS.PAID, CHECKOUT_STATUS.FAILED -> {
-                                emit(NetWorkResult.Success(checkoutResponse)) // Statut final atteint
-                                return@flow // Terminer le flux de polling
+                                // Terminal status reached!
+                                emit(NetWorkResult.Success(checkoutResponse))
+                                return@flow 
                             }
 
                             CHECKOUT_STATUS.PENDING -> {
-                                shouldContinuePolling = true // Continuer le polling
+                                // Still processing, continue the loop
+                                shouldContinuePolling = true
                             }
 
-                            null -> { // Statut est nullable dans CheckoutResponse
+                            null -> { 
                                 Log.w(
                                     "PollCheckoutStatus",
                                     "Checkout status is null for $checkoutId. Treating as PENDING for polling."
                                 )
-                                shouldContinuePolling = true // Continuer le polling
+                                shouldContinuePolling = true
                             }
                         }
                     }
@@ -268,19 +309,17 @@ class SumUpDataSource(private val httpClient: HttpClient) {
                             "PollCheckoutStatus",
                             "Error polling $checkoutId: ${result.message}"
                         )
-                        emit(result) // Propager l'erreur de getCheckoutFromId
+                        emit(result) 
                         return@flow
                     }
                 }
 
                 if (!shouldContinuePolling) {
-                    // Ce bloc est atteint si NetWorkResult.Success a été reçu,
-                    // mais le statut n'était ni PAID, FAILED, PENDING, ni null (ou un autre cas qui n'a pas mis shouldContinuePolling à true).
-                    // Ou si un 'else' dans le when(checkoutResponse.status) a été atteint sans return@flow.
+                    // Logic safety net: stop if we are in an unexpected state
                     if (currentCoroutineContext().isActive) {
                         Log.w(
                             "PollCheckoutStatus",
-                            "Polling logic decided not to continue for $checkoutId without reaching a final state. Last known status: ${(result as? NetWorkResult.Success)?.data?.status}"
+                            "Polling logic decided not to continue for $checkoutId without reaching a final state."
                         )
                         emit(
                             NetWorkResult.Error(
@@ -292,13 +331,13 @@ class SumUpDataSource(private val httpClient: HttpClient) {
                     return@flow
                 }
 
-                // Attendre avant la prochaine tentative, sauf si c'est la dernière
+                // Wait before next attempt
                 if (attempt < MAX_POLLING_ATTEMPTS - 1 && currentCoroutineContext().isActive) {
                     delay(POLLING_INTERVAL_MS)
                 }
             }
 
-            // Si la boucle se termine après toutes les tentatives sans statut final
+            // Timeout reached without terminal status
             if (currentCoroutineContext().isActive) {
                 Log.w(
                     "PollCheckoutStatus",

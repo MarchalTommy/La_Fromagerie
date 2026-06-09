@@ -86,7 +86,7 @@ class DeliveryTrackingService : Service(), KoinComponent {
                     val allOrders = ordersResult ?: emptyList()
 
                     val todayStr =
-                        LocalDate.now().atStartOfDay(java.time.ZoneId.systemDefault())
+                        LocalDate.now().atStartOfDay(java.time.ZoneOffset.UTC)
                             .toInstant().toEpochMilli().toStringDate()
 
                     todaysOrders = allOrders.filter { it.deliveryDate == todayStr }

@@ -6,62 +6,124 @@ import java.text.NumberFormat
 import java.util.Locale
 
 
+/**
+ * Converts a price in [Double] to its cent representation in [Long] to avoid precision issues.
+ */
 fun Double.toCentsLong(): Long {
     return (this * 100).toLong()
 }
 
+/**
+ * Converts a price in cents [Long] to its [Double] representation.
+ */
 fun Long.toPriceDouble(): Double {
     return this.toDouble() / 100
 }
 
+/**
+ * Formats a cent-based [Long] price into a localized currency string (e.g., "10,50 €").
+ */
 fun Long.toStringPrice(): String {
     val tempDouble = this / 100.0
     val format = NumberFormat.getCurrencyInstance(Locale.FRANCE)
     return format.format(tempDouble)
 }
 
+/**
+ * Parses a currency string into its cent-based [Long] representation.
+ */
 fun String.toLongPrice(): Long {
     return (this.replace("€", "").replace(",", ".").trim().toDouble() * 100).toLong()
 }
 
+/**
+ * Formatter for dates in "dd/MM/yyyy" format using the system timezone.
+ */
 private val DATE_FORMATTER_DDMMYYYY: java.time.format.DateTimeFormatter =
     java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy")
         .withZone(java.time.ZoneId.systemDefault())
 
-fun String.toTimeStamp(): Long {
+/**
+ * Parses a "dd/MM/yyyy" date string into a LocalDate.
+ */
+fun String.toLocalDate(): java.time.LocalDate? {
     return try {
-        val localDate = java.time.LocalDate.parse(this, DATE_FORMATTER_DDMMYYYY)
-        localDate.atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
+        java.time.LocalDate.parse(this, DATE_FORMATTER_DDMMYYYY)
     } catch (e: Exception) {
-        0L // Retourne 0 ou une valeur par défaut en cas d'erreur de parsing
+        null
     }
 }
 
-fun Long.toStringDate(): String {
-    val instant = java.time.Instant.ofEpochMilli(this)
-    return DATE_FORMATTER_DDMMYYYY.format(instant)
+/**
+ * Parses a "dd/MM/yyyy" date string into a Unix timestamp (milliseconds).
+ * Uses UTC to ensure stable timestamps regardless of device timezone changes.
+ */
+fun String.toTimeStamp(): Long {
+    return toLocalDate()?.atStartOfDay(java.time.ZoneOffset.UTC)?.toInstant()?.toEpochMilli() ?: 0L
 }
 
-// Fonction utilitaire pour calculer la distance (utilise l'API Location d'Android)
+/**
+ * Formats a Unix timestamp (milliseconds) into a "dd/MM/yyyy" date string.
+ * Uses UTC to ensure stable formatting.
+ */
+fun Long.toStringDate(): String {
+    val instant = java.time.Instant.ofEpochMilli(this)
+    return DATE_FORMATTER_DDMMYYYY.withZone(java.time.ZoneOffset.UTC).format(instant)
+}
+
+/**
+ * Calculates the straight-line distance between two coordinates in meters.
+ * Uses Android's internal [Location.distanceBetween] method.
+ */
 fun calculateDistance(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Float {
     val results = FloatArray(1)
     Location.distanceBetween(lat1, lon1, lat2, lon2, results)
-    return results[0] // Distance en mètres
+    return results[0] 
 }
 
-// Fonction d'extension pour déplacer un élément dans une MutableList
+/**
+ * Normalizes a city name by removing accents, lowercasing, replacing dashes with spaces,
+ * removing non-alphanumeric characters, and collapsing multiple spaces.
+ */
+fun String.normalizeCityName(): String {
+    val temp = java.text.Normalizer.normalize(this, java.text.Normalizer.Form.NFD)
+    val regex = "\\p{InCombiningDiacriticalMarks}+".toRegex()
+    return regex.replace(temp, "")
+        .lowercase()
+        .replace("-", " ")
+        .replace("[^a-z0-9 ]".toRegex(), "")
+        .trim()
+        .replace("\\s+".toRegex(), " ")
+}
+
+/**
+ * Compares two city names for equality after normalization.
+ */
+fun isSameCity(city1: String?, city2: String?): Boolean {
+    if (city1 == null || city2 == null) return false
+    return city1.normalizeCityName() == city2.normalizeCityName()
+}
+
+/**
+ * Helper to move an element from one index to another in a [MutableList].
+ */
 fun <T> MutableList<T>.move(from: Int, to: Int) {
-    // Vérifie si les indices sont valides
     if (from < 0 || from >= size || to < 0 || to >= size || from == to) {
         Log.w("ListMove", "Invalid move indices: from=$from, to=$to, size=$size")
         return
     }
-    // Retire l'élément de sa position d'origine
     val element = removeAt(from)
-    // Ajoute l'élément à la nouvelle position
     add(to, element)
 }
 
+/**
+ * Reorders a list based on a provided list of new indices.
+ * Used for applying route optimization results from Google Maps API.
+ * 
+ * @param list The original list of items.
+ * @param indices A list where `indices[i]` is the new position of `list[i]`.
+ * @return A new list with items in their optimized positions.
+ */
 fun <T> reorderList(list: List<T>, indices: List<Int?>): List<T> {
     val result = MutableList<T?>(list.size) { null }
     list.forEachIndexed { originalIndex, item ->

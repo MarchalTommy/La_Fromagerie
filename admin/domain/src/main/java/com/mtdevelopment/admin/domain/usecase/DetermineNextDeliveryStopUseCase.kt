@@ -4,11 +4,24 @@ import com.mtdevelopment.admin.domain.model.OptimizedRouteWithOrders
 import com.mtdevelopment.admin.domain.repository.CurrentLocation
 import com.mtdevelopment.core.model.Order
 
+/**
+ * Use case to determine the next delivery stop based on the current administrator location
+ * and the optimized route.
+ */
 class DetermineNextDeliveryStopUseCase() {
 
+    /**
+     * Threshold in meters to consider that a waypoint has been reached.
+     */
     // A simple threshold for considering an admin "at" or "past" a stop. Adjust as needed.
     private val AT_STOP_THRESHOLD_METERS = 50.0f
 
+    /**
+     * Executes the use case.
+     * @param currentAdminLocation The current location of the administrator.
+     * @param optimizedRouteWaypoints The optimized route containing waypoints and orders.
+     * @return The next [Order] to deliver, or null if all stops are reached or if the route is empty.
+     */
     operator fun invoke(
         currentAdminLocation: CurrentLocation,
         optimizedRouteWaypoints: OptimizedRouteWithOrders,
@@ -43,21 +56,30 @@ class DetermineNextDeliveryStopUseCase() {
         return null // All waypoints might have been "reached"
     }
 
+    /**
+     * Calculates the distance between two geographical points using Android's Location utility.
+     */
     private fun calculateDistance(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Float {
         val results = FloatArray(1)
         android.location.Location.distanceBetween(lat1, lon1, lat2, lon2, results)
         return results[0]
     }
 
+    /**
+     * Finds the next order in the list starting from a specific waypoint index.
+     * // TODO: This logic assumes a 1:1 mapping between waypoints and orders which might not be true if waypoints represent a complex path.
+     * // TODO: Verify if waypoints[i] always corresponds to orders[i].
+     */
     private fun findNextClosestOrder(
         orders: List<Order>,
         waypoints: List<Pair<Double, Double>>,
         startIndex: Int
     ): Order? {
         // Find the order corresponding to the waypoint at startIndex or subsequent ones
-        for (i in startIndex until waypoints.size - 1) {
-            val orderForWaypoint = orders[i]
-            return orderForWaypoint
+        for (i in startIndex until waypoints.size) {
+            if (i < orders.size) {
+                return orders[i]
+            }
         }
         return null
     }

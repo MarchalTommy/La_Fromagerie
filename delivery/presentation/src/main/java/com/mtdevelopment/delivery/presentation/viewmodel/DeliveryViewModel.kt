@@ -30,6 +30,16 @@ import kotlinx.coroutines.launch
 import org.koin.core.component.KoinComponent
 
 @OptIn(FlowPreview::class)
+/**
+ * ViewModel for the Delivery module, handling logic for both the administrator (managing paths)
+ * and the customer (choosing delivery options).
+ * 
+ * Key responsibilities:
+ * 1. Admin Mode: Loading all delivery paths with GeoJSON for map visualization.
+ * 2. Client Mode: Loading user info, matching the user's address to a delivery path.
+ * 3. Address Autocomplete: Providing debounced suggestions for both delivery and billing addresses.
+ * 4. State Management: Handling the multi-step delivery selection process (Name -> Address -> Path -> Date).
+ */
 class DeliveryViewModel(
     getIsConnectedUseCase: GetIsNetworkConnectedUseCase,
     private val getUserInfoFromDatastoreUseCase: GetUserInfoFromDatastoreUseCase,
@@ -39,17 +49,29 @@ class DeliveryViewModel(
     private val getAutocompleteSuggestionsUseCase: GetAutocompleteSuggestionsUseCase
 ) : ViewModel(), KoinComponent {
 
+    /**
+     * Flow observing network connectivity.
+     */
     val isConnected: StateFlow<Boolean> = getIsConnectedUseCase.invoke().stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = false
     )
 
+    /**
+     * The primary UI state for the delivery module.
+     */
     var deliveryUiDataState by mutableStateOf(DeliveryUiDataState())
         private set
 
-    // Private autocomplete query state
-    private val _searchQuery = MutableStateFlow("")
+    /**
+     * Internal state for debouncing address search queries.
+     */
+    private val _deliverySearchQuery = MutableStateFlow("")
+    private val _billingSearchQuery = MutableStateFlow("")
+
+    private var deliveryAutocompleteJob: kotlinx.coroutines.Job? = null
+    private var billingAutocompleteJob: kotlinx.coroutines.Job? = null
 
     init {
         viewModelScope.launch {
@@ -58,18 +80,21 @@ class DeliveryViewModel(
     }
 
     ///////////////////////////////////////////////////////////////////////////
-    // ADMIN
+    // ADMIN MODE LOGIC
     ///////////////////////////////////////////////////////////////////////////
+
+    /**
+     * Loads data specific to the administrative view.
+     * Fetches all delivery paths and their associated GeoJSON for map rendering.
+     */
     fun loadAdminData(forceRefresh: Boolean = false) {
         viewModelScope.launch {
             getAllDeliveryPaths(forceRefresh = forceRefresh, withGeoJson = true)
         }
 
-        ///////////////////////////////////////////////////////////////////////////
-        // Autocomplete data
-        ///////////////////////////////////////////////////////////////////////////
+        // Setup debounced search for admin-side address autocomplete
         viewModelScope.launch {
-            _searchQuery
+            _deliverySearchQuery
                 .debounce(300)
                 .distinctUntilChanged()
                 .filter { it.isNotBlank() }
@@ -79,9 +104,9 @@ class DeliveryViewModel(
                 }
         }
 
-        // Cache le dropdown si la requête est vide
+        // Manage visibility of the suggestions dropdown
         viewModelScope.launch {
-            _searchQuery.collect { query ->
+            _deliverySearchQuery.collect { query ->
                 deliveryUiDataState = if (query.isBlank()) {
                     deliveryUiDataState.copy(
                         showAddressSuggestions = false,
@@ -95,46 +120,62 @@ class DeliveryViewModel(
     }
 
     ///////////////////////////////////////////////////////////////////////////
-    // CLIENT
+    // CLIENT MODE LOGIC
     ///////////////////////////////////////////////////////////////////////////
+
+    /**
+     * Loads data specific to the customer view.
+     * Fetches delivery paths and populates UI with previously saved user info.
+     */
     fun loadClientData() {
         viewModelScope.launch {
             getAllDeliveryPaths()
         }
-        ///////////////////////////////////////////////////////////////////////////
-        // User Data to populate UI
-        ///////////////////////////////////////////////////////////////////////////
+
+        // Populate fields with saved user info from DataStore
         viewModelScope.launch {
             val userInfo = getUserInfoFromDatastoreUseCase.invoke().firstOrNull()
             deliveryUiDataState = deliveryUiDataState.copy(
                 userNameFieldText = userInfo?.name ?: "",
                 deliveryAddressSearchQuery = userInfo?.address ?: "",
+                // Match the saved path name to a full UI path object
                 selectedPath = deliveryUiDataState.deliveryPaths.firstOrNull { it.name == userInfo?.lastSelectedPath },
             )
-            deliveryUiDataState = deliveryUiDataState.copy()
         }
 
-        ///////////////////////////////////////////////////////////////////////////
-        // Autocomplete data
-        ///////////////////////////////////////////////////////////////////////////
-        // Cache le dropdown si la requête est vide
+        // Setup debounced search visibility for client-side autocomplete
         viewModelScope.launch {
-            _searchQuery.collect { query ->
+            _deliverySearchQuery.collect { query ->
                 deliveryUiDataState = if (query.isBlank()) {
                     deliveryUiDataState.copy(
                         showAddressSuggestions = false,
-                        deliveryAddressSuggestions = emptyList(),
-                        billingAddressSuggestions = emptyList()
+                        deliveryAddressSuggestions = emptyList()
                     )
                 } else {
                     deliveryUiDataState.copy(showAddressSuggestions = true)
                 }
             }
         }
+        viewModelScope.launch {
+            _billingSearchQuery.collect { query ->
+                deliveryUiDataState = if (query.isBlank()) {
+                    deliveryUiDataState.copy(
+                        showBillingAddressSuggestions = false,
+                        billingAddressSuggestions = emptyList()
+                    )
+                } else {
+                    deliveryUiDataState.copy(showBillingAddressSuggestions = true)
+                }
+            }
+        }
     }
 
+    /**
+     * Persists the user's name, address, and selected path to the DataStore.
+     */
     fun saveUserInfo(onError: () -> Unit = {}) {
         viewModelScope.launch {
+            // Validation: Ensure mandatory fields are filled
             if (deliveryUiDataState.selectedPath == null || deliveryUiDataState.deliveryAddressSearchQuery.isBlank()) {
                 onError.invoke()
                 return@launch
@@ -150,12 +191,19 @@ class DeliveryViewModel(
         }
     }
 
+    /**
+     * Persists the selected delivery date.
+     */
     fun saveSelectedDate(date: Long) {
         viewModelScope.launch {
             saveToDatastoreUseCase.invoke(deliveryDate = date)
         }
     }
 
+    /**
+     * Internal method to fetch delivery paths from the repository.
+     * @param withGeoJson If true, fetches geographic coordinates for path visualization.
+     */
     private suspend fun getAllDeliveryPaths(
         forceRefresh: Boolean = false,
         withGeoJson: Boolean = false
@@ -181,19 +229,43 @@ class DeliveryViewModel(
             })
     }
 
+    /**
+     * Starts observing the autocomplete search query.
+     * @param isBilling If true, targets the billing address field instead of delivery.
+     */
     fun startAutocomplete(isBilling: Boolean = false) {
-        viewModelScope.launch {
-            _searchQuery
-                .debounce(300)
-                .distinctUntilChanged()
-                .filter { it.isNotBlank() }
-                .filter { it.length >= 5 }
-                .collectLatest { query ->
-                    fetchAddressSuggestions(query, isBilling)
+        if (isBilling) {
+            if (billingAutocompleteJob == null) {
+                billingAutocompleteJob = viewModelScope.launch {
+                    _billingSearchQuery
+                        .debounce(300)
+                        .distinctUntilChanged()
+                        .filter { it.isNotBlank() }
+                        .filter { it.length >= 5 }
+                        .collectLatest { query ->
+                            fetchAddressSuggestions(query, isBilling = true)
+                        }
                 }
+            }
+        } else {
+            if (deliveryAutocompleteJob == null) {
+                deliveryAutocompleteJob = viewModelScope.launch {
+                    _deliverySearchQuery
+                        .debounce(300)
+                        .distinctUntilChanged()
+                        .filter { it.isNotBlank() }
+                        .filter { it.length >= 5 }
+                        .collectLatest { query ->
+                            fetchAddressSuggestions(query, isBilling = false)
+                        }
+                }
+            }
         }
     }
 
+    /**
+     * Fetches address suggestions from the external API.
+     */
     private fun fetchAddressSuggestions(query: String, isBilling: Boolean = false) {
         setAddressesSuggestionsLoading(true)
         viewModelScope.launch {
@@ -204,7 +276,6 @@ class DeliveryViewModel(
             } catch (e: Exception) {
                 setShowAddressesSuggestions(false, isBilling = isBilling)
                 setAddressesSuggestions(emptyList(), isBilling = isBilling)
-                // Afficher un message à l'utilisateur
                 println("Erreur lors de la récupération des suggestions: ${e.message}")
             } finally {
                 setAddressesSuggestionsLoading(false)
@@ -212,17 +283,23 @@ class DeliveryViewModel(
         }
     }
 
+    /**
+     * Handles selection of a suggestion from the autocomplete list.
+     * Updates the text field and triggers location update for the selected city.
+     */
     fun onSuggestionSelected(suggestion: AutoCompleteSuggestion, isBilling: Boolean = false) {
         suggestion.fulltext?.let { setAddressQuerySelected(it, isBilling) }
 
+        // If it's a delivery address, update the map center and check for path proximity
         if (suggestion.lat != null && suggestion.lat != 0.0 && !isBilling) {
             updateUserCityLocation(Pair(suggestion.lat ?: 0.0, suggestion.long ?: 0.0))
         }
     }
 
     ///////////////////////////////////////////////////////////////////////////
-    // DELIVERY STATE
+    // UI STATE UPDATERS
     ///////////////////////////////////////////////////////////////////////////
+
     fun setIsDatePickerClickable(isClickable: Boolean) {
         deliveryUiDataState =
             deliveryUiDataState.copy(shouldDatePickerBeClickable = isClickable)
@@ -246,21 +323,33 @@ class DeliveryViewModel(
         } else {
             deliveryUiDataState.copy(deliveryAddressSearchQuery = address)
         }
-        _searchQuery.value = address
+        if (isBilling) {
+            _billingSearchQuery.value = address
+        } else {
+            _deliverySearchQuery.value = address
+        }
     }
 
     fun setIsLoading(isLoading: Boolean) {
         deliveryUiDataState = deliveryUiDataState.copy(isLoading = isLoading)
     }
 
+    /**
+     * Finalizes the address selection.
+     */
     fun setAddressQuerySelected(query: String, isBilling: Boolean = false) {
         deliveryUiDataState = if (isBilling) {
             deliveryUiDataState.copy(billingAddressSearchQuery = query)
         } else {
+            // Reset localisation success if a manual address is chosen
             updateLocalisationState(false)
             deliveryUiDataState.copy(deliveryAddressSearchQuery = query)
         }
-        _searchQuery.value = ""
+        if (isBilling) {
+            _billingSearchQuery.value = ""
+        } else {
+            _deliverySearchQuery.value = ""
+        }
         setAddressesSuggestions(emptyList(), isBilling = isBilling)
         setShowAddressesSuggestions(false, isBilling = isBilling)
     }
@@ -319,8 +408,9 @@ class DeliveryViewModel(
     }
 
     ///////////////////////////////////////////////////////////////////////////
-    // PERMISSION MANAGER STATE
+    // PERMISSION & PROXIMITY STATE
     ///////////////////////////////////////////////////////////////////////////
+
     fun updateShouldShowLocalisationPermission(isGranted: Boolean) {
         deliveryUiDataState =
             deliveryUiDataState.copy(shouldShowLocalisationPermission = isGranted)

@@ -31,6 +31,14 @@ import com.mtdevelopment.core.util.vibratePhoneClick
 import com.mtdevelopment.core.util.vibratePhoneClickBig
 import kotlinx.coroutines.launch
 
+/**
+ * Main composable for the shopping cart view, displayed as a [ModalBottomSheet].
+ * It manages the display of cart items, empty state, and total amount.
+ * 
+ * @param cartViewModel The ViewModel providing the cart state and actions.
+ * @param onDismiss Callback when the bottom sheet is dismissed.
+ * @param onNavigateToCheckout Callback to trigger navigation to the checkout screen.
+ */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun CartView(
@@ -47,7 +55,7 @@ fun CartView(
         skipPartiallyExpanded = false,
     )
 
-    val state = cartViewModel?.cartUiState
+    val state = cartViewModel?.cartUiState?.collectAsState()?.value
 
     ModalBottomSheet(
         modifier = Modifier.fillMaxHeight(),
@@ -74,6 +82,7 @@ fun CartView(
                 .padding(16.dp)
                 .fillMaxSize()
         ) {
+            // Display empty message if cart is empty
             item {
                 val alphaAnimation = remember {
                     Animatable(1f)
@@ -86,48 +95,51 @@ fun CartView(
                     CartEmptyMessage(alphaAnimation = alphaAnimation)
                 }
             }
-            items(items = state?.cartItems?.cartItems ?: emptyList(), key = { it?.name ?: "" }) {
+
+            items(
+                items = state?.cartItems?.cartItems ?: emptyList(),
+                key = { it?.name ?: "" }) { cartItem ->
                 val itemVisibility = remember {
                     Animatable(1f)
                 }
-                CartItem(
-                    modifier = Modifier
-                        .animateItem(
-                            fadeInSpec = null, fadeOutSpec = tween(350), placementSpec = tween(800)
-                        )
-                        .alpha(itemVisibility.value),
-                    item = it?.copy(quantity = state?.cartItems?.cartItems?.find { searched -> searched?.name == it.name }?.quantity!!),
+                if (cartItem != null) {
+                    CartItem(
+                        modifier = Modifier
+                            .animateItem(
+                                fadeInSpec = null,
+                                fadeOutSpec = tween(350),
+                                placementSpec = tween(800)
+                            )
+                            .alpha(itemVisibility.value),
+                        item = cartItem,
                     onAddMore = {
                         vibratePhoneClick(context)
-                        cartViewModel?.addCartObject(valueAsCartItem = it)
+                        cartViewModel?.addCartObject(valueAsCartItem = cartItem)
                     },
                     onRemoveOne = {
                         vibratePhoneClick(context)
                         coroutineScope.launch {
-                            if ((it?.quantity ?: 0) <= 1) {
+                            // If it's the last item of this type, animate its disappearance before removing it from state
+                            if (cartItem.quantity <= 1) {
                                 itemVisibility.animateTo(
                                     targetValue = 0f,
                                     animationSpec = tween(200)
                                 )
-                                if (it != null) {
-                                    cartViewModel?.totallyRemoveObject(it)
-                                }
+                                cartViewModel?.totallyRemoveObject(cartItem)
                             } else {
-                                if (it != null) {
-                                    cartViewModel?.removeCartObject(it)
-                                }
+                                cartViewModel?.removeCartObject(cartItem)
                             }
                         }
                     },
                     onRemoveAll = {
                         vibratePhoneClickBig(context)
-                        if (it != null) {
-                            cartViewModel?.totallyRemoveObject(it)
-                        }
+                        cartViewModel?.totallyRemoveObject(cartItem)
                     }
-                )
+                    )
+                }
             }
 
+            // Cart summary and checkout button
             item("Footer") {
                 CartFooter(
                     modifier = Modifier

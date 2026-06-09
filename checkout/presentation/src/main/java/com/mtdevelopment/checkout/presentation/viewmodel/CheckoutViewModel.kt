@@ -53,6 +53,20 @@ import org.koin.core.component.KoinComponent
 import java.util.Calendar
 import java.util.Locale
 
+/**
+ * ViewModel for the Checkout process, orchestrating the interaction between the UI, 
+ * Google Pay API, and SumUp payment gateway.
+ *
+ * The payment flow follows a specific sequence:
+ * 1. [verifyGooglePayReadiness]: Checks if the device and user are capable of using Google Pay.
+ * 2. [createOrder]: Saves the order details to Firestore with a 'PENDING' status.
+ * 3. [createCheckout]: Creates a "Checkout" session on SumUp's servers.
+ * 4. [getLoadPaymentDataTask]: Initiates the Google Pay payment sheet.
+ * 5. [setPaymentData]: Receives the Google Pay token and triggers [processCheckout].
+ * 6. [processCheckout]: Sends the Google Pay token to SumUp to authorize the transaction.
+ *    This step might trigger a 3D Secure challenge.
+ * 7. After success, [resetAppStateAfterSuccess] updates the order status to 'PAID' and clears the cart.
+ */
 class CheckoutViewModel(
     getIsConnectedUseCase: GetIsNetworkConnectedUseCase,
     fetchAllowedPaymentMethods: FetchAllowedPaymentMethods,
@@ -75,23 +89,37 @@ class CheckoutViewModel(
     private val getSavedOrderUseCase: GetSavedOrderUseCase
 ) : ViewModel(), KoinComponent {
 
+    /**
+     * Observes network connectivity. Required for payment processing.
+     */
     val isConnected: StateFlow<Boolean> = getIsConnectedUseCase.invoke().stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = false
     )
 
+    /**
+     * Main UI state for the checkout screen.
+     */
     private val _paymentScreenState: MutableStateFlow<PaymentScreenState> =
         MutableStateFlow(PaymentScreenState())
     val paymentScreenState: StateFlow<PaymentScreenState> = _paymentScreenState.asStateFlow()
 
+    /**
+     * JSON configuration for allowed payment methods, required by Google Pay API.
+     */
     val allowedPaymentMethods = fetchAllowedPaymentMethods.invoke().toString()
 
+    /**
+     * Data returned by Google Pay after user authorization.
+     */
     private val _googlePayData: MutableStateFlow<PaymentData> =
         MutableStateFlow(PaymentData.fromJson("{}"))
     val googlePayData: StateFlow<PaymentData> = _googlePayData.asStateFlow()
 
-    // A client for interacting with the Google Pay API.
+    /**
+     * The Google Pay client instance.
+     */
     private val paymentsClient: PaymentsClient = createPaymentsClientUseCase.invoke()
 
     init {
@@ -100,6 +128,9 @@ class CheckoutViewModel(
         }
     }
 
+    /**
+     * Initializes the UI state with data from the cart and user profile.
+     */
     suspend fun updateUiState() {
         _paymentScreenState.update {
             it.copy(isLoading = true)
@@ -122,12 +153,18 @@ class CheckoutViewModel(
         }
     }
 
+    /**
+     * Updates the buyer's email in the UI state.
+     */
     fun updateBuyerEmail(email: String) {
         _paymentScreenState.update {
             it.copy(buyerEmail = email)
         }
     }
 
+    /**
+     * Updates any special delivery notes or instructions.
+     */
     fun updateCheckoutNote(note: String) {
         _paymentScreenState.update {
             it.copy(
@@ -137,9 +174,9 @@ class CheckoutViewModel(
     }
 
     /**
-     * Determine the user's ability to pay with a payment method supported by your app and display
-     * a Google Pay payment button.
-    ) */
+     * Verifies if Google Pay is available on the device and for the current user.
+     * This checks for hardware support and that the user has a valid payment method.
+     */
     private suspend fun verifyGooglePayReadiness() {
         _paymentScreenState.update {
             it.copy(
@@ -185,11 +222,16 @@ class CheckoutViewModel(
     }
 
     /**
+     * Prepares the Google Pay request task. 
+     * This task is used to launch the Google Pay bottom sheet.
+     * 
+     * @param priceCents Transaction amount in cents.
+     *
      * Creates a [Task] that starts the payment process with the transaction details included.
      *
      * @return a [Task] with the payment information.
-     * @see [PaymentDataRequest](https://developers.google.com/android/reference/com/google/android/gms/wallet/PaymentsClient#loadPaymentData(com.google.android.gms.wallet.PaymentDataRequest)
-    ) */
+     * @see [PaymentDataRequest](https://developers.google.com/android/reference/com/google/android/gms/wallet/PaymentsClient#loadPaymentData(com.google.android.gms.wallet.PaymentDataRequest))
+     */
     fun getLoadPaymentDataTask(priceCents: Long): Task<PaymentData> {
         val paymentDataRequestJson = getPaymentDataRequestUseCase.invoke(priceCents)
         val request = PaymentDataRequest.fromJson(paymentDataRequestJson.toString())
@@ -197,6 +239,8 @@ class CheckoutViewModel(
     }
 
     /**
+     * Logs Google Pay API errors.
+     *
      * At this stage, the user has already seen a popup informing them an error occurred. Normally,
      * only logging is required.
      *
@@ -209,6 +253,10 @@ class CheckoutViewModel(
         Log.e("Google Pay API error", "Error code: $statusCode, Message: $message")
     }
 
+    /**
+     * Step 3: Creates a checkout session on SumUp.
+     * A checkout ID is required before we can process the Google Pay token.
+     */
     fun createCheckout(isSuccess: (Boolean) -> Unit) {
         _paymentScreenState.update {
             it.copy(
@@ -216,6 +264,7 @@ class CheckoutViewModel(
             )
         }
 
+        // Unique reference for this checkout session
         val checkoutRef =
             paymentScreenState.value.buyerName.toString()
                 .replace(" ", "-") + "_" + Calendar.getInstance().time.toInstant()
@@ -231,6 +280,7 @@ class CheckoutViewModel(
                 buyerEmail = paymentScreenState.value.buyerEmail.toString(),
                 reference = checkoutRef
             ).collect { checkout ->
+                // Store the reference and checkout info for step 5 & 6
                 saveCheckoutReferenceUseCase.invoke(checkoutRef)
                 saveCreatedCheckoutUseCase.invoke(checkout)
                 _paymentScreenState.update {
@@ -243,25 +293,34 @@ class CheckoutViewModel(
         }
     }
 
+    /**
+     * Step 6: Finalize the payment with SumUp.
+     * Sends the Google Pay token to SumUp's [processCheckout] endpoint.
+     * 
+     * @param context Android context for launching 3DS activity.
+     * @param paymentDataItem The Google Pay data (including token).
+     * @param checkoutId The ID created in [createCheckout].
+     */
     private suspend fun processCheckout(
         context: Context,
         paymentDataItem: GooglePayData,
         checkoutId: String
     ) {
-        // TODO: Now, loader until fetch again checkouts from SumUp to see if completed !
+        // // TODO: The polling is handled within the DataSource level to ensure we wait for a final PAID/FAILED status.
+        // // TODO: If the app is killed during polling, we might lose the state. Need to verify if polling can resume on app restart.
 
-        // This is google pay status ->
+        // Verify if Google Pay reported success before proceeding with SumUp authorization
         getIsPaymentSuccessUseCase.invoke().collect {
-            // If this is success, then we proceed the SumUp Checkout
             if (it) {
                 processSumUpCheckoutUseCase.invoke(
                     checkoutId = checkoutId,
                     googlePayData = paymentDataItem,
                     on3DSecureRequired = { nextStep ->
+                        // If the card requires 3DS verification, redirect to the custom activity
                         launch3DSActivity(context, nextStep)
                     }
                 ).collect { finalResponse ->
-                    // Thanks to the polling, it should only reach this point after either paid or error.
+                    // The flow emits only when a terminal status (PAID or FAILED) is reached due to polling.
                     _paymentScreenState.update { state ->
                         state.copy(
                             isLoading = false,
@@ -273,6 +332,9 @@ class CheckoutViewModel(
         }
     }
 
+    /**
+     * Step 5: Receives the Google Pay result and initiates SumUp processing.
+     */
     fun setPaymentData(context: Context, paymentData: PaymentData) {
         viewModelScope.launch {
             _paymentScreenState.update {
@@ -282,8 +344,10 @@ class CheckoutViewModel(
             }
             // TODO: FIRST OF ALL, CHECK THE ORDER TO MAKE IT SAVE THE STATUS RIGHT AFTER GOOGLE PAY
             // TODO: THEN, COLLECT THE FLOW TO UPDATE THE UI
+            // Mark payment as 'in progress'
             savePaymentStateUseCase.invoke(true)
 
+            // Retrieve the pending checkout ID created in Step 3
             getPreviouslyCreatedCheckoutUseCase.invoke().collect {
                 if (it.status.equals("pending", true)) {
                     val paymentDataItem =
@@ -294,19 +358,19 @@ class CheckoutViewModel(
         }
     }
 
+    /**
+     * Utility to extract billing info if needed. Currently mostly for debug logs.
+     */
     private fun extractPaymentBillingName(paymentData: PaymentData): String? {
         val paymentInformation = paymentData.toJson()
 
         try {
-            // Token will be null if PaymentDataRequest was not constructed using fromJson(String).
             val paymentMethodData =
                 JSONObject(paymentInformation).getJSONObject("paymentMethodData")
 //            // TODO : CHECK LEGALLY if I can NOT ask for billing Address
-//            val shippingName = JSONObject(paymentInformation)
-//                .getJSONObject("shippingAddress").getString("name")
-//            Log.d("Shipping Name", shippingName)
 
-            // Logging token string.
+            // Logging token string for debugging. 
+            // // TODO: NEVER log this in production. Ensure these logs are stripped in release builds.
             Log.d(
                 "Google Pay token", paymentMethodData
                     .getJSONObject("tokenizationData")
@@ -329,6 +393,9 @@ class CheckoutViewModel(
         }
     }
 
+    /**
+     * Clears payment-related temporary state.
+     */
     private fun resetPaymentState() {
         viewModelScope.launch {
             resetCheckoutStatusUseCase.invoke()
@@ -340,17 +407,28 @@ class CheckoutViewModel(
         }
     }
 
+    /**
+     * Step 7: Final cleanup and order confirmation.
+     * Executed after a successful PAID status from SumUp.
+     */
     fun resetAppStateAfterSuccess() {
         viewModelScope.launch {
+            // Update order status to PAID in Firestore
             updateOrderStatus.invoke(
                 orderId = getSavedOrderUseCase.invoke().first().id,
                 newStatus = OrderStatus.PAID
             )
+            // Empty the cart
             clearCartUseCase.invoke()
             resetPaymentState()
         }
     }
 
+    /**
+     * Step 2: Creates the order record in Firestore.
+     * This is done BEFORE payment to ensure the order intent is captured.
+     * Status is 'PENDING' until payment succeeds.
+     */
     fun createOrder(isSuccess: (Boolean) -> Unit) {
         val cleanName =
             _paymentScreenState.value.buyerName?.trim()?.replace(" ", "_")
@@ -388,13 +466,16 @@ class CheckoutViewModel(
         }
     }
 
+    /**
+     * Redirects the user to a specialized activity to handle 3D Secure verification.
+     */
     private fun launch3DSActivity(context: Context, nextStep: ProcessCheckoutResult.NextStep) {
         val intent = Intent(context, ThreeDSecureActivity::class.java).apply {
             putExtra(ThreeDSecureActivity.EXTRA_URL, nextStep.url)
             putExtra(ThreeDSecureActivity.EXTRA_METHOD, nextStep.method)
             putExtra(ThreeDSecureActivity.EXTRA_REDIRECT_URL, nextStep.redirectUrl)
 
-            // Conversion du Payload (data class) en HashMap pour le passer à l'Intent
+            // Conversion of the Payload to HashMap for Intent extras
             val params = HashMap<String, String>()
             nextStep.payload?.let { p ->
                 p.paReq?.let { params["PaReq"] = it }

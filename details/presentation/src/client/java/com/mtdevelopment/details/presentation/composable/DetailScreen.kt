@@ -56,22 +56,33 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.toIntRect
 import androidx.compose.ui.unit.toSize
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.engine.DiskCacheStrategy
 import com.bumptech.glide.load.resource.bitmap.BitmapTransitionOptions.withCrossFade
 import com.bumptech.glide.request.RequestOptions
 import com.mtdevelopment.cart.presentation.viewmodel.CartViewModel
+import com.mtdevelopment.core.domain.toStringPrice
 import com.mtdevelopment.core.presentation.MainViewModel
 import com.mtdevelopment.core.presentation.composable.ErrorOverlay
 import com.mtdevelopment.core.presentation.composable.RiveAnimation
 import com.mtdevelopment.core.util.ScreenSize
 import com.mtdevelopment.core.util.rememberScreenSize
-import com.mtdevelopment.core.domain.toStringPrice
 import com.mtdevelopment.core.util.vibratePhoneClick
 import com.skydoves.landscapist.ImageOptions
 import com.skydoves.landscapist.glide.GlideImage
 import kotlinx.coroutines.launch
 
+/**
+ * Screen displaying detailed information about a specific product for the customer.
+ * 
+ * Key UI elements:
+ * 1. Product Image: Hero image with a fallback and a "loading soon" overlay for new items.
+ * 2. Dynamic Labels: Custom [Canvas] drawings for the product name and price, providing a unique visual style.
+ * 3. Description: Scrollable text area with custom up/down arrows for easier navigation.
+ * 4. Allergens: List of allergens if applicable.
+ * 5. Cart Interaction: "Add to Cart" button with a bouncy animation and quantity badge.
+ */
 @Composable
 fun DetailScreen(
     viewModel: CartViewModel,
@@ -81,12 +92,12 @@ fun DetailScreen(
     screenSize: ScreenSize = rememberScreenSize()
 ) {
     val coroutineScope = rememberCoroutineScope()
-
     val context = LocalContext.current
 
-    val state = viewModel.cartUiState
+    val state by viewModel.cartUiState.collectAsStateWithLifecycle()
     val scaleCart = remember { Animatable(1f) }
 
+    // Dynamic label sizing state
     val nameWidth = remember { mutableFloatStateOf(0f) }
     val nameHeightDp = remember { mutableIntStateOf(0) }
     val priceWidth = remember { mutableFloatStateOf(0f) }
@@ -99,6 +110,9 @@ fun DetailScreen(
     var showError by remember { mutableStateOf(false) }
     var showLoading by remember { mutableStateOf(false) }
 
+    /**
+     * Bouncy spring animation for the "Add to Cart" button feedback.
+     */
     fun animateAddingToCart() {
         coroutineScope.launch {
             scaleCart.animateTo(
@@ -121,6 +135,7 @@ fun DetailScreen(
     Column(
         modifier = Modifier.fillMaxSize()
     ) {
+        // IMAGE SECTION: Hero Image with Fallback
         Box(modifier = Modifier.fillMaxWidth()) {
             GlideImage(
                 modifier = Modifier
@@ -150,6 +165,7 @@ fun DetailScreen(
                     }
                 },
                 failure = {
+                    // Fallback to local default image on failure
                     GlideImage(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -161,6 +177,7 @@ fun DetailScreen(
                     )
                 })
 
+            // Overlay for unavailable products without images
             if (state.currentItem?.isAvailable != true && state.currentItem?.imageUrl?.isBlank() == true) {
                 Column(
                     modifier = Modifier
@@ -183,6 +200,7 @@ fun DetailScreen(
                 }
             }
 
+            // LABEL: Product Name (Custom Canvas background)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -222,6 +240,7 @@ fun DetailScreen(
                         style = MaterialTheme.typography.titleLarge,
                         color = Color.White,
                         onTextLayout = { textLayoutResult ->
+                            // Update label size dynamically based on text layout
                             nameWidth.floatValue =
                                 textLayoutResult.size.toIntRect().size.toSize().width
                             nameHeightDp.intValue =
@@ -232,6 +251,7 @@ fun DetailScreen(
             }
         }
 
+        // LABEL: Product Price (Custom Canvas background)
         Row(
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -282,6 +302,7 @@ fun DetailScreen(
             }
         }
 
+        // SECTION: Description (Scrollable)
         if (state.currentItem?.description?.isBlank() == false) {
             Row(
                 modifier = Modifier
@@ -307,6 +328,7 @@ fun DetailScreen(
                     }
                 }
 
+                // Helper scroll arrows for long descriptions
                 Column(
                     modifier = Modifier
                         .fillMaxHeight()
@@ -340,6 +362,7 @@ fun DetailScreen(
             }
         }
 
+        // SECTION: Allergens
         if (!state.currentItem?.allergens.isNullOrEmpty()) {
             Text(
                 modifier = Modifier.padding(start = 16.dp, top = 16.dp),
@@ -356,6 +379,7 @@ fun DetailScreen(
             )
         }
 
+        // FOOTER: Availability Message OR Add to Cart Button
         if (state.currentItem?.isAvailable != true) {
             Text(
                 modifier = Modifier.padding(start = 8.dp, end = 8.dp, top = 16.dp, bottom = 8.dp),
@@ -381,6 +405,7 @@ fun DetailScreen(
                     }
                     .padding(32.dp),
                 badge = {
+                    // Show quantity badge if item is already in cart
                     if (state.cartItems?.cartItems?.find { it?.name == state.currentItem?.name } != null) {
                         Badge(
                             containerColor = Color.Red,
@@ -413,13 +438,14 @@ fun DetailScreen(
         }
     }
 
-    // Loading animation
+    // Loading Animation Overlay
     RiveAnimation(
         isLoading = showLoading,
         modifier = Modifier.fillMaxSize(),
         contentDescription = "Loading animation"
     )
 
+    // Error Overlay
     if (showError) {
         ErrorOverlay(
             isShown = true,

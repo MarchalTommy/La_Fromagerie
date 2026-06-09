@@ -1,79 +1,29 @@
 package com.mtdevelopment.home.domain.usecase
 
 import com.mtdevelopment.core.model.Product
-import com.mtdevelopment.core.repository.SharedDatastore
-import com.mtdevelopment.home.domain.repository.FirebaseHomeRepository
-import com.mtdevelopment.home.domain.repository.RoomHomeRepository
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.launch
+import com.mtdevelopment.core.util.DataResult
+import com.mtdevelopment.home.domain.repository.ProductRepository
 
+/**
+ * Use case to retrieve all products for the administrator view.
+ * Now delegates to [ProductRepository] and ensures alphabetical sorting for the admin dashboard.
+ */
 class GetAllProductsUseCase(
-    private val firebaseHomeRepository: FirebaseHomeRepository,
-    private val roomHomeRepository: RoomHomeRepository,
-    private val sharedDatastore: SharedDatastore
+    private val productRepository: ProductRepository
 ) {
 
-    suspend operator fun invoke(
-        scope: CoroutineScope,
-        onSuccess: (List<Product>) -> Unit,
-        onFailure: () -> Unit
-    ) {
+    /**
+     * Executes the use case.
+     * @param forceRefresh If true, forces a fetch from the remote source.
+     */
+    suspend operator fun invoke(forceRefresh: Boolean = false): DataResult<List<Product>> {
+        val result = productRepository.getAllProducts(forceRefresh)
 
-        val shouldRefresh = sharedDatastore.shouldRefreshProducts.first()
-
-        /**
-         * If locally known last firestore update timestamp is different from the one on the server, we need to update.
-         * Else, fetch from room.
-         */
-        if (shouldRefresh) {
-            firebaseHomeRepository.getAllProducts(onSuccess = { productsList ->
-                /**
-                 * Persist all products from firebase to room
-                 */
-                productsList.forEach { product ->
-                    scope.launch {
-                        roomHomeRepository.persistProduct(product)
-                    }
-                }
-
-                scope.launch {
-                    /**
-                     * Reset refresh needed flag
-                     */
-                    sharedDatastore.setShouldRefreshProducts(false)
-
-                    /**
-                     * Delete all products from room that are not in firebase,
-                     * in case products got removed
-                     */
-                    roomHomeRepository.getProducts { localProductsList ->
-                        localProductsList.forEach { entity ->
-                            if (!productsList.any { data -> entity.id == data.id }) {
-                                scope.launch {
-                                    roomHomeRepository.deleteProduct(entity)
-                                }
-                            }
-                        }
-                    }
-                }
-
-                val orderedProducts = productsList.sortedWith(
-                    compareBy<Product> { it.name }
-                )
-
-                onSuccess(orderedProducts)
-            }, onFailure)
+        return if (result is DataResult.Success) {
+            // Admin sorting: purely alphabetical by name
+            DataResult.Success(result.data.sortedBy { it.name })
         } else {
-            scope.launch {
-                roomHomeRepository.getProducts { localProductsList ->
-                    val orderedProducts = localProductsList.sortedWith(
-                        compareBy<Product> { it.name }
-                    )
-                    onSuccess.invoke(orderedProducts)
-                }
-            }
+            result
         }
-
     }
 }

@@ -27,6 +27,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import app.rive.runtime.kotlin.core.Rive
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.mtdevelopment.admin.presentation.composable.ProductEditDialog
 import com.mtdevelopment.admin.presentation.viewmodel.AdminViewModel
 import com.mtdevelopment.cart.presentation.viewmodel.CartViewModel
@@ -37,6 +38,13 @@ import com.mtdevelopment.core.util.koinViewModel
 import com.mtdevelopment.home.presentation.viewmodel.HomeViewModel
 import org.koin.compose.koinInject
 
+/**
+ * Main dashboard screen for the administrator.
+ * Displays the product catalog with advanced management capabilities:
+ * 1. Product Management: Add, Edit, Delete, and toggle Availability of products.
+ * 2. Order Management: Navigate to the order preparation screen.
+ * 3. Navigation: Quick access to the delivery/path management screen.
+ */
 @Composable
 fun HomeScreen(
     mainViewModel: MainViewModel,
@@ -51,10 +59,11 @@ fun HomeScreen(
     val homeViewModel = koinViewModel<HomeViewModel>()
     val adminViewModel = koinInject<AdminViewModel>()
 
-    val homeState = homeViewModel.homeUiState
+    val homeState by homeViewModel.homeUiState.collectAsStateWithLifecycle()
     var showEditDialog by remember { mutableStateOf(false) }
     var editedProduct by remember { mutableStateOf<UiProductObject?>(null) }
 
+    // Track image loading to signal splash screen removal
     var hasLoadedFirstPic by remember { mutableStateOf(false) }
 
     LaunchedEffect(hasLoadedFirstPic) {
@@ -67,6 +76,7 @@ fun HomeScreen(
         Rive.init(context)
     }
 
+    // Manual refresh handling
     LaunchedEffect(shouldRefresh) {
         if (shouldRefresh) {
             homeViewModel.refreshProducts()
@@ -74,6 +84,7 @@ fun HomeScreen(
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
+        // Product Catalog Grid
         LazyVerticalGrid(
             modifier = Modifier
                 .fillMaxSize()
@@ -85,7 +96,7 @@ fun HomeScreen(
                 ProductItem(
                     modifier = if (productListItem.id == homeState.products.last().id) {
                         Modifier.padding(
-                            bottom = 64.dp
+                            bottom = 64.dp // Avoid FAB coverage
                         )
                     } else {
                         Modifier
@@ -96,6 +107,7 @@ fun HomeScreen(
                         navigateToDetail.invoke()
                     },
                     onEditClick = {
+                        // Open edit dialog with selected product info
                         showEditDialog = true
                         editedProduct = it
                     },
@@ -105,6 +117,7 @@ fun HomeScreen(
                         }
                     },
                     onAvailabilityChange = {
+                        // Quick toggle for product availability
                         adminViewModel.updateProduct(
                             product = it.copy(isAvailable = !it.isAvailable), onSuccess = {
                                 editedProduct = null
@@ -122,7 +135,7 @@ fun HomeScreen(
             }
         }
 
-        // EDIT BUTTON
+        // ADD PRODUCT BUTTON
         FloatingActionButton(
             modifier = Modifier
                 .padding(32.dp)
@@ -135,13 +148,14 @@ fun HomeScreen(
             containerColor = MaterialTheme.colorScheme.tertiaryContainer,
             contentColor = MaterialTheme.colorScheme.tertiary,
             onClick = {
+                editedProduct = null // Ensure dialog starts in "Add" mode
                 showEditDialog = true
             }
         ) {
             Icon(imageVector = Icons.Default.Add, contentDescription = "Add a product")
         }
 
-        // PREPARE ORDERS BUTTON
+        // PREPARE ORDERS BUTTON: Navigation to OrderPreparationScreen
         ExtendedFloatingActionButton(
             modifier = Modifier
                 .padding(32.dp)
@@ -163,7 +177,7 @@ fun HomeScreen(
             )
         }
 
-        // NEXT SCREEN BUTTON
+        // NEXT SCREEN BUTTON: Navigation to path management/delivery helper
         FloatingActionButton(
             modifier = Modifier
                 .padding(32.dp)
@@ -183,22 +197,27 @@ fun HomeScreen(
         }
 
 
+        /**
+         * Unified Dialog for Adding and Editing products.
+         */
         if (showEditDialog) {
             ProductEditDialog(
                 product = editedProduct,
                 onValidate = {
                     if (editedProduct != null) {
+                        // Edit existing product
                         adminViewModel.updateProduct(product = it, onSuccess = {
                             editedProduct = null
                             homeViewModel.refreshProducts()
                         }, onError = {
                             mainViewModel.setError(
-                                "Une erreur est survenue lors de l'ajout du produit"
+                                "Une erreur est survenue lors de la modification du produit"
                             )
                         }, onLoading = { isLoading ->
                             homeViewModel.setIsLoading(isLoading)
                         })
                     } else {
+                        // Add new product
                         adminViewModel.addNewProduct(product = it, onSuccess = {
                             editedProduct = null
                             homeViewModel.refreshProducts()
@@ -220,16 +239,14 @@ fun HomeScreen(
                             homeViewModel.refreshProducts()
                         }
                     } else {
-                        null
+                        null // Delete not available for new products
                     },
                 onDismiss = {
                     showEditDialog = false
                     editedProduct = null
                 },
                 onError = {
-                    mainViewModel.setError(
-                        it
-                    )
+                    mainViewModel.setError(it)
                 },
                 shouldShowLoading = {
                     homeViewModel.setIsLoading(it)
@@ -237,7 +254,7 @@ fun HomeScreen(
             )
         }
 
-        // Loading animation
+        // Loading Overlay
         RiveAnimation(
             isLoading = homeState.isLoading,
             modifier = Modifier.fillMaxSize(),

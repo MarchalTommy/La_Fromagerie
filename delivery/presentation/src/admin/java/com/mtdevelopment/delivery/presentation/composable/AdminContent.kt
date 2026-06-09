@@ -23,21 +23,19 @@ fun AdminContent(
         )
     }
 
-    if (pathList.isNotEmpty()) {
-        FadeOverlay {
-            InfiniteCircularList(
-                itemHeight = 250.dp,
-                itemWidth = 250.dp,
-                items = pathList,
-                initialItem = initialItem,
-                textColor = MaterialTheme.colorScheme.onBackground,
-                onItemSelected = { _, item ->
-                    item?.let { onPathSelected(it) }
-                },
-                onItemPreSelected = { item ->
-                    onPathPreSelected.invoke(item)
-                }
-            )
-        }
+    FadeOverlay {
+        InfiniteCircularList(
+            itemHeight = 250.dp,
+            itemWidth = 250.dp,
+            items = pathList,
+            initialItem = initialItem,
+            textColor = MaterialTheme.colorScheme.onBackground,
+            onItemSelected = { _, item ->
+                item?.let { onPathSelected(it) }
+            },
+            onItemPreSelected = { item ->
+                onPathPreSelected.invoke(item)
+            }
+        )
     }
 }

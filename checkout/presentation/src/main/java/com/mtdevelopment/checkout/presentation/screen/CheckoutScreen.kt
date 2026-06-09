@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
@@ -28,7 +27,6 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardColors
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -61,6 +59,18 @@ import com.mtdevelopment.core.util.rememberScreenSize
 import org.koin.androidx.compose.koinViewModel
 import java.util.Locale
 
+/**
+ * Main screen for the checkout process.
+ * It displays a summary of the order, user information, and the Google Pay button.
+ * 
+ * The screen handles several key interactions:
+ * 1. Summary of items in the cart and total price.
+ * 2. Display of buyer's name and address (fetched from earlier steps).
+ * 3. A text field for optional delivery notes.
+ * 4. Integration with Google Pay API via [PayButton] and [googlePayLauncher].
+ * 
+ * @param onNavigatePaymentSuccess Callback triggered when the payment is confirmed as successful.
+ */
 @Composable
 fun CheckoutScreen(
     onNavigatePaymentSuccess: (String) -> Unit
@@ -76,6 +86,10 @@ fun CheckoutScreen(
     val focusRequester = remember { FocusRequester() }
     val focusManager = LocalFocusManager.current
 
+    /**
+     * Launcher to handle the result of the Google Pay "Intent Sender".
+     * This is triggered if the Google Pay API requires user interaction (e.g., choosing a card).
+     */
     val googlePayLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartIntentSenderForResult()
     ) { activityResult ->
@@ -83,14 +97,13 @@ fun CheckoutScreen(
             activityResult.data?.let { intent ->
                 val paymentData = PaymentData.getFromIntent(intent)
                 paymentData?.let {
+                    // Step 5: Receive token and start SumUp processing
                     checkoutViewModel.setPaymentData(context = context, paymentData = it)
                 } ?: run {
-                    // Gérer le cas où paymentData est null (ne devrait pas arriver si RESULT_OK)
                     checkoutViewModel.setPaymentError("Erreur lors de la récupération des données de paiement Google Pay.")
                 }
             }
         } else {
-            // L'utilisateur a annulé ou une erreur s'est produite dans l'interface Google Pay
             Log.w(
                 TAG,
                 "Google Pay a été annulé ou a échoué. ResultCode: ${activityResult.resultCode}"
@@ -103,10 +116,12 @@ fun CheckoutScreen(
         Log.e(TAG, "Pricing error")
     }
 
+    // Reactive navigation on payment success
     if(uiData.value.isPaymentSuccess) {
         onNavigatePaymentSuccess.invoke(uiData.value.buyerName ?: "")
     }
 
+    // Load initial data (cart, addresses, etc.)
     LaunchedEffect(Unit) {
         if(uiData.value.isPaymentSuccess.not()) {
             checkoutViewModel.updateUiState()
@@ -126,6 +141,7 @@ fun CheckoutScreen(
             modifier = Modifier
                 .fillMaxSize()
         ) {
+            // SECTION: Order Summary
             Card(
                 modifier = Modifier
                     .heightIn(min = 0.dp, max = (screenSize.height / 5) * 2)
@@ -185,6 +201,7 @@ fun CheckoutScreen(
                 }
             }
 
+            // SECTION: User Information
             Card(
                 modifier = Modifier
                     .heightIn(min = 0.dp, max = (screenSize.height / 5) * 2)
@@ -245,6 +262,7 @@ fun CheckoutScreen(
                 fontSize = 26.sp
             )
 
+            // SECTION: Delivery Notes
             OutlinedTextField(
                 modifier = Modifier
                     .height((screenSize.height / 5))
@@ -264,7 +282,7 @@ fun CheckoutScreen(
                                 "Par exemple si la glacière de livraison se trouve derrière la maison, ou que vous voulez clarifier quelque chose qui semble important lors de la livraison."
                     )
                 },
-                isError = uiData.value.checkoutNote?.length != null && uiData.value.checkoutNote?.length!! >= 251,
+                isError = (uiData.value.checkoutNote?.length ?: 0) >= 251,
                 supportingText = {
                     Text(
                         text = "${uiData.value.checkoutNote?.length ?: 0}/250"
@@ -272,27 +290,36 @@ fun CheckoutScreen(
                 }
             )
 
+            /**
+             * The Google Pay button.
+             * On click, it orchestrates the creation of the order and checkout before launching the payment sheet.
+             */
             PayButton(
                 modifier = Modifier
                     .testTag("payButton")
                     .fillMaxWidth()
                     .padding(horizontal = 32.dp, vertical = 16.dp),
                 onClick = {
+                    // Step 2: Create order in Firestore
                     checkoutViewModel.createOrder() { isSuccess ->
                         if(isSuccess) {
+                            // Step 3: Create checkout on SumUp
                             checkoutViewModel.createCheckout {
                                 uiData.value.totalPrice?.let { price ->
+                                    // Step 4: Prepare and launch Google Pay Sheet
                                     val task = checkoutViewModel.getLoadPaymentDataTask(price)
                                     task.addOnCompleteListener { completedTask ->
                                         if(completedTask.isSuccessful) {
                                             completedTask.result.let {
                                                 Log.i("Google Pay result", it.toJson())
+                                                // Step 5 & 6: Process the payment
                                                 checkoutViewModel.setPaymentData(
                                                     context = context,
                                                     paymentData = it
                                                 )
                                             }
                                         } else {
+                                            // Handle cases where the UI needs to be shown (ResolvableApiException)
                                             when(val exception = completedTask.exception) {
                                                 is ResolvableApiException -> {
                                                     googlePayLauncher.launch(
@@ -323,7 +350,6 @@ fun CheckoutScreen(
                                 ?: run {
                                     onPricingError()
                                 }
-//                }
                         } else {
                             checkoutViewModel.setPaymentError("Une erreur est survenue lors de la création de la commande.\nMerci de réessayer ultérieurement et de contacter nos équipes si le problème persiste !")
                         }
@@ -333,6 +359,7 @@ fun CheckoutScreen(
                 enabled = uiData.value.isGooglePayAvailable
             )
 
+            // Debug tool
             if (BuildConfig.DEBUG) {
                 Button(
                     onClick = {
@@ -346,6 +373,7 @@ fun CheckoutScreen(
 
     }
 
+    // Error Overlay
     if (uiData.value.error != null && uiData.value.error != "") {
         ErrorOverlay(
             message = uiData.value.error,
@@ -355,6 +383,7 @@ fun CheckoutScreen(
         )
     }
 
+    // Loading Overlay
     RiveAnimation(
         isLoading = uiData.value.isLoading,
         modifier = Modifier.fillMaxSize(),

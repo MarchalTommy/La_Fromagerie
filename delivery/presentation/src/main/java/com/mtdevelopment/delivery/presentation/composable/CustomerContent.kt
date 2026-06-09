@@ -30,8 +30,11 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -42,6 +45,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import com.mtdevelopment.core.domain.calculateDistance
+import com.mtdevelopment.core.domain.isSameCity
+import com.mtdevelopment.core.domain.normalizeCityName
 import com.mtdevelopment.core.model.AutoCompleteSuggestion
 import com.mtdevelopment.core.presentation.composable.AddressAutocompleteTextField
 import com.mtdevelopment.core.presentation.composable.ErrorOverlay
@@ -69,8 +74,11 @@ fun CustomerContent(
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
 
-    LaunchedEffect(state.value.deliveryAddressSearchQuery == "" || state.value.deliveryPaths.isNotEmpty()) {
-        if (state.value.deliveryAddressSearchQuery != "") {
+    var hasPerformedInitialCheck by remember { mutableStateOf(false) }
+
+    LaunchedEffect(state.value.deliveryAddressSearchQuery, state.value.deliveryPaths) {
+        if (!hasPerformedInitialCheck && state.value.deliveryAddressSearchQuery.isNotEmpty() && state.value.deliveryPaths.isNotEmpty()) {
+            hasPerformedInitialCheck = true
             checkLocationEligibility(
                 context = context,
                 address = state.value.deliveryAddressSearchQuery,
@@ -382,12 +390,14 @@ private suspend fun checkLocationEligibility(
         val geocoder = Geocoder(context)
         var userCity: String? = null
         var userLocation: Pair<Double, Double>? = null
+        var userStreet: String? = null
         val isNearPathCity: Boolean
         var closestDistance = Double.MAX_VALUE
         var matchingPathForCity: UiDeliveryPath? = null
 
+        // 1. Resolve user city and location
         if (address != null && location == null) {
-            // 1. Géocodage pour obtenir le nom de la ville
+            // Manual Address Input
             try {
                 val addresses: List<Address>? =
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -407,53 +417,117 @@ private suspend fun checkLocationEligibility(
                 userLocation = addresses?.firstOrNull()?.let {
                     Pair(it.latitude, it.longitude)
                 }
+                userStreet = addresses?.firstOrNull()?.thoroughfare
             } catch (e: IOException) {
-                userCity = null // ou "Erreur Geocoder"
+                userCity = null
             } catch (e: IllegalArgumentException) {
-                userCity = null // ou "Erreur Coordonnées"
+                userCity = null
+            }
+
+            // Fallback for manually typed city name extraction if geocoding failed
+            if (userCity.isNullOrBlank()) {
+                userCity = extractCityFromAddress(address)
             }
         } else {
+            // Autocomplete Suggestion Selected
             userCity = location?.city
+            val fullText = location?.fulltext
+            if (userCity.isNullOrBlank() && fullText != null) {
+                userCity = extractCityFromAddress(fullText)
+            }
             if (location?.lat != null && location.long != null) {
                 userLocation = Pair(location.lat!!, location.long!!)
             }
         }
 
-        // 2. Vérifier la proximité et si la ville est dans un parcours
+        // 2. Filter paths that cover the user's city (pathsInCity)
+        val pathsInCity = mutableListOf<UiDeliveryPath>()
+        val addressText = address ?: location?.fulltext
+
         for (path in allPaths) {
+            var matchedCityName: String? = null
+            var matchedCityLocation: Pair<Double, Double>? = null
+
             for (cityInfo in path.cities) {
                 val cityName = cityInfo.first
-                val cityLocation = path.locations!![path.cities.indexOf(cityInfo)]
+                val cityIndex = path.cities.indexOf(cityInfo)
+                val cityLocation = if (path.locations != null && path.locations.size > cityIndex) {
+                    path.locations[cityIndex]
+                } else null
 
-                // Calculer la distance
-                val distance = calculateDistance(
-                    userLocation?.first ?: 0.0,
-                    userLocation?.second ?: 0.0,
-                    cityLocation.first,
-                    cityLocation.second
-                )
-
-                if (distance < closestDistance) {
-                    closestDistance = distance.toDouble()
+                // Proximity calculations (only if we have resolved user location)
+                if (userLocation != null && cityLocation != null) {
+                    val distance = calculateDistance(
+                        userLocation.first,
+                        userLocation.second,
+                        cityLocation.first,
+                        cityLocation.second
+                    )
+                    if (distance < closestDistance) {
+                        closestDistance = distance.toDouble()
+                    }
                 }
 
-                // Vérifier si la ville géocodée correspond à une ville du parcours
-                if (userCity != null && userCity.equals(cityName, ignoreCase = true)) {
-                    matchingPathForCity = path
+                // Check city match
+                val isCityMatch =
+                    isSameCity(userCity, cityName) || isAddressInCity(addressText, cityName)
+                if (isCityMatch) {
+                    matchedCityName = cityName
+                    matchedCityLocation = cityLocation
                 }
+            }
+
+            if (matchedCityName != null) {
+                if (!pathsInCity.contains(path)) {
+                    pathsInCity.add(path)
+                }
+                // Fallback / recovered coordinates and city name:
+                // If user location or userCity was null/failed, recover them using the matched city's info from the path
+                if (userCity.isNullOrBlank()) {
+                    userCity = matchedCityName
+                }
+                if (userLocation == null && matchedCityLocation != null) {
+                    userLocation = matchedCityLocation
+                    closestDistance =
+                        0.0 // Force proximity check to succeed since exact city matched
+                }
+            }
+        }
+
+        // 3. Granular street-level matching
+        if (pathsInCity.isNotEmpty()) {
+            // Step 1: Try exact street match using thoroughfare from geocoder
+            if (userStreet != null) {
+                matchingPathForCity = pathsInCity.find { path ->
+                    path.streets.any { it.equals(userStreet, ignoreCase = true) }
+                }
+            }
+
+            // Step 2: Try robust fallback street check in the full address text
+            if (matchingPathForCity == null && addressText != null) {
+                matchingPathForCity = pathsInCity.find { path ->
+                    path.streets.any { street ->
+                        isStreetInAddress(addressText, street)
+                    }
+                }
+            }
+
+            // Step 3: Fall back to generic paths covering the whole city (no street restrictions)
+            if (matchingPathForCity == null) {
+                matchingPathForCity = pathsInCity.find { it.streets.isEmpty() }
             }
         }
 
         isNearPathCity = closestDistance <= MAX_DISTANCE_FOR_PICKUP_METERS
 
-        // 3. Déterminer l'éligibilité
+        // 4. Determine eligibility
         val eligibility = when {
-            matchingPathForCity != null -> DeliveryEligibility.DELIVERABLE // Priorité si livrable
-            isNearPathCity -> DeliveryEligibility.ASK_FOR_SUPPORT // Ensuite si trop loin
-            else -> DeliveryEligibility.NOT_ELIGIBLE // Ensuite si vraiment trop loin
+            matchingPathForCity != null -> DeliveryEligibility.DELIVERABLE
+            isNearPathCity -> DeliveryEligibility.ASK_FOR_SUPPORT
+            else -> DeliveryEligibility.NOT_ELIGIBLE
         }
 
-        // Retourner le résultat sur le thread principal si nécessaire pour l'UI
+        // Return results to UI
         withContext(Dispatchers.Main) {
             onResult(
                 eligibility,
@@ -463,4 +537,37 @@ private suspend fun checkLocationEligibility(
             )
         }
     }
+}
+
+private fun extractCityFromAddress(address: String): String? {
+    // Match a 5-digit postal code and capture everything following it
+    val regex = "\\b(\\d{5})\\b\\s+([^,]+)".toRegex()
+    val matchResult = regex.find(address) ?: return null
+    val cityPart = matchResult.groupValues[2].trim()
+
+    // Remove country suffixes like ", France"
+    var city = cityPart.split(",").first().trim()
+    if (city.endsWith(" France", ignoreCase = true)) {
+        city = city.substring(0, city.length - 7).trim()
+    } else if (city.equals("France", ignoreCase = true)) {
+        return null
+    }
+    return if (city.isNotEmpty()) city else null
+}
+
+private fun isAddressInCity(address: String?, cityName: String?): Boolean {
+    if (address == null || cityName == null) return false
+    val normalizedAddress = address.normalizeCityName()
+    val normalizedCity = cityName.normalizeCityName()
+    if (normalizedAddress.isEmpty() || normalizedCity.isEmpty()) return false
+    val regex = "\\b${Regex.escape(normalizedCity)}\\b".toRegex()
+    return regex.containsMatchIn(normalizedAddress)
+}
+
+private fun isStreetInAddress(address: String?, streetName: String): Boolean {
+    if (address == null) return false
+    val normalizedAddress = address.normalizeCityName()
+    val normalizedStreet = streetName.normalizeCityName()
+    if (normalizedAddress.isEmpty() || normalizedStreet.isEmpty()) return false
+    return normalizedAddress.contains(normalizedStreet)
 }

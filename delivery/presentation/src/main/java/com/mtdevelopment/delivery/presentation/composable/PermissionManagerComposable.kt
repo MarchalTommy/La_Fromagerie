@@ -12,6 +12,7 @@ import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import com.mapbox.android.core.permissions.PermissionsManager.Companion.areLocationPermissionsGranted
 import com.mtdevelopment.core.domain.calculateDistance
+import com.mtdevelopment.core.domain.isSameCity
 import com.mtdevelopment.delivery.presentation.model.UiDeliveryPath
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -21,17 +22,38 @@ import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
 
-// Constante pour la distance maximale en mètres (5km à vol d'oiseau)
+/**
+ * Maximum distance (in meters) to allow a user to ask for manual support/delivery 
+ * if they are not in an exact delivery zone.
+ */
 const val MAX_DISTANCE_FOR_PICKUP_METERS = 5000.0
 
-// Enum pour représenter le statut de livraison/prise en charge
+/**
+ * Enumeration representing the user's eligibility for delivery based on their location.
+ */
 enum class DeliveryEligibility {
-    DELIVERABLE, // Livraison possible
-    ASK_FOR_SUPPORT, // Trop loin, faire une demande
-    NOT_ELIGIBLE // Ni livraison, ni prise en charge
+    /** Delivery is officially supported for this exact location/city. */
+    DELIVERABLE,
+
+    /** User is close to a delivery zone and can request manual support. */
+    ASK_FOR_SUPPORT,
+
+    /** User is too far from any delivery path. */
+    NOT_ELIGIBLE 
 }
 
 
+/**
+ * A logical (non-visual) Composable that manages the GPS permission flow and determines 
+ * delivery eligibility based on the user's current coordinates.
+ * 
+ * Logic flow:
+ * 1. Requests location permission.
+ * 2. Fetches the last known GPS coordinates.
+ * 3. Uses Android's Geocoder to resolve coordinates into a city and address.
+ * 4. Compares the user's location with defined delivery paths and zones.
+ * 5. Updates the UI state with eligibility results.
+ */
 @Composable
 fun PermissionManagerComposable(
     allPaths: List<UiDeliveryPath>,
@@ -51,7 +73,7 @@ fun PermissionManagerComposable(
             fusedLocationProviderClient =
                 LocationServices.getFusedLocationProviderClient(context)
 
-            // Permission accordée : récupérer la localisation
+            // Permission granted: start acquisition
             setIsLoading(true)
             getLastLocation(
                 context = context,
@@ -59,7 +81,8 @@ fun PermissionManagerComposable(
                 onSuccess = { userLocation ->
                     onUpdateUserLocation(userLocation)
                     onUpdateLocalisationState.invoke(true)
-                    // Lancer la vérification de la ville et de la proximité dans une coroutine
+
+                    // Background check for city and path proximity
                     coroutineScope.launch {
                         checkLocationEligibility(
                             context = context,
@@ -73,7 +96,6 @@ fun PermissionManagerComposable(
                     }
                 },
                 onFailure = {
-                    // Échec de récupération de la localisation
                     onUpdateUserLocation(null)
                     onUpdateEligibility(DeliveryEligibility.NOT_ELIGIBLE, "Unknown", null, null)
                     onUpdateLocalisationState.invoke(false)
@@ -88,6 +110,9 @@ fun PermissionManagerComposable(
     )
 }
 
+/**
+ * Fetches the device's last known location.
+ */
 @SuppressLint("MissingPermission")
 fun getLastLocation(
     context: Context,
@@ -108,6 +133,23 @@ fun getLastLocation(
     }
 }
 
+/**
+ * Core business logic for matching a GPS coordinate to a delivery path.
+ * 
+ * Algorithm:
+ * 1. Geocode Lat/Lng to get City, Street, and Full Address.
+ * 2. Iterate through all delivery paths:
+ *    - Calculate distance to the center of each city in the path.
+ *    - Find the minimum distance to any point on any path.
+ *    - Filter paths that explicitly include the user's city name.
+ * 3. Resolve the best matching path:
+ *    - Priority 1: Exact street match within a path covering the user's city.
+ *    - Priority 2: Generic path for the city (no street restrictions).
+ * 4. Assign eligibility:
+ *    - DELIVERABLE if a matching path is found.
+ *    - ASK_FOR_SUPPORT if the user is within 5km of a path center.
+ *    - NOT_ELIGIBLE otherwise.
+ */
 private suspend fun checkLocationEligibility(
     context: Context,
     userLocation: Pair<Double, Double>,
@@ -123,7 +165,7 @@ private suspend fun checkLocationEligibility(
         var closestDistance = Double.MAX_VALUE
         var matchingPathForCity: UiDeliveryPath? = null
 
-        // 1. Géocodage pour obtenir le nom de la ville
+        // 1. Geocoding
         try {
             val addresses: List<Address>? =
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -144,13 +186,13 @@ private suspend fun checkLocationEligibility(
             userAddress = addresses?.firstOrNull()?.getAddressLine(0)
             userStreet = addresses?.firstOrNull()?.thoroughfare
         } catch (e: IOException) {
-            userCity = null // ou "Erreur Geocoder"
+            userCity = null 
         } catch (e: IllegalArgumentException) {
-            userCity = null // ou "Erreur Coordonnées"
+            userCity = null 
         }
 
 
-        // 2. Vérifier la proximité et si la ville est dans un parcours
+        // 2. Proximity and path analysis
         val pathsInCity = mutableListOf<UiDeliveryPath>()
 
         for (path in allPaths) {
@@ -161,7 +203,7 @@ private suspend fun checkLocationEligibility(
                 if (path.locations != null && path.locations.size > cityIndex) {
                     val cityLocation = path.locations[cityIndex]
 
-                    // Calculer la distance
+                    // Calculate straight-line distance
                     val distance = calculateDistance(
                         userLocation.first, userLocation.second,
                         cityLocation.first, cityLocation.second
@@ -173,22 +215,22 @@ private suspend fun checkLocationEligibility(
                 }
             }
 
-            // Collect paths matching city
-            if (userCity != null && path.cities.any { it.first.equals(userCity, ignoreCase = true) }) {
+            // Path covers user's city?
+            if (path.cities.any { isSameCity(it.first, userCity) }) {
                 pathsInCity.add(path)
             }
         }
 
-        // Resolve matching path with street granularity
+        // 3. Granular matching (Street level)
         if (pathsInCity.isNotEmpty()) {
-             // 1. Try exact street match
+            // Try exact street match
              if (userStreet != null) {
                  matchingPathForCity = pathsInCity.find { path ->
                      path.streets.any { it.equals(userStreet, ignoreCase = true) }
                  }
              }
 
-             // 2. If no street match, look for generic path (no streets defined)
+            // If no street match, look for generic path (no streets defined = whole city covered)
              if (matchingPathForCity == null) {
                  matchingPathForCity = pathsInCity.find { it.streets.isEmpty() }
              }
@@ -196,14 +238,13 @@ private suspend fun checkLocationEligibility(
 
         isNearPathCity = closestDistance <= MAX_DISTANCE_FOR_PICKUP_METERS
 
-        // 3. Déterminer l'éligibilité
+        // 4. Determine final eligibility
         val eligibility = when {
-            matchingPathForCity != null -> DeliveryEligibility.DELIVERABLE // Priorité si livrable
-            isNearPathCity -> DeliveryEligibility.ASK_FOR_SUPPORT // Ensuite si trop loin
-            else -> DeliveryEligibility.NOT_ELIGIBLE // Ensuite si vraiment trop loin
+            matchingPathForCity != null -> DeliveryEligibility.DELIVERABLE
+            isNearPathCity -> DeliveryEligibility.ASK_FOR_SUPPORT
+            else -> DeliveryEligibility.NOT_ELIGIBLE 
         }
 
-        // Retourner le résultat sur le thread principal si nécessaire pour l'UI
         withContext(Dispatchers.Main) {
             onResult(
                 eligibility,

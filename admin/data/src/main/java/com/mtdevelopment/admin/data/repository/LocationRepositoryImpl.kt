@@ -18,6 +18,10 @@ import kotlinx.coroutines.launch
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
+/**
+ * Implementation of [LocationRepository] using Google Play Services Fused Location Provider.
+ * This class provides methods to get continuous location updates as a [Flow] or a single location fix.
+ */
 class LocationRepositoryImpl(
     private val context: Context,
     private val fusedLocationClient: FusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(
@@ -27,9 +31,16 @@ class LocationRepositoryImpl(
 
 
     companion object {
+        /**
+         * Default interval for location updates in milliseconds.
+         */
         const val DEFAULT_LOCATION_INTERVAL_MS = 15000L
     }
 
+    /**
+     * Creates a cold [Flow] that emits [CurrentLocation] updates.
+     * The updates start when the flow is collected and stop when the collection is cancelled.
+     */
     @SuppressLint("MissingPermission")
     override suspend fun getCurrentLocationUpdates(): Flow<CurrentLocation> = callbackFlow {
         val locationRequest =
@@ -54,12 +65,15 @@ class LocationRepositoryImpl(
             Looper.getMainLooper()
         )
 
-        // When the flow is closed, remove location updates
+        // When the flow is closed, remove location updates automatically
         awaitClose {
             fusedLocationClient.removeLocationUpdates(locationCallback)
         }
     }
 
+    /**
+     * Fetches the last known location from the Fused Location Provider.
+     */
     @SuppressLint("MissingPermission")
     override suspend fun getCurrentLocationOnce(): CurrentLocation? {
         return suspendCoroutine { continuation ->
@@ -67,12 +81,22 @@ class LocationRepositoryImpl(
                 .addOnSuccessListener { location ->
                     if (location != null) {
                         continuation.resume(CurrentLocation(location.latitude, location.longitude))
+                    } else {
+                        // TODO: Handle case where lastLocation is null (e.g., by requesting a fresh fix)
+                        continuation.resume(null)
                     }
+                }
+                .addOnFailureListener {
+                    continuation.resume(null)
                 }
         }
     }
 
+    /**
+     * // TODO: Implement this if needed for non-Flow based location management.
+     * Currently, location updates are tied to the Flow lifecycle in [getCurrentLocationUpdates].
+     */
     override suspend fun stopLocationUpdates() {
-        TODO("Not yet implemented")
+        // Not yet implemented as callbackFlow handles cleanup via awaitClose
     }
 }

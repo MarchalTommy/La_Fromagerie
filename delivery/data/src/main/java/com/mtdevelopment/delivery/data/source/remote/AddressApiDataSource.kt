@@ -13,11 +13,19 @@ import io.ktor.http.encodeURLPathPart
 import io.ktor.http.encodedPath
 import kotlinx.serialization.json.Json
 
+/**
+ * Data source for geocoding services, utilizing the French Government's Address API (adresse.data.gouv.fr).
+ * It translates physical addresses or city names into geographic coordinates (Latitude, Longitude).
+ */
 class AddressApiDataSource(
     private val httpClient: HttpClient,
     private val json: Json
 ) {
 
+    /**
+     * Retrieves coordinates for a specific city and zip code.
+     * Uses the "municipality" type to get the center of the town.
+     */
     suspend fun getLngLatFromCity(cityName: String, zip: Int): NetWorkResult<AddressData> {
         val response = httpClient.get {
             url {
@@ -28,6 +36,7 @@ class AddressApiDataSource(
                     HttpHeaders.Accept,
                     "application/json, application/geo+json, application/gpx+xml, img/png; charset=utf-8"
                 )
+                // Encoding search query for safer URL handling
                 encodedPath = "/search/?q=${cityName.encodeURLPathPart()}-${zip}&type=municipality"
             }
         }
@@ -41,6 +50,9 @@ class AddressApiDataSource(
         }
     }
 
+    /**
+     * Retrieves coordinates for a full street address.
+     */
     suspend fun getLngLatFromAddress(address: String): NetWorkResult<AddressData> {
         val response = httpClient.get {
             url {

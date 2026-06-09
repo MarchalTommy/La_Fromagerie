@@ -38,6 +38,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.geometry.CornerRadius
@@ -70,6 +71,16 @@ import com.skydoves.landscapist.glide.GlideImage
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 
+/**
+ * Screen displaying detailed information about a specific product for the administrator.
+ * In addition to displaying product info (similar to the client view), 
+ * it provides a "Modifier le produit" button to open the [ProductEditDialog].
+ * 
+ * Key capabilities:
+ * 1. Visual Review: Admins can check how the product looks (image, labels, allergens).
+ * 2. Editing: Triggers [AdminViewModel.updateProduct] via the edit dialog.
+ * 3. Deletion: Triggers [AdminViewModel.deleteProduct] via the edit dialog.
+ */
 @Composable
 fun DetailScreen(
     viewModel: CartViewModel,
@@ -83,9 +94,10 @@ fun DetailScreen(
     val context = LocalContext.current
     val adminViewModel = koinInject<AdminViewModel>()
 
-    val state = viewModel.cartUiState
+    val state by viewModel.cartUiState.collectAsStateWithLifecycle()
     val scaleCart = remember { Animatable(1f) }
 
+    // State for custom Canvas-based labels
     val nameWidth = remember { mutableFloatStateOf(0f) }
     val nameHeightDp = remember { mutableIntStateOf(0) }
     val priceWidth = remember { mutableFloatStateOf(0f) }
@@ -98,6 +110,10 @@ fun DetailScreen(
     var showError by remember { mutableStateOf(false) }
     var showLoading by remember { mutableStateOf(false) }
 
+    /**
+     * Optional bouncy effect (inherited from shared logic, though cart addition 
+     * might not be the primary admin action here).
+     */
     fun animateAddingToCart() {
         coroutineScope.launch {
             scaleCart.animateTo(
@@ -120,6 +136,7 @@ fun DetailScreen(
     Column(
         modifier = Modifier.fillMaxSize()
     ) {
+        // IMAGE SECTION: Hero image with placeholder support
         Box(modifier = Modifier.fillMaxWidth()) {
             GlideImage(
                 modifier = Modifier
@@ -152,6 +169,7 @@ fun DetailScreen(
                     Text(text = "image request failed.")
                 })
 
+            // LABEL: Product Name (Canvas background)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -201,6 +219,7 @@ fun DetailScreen(
             }
         }
 
+        // LABEL: Product Price (Canvas background)
         Row(
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -251,6 +270,7 @@ fun DetailScreen(
             }
         }
 
+        // SECTION: Description (Scrollable)
         if (state.currentItem?.description?.isBlank() == false) {
             Row(
                 modifier = Modifier
@@ -309,6 +329,7 @@ fun DetailScreen(
             }
         }
 
+        // SECTION: Allergens
         if (!state.currentItem?.allergens.isNullOrEmpty()) {
             Text(
                 modifier = Modifier.padding(start = 16.dp, top = 16.dp),
@@ -325,6 +346,7 @@ fun DetailScreen(
             )
         }
 
+        // ADMIN ACTION: Modifier le produit
         Button(
             modifier = Modifier
                 .align(Alignment.CenterHorizontally)
@@ -345,6 +367,9 @@ fun DetailScreen(
         }
     }
 
+    /**
+     * Dialog for editing or deleting the current product.
+     */
     if (showEditDialog) {
         ProductEditDialog(
             product = state.currentItem!!,
@@ -375,13 +400,14 @@ fun DetailScreen(
             })
     }
 
-    // Loading animation
+    // Loading animation Overlay
     RiveAnimation(
         isLoading = showLoading,
         modifier = Modifier.fillMaxSize(),
         contentDescription = "Loading animation"
     )
 
+    // Error Overlay
     if (showError) {
         ErrorOverlay(
             isShown = true,
