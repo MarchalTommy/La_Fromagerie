@@ -2,7 +2,6 @@ package com.mtdevelopment.checkout.presentation.viewmodel
 
 import android.content.Context
 import android.content.Intent
-import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.android.gms.common.api.ApiException
@@ -47,8 +46,6 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
-import org.json.JSONException
-import org.json.JSONObject
 import org.koin.core.component.KoinComponent
 import java.util.Calendar
 import java.util.Locale
@@ -239,21 +236,6 @@ class CheckoutViewModel(
     }
 
     /**
-     * Logs Google Pay API errors.
-     *
-     * At this stage, the user has already seen a popup informing them an error occurred. Normally,
-     * only logging is required.
-     *
-     * @param statusCode will hold the value of any constant from CommonStatusCode or one of the
-     * WalletConstants.ERROR_CODE_* constants.
-     * @see [
-     * Wallet Constants Library](https://developers.google.com/android/reference/com/google/android/gms/wallet/WalletConstants.constant-summary)
-     */
-    private fun handleError(statusCode: Int, message: String?) {
-        Log.e("Google Pay API error", "Error code: $statusCode, Message: $message")
-    }
-
-    /**
      * Step 3: Creates a checkout session on SumUp.
      * A checkout ID is required before we can process the Google Pay token.
      */
@@ -306,8 +288,8 @@ class CheckoutViewModel(
         paymentDataItem: GooglePayData,
         checkoutId: String
     ) {
-        // // TODO: The polling is handled within the DataSource level to ensure we wait for a final PAID/FAILED status.
-        // // TODO: If the app is killed during polling, we might lose the state. Need to verify if polling can resume on app restart.
+        // Polling for the final PAID/FAILED status is handled at the DataSource level
+        // (see SumUpDataSource for its known limitations if the app is killed mid-polling).
 
         // Verify if Google Pay reported success before proceeding with SumUp authorization
         getIsPaymentSuccessUseCase.invoke().collect {
@@ -348,41 +330,22 @@ class CheckoutViewModel(
             savePaymentStateUseCase.invoke(true)
 
             // Retrieve the pending checkout ID created in Step 3
-            getPreviouslyCreatedCheckoutUseCase.invoke().collect {
-                if (it.status.equals("pending", true)) {
+            getPreviouslyCreatedCheckoutUseCase.invoke().collect { checkout ->
+                if (checkout == null) {
+                    // No (or corrupt) saved checkout session: abort instead of crashing
+                    _paymentScreenState.update {
+                        it.copy(
+                            isLoading = false,
+                            error = "Une erreur est survenue lors de la récupération de la session de paiement.\nMerci de réessayer."
+                        )
+                    }
+                } else if (checkout.status.equals("pending", true)) {
                     val paymentDataItem =
                         json.decodeFromString<GooglePayData>(paymentData.toJson())
-                    processCheckout(context, paymentDataItem, it.id ?: "")
+                    processCheckout(context, paymentDataItem, checkout.id ?: "")
                 }
             }
         }
-    }
-
-    /**
-     * Utility to extract billing info if needed. Currently mostly for debug logs.
-     */
-    private fun extractPaymentBillingName(paymentData: PaymentData): String? {
-        val paymentInformation = paymentData.toJson()
-
-        try {
-            val paymentMethodData =
-                JSONObject(paymentInformation).getJSONObject("paymentMethodData")
-//            // TODO : CHECK LEGALLY if I can NOT ask for billing Address
-
-            // Logging token string for debugging. 
-            // // TODO: NEVER log this in production. Ensure these logs are stripped in release builds.
-            Log.d(
-                "Google Pay token", paymentMethodData
-                    .getJSONObject("tokenizationData")
-                    .getString("token")
-            )
-
-            return "ROBERTS TESTEUR"
-        } catch (error: JSONException) {
-            Log.e("handlePaymentSuccess", "Error: $error")
-        }
-
-        return null
     }
 
     fun setGooglePayEnabled(enabled: Boolean) {

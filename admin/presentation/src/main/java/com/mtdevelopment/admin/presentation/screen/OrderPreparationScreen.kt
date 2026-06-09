@@ -168,8 +168,7 @@ fun OrderPreparationList(
 /**
  * Individual item representing an aggregated product.
  * It can be expanded to see which customers ordered this specific product and their respective quantities.
- * // TODO: Fix : Quantity error on some occasion -> Multiple orders by same client name.
- * // TODO: Investigate if grouping should be done by client ID instead of client name to avoid collisions.
+ * Orders are keyed by order ID so multiple orders by the same client name are counted separately.
  */
 @Composable
 fun OrderPreparationListItem(

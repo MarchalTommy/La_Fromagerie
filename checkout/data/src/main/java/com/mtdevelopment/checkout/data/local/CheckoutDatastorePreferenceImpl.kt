@@ -110,10 +110,18 @@ class CheckoutDatastorePreferenceImpl(private val context: Context) : CheckoutDa
      * Serialized as a JSON string.
      */
     private val CREATED_CHECKOUT = stringPreferencesKey("created_checkout")
-    override val createdCheckoutFlow: Flow<NewCheckoutResult> =
+    override val createdCheckoutFlow: Flow<NewCheckoutResult?> =
         context.dataStore.data.map { preferences ->
-            // // TODO: Handle cases where the preference might be empty or invalid JSON.
-            Json.decodeFromString(preferences[CREATED_CHECKOUT] ?: "")
+            val savedCheckout = preferences[CREATED_CHECKOUT]
+            if (savedCheckout.isNullOrBlank()) {
+                null
+            } else {
+                try {
+                    Json.decodeFromString<NewCheckoutResult>(savedCheckout)
+                } catch (e: Exception) {
+                    null
+                }
+            }
         }
 
     override suspend fun saveCreatedCheckout(data: NewCheckoutResult) {

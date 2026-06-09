@@ -92,7 +92,7 @@ fun NavGraph(
             }
         ) {
             BackHandler {
-                cartViewModel.loadCart(withVisibility = false)
+                cartViewModel.setCartVisibility(false)
                 navController.navigateUp()
             }
 
@@ -103,7 +103,7 @@ fun NavGraph(
                     )
                 },
                 navigateBack = {
-                    cartViewModel.loadCart(withVisibility = false)
+                    cartViewModel.setCartVisibility(false)
                     navController.navigateUp()
                 })
         }

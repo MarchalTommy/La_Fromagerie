@@ -23,7 +23,7 @@ interface CheckoutDatastorePreference {
 
     suspend fun saveCheckoutReference(reference: String)
 
-    val createdCheckoutFlow: Flow<NewCheckoutResult>
+    val createdCheckoutFlow: Flow<NewCheckoutResult?>
 
     suspend fun saveCreatedCheckout(data: NewCheckoutResult)
 

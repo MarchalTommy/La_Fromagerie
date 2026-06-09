@@ -204,7 +204,7 @@ class MainActivity : ComponentActivity() {
                                     IconButton(
                                         onClick = {
                                             if (currentBackStackEntry.value?.destination?.route == DeliveryOptionScreenDestination::class.java.name) {
-                                                cartViewModel.loadCart(withVisibility = false)
+                                                cartViewModel.setCartVisibility(false)
                                             }
                                             navController.navigateUp()
                                         },

@@ -165,16 +165,6 @@ class PaymentRepositoryImpl(
     // SUMUP INTEGRATION
     ///////////////////////////////////////////////////////////////////////////
 
-    override suspend fun getCheckoutFromRef(reference: String?) {
-        // // TODO: Implement if needed to recover lost checkout sessions by their reference string.
-        TODO("Not yet implemented")
-    }
-
-    override suspend fun getCheckoutFromId(id: String) {
-        // // TODO: Implement if direct ID lookup from repository is needed.
-        TODO("Not yet implemented")
-    }
-
     /**
      * Step 3: Creates a checkout session on SumUp servers.
      * This provides a unique ID that we then "process" with Google Pay data.

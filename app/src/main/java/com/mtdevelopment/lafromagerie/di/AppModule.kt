@@ -368,7 +368,8 @@ val provideSumUpDataSource = module {
         }
         install(Logging) {
             logger = Logger.ANDROID
-            level = LogLevel.ALL
+            // Bodies contain payment tokens and buyer details: only log them in debug builds.
+            level = if (BuildConfig.DEBUG) LogLevel.ALL else LogLevel.NONE
             sanitizeHeader { header -> header == HttpHeaders.Authorization }
         }
         install(ContentNegotiation) {

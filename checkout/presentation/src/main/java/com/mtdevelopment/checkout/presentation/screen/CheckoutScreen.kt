@@ -311,7 +311,11 @@ fun CheckoutScreen(
                                     task.addOnCompleteListener { completedTask ->
                                         if(completedTask.isSuccessful) {
                                             completedTask.result.let {
-                                                Log.i("Google Pay result", it.toJson())
+                                                // The payment data contains the raw Google Pay token:
+                                                // never log it in release builds.
+                                                if (BuildConfig.DEBUG) {
+                                                    Log.i("Google Pay result", it.toJson())
+                                                }
                                                 // Step 5 & 6: Process the payment
                                                 checkoutViewModel.setPaymentData(
                                                     context = context,

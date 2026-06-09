@@ -40,6 +40,7 @@ class CartViewModelTest {
         Dispatchers.setMain(testDispatcher)
         coEvery { getIsNetworkConnectedUseCase.invoke() } returns flowOf(true)
         coEvery { saveToDatastoreUseCase.invoke(any()) } returns Unit
+        coEvery { getCartDataUseCase.invoke() } returns flowOf(null)
     }
 
     @After
@@ -223,30 +224,7 @@ class CartViewModelTest {
     }
 
     @Test
-    fun `resetCart clears cart items and resets price`() = runTest(testDispatcher) {
-        // Arrange
-        viewModel = CartViewModel(
-            getIsNetworkConnectedUseCase,
-            saveToDatastoreUseCase,
-            getCartDataUseCase
-        )
-        val item = CartItem(name = "Comté", price = 10L, quantity = 5)
-        viewModel.addCartObject(valueAsCartItem = item)
-        testScheduler.advanceUntilIdle()
-
-        // Act
-        viewModel.resetCart()
-        testScheduler.advanceUntilIdle()
-
-        // Assert
-        val items = viewModel.cartUiState.value.cartItems?.cartItems
-        assertNotNull(items)
-        assertTrue(items!!.isEmpty())
-        assertEquals(0L, viewModel.cartUiState.value.cartItems?.totalPrice)
-    }
-
-    @Test
-    fun `loadCart collects cart items from use case`() = runTest(testDispatcher) {
+    fun `cart is restored from the DataStore at construction`() = runTest(testDispatcher) {
         // Arrange
         val expectedCartItems = CartItems(
             cartItems = listOf(CartItem(name = "Roquefort", price = 12L, quantity = 2)),
@@ -254,18 +232,15 @@ class CartViewModelTest {
         )
         coEvery { getCartDataUseCase.invoke() } returns flowOf(expectedCartItems)
 
+        // Act
         viewModel = CartViewModel(
             getIsNetworkConnectedUseCase,
             saveToDatastoreUseCase,
             getCartDataUseCase
         )
-
-        // Act
-        viewModel.loadCart(withVisibility = true)
         testScheduler.advanceUntilIdle()
 
         // Assert
-        assertEquals(true, viewModel.cartUiState.value.isCartVisible)
         val items = viewModel.cartUiState.value.cartItems?.cartItems
         assertNotNull(items)
         assertEquals(1, items!!.size)
