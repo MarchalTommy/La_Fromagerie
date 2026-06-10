@@ -13,6 +13,7 @@ import com.google.firebase.Timestamp
 import com.google.firebase.crashlytics.FirebaseCrashlytics
 import com.mtdevelopment.checkout.domain.model.GooglePayData
 import com.mtdevelopment.checkout.domain.model.ProcessCheckoutResult
+import com.mtdevelopment.checkout.domain.usecase.ClearPendingPaymentFinalizationUseCase
 import com.mtdevelopment.checkout.domain.usecase.CreateNewCheckoutUseCase
 import com.mtdevelopment.checkout.domain.usecase.CreateNewOrderUseCase
 import com.mtdevelopment.checkout.domain.usecase.CreatePaymentsClientUseCase
@@ -28,6 +29,7 @@ import com.mtdevelopment.checkout.domain.usecase.ResetCheckoutStatusUseCase
 import com.mtdevelopment.checkout.domain.usecase.SaveCheckoutReferenceUseCase
 import com.mtdevelopment.checkout.domain.usecase.SaveCreatedCheckoutUseCase
 import com.mtdevelopment.checkout.domain.usecase.SavePaymentStateUseCase
+import com.mtdevelopment.checkout.domain.usecase.SchedulePaymentFinalizationUseCase
 import com.mtdevelopment.checkout.domain.usecase.UpdateOrderStatus
 import com.mtdevelopment.checkout.presentation.ThreeDSecureActivity
 import com.mtdevelopment.checkout.presentation.model.PaymentScreenState
@@ -63,6 +65,10 @@ import java.util.Locale
  * 6. [processCheckout]: Sends the Google Pay token to SumUp to authorize the transaction.
  *    This step might trigger a 3D Secure challenge.
  * 7. After success, [resetAppStateAfterSuccess] updates the order status to 'PAID' and clears the cart.
+ *
+ * Durability: right before step 6 submits the payment, a persisted WorkManager job
+ * (FinalizePaymentWorker) is scheduled. If the app is killed before the terminal status
+ * is handled in-app, the worker resumes polling and reconciles the order status itself.
  */
 class CheckoutViewModel(
     getIsConnectedUseCase: GetIsNetworkConnectedUseCase,
@@ -83,7 +89,9 @@ class CheckoutViewModel(
     private val resetCheckoutStatusUseCase: ResetCheckoutStatusUseCase,
     private val createNewOrderUseCase: CreateNewOrderUseCase,
     private val updateOrderStatus: UpdateOrderStatus,
-    private val getSavedOrderUseCase: GetSavedOrderUseCase
+    private val getSavedOrderUseCase: GetSavedOrderUseCase,
+    private val schedulePaymentFinalizationUseCase: SchedulePaymentFinalizationUseCase,
+    private val clearPendingPaymentFinalizationUseCase: ClearPendingPaymentFinalizationUseCase
 ) : ViewModel(), KoinComponent {
 
     /**
@@ -303,6 +311,9 @@ class CheckoutViewModel(
                     }
                 ).collect { finalResponse ->
                     // The flow emits only when a terminal status (PAID or FAILED) is reached due to polling.
+                    // On PAID, resetAppStateAfterSuccess finalizes the order and clears the
+                    // pending-finalization marker. On FAILED, the marker is left in place on
+                    // purpose: FinalizePaymentWorker marks the Firestore order as CANCELED.
                     _paymentScreenState.update { state ->
                         state.copy(
                             isLoading = false,
@@ -324,8 +335,6 @@ class CheckoutViewModel(
                     isLoading = true
                 )
             }
-            // TODO: FIRST OF ALL, CHECK THE ORDER TO MAKE IT SAVE THE STATUS RIGHT AFTER GOOGLE PAY
-            // TODO: THEN, COLLECT THE FLOW TO UPDATE THE UI
             // Mark payment as 'in progress'
             savePaymentStateUseCase.invoke(true)
 
@@ -340,6 +349,15 @@ class CheckoutViewModel(
                         )
                     }
                 } else if (checkout.status.equals("pending", true)) {
+                    // Schedule the durable finalization work BEFORE submitting the payment:
+                    // if the app is killed while waiting for SumUp's terminal status, the
+                    // worker resumes the polling and reconciles the Firestore order.
+                    val checkoutId = checkout.id
+                    val orderId = _paymentScreenState.value.orderId
+                    if (checkoutId != null && orderId != null) {
+                        schedulePaymentFinalizationUseCase.invoke(checkoutId, orderId)
+                    }
+
                     val paymentDataItem =
                         json.decodeFromString<GooglePayData>(paymentData.toJson())
                     processCheckout(context, paymentDataItem, checkout.id ?: "")
@@ -383,6 +401,9 @@ class CheckoutViewModel(
             )
             // Empty the cart
             clearCartUseCase.invoke()
+            // The order reached its terminal state in-app: the background
+            // finalization work is no longer needed and will no-op.
+            clearPendingPaymentFinalizationUseCase.invoke()
             resetPaymentState()
         }
     }

@@ -104,6 +104,7 @@ dependencies {
     implementation(libs.mapbox.geojson)
 
     implementation(libs.datastore.preferences)
+    implementation(libs.androidx.work.runtime)
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.firestore)
 

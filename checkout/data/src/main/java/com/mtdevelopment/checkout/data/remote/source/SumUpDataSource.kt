@@ -240,11 +240,11 @@ class SumUpDataSource(private val httpClient: HttpClient) {
     /**
      * Polls the SumUp API until the checkout session reaches a terminal state (PAID or FAILED).
      * This is essential for payments that require background processing or user verification (3DS).
-     * 
-     * // TODO: If the app is killed, this polling loop stops. 
-     * // TODO: Suggest implementing a WorkManager task or a more robust state recovery mechanism on app launch to resume polling for pending checkouts.
+     *
+     * If the app is killed while this loop runs, [com.mtdevelopment.checkout.data.work.FinalizePaymentWorker]
+     * (scheduled before the payment is submitted) resumes the polling and reconciles the order status.
      */
-    private fun pollCheckoutStatus(checkoutId: String): Flow<NetWorkResult<CheckoutResponse>> {
+    internal fun pollCheckoutStatus(checkoutId: String): Flow<NetWorkResult<CheckoutResponse>> {
         return flow {
             for (attempt in 0 until MAX_POLLING_ATTEMPTS) {
                 if (!currentCoroutineContext().isActive) {

@@ -60,12 +60,7 @@ import kotlinx.coroutines.launch
 import org.koin.androidx.viewmodel.ext.android.viewModel
 
 
-// TODO: FIX MAPVIEW, AGAIN
-// TODO: FIX ADD MANUAL DELIVERY
 // TODO: FIX NOTIFICATION INDEX OUT OF BOUND WHEN ONLY 1 DESTINATION
-// TODO: FIX "FACTURATION" ADDRESS UPDATING DELIVERY FIELD (though I fixed that, but meh)
-// TODO: FIX EVERY ADDRESS BEING TOO FAR ? WEIRD, I THOUGH I FIXED THAT TOO.
-
 class MainActivity : ComponentActivity() {
 
     private val cartViewModel: CartViewModel by viewModel()

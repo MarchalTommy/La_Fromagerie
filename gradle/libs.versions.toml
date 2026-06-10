@@ -43,6 +43,7 @@ crashlytics = "3.0.6"
 # Storage
 datastore = "1.2.0"
 room = "2.8.4"
+work = "2.10.1"
 # Permissions
 accompanist = "0.36.0"
 accompanist-permissions = "0.37.3"
@@ -160,6 +161,9 @@ room-ktx = { module = "androidx.room:room-ktx", version.ref = "room" }
 
 ## Datastore preferences
 datastore-preferences = { module = "androidx.datastore:datastore-preferences", version.ref = "datastore" }
+
+## WorkManager
+androidx-work-runtime = { module = "androidx.work:work-runtime-ktx", version.ref = "work" }
 datastore-proto = { module = "androidx.datastore:datastore", version.ref = "datastore" }
 google-gson = { module = "com.google.code.gson:gson", version.ref = "gson" }
 

@@ -11,6 +11,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.mtdevelopment.checkout.domain.model.NewCheckoutResult
+import com.mtdevelopment.checkout.domain.model.PendingPaymentFinalization
 import com.mtdevelopment.checkout.domain.repository.CheckoutDatastorePreference
 import com.mtdevelopment.core.model.Order
 import com.mtdevelopment.core.model.OrderData
@@ -172,6 +173,48 @@ class CheckoutDatastorePreferenceImpl(private val context: Context) : CheckoutDa
     override suspend fun saveOrder(order: Order) {
         context.dataStore.edit { settings ->
             settings[ORDER_ITEM] = Json.encodeToString(order.toOrderData())
+        }
+    }
+
+    /**
+     * Keys describing a payment that was submitted to SumUp but whose order has not
+     * reached a terminal state yet. Read by the background finalization work.
+     */
+    private val PENDING_FINALIZATION_CHECKOUT_ID =
+        stringPreferencesKey("pending_finalization_checkout_id")
+    private val PENDING_FINALIZATION_ORDER_ID =
+        stringPreferencesKey("pending_finalization_order_id")
+    private val PENDING_FINALIZATION_CREATED_AT =
+        longPreferencesKey("pending_finalization_created_at")
+
+    override val pendingFinalizationFlow: Flow<PendingPaymentFinalization?>
+        get() = context.dataStore.data.map { preferences ->
+            val checkoutId = preferences[PENDING_FINALIZATION_CHECKOUT_ID]
+            val orderId = preferences[PENDING_FINALIZATION_ORDER_ID]
+            if (checkoutId.isNullOrBlank() || orderId.isNullOrBlank()) {
+                null
+            } else {
+                PendingPaymentFinalization(
+                    checkoutId = checkoutId,
+                    orderId = orderId,
+                    createdAtMillis = preferences[PENDING_FINALIZATION_CREATED_AT] ?: 0L
+                )
+            }
+        }
+
+    override suspend fun setPendingFinalization(pending: PendingPaymentFinalization) {
+        context.dataStore.edit { settings ->
+            settings[PENDING_FINALIZATION_CHECKOUT_ID] = pending.checkoutId
+            settings[PENDING_FINALIZATION_ORDER_ID] = pending.orderId
+            settings[PENDING_FINALIZATION_CREATED_AT] = pending.createdAtMillis
+        }
+    }
+
+    override suspend fun clearPendingFinalization() {
+        context.dataStore.edit { settings ->
+            settings.remove(PENDING_FINALIZATION_CHECKOUT_ID)
+            settings.remove(PENDING_FINALIZATION_ORDER_ID)
+            settings.remove(PENDING_FINALIZATION_CREATED_AT)
         }
     }
 }
