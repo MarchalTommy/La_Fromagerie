@@ -41,7 +41,8 @@ fun UiProductObject.toDomainProduct() = Product(
     id = id,
     name = name,
     priceInCents = priceInCents,
-    imageUrl = imageUrl!!,
+    // Products without a picture use an empty string, matching ProductData.toProduct()
+    imageUrl = imageUrl ?: "",
     type = type.name,
     description = description,
     allergens = allergens?.map { allergen ->

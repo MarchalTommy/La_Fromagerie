@@ -27,7 +27,9 @@ class CartViewModel(
     private val getCartDataUseCase: GetCartDataUseCase
 ) : ViewModel(), KoinComponent {
 
-    // TODO: Add a way to save a "preferred cart" with stuff you usually order
+    // TODO: (flagged: feature request, needs product/UX decisions — preferred cart persistence,
+    //  dedicated datastore key and UI entry point) Add a way to save a "preferred cart" with
+    //  stuff you usually order.
 
     /**
      * Flow indicating the current network connection status.

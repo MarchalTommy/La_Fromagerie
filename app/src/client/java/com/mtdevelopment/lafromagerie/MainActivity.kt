@@ -217,13 +217,17 @@ class MainActivity : ComponentActivity() {
                                             "Cette fonctionnalité viendra plus tard ! Un peu de patience :)",
                                             actionLabel = "Je comprends",
                                             action = { mainViewModel.clearError() })
-//                                        TODO("Navigate To Notifications Screen, or Open a Modal Sheet with notifications")
+                                        // TODO: (flagged: notifications feature not built yet —
+                                        //  needs a notifications screen/modal sheet, a real unread
+                                        //  count source, and the badge wired to it. The button
+                                        //  intentionally shows a "coming later" message until then.)
                                     },
                                     content = {
                                         BadgedBox(
                                             modifier = Modifier,
                                             badge = {
-                                                // TODO: Notification amount not 0
+                                                // Hidden until the notifications feature exists
+                                                // (see flagged TODO above).
                                                 if (
                                                     false
                                                 ) {
@@ -231,7 +235,6 @@ class MainActivity : ComponentActivity() {
                                                         containerColor = Color.Red,
                                                         contentColor = Color.White
                                                     ) {
-                                                        // TODO: Notification amount
                                                         val notificationsNumber = 4
                                                         Text("$notificationsNumber")
                                                     }

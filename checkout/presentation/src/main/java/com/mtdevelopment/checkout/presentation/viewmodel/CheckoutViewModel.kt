@@ -43,6 +43,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -309,7 +310,18 @@ class CheckoutViewModel(
                         // If the card requires 3DS verification, redirect to the custom activity
                         launch3DSActivity(context, nextStep)
                     }
-                ).collect { finalResponse ->
+                ).catch { throwable ->
+                    // The repository surfaces SumUp errors as flow exceptions: report them to the
+                    // UI instead of letting them crash the collection.
+                    FirebaseCrashlytics.getInstance().recordException(throwable)
+                    _paymentScreenState.update { state ->
+                        state.copy(
+                            isLoading = false,
+                            isPaymentSuccess = false,
+                            error = "Une erreur est survenue lors du paiement.\nVous n'avez pas été débité, merci de réessayer."
+                        )
+                    }
+                }.collect { finalResponse ->
                     // The flow emits only when a terminal status (PAID or FAILED) is reached due to polling.
                     // On PAID, resetAppStateAfterSuccess finalizes the order and clears the
                     // pending-finalization marker. On FAILED, the marker is left in place on

@@ -11,6 +11,7 @@ data class DeliverHelperDialogState(
     val shouldShowDialog: Boolean,
 
     val onDismissError: () -> Unit,
+    val dialogOnError: (String) -> Unit = {},
     val dialogOnConfirm: (Order) -> Unit,
     val autocompleteOnValueChange: (String) -> Unit,
     val autocompleteOnSuggestionSelected: (AutoCompleteSuggestion) -> Unit,

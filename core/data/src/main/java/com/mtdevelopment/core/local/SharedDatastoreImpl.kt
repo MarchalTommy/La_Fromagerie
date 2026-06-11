@@ -66,6 +66,7 @@ class SharedDatastoreImpl(private val context: Context) : SharedDatastore {
                 gson.fromJson(preferences[USER_INFORMATION_KEY], UserInformationData::class.java)
                     .toUserInformation()
             } catch (e: Exception) {
+                Log.e(TAG, "userInformationFlow:", e)
                 UserInformation(
                     name = "",
                     address = "",

@@ -1,5 +1,6 @@
 package com.mtdevelopment.admin.data.source
 
+import android.util.Log
 import com.google.firebase.Firebase
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FirebaseFirestore
@@ -155,8 +156,15 @@ class FirestoreAdminDatasource(
 
     /**
      * Fetches all orders from the "orders" collection.
-     * // TODO: This method uses callbacks instead of [suspend]. Consider refactoring for consistency.
-     * // TODO: Manual mapping is used here; consider using [toObject] if models align perfectly.
+     *
+     * Kept callback-based on purpose: its consumers (admin view models) plug UI callbacks
+     * straight into it, and converting it to a suspend function would ripple through the whole
+     * admin call chain for no behavioral gain. Manual mapping is also intentional: the documents
+     * use snake_case keys and a string status that needs an explicit [OrderStatus] conversion,
+     * which [com.google.firebase.firestore.DocumentSnapshot.toObject] cannot do here.
+     *
+     * Documents that cannot be mapped (e.g. an unknown status written by a newer app version)
+     * are skipped instead of failing the entire list.
      */
     fun getAllOrders(
         onSuccess: (List<OrderData>) -> Unit,
@@ -168,20 +176,25 @@ class FirestoreAdminDatasource(
                 onFailure.invoke()
             }
             .addOnSuccessListener {
-                onSuccess.invoke(it.documents.map { item ->
-                    OrderData(
-                        id = item.id,
-                        customer_name = item.data?.get("customer_name").toString(),
-                        customer_address = item.data?.get("customer_address").toString(),
-                        delivery_date = item.data?.get("delivery_date").toString(),
-                        order_date = item.data?.get("order_date").toString(),
-                        products = item.data?.get("products") as? Map<String, Int>
-                            ?: emptyMap(),
-                        status = OrderStatus.valueOf(item.data?.get("status").toString()),
-                        note = item.data?.get("note") as? String,
-                        billing_address = item.data?.get("billing_address").toString(),
-                        is_manually_added = item.data?.get("is_manually_added") as? Boolean
-                    )
+                onSuccess.invoke(it.documents.mapNotNull { item ->
+                    try {
+                        OrderData(
+                            id = item.id,
+                            customer_name = item.data?.get("customer_name").toString(),
+                            customer_address = item.data?.get("customer_address").toString(),
+                            delivery_date = item.data?.get("delivery_date").toString(),
+                            order_date = item.data?.get("order_date").toString(),
+                            products = item.data?.get("products") as? Map<String, Int>
+                                ?: emptyMap(),
+                            status = OrderStatus.valueOf(item.data?.get("status").toString()),
+                            note = item.data?.get("note") as? String,
+                            billing_address = item.data?.get("billing_address").toString(),
+                            is_manually_added = item.data?.get("is_manually_added") as? Boolean
+                        )
+                    } catch (e: Exception) {
+                        Log.e("FirestoreAdmin", "Skipping malformed order ${item.id}", e)
+                        null
+                    }
                 })
             }
     }

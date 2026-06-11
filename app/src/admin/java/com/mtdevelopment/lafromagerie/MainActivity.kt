@@ -60,7 +60,10 @@ import kotlinx.coroutines.launch
 import org.koin.androidx.viewmodel.ext.android.viewModel
 
 
-// TODO: FIX NOTIFICATION INDEX OUT OF BOUND WHEN ONLY 1 DESTINATION
+// Resolved: the "notification index out of bound with only 1 destination" crash came from
+// reorderList throwing when Google omits optimizedIntermediateWaypointIndex for single-stop
+// routes. reorderList (core:domain) now validates the indexes and falls back to the original
+// order; see GoogleRouteRepositoryImplTest."single destination with missing optimized indexes".
 class MainActivity : ComponentActivity() {
 
     private val cartViewModel: CartViewModel by viewModel()

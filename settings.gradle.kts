@@ -25,9 +25,11 @@ dependencyResolutionManagement {
             url = uri("https://api.mapbox.com/downloads/v2/releases/maven")
             // Do not change the username below. It should always be "mapbox" (not your username).
             credentials.username = "mapbox"
-            credentials.password = System.getenv("MAPBOX_SECRET_TOKEN") ?: providers.gradleProperty("MAPBOX_SECRET_TOKEN").get()
+            // Resolved leniently so builds relying on cached artifacts still configure when
+            // the token is absent; downloads from Mapbox will then fail with 401 instead.
+            credentials.password = System.getenv("MAPBOX_SECRET_TOKEN")
+                ?: providers.gradleProperty("MAPBOX_SECRET_TOKEN").orNull.orEmpty()
             authentication.create<BasicAuthentication>("basic")
-            url = uri("https://api.mapbox.com/downloads/v2/releases/maven")
         }
     }
 }

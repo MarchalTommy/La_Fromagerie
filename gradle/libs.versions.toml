@@ -58,6 +58,7 @@ wallet = "19.5.0"
 wallet-button = "1.2.0"
 # Tools
 gson = "2.13.2"
+org-json = "20240303"
 serialization = "1.10.0"
 scrollbar = "1.0.4"
 exifinterface = "1.4.2"
@@ -166,6 +167,8 @@ datastore-preferences = { module = "androidx.datastore:datastore-preferences", v
 androidx-work-runtime = { module = "androidx.work:work-runtime-ktx", version.ref = "work" }
 datastore-proto = { module = "androidx.datastore:datastore", version.ref = "datastore" }
 google-gson = { module = "com.google.code.gson:gson", version.ref = "gson" }
+# Real org.json implementation for JVM unit tests (android.jar only ships stubs)
+org-json = { module = "org.json:json", version.ref = "org-json" }
 
 
 ## Compose navigation + serialization

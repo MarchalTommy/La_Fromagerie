@@ -43,8 +43,10 @@ class GoogleRouteRepositoryImpl(
                     it?.endLocation?.latLng?.longitude ?: 0.0
                 )
             } ?: listOf(),
-            // Reordering the orders based on the optimized indexes
-            // // TODO: Ensure that reorderList correctly handles the case where waypoints and orders might not perfectly align if multiple orders are at the same address.
+            // Reordering the orders based on the optimized indexes.
+            // reorderList validates the indexes (size, bounds, duplicates) and falls back to the
+            // original order when waypoints and orders do not align (e.g. several orders at the
+            // same address), so a malformed Google response can never crash or drop orders.
             optimizedOrders = reorderList(dailyOrders, indexes)
         )
 

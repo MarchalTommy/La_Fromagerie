@@ -54,8 +54,10 @@ class PaymentRepositoryImpl(
 
     /**
      * Base request JSON template for Google Pay API.
+     * Built fresh on each call: [isReadyToPayRequest] and [getPaymentDataRequest] add different
+     * keys, so sharing a single mutable JSONObject would leak keys between requests.
      */
-    private val baseRequest = JSONObject()
+    private fun baseRequest() = JSONObject()
         .put("apiVersion", 2)
         .put("apiVersionMinor", 0)
 
@@ -100,9 +102,10 @@ class PaymentRepositoryImpl(
      */
     override fun isReadyToPayRequest(): JSONObject? =
         try {
-            baseRequest
+            baseRequest()
                 .put("allowedPaymentMethods", JSONArray().put(baseCardPaymentMethod()))
         } catch (e: JSONException) {
+            Log.e("PaymentRepository", "Could not build isReadyToPay request", e)
             null
         }
 
@@ -110,7 +113,15 @@ class PaymentRepositoryImpl(
      * Queries the Google Pay API to see if the payment button should be displayed.
      */
     override suspend fun canUseGooglePay(): Boolean {
-        val request = IsReadyToPayRequest.fromJson(isReadyToPayRequest().toString())
+        if (!::client.isInitialized) {
+            Log.e(
+                "PaymentRepository",
+                "canUseGooglePay called before createPaymentsClient: returning false"
+            )
+            return false
+        }
+        val requestJson = isReadyToPayRequest() ?: return false
+        val request = IsReadyToPayRequest.fromJson(requestJson.toString())
         return client.isReadyToPay(request).await()
     }
 
@@ -143,7 +154,7 @@ class PaymentRepositoryImpl(
      * @param priceCents The amount to charge, in cents.
      */
     override fun getPaymentDataRequest(priceCents: Long): JSONObject =
-        baseRequest
+        baseRequest()
             .put("allowedPaymentMethods", allowedPaymentMethods)
             .put("transactionInfo", getTransactionInfo(priceCents.centsToString()))
             .put("merchantInfo", merchantInfo)
@@ -196,12 +207,51 @@ class PaymentRepositoryImpl(
                 merchantCode = BuildConfig.SUMUP_MERCHANT_ID
             )
         ).transform { value ->
-            if (
-                (value as? NetWorkResult.Success)?.data != null) {
-                emit(value.data!!.toNewCheckoutResult())
+            when (value) {
+                is NetWorkResult.Success -> {
+                    val data = value.data
+                    if (data != null) {
+                        emit(data.toNewCheckoutResult())
+                    } else {
+                        Log.e("CreateNewCheckout", "SumUp returned an empty checkout body")
+                        emit(emptyNewCheckoutResult())
+                    }
+                }
+
+                is NetWorkResult.Error -> {
+                    // Emit a result with a null status (the caller's failure signal) instead of
+                    // completing silently, which would leave the UI stuck in a loading state.
+                    Log.e(
+                        "CreateNewCheckout",
+                        "Error creating checkout: ${value.message} (${value.code})"
+                    )
+                    emit(emptyNewCheckoutResult())
+                }
             }
         }
     }
+
+    /**
+     * Failure marker for [createNewCheckout]: consumers treat a null [NewCheckoutResult.status]
+     * as a failed checkout creation.
+     */
+    private fun emptyNewCheckoutResult() = NewCheckoutResult(
+        amount = null,
+        checkoutReference = null,
+        currency = null,
+        customerId = null,
+        date = null,
+        description = null,
+        id = null,
+        mandate = null,
+        merchantCode = null,
+        merchantCountry = null,
+        payToEmail = null,
+        returnUrl = null,
+        status = null,
+        transactions = null,
+        validUntil = null
+    )
 
     /**
      * Step 6: Finalizes the transaction by sending the Google Pay token to SumUp.

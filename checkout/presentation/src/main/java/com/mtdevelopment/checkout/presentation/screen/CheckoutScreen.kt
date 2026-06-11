@@ -240,7 +240,8 @@ fun CheckoutScreen(
 
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    // TODO: VOIR LÉGALITÉ ET AUTOMATISATION POUR FACTURE
+                    // TODO: (flagged for review: legal/product decision, not actionable in code alone)
+                    //  VOIR LÉGALITÉ ET AUTOMATISATION POUR FACTURE
 
                     Text(
                         modifier = Modifier.padding(start = 12.dp, end = 12.dp, top = 12.dp),
@@ -250,7 +251,8 @@ fun CheckoutScreen(
                         fontWeight = FontWeight.SemiBold
                     )
 
-                    // TODO: Add a mapBoxComposable with given address (need state rework first)
+                    // TODO: (flagged for review: feature blocked on a state rework of this screen)
+                    //  Add a mapBoxComposable with given address
                 }
             }
 

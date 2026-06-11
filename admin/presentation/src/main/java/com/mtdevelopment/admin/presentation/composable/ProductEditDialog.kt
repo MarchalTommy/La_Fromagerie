@@ -49,7 +49,10 @@ import com.mtdevelopment.core.model.ProductType
 import com.mtdevelopment.core.presentation.sharedModels.UiProductObject
 import com.mtdevelopment.core.presentation.theme.ui.black70
 
-// TODO: Check why bug when picture + data, but not when just picture or just data
+// TODO: (flagged: needs manual on-device verification) "Bug when picture + data, but not when
+//  just picture or just data". Likely root cause fixed in AdminViewModel.uploadLocalImageIfAny:
+//  the previous flow re-uploaded hosted images and proceeded with a device-local URI when the
+//  upload failed. Verify on a device, then remove this note.
 @Preview(showBackground = true)
 @Composable
 fun ProductEditDialog(
