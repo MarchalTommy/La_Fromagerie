@@ -173,25 +173,18 @@ class AdminViewModel(
     ) {
         viewModelScope.launch {
             onLoading.invoke(true)
-            // Handle image upload if it's a local URI
-            // // TODO: If image upload fails, should we still proceed with product update?
-            product.imageUrl?.toUri()?.let {
-                uploadImageUseCase.invoke(
-                    imageUri = it,
-                    onResult = { result ->
-                        result.onSuccess { onlineUrl ->
-                            product.imageUrl = onlineUrl
-                        }
-                    }
-                )
-            }
-
-            updateProductUseCase.invoke(product.toDomainProduct(), onSuccess = {
-                onSuccess.invoke()
-            }, onError = {
+            try {
+                uploadProductImageIfLocal(product)
+                updateProductUseCase.invoke(product.toDomainProduct(), onSuccess = {
+                    onSuccess.invoke()
+                }, onError = {
+                    onError.invoke()
+                })
+            } catch (e: Exception) {
                 onError.invoke()
-            })
-            onLoading.invoke(false)
+            } finally {
+                onLoading.invoke(false)
+            }
         }
     }
 
@@ -212,24 +205,37 @@ class AdminViewModel(
     ) {
         viewModelScope.launch {
             onLoading.invoke(true)
-            product.imageUrl?.toUri()?.let {
-                uploadImageUseCase.invoke(
-                    imageUri = it,
-                    onResult = { result ->
-                        result.onSuccess { onlineUrl ->
-                            product.imageUrl = onlineUrl
-                        }
-                    }
-                )
-            }
-
-            addNewProductUseCase.invoke(product.toDomainProduct(), onSuccess = {
-                onSuccess.invoke()
-            }, onError = {
+            try {
+                uploadProductImageIfLocal(product)
+                addNewProductUseCase.invoke(product.toDomainProduct(), onSuccess = {
+                    onSuccess.invoke()
+                }, onError = {
+                    onError.invoke()
+                })
+            } catch (e: Exception) {
                 onError.invoke()
-            })
-            onLoading.invoke(false)
+            } finally {
+                onLoading.invoke(false)
+            }
         }
+    }
+
+    /**
+     * Uploads the product image to Cloudinary only when it points to a local file picked
+     * on the device. An http(s) URL is already hosted and must not be re-uploaded
+     * (e.g., a simple availability toggle would otherwise trigger a useless upload).
+     */
+    private suspend fun uploadProductImageIfLocal(product: UiProductObject) {
+        val uri = product.imageUrl?.toUri() ?: return
+        if (uri.scheme != "content" && uri.scheme != "file") return
+        uploadImageUseCase.invoke(
+            imageUri = uri,
+            onResult = { result ->
+                result.onSuccess { onlineUrl ->
+                    product.imageUrl = onlineUrl
+                }
+            }
+        )
     }
 
     ///////////////////////////////////////////////////////////////////////////

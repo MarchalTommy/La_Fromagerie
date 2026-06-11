@@ -104,11 +104,15 @@ class CloudinaryRepositoryImpl(
                 }
 
                 override fun onReschedule(requestId: String?, error: ErrorInfo?) {
-                    // Upload rescheduled (e.g., network loss), managed by SDK
+                    // Upload rescheduled (e.g., network loss). The retry may happen much
+                    // later (or never): fail now instead of suspending the caller forever.
                     Log.w(
                         "CloudinaryRepo",
                         "Upload Rescheduled ($requestId): ${error?.description}"
                     )
+                    if (continuation.isActive) {
+                        continuation.resume(Result.failure(Exception("Cloudinary upload rescheduled: ${error?.description}")))
+                    }
                 }
             })
             .dispatch()
