@@ -18,20 +18,30 @@ class GetOptimizedDeliveryUseCase(
 
     /**
      * Executes the use case.
+     *
+     * The cached route is only reused when it was computed for the same set of orders:
+     * if the day's orders changed since the cache was written (or [forceRefresh] is true),
+     * a fresh optimized route is fetched instead of serving a stale one.
+     *
      * @param addresses The list of delivery addresses.
      * @param dailyOrders The list of orders for the day.
+     * @param forceRefresh If true, bypasses the cached route entirely.
      * @return The [OptimizedRouteWithOrders] representing the best route.
-     * // TODO: Consider adding a forced refresh mechanism if the input addresses/orders change but a cached version exists.
      */
     suspend operator fun invoke(
         addresses: List<String>,
-        dailyOrders: List<Order>
+        dailyOrders: List<Order>,
+        forceRefresh: Boolean = false
     ): OptimizedRouteWithOrders {
 
-        return if (adminDatastorePreference.dailyDeliveryPathGeocodedFlow.first() == null) {
+        val cached = adminDatastorePreference.dailyDeliveryPathGeocodedFlow.first()
+        val cacheMatchesOrders =
+            cached?.optimizedOrders?.map { it.id }?.toSet() == dailyOrders.map { it.id }.toSet()
+
+        return if (forceRefresh || cached == null || !cacheMatchesOrders) {
             googleRouteRepository.getOptimizedDeliveryPath(addresses, dailyOrders)
         } else {
-            adminDatastorePreference.dailyDeliveryPathGeocodedFlow.first()!!
+            cached
         }
     }
 

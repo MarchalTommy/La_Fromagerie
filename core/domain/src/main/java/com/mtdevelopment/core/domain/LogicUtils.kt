@@ -4,13 +4,16 @@ import android.location.Location
 import android.util.Log
 import java.text.NumberFormat
 import java.util.Locale
+import kotlin.math.roundToLong
 
 
 /**
  * Converts a price in [Double] to its cent representation in [Long] to avoid precision issues.
+ * Rounds to the nearest cent so binary floating point artifacts (e.g. 19.99 * 100 = 1998.99...)
+ * do not truncate a cent away.
  */
 fun Double.toCentsLong(): Long {
-    return (this * 100).toLong()
+    return (this * 100).roundToLong()
 }
 
 /**
@@ -31,9 +34,15 @@ fun Long.toStringPrice(): String {
 
 /**
  * Parses a currency string into its cent-based [Long] representation.
+ * Accepts the output of [Long.toStringPrice] (which uses non-breaking spaces) and rounds to the
+ * nearest cent instead of truncating.
  */
 fun String.toLongPrice(): Long {
-    return (this.replace("€", "").replace(",", ".").trim().toDouble() * 100).toLong()
+    val sanitized = this.replace("\u20AC", "")
+        .replace(",", ".")
+        // Strips regular and non-breaking spaces (U+00A0, U+202F) emitted by currency formatters.
+        .replace("[\\s\u00A0\u202F]".toRegex(), "")
+    return (sanitized.toDouble() * 100).roundToLong()
 }
 
 /**
@@ -119,16 +128,30 @@ fun <T> MutableList<T>.move(from: Int, to: Int) {
 /**
  * Reorders a list based on a provided list of new indices.
  * Used for applying route optimization results from Google Maps API.
- * 
+ *
+ * If [indices] is not a valid permutation of the list positions (wrong size, null entries,
+ * out-of-bounds values or duplicates), the original [list] order is returned unchanged instead of
+ * crashing or producing a list with holes.
+ *
  * @param list The original list of items.
  * @param indices A list where `indices[i]` is the new position of `list[i]`.
  * @return A new list with items in their optimized positions.
  */
 fun <T> reorderList(list: List<T>, indices: List<Int?>): List<T> {
+    if (list.isEmpty()) return list
+
+    val isValidPermutation = indices.size == list.size &&
+            indices.all { it != null && it in list.indices } &&
+            indices.distinct().size == list.size
+
+    if (!isValidPermutation) {
+        Log.w("ListReorder", "Invalid reorder indices $indices for list of size ${list.size}")
+        return list
+    }
+
     val result = MutableList<T?>(list.size) { null }
     list.forEachIndexed { originalIndex, item ->
-        val newPosition = indices[originalIndex] ?: 0
-        result[newPosition] = item
+        result[indices[originalIndex]!!] = item
     }
     @Suppress("UNCHECKED_CAST")
     return result as List<T>

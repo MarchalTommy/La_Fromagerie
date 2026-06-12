@@ -73,18 +73,39 @@ class LocationRepositoryImpl(
 
     /**
      * Fetches the last known location from the Fused Location Provider.
+     * If no cached location is available (e.g. right after a device reboot), falls back to
+     * requesting a fresh single fix before giving up.
      */
     @SuppressLint("MissingPermission")
     override suspend fun getCurrentLocationOnce(): CurrentLocation? {
-        return suspendCoroutine { continuation ->
+        val lastKnown = suspendCoroutine { continuation ->
             fusedLocationClient.lastLocation
                 .addOnSuccessListener { location ->
-                    if (location != null) {
-                        continuation.resume(CurrentLocation(location.latitude, location.longitude))
-                    } else {
-                        // TODO: Handle case where lastLocation is null (e.g., by requesting a fresh fix)
-                        continuation.resume(null)
-                    }
+                    continuation.resume(
+                        location?.let { CurrentLocation(it.latitude, it.longitude) }
+                    )
+                }
+                .addOnFailureListener {
+                    continuation.resume(null)
+                }
+        }
+        return lastKnown ?: requestFreshLocation()
+    }
+
+    /**
+     * Requests a single up-to-date location fix from the Fused Location Provider.
+     */
+    @SuppressLint("MissingPermission")
+    private suspend fun requestFreshLocation(): CurrentLocation? {
+        return suspendCoroutine { continuation ->
+            fusedLocationClient.getCurrentLocation(
+                Priority.PRIORITY_HIGH_ACCURACY,
+                /* cancellationToken = */ null
+            )
+                .addOnSuccessListener { location ->
+                    continuation.resume(
+                        location?.let { CurrentLocation(it.latitude, it.longitude) }
+                    )
                 }
                 .addOnFailureListener {
                     continuation.resume(null)
@@ -93,10 +114,11 @@ class LocationRepositoryImpl(
     }
 
     /**
-     * // TODO: Implement this if needed for non-Flow based location management.
-     * Currently, location updates are tied to the Flow lifecycle in [getCurrentLocationUpdates].
+     * Intentional no-op: continuous updates started by [getCurrentLocationUpdates] are
+     * automatically removed when the flow collection is cancelled (see its awaitClose block),
+     * so there is no out-of-band subscription to stop.
      */
     override suspend fun stopLocationUpdates() {
-        // Not yet implemented as callbackFlow handles cleanup via awaitClose
+        // Nothing to do: cleanup is handled by awaitClose in getCurrentLocationUpdates.
     }
 }

@@ -38,30 +38,32 @@ class OpenRouteDataSource(
             listOf(pair.second, pair.first)
         }
 
-        val response = httpClient.post {
-            url {
-                header(
-                    HttpHeaders.Accept,
-                    "application/json, application/geo+json, application/gpx+xml, img/png; charset=utf-8"
-                )
-                path(
-                    "/v2/directions/driving-car/geojson"
-                )
-                contentType(ContentType.Application.Json)
-                setBody(
-                    OpenRouteRequest(
-                        coordinates = listOfList
-                    )
-                )
-            }
-        }
+        // The request itself is inside the try so network failures surface as
+        // NetWorkResult.Error instead of crashing the caller.
         return try {
+            val response = httpClient.post {
+                url {
+                    header(
+                        HttpHeaders.Accept,
+                        "application/json, application/geo+json, application/gpx+xml, img/png; charset=utf-8"
+                    )
+                    path(
+                        "/v2/directions/driving-car/geojson"
+                    )
+                    contentType(ContentType.Application.Json)
+                    setBody(
+                        OpenRouteRequest(
+                            coordinates = listOfList
+                        )
+                    )
+                }
+            }
             val result = json.decodeFromString<GeoJsonFeatureCollection>(response.body())
             NetWorkResult.Success(
                 result
             )
         } catch (e: Exception) {
-            NetWorkResult.Error(response.status.toString(), e.message ?: "")
+            NetWorkResult.Error(e.message ?: "Unknown OpenRoute error", e::class.simpleName)
         }
     }
 }

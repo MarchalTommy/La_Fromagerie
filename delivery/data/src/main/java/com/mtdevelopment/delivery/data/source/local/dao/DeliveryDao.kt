@@ -27,7 +27,4 @@ interface DeliveryDao {
     @Query("SELECT * FROM paths")
     fun getAllPaths(): Flow<List<PathEntity>>
 
-    // TODO: Contains dans un query ?
-//    @Query("SELECT * FROM paths WHERE cities")
-
 }

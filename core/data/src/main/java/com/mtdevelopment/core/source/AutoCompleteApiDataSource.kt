@@ -19,25 +19,26 @@ class AutoCompleteApiDataSource(
 ) {
 
     suspend fun getAutoCompleteSuggestions(query: String): NetWorkResult<AutoCompleteSuggestions> {
-        val response = httpClient.get {
-            url {
-                protocol = URLProtocol.Companion.HTTPS
-                host = ADDRESS_API_BASE_URL_WITHOUT_HTTPS
-                header(
-                    HttpHeaders.Accept,
-                    "application/json, application/geo+json, application/gpx+xml, img/png; charset=utf-8"
-                )
-                encodedPath =
-                    "/completion/?text=${query.encodeURLPathPart()}&terr=25%2C39&poiType=${"zone d'habitation".encodeURLPathPart()}&type=StreetAddress&maximumResponses=3"
-            }
-        }
-
+        // The request itself is inside the try so network failures (no connectivity, timeouts)
+        // surface as NetWorkResult.Error instead of crashing the caller.
         return try {
+            val response = httpClient.get {
+                url {
+                    protocol = URLProtocol.Companion.HTTPS
+                    host = ADDRESS_API_BASE_URL_WITHOUT_HTTPS
+                    header(
+                        HttpHeaders.Accept,
+                        "application/json, application/geo+json, application/gpx+xml, img/png; charset=utf-8"
+                    )
+                    encodedPath =
+                        "/completion/?text=${query.encodeURLPathPart()}&terr=25%2C39&poiType=${"zone d'habitation".encodeURLPathPart()}&type=StreetAddress&maximumResponses=3"
+                }
+            }
             NetWorkResult.Success(
                 response.body<AutoCompleteSuggestions>()
             )
         } catch (e: Exception) {
-            NetWorkResult.Error(response.status.toString(), e.message ?: "")
+            NetWorkResult.Error(e.message ?: "Unknown autocomplete error", e::class.simpleName)
         }
     }
 }

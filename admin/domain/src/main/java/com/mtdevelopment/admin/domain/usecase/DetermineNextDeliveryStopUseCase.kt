@@ -67,8 +67,12 @@ class DetermineNextDeliveryStopUseCase() {
 
     /**
      * Finds the next order in the list starting from a specific waypoint index.
-     * // TODO: This logic assumes a 1:1 mapping between waypoints and orders which might not be true if waypoints represent a complex path.
-     * // TODO: Verify if waypoints[i] always corresponds to orders[i].
+     *
+     * Mapping invariant (established by GoogleRouteRepositoryImpl): `optimizedRoute` is built
+     * from the route legs' end locations, so `waypoints[i]` is the i-th delivery stop and maps
+     * 1:1 to `orders[i]` — except the final leg, whose end location is the return to the farm
+     * and has no matching order. The `i < orders.size` bound below handles that last leg by
+     * returning null once every order has been delivered.
      */
     private fun findNextClosestOrder(
         orders: List<Order>,

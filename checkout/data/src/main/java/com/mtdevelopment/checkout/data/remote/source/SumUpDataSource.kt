@@ -33,9 +33,6 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.isActive
 
-// TODO:   Error processing checkout ac86fa64-d0d0-4072-ae23-d48463525e12: 500 Internal Server Error.
-//  Body: {"error_code":"INTERNAL_SERVER_ERROR","message":"Internal Server Error"}
-
 /**
  * Internal marker to indicate that the initial PUT request to process a checkout 
  * was accepted (202) but is still processing (e.g., waiting for 3DS or backend authorization).
@@ -61,17 +58,22 @@ class SumUpDataSource(private val httpClient: HttpClient) {
      */
     fun getCheckoutsList(reference: String? = null): Flow<NetWorkResult<List<CheckoutResponse?>>> {
         return toResultFlow {
-            val response = httpClient.get {
-                url {
-                    path(
-                        "v0.1/checkouts"
-                    )
-                    if (reference != null) {
-                        parameters.append("checkout_reference", reference)
+            try {
+                val response = httpClient.get {
+                    url {
+                        path(
+                            "v0.1/checkouts"
+                        )
+                        if (reference != null) {
+                            parameters.append("checkout_reference", reference)
+                        }
                     }
-                }
-            }.body<List<CheckoutResponse?>>()
-            NetWorkResult.Success(response)
+                }.body<List<CheckoutResponse?>>()
+                NetWorkResult.Success(response)
+            } catch (e: Exception) {
+                Log.e("GetCheckoutsList", "Exception fetching checkouts list: ${e.message}", e)
+                NetWorkResult.Error(e.message ?: "Unknown error", "EXCEPTION")
+            }
         }
     }
 
@@ -108,16 +110,21 @@ class SumUpDataSource(private val httpClient: HttpClient) {
      */
     fun createNewCheckout(body: CheckoutCreationBody): Flow<NetWorkResult<NewCheckoutResponse?>> {
         return toResultFlow {
-            val response = httpClient.post {
-                url {
-                    path(
-                        "v0.1/checkouts"
-                    )
-                }
-                contentType(ContentType.Application.Json)
-                setBody(body)
-            }.body<NewCheckoutResponse?>()
-            NetWorkResult.Success(response)
+            try {
+                val response = httpClient.post {
+                    url {
+                        path(
+                            "v0.1/checkouts"
+                        )
+                    }
+                    contentType(ContentType.Application.Json)
+                    setBody(body)
+                }.body<NewCheckoutResponse?>()
+                NetWorkResult.Success(response)
+            } catch (e: Exception) {
+                Log.e("CreateNewCheckout", "Exception creating checkout: ${e.message}", e)
+                NetWorkResult.Error(e.message ?: "Unknown error", "EXCEPTION")
+            }
         }
     }
 
@@ -240,11 +247,11 @@ class SumUpDataSource(private val httpClient: HttpClient) {
     /**
      * Polls the SumUp API until the checkout session reaches a terminal state (PAID or FAILED).
      * This is essential for payments that require background processing or user verification (3DS).
-     * 
-     * // TODO: If the app is killed, this polling loop stops. 
-     * // TODO: Suggest implementing a WorkManager task or a more robust state recovery mechanism on app launch to resume polling for pending checkouts.
+     *
+     * If the app is killed while this loop runs, [com.mtdevelopment.checkout.data.work.FinalizePaymentWorker]
+     * (scheduled before the payment is submitted) resumes the polling and reconciles the order status.
      */
-    private fun pollCheckoutStatus(checkoutId: String): Flow<NetWorkResult<CheckoutResponse>> {
+    internal fun pollCheckoutStatus(checkoutId: String): Flow<NetWorkResult<CheckoutResponse>> {
         return flow {
             for (attempt in 0 until MAX_POLLING_ATTEMPTS) {
                 if (!currentCoroutineContext().isActive) {

@@ -5,8 +5,13 @@ import android.util.Log
 import com.cloudinary.android.MediaManager
 import com.google.firebase.Firebase
 import com.google.firebase.initialize
+import com.mtdevelopment.checkout.domain.usecase.ResumePendingPaymentFinalizationUseCase
 import com.mtdevelopment.lafromagerie.di.appModule
 import com.mtdevelopment.lafromagerie.di.flavorModules
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import org.koin.android.ext.koin.androidContext
 import org.koin.android.ext.koin.androidLogger
 import org.koin.core.context.startKoin
@@ -20,6 +25,8 @@ import org.koin.core.logger.Level
  * 3. Koin: Dependency injection framework used across all modules.
  */
 class CheeseApplication : Application() {
+
+    private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     override fun onCreate() {
         super.onCreate()
@@ -37,7 +44,7 @@ class CheeseApplication : Application() {
         }
 
         // 3. Initialize Koin Dependency Injection
-        startKoin {
+        val koinApp = startKoin {
             androidLogger(level = Level.DEBUG)
 
             androidContext(this@CheeseApplication)
@@ -46,6 +53,16 @@ class CheeseApplication : Application() {
             modules(
                 appModule() + flavorModules()
             )
+        }
+
+        // 4. If a payment was submitted but never finalized (app killed mid-processing),
+        // re-enqueue the background work that reconciles the order status.
+        applicationScope.launch {
+            try {
+                koinApp.koin.get<ResumePendingPaymentFinalizationUseCase>().invoke()
+            } catch (e: Exception) {
+                Log.e("CheeseApplication", "Failed to resume pending payment finalization", e)
+            }
         }
     }
 }
