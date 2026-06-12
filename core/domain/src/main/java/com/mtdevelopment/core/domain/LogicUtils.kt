@@ -47,9 +47,12 @@ fun String.toLongPrice(): Long {
 
 /**
  * Formatter for dates in "dd/MM/yyyy" format using the system timezone.
+ * Pinned to [Locale.ROOT]: stored dates use ASCII digits, and a formatter built on the
+ * device default locale fails to parse them on locales with non-Latin digits, silently
+ * turning every timestamp-based sort into a no-op.
  */
 private val DATE_FORMATTER_DDMMYYYY: java.time.format.DateTimeFormatter =
-    java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy")
+    java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy", Locale.ROOT)
         .withZone(java.time.ZoneId.systemDefault())
 
 /**
