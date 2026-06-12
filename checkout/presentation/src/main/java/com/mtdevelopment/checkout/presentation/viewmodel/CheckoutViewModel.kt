@@ -2,7 +2,6 @@ package com.mtdevelopment.checkout.presentation.viewmodel
 
 import android.content.Context
 import android.content.Intent
-import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.android.gms.common.api.ApiException
@@ -14,6 +13,7 @@ import com.google.firebase.Timestamp
 import com.google.firebase.crashlytics.FirebaseCrashlytics
 import com.mtdevelopment.checkout.domain.model.GooglePayData
 import com.mtdevelopment.checkout.domain.model.ProcessCheckoutResult
+import com.mtdevelopment.checkout.domain.usecase.ClearPendingPaymentFinalizationUseCase
 import com.mtdevelopment.checkout.domain.usecase.CreateNewCheckoutUseCase
 import com.mtdevelopment.checkout.domain.usecase.CreateNewOrderUseCase
 import com.mtdevelopment.checkout.domain.usecase.CreatePaymentsClientUseCase
@@ -29,6 +29,7 @@ import com.mtdevelopment.checkout.domain.usecase.ResetCheckoutStatusUseCase
 import com.mtdevelopment.checkout.domain.usecase.SaveCheckoutReferenceUseCase
 import com.mtdevelopment.checkout.domain.usecase.SaveCreatedCheckoutUseCase
 import com.mtdevelopment.checkout.domain.usecase.SavePaymentStateUseCase
+import com.mtdevelopment.checkout.domain.usecase.SchedulePaymentFinalizationUseCase
 import com.mtdevelopment.checkout.domain.usecase.UpdateOrderStatus
 import com.mtdevelopment.checkout.presentation.ThreeDSecureActivity
 import com.mtdevelopment.checkout.presentation.model.PaymentScreenState
@@ -42,13 +43,12 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
-import org.json.JSONException
-import org.json.JSONObject
 import org.koin.core.component.KoinComponent
 import java.util.Calendar
 import java.util.Locale
@@ -66,6 +66,10 @@ import java.util.Locale
  * 6. [processCheckout]: Sends the Google Pay token to SumUp to authorize the transaction.
  *    This step might trigger a 3D Secure challenge.
  * 7. After success, [resetAppStateAfterSuccess] updates the order status to 'PAID' and clears the cart.
+ *
+ * Durability: right before step 6 submits the payment, a persisted WorkManager job
+ * (FinalizePaymentWorker) is scheduled. If the app is killed before the terminal status
+ * is handled in-app, the worker resumes polling and reconciles the order status itself.
  */
 class CheckoutViewModel(
     getIsConnectedUseCase: GetIsNetworkConnectedUseCase,
@@ -86,7 +90,9 @@ class CheckoutViewModel(
     private val resetCheckoutStatusUseCase: ResetCheckoutStatusUseCase,
     private val createNewOrderUseCase: CreateNewOrderUseCase,
     private val updateOrderStatus: UpdateOrderStatus,
-    private val getSavedOrderUseCase: GetSavedOrderUseCase
+    private val getSavedOrderUseCase: GetSavedOrderUseCase,
+    private val schedulePaymentFinalizationUseCase: SchedulePaymentFinalizationUseCase,
+    private val clearPendingPaymentFinalizationUseCase: ClearPendingPaymentFinalizationUseCase
 ) : ViewModel(), KoinComponent {
 
     /**
@@ -239,21 +245,6 @@ class CheckoutViewModel(
     }
 
     /**
-     * Logs Google Pay API errors.
-     *
-     * At this stage, the user has already seen a popup informing them an error occurred. Normally,
-     * only logging is required.
-     *
-     * @param statusCode will hold the value of any constant from CommonStatusCode or one of the
-     * WalletConstants.ERROR_CODE_* constants.
-     * @see [
-     * Wallet Constants Library](https://developers.google.com/android/reference/com/google/android/gms/wallet/WalletConstants.constant-summary)
-     */
-    private fun handleError(statusCode: Int, message: String?) {
-        Log.e("Google Pay API error", "Error code: $statusCode, Message: $message")
-    }
-
-    /**
      * Step 3: Creates a checkout session on SumUp.
      * A checkout ID is required before we can process the Google Pay token.
      */
@@ -306,8 +297,8 @@ class CheckoutViewModel(
         paymentDataItem: GooglePayData,
         checkoutId: String
     ) {
-        // // TODO: The polling is handled within the DataSource level to ensure we wait for a final PAID/FAILED status.
-        // // TODO: If the app is killed during polling, we might lose the state. Need to verify if polling can resume on app restart.
+        // Polling for the final PAID/FAILED status is handled at the DataSource level
+        // (see SumUpDataSource for its known limitations if the app is killed mid-polling).
 
         // Verify if Google Pay reported success before proceeding with SumUp authorization
         getIsPaymentSuccessUseCase.invoke().collect {
@@ -319,8 +310,22 @@ class CheckoutViewModel(
                         // If the card requires 3DS verification, redirect to the custom activity
                         launch3DSActivity(context, nextStep)
                     }
-                ).collect { finalResponse ->
+                ).catch { throwable ->
+                    // The repository surfaces SumUp errors as flow exceptions: report them to the
+                    // UI instead of letting them crash the collection.
+                    FirebaseCrashlytics.getInstance().recordException(throwable)
+                    _paymentScreenState.update { state ->
+                        state.copy(
+                            isLoading = false,
+                            isPaymentSuccess = false,
+                            error = "Une erreur est survenue lors du paiement.\nVous n'avez pas été débité, merci de réessayer."
+                        )
+                    }
+                }.collect { finalResponse ->
                     // The flow emits only when a terminal status (PAID or FAILED) is reached due to polling.
+                    // On PAID, resetAppStateAfterSuccess finalizes the order and clears the
+                    // pending-finalization marker. On FAILED, the marker is left in place on
+                    // purpose: FinalizePaymentWorker marks the Firestore order as CANCELED.
                     _paymentScreenState.update { state ->
                         state.copy(
                             isLoading = false,
@@ -342,47 +347,35 @@ class CheckoutViewModel(
                     isLoading = true
                 )
             }
-            // TODO: FIRST OF ALL, CHECK THE ORDER TO MAKE IT SAVE THE STATUS RIGHT AFTER GOOGLE PAY
-            // TODO: THEN, COLLECT THE FLOW TO UPDATE THE UI
             // Mark payment as 'in progress'
             savePaymentStateUseCase.invoke(true)
 
             // Retrieve the pending checkout ID created in Step 3
-            getPreviouslyCreatedCheckoutUseCase.invoke().collect {
-                if (it.status.equals("pending", true)) {
+            getPreviouslyCreatedCheckoutUseCase.invoke().collect { checkout ->
+                if (checkout == null) {
+                    // No (or corrupt) saved checkout session: abort instead of crashing
+                    _paymentScreenState.update {
+                        it.copy(
+                            isLoading = false,
+                            error = "Une erreur est survenue lors de la récupération de la session de paiement.\nMerci de réessayer."
+                        )
+                    }
+                } else if (checkout.status.equals("pending", true)) {
+                    // Schedule the durable finalization work BEFORE submitting the payment:
+                    // if the app is killed while waiting for SumUp's terminal status, the
+                    // worker resumes the polling and reconciles the Firestore order.
+                    val checkoutId = checkout.id
+                    val orderId = _paymentScreenState.value.orderId
+                    if (checkoutId != null && orderId != null) {
+                        schedulePaymentFinalizationUseCase.invoke(checkoutId, orderId)
+                    }
+
                     val paymentDataItem =
                         json.decodeFromString<GooglePayData>(paymentData.toJson())
-                    processCheckout(context, paymentDataItem, it.id ?: "")
+                    processCheckout(context, paymentDataItem, checkout.id ?: "")
                 }
             }
         }
-    }
-
-    /**
-     * Utility to extract billing info if needed. Currently mostly for debug logs.
-     */
-    private fun extractPaymentBillingName(paymentData: PaymentData): String? {
-        val paymentInformation = paymentData.toJson()
-
-        try {
-            val paymentMethodData =
-                JSONObject(paymentInformation).getJSONObject("paymentMethodData")
-//            // TODO : CHECK LEGALLY if I can NOT ask for billing Address
-
-            // Logging token string for debugging. 
-            // // TODO: NEVER log this in production. Ensure these logs are stripped in release builds.
-            Log.d(
-                "Google Pay token", paymentMethodData
-                    .getJSONObject("tokenizationData")
-                    .getString("token")
-            )
-
-            return "ROBERTS TESTEUR"
-        } catch (error: JSONException) {
-            Log.e("handlePaymentSuccess", "Error: $error")
-        }
-
-        return null
     }
 
     fun setGooglePayEnabled(enabled: Boolean) {
@@ -420,6 +413,9 @@ class CheckoutViewModel(
             )
             // Empty the cart
             clearCartUseCase.invoke()
+            // The order reached its terminal state in-app: the background
+            // finalization work is no longer needed and will no-op.
+            clearPendingPaymentFinalizationUseCase.invoke()
             resetPaymentState()
         }
     }

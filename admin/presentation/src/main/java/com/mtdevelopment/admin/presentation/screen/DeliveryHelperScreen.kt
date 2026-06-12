@@ -283,6 +283,7 @@ fun DeliveryHelperScreen(
             onStopDeliveryClick = ::onStopDeliveryClick,
             dialogState = DeliverHelperDialogState(
                 onDismissError = { viewModel.onError("") },
+                dialogOnError = { viewModel.onError(it) },
                 autocompleteSearchQuery = state.value.searchQuery,
                 suggestions = state.value.suggestions,
                 autocompleteShowDropdown = state.value.showSuggestions,
@@ -504,8 +505,9 @@ fun DeliveryHelperScreenContent(
             onConfirm = { tempOrder ->
                 dialogState.dialogOnConfirm(tempOrder)
             },
-            onError = {
-                // // TODO: Handle internal dialog error if necessary
+            onError = { message ->
+                // Surface dialog-internal errors through the shared error overlay
+                dialogState.dialogOnError(message)
             }
         )
     }

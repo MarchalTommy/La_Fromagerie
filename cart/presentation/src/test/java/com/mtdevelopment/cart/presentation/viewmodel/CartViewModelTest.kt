@@ -40,6 +40,7 @@ class CartViewModelTest {
         Dispatchers.setMain(testDispatcher)
         coEvery { getIsNetworkConnectedUseCase.invoke() } returns flowOf(true)
         coEvery { saveToDatastoreUseCase.invoke(any()) } returns Unit
+        coEvery { getCartDataUseCase.invoke() } returns flowOf(null)
     }
 
     @After
@@ -223,30 +224,91 @@ class CartViewModelTest {
     }
 
     @Test
-    fun `resetCart clears cart items and resets price`() = runTest(testDispatcher) {
+    fun `removeCartObject keeps item when quantity is 1`() = runTest(testDispatcher) {
         // Arrange
         viewModel = CartViewModel(
             getIsNetworkConnectedUseCase,
             saveToDatastoreUseCase,
             getCartDataUseCase
         )
-        val item = CartItem(name = "Comté", price = 10L, quantity = 5)
+        val item = CartItem(name = "Comté", price = 10L, quantity = 1)
         viewModel.addCartObject(valueAsCartItem = item)
         testScheduler.advanceUntilIdle()
 
-        // Act
-        viewModel.resetCart()
+        // Act - decrementing at quantity 1 must not remove the item
+        viewModel.removeCartObject(item)
         testScheduler.advanceUntilIdle()
 
         // Assert
         val items = viewModel.cartUiState.value.cartItems?.cartItems
         assertNotNull(items)
-        assertTrue(items!!.isEmpty())
-        assertEquals(0L, viewModel.cartUiState.value.cartItems?.totalPrice)
+        assertEquals(1, items!!.size)
+        assertEquals(1, items[0]?.quantity)
     }
 
     @Test
-    fun `loadCart collects cart items from use case`() = runTest(testDispatcher) {
+    fun `removeCartObject ignores unknown item`() = runTest(testDispatcher) {
+        // Arrange
+        viewModel = CartViewModel(
+            getIsNetworkConnectedUseCase,
+            saveToDatastoreUseCase,
+            getCartDataUseCase
+        )
+        val known = CartItem(name = "Comté", price = 10L, quantity = 1)
+        viewModel.addCartObject(valueAsCartItem = known)
+        testScheduler.advanceUntilIdle()
+
+        // Act
+        viewModel.removeCartObject(CartItem(name = "Morbier", price = 5L, quantity = 1))
+        testScheduler.advanceUntilIdle()
+
+        // Assert - cart unchanged
+        val items = viewModel.cartUiState.value.cartItems?.cartItems
+        assertNotNull(items)
+        assertEquals(1, items!!.size)
+        assertEquals("Comté", items[0]?.name)
+    }
+
+    @Test
+    fun `addCartObject without any argument does nothing`() = runTest(testDispatcher) {
+        // Arrange
+        viewModel = CartViewModel(
+            getIsNetworkConnectedUseCase,
+            saveToDatastoreUseCase,
+            getCartDataUseCase
+        )
+
+        // Act
+        viewModel.addCartObject()
+        testScheduler.advanceUntilIdle()
+
+        // Assert - nothing persisted
+        coVerify(exactly = 0) { saveToDatastoreUseCase.invoke(any()) }
+        assertTrue(viewModel.cartUiState.value.cartItems?.cartItems?.isEmpty() == true)
+    }
+
+    @Test
+    fun `addCartObject always adds new items with quantity 1 even if source has more`() =
+        runTest(testDispatcher) {
+            // Arrange
+            viewModel = CartViewModel(
+                getIsNetworkConnectedUseCase,
+                saveToDatastoreUseCase,
+                getCartDataUseCase
+            )
+
+            // Act - the incoming CartItem claims quantity 5
+            viewModel.addCartObject(valueAsCartItem = CartItem("Comté", 10L, 5))
+            testScheduler.advanceUntilIdle()
+
+            // Assert - cart normalizes to a single unit
+            val items = viewModel.cartUiState.value.cartItems?.cartItems
+            assertEquals(1, items!!.first()?.quantity)
+            assertEquals(10L, viewModel.cartUiState.value.cartItems?.totalPrice)
+        }
+
+    @Test
+    fun `cart is restored from the DataStore at construction`() = runTest(testDispatcher) {
         // Arrange
         val expectedCartItems = CartItems(
             cartItems = listOf(CartItem(name = "Roquefort", price = 12L, quantity = 2)),
@@ -254,18 +316,15 @@ class CartViewModelTest {
         )
         coEvery { getCartDataUseCase.invoke() } returns flowOf(expectedCartItems)
 
+        // Act
         viewModel = CartViewModel(
             getIsNetworkConnectedUseCase,
             saveToDatastoreUseCase,
             getCartDataUseCase
         )
-
-        // Act
-        viewModel.loadCart(withVisibility = true)
         testScheduler.advanceUntilIdle()
 
         // Assert
-        assertEquals(true, viewModel.cartUiState.value.isCartVisible)
         val items = viewModel.cartUiState.value.cartItems?.cartItems
         assertNotNull(items)
         assertEquals(1, items!!.size)

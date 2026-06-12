@@ -11,7 +11,7 @@ import com.mtdevelopment.core.presentation.sharedModels.UiProductObject
  */
 data class CartUiState(
     val isCartVisible: Boolean = false,
-    var cartItems: CartItems? = CartItems(
+    val cartItems: CartItems? = CartItems(
         emptyList(),
         0L
     ),

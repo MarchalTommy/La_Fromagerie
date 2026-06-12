@@ -30,10 +30,6 @@ interface PaymentRepository {
     // SUMUP
     ///////////////////////////////////////////////////////////////////////////
 
-    suspend fun getCheckoutFromRef(reference: String?)
-
-    suspend fun getCheckoutFromId(id: String)
-
     fun createNewCheckout(
         amount: Double,
         description: String,

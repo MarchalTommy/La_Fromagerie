@@ -60,12 +60,10 @@ import kotlinx.coroutines.launch
 import org.koin.androidx.viewmodel.ext.android.viewModel
 
 
-// TODO: FIX MAPVIEW, AGAIN
-// TODO: FIX ADD MANUAL DELIVERY
-// TODO: FIX NOTIFICATION INDEX OUT OF BOUND WHEN ONLY 1 DESTINATION
-// TODO: FIX "FACTURATION" ADDRESS UPDATING DELIVERY FIELD (though I fixed that, but meh)
-// TODO: FIX EVERY ADDRESS BEING TOO FAR ? WEIRD, I THOUGH I FIXED THAT TOO.
-
+// Resolved: the "notification index out of bound with only 1 destination" crash came from
+// reorderList throwing when Google omits optimizedIntermediateWaypointIndex for single-stop
+// routes. reorderList (core:domain) now validates the indexes and falls back to the original
+// order; see GoogleRouteRepositoryImplTest."single destination with missing optimized indexes".
 class MainActivity : ComponentActivity() {
 
     private val cartViewModel: CartViewModel by viewModel()
@@ -204,7 +202,7 @@ class MainActivity : ComponentActivity() {
                                     IconButton(
                                         onClick = {
                                             if (currentBackStackEntry.value?.destination?.route == DeliveryOptionScreenDestination::class.java.name) {
-                                                cartViewModel.loadCart(withVisibility = false)
+                                                cartViewModel.setCartVisibility(false)
                                             }
                                             navController.navigateUp()
                                         },

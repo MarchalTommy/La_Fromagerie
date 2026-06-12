@@ -13,8 +13,11 @@ import com.mtdevelopment.checkout.data.local.CheckoutDatastorePreferenceImpl
 import com.mtdevelopment.checkout.data.remote.source.FirestoreOrderDataSource
 import com.mtdevelopment.checkout.data.remote.source.SumUpDataSource
 import com.mtdevelopment.checkout.data.repository.PaymentRepositoryImpl
+import com.mtdevelopment.checkout.data.work.WorkManagerPaymentFinalizationScheduler
 import com.mtdevelopment.checkout.domain.repository.CheckoutDatastorePreference
+import com.mtdevelopment.checkout.domain.repository.PaymentFinalizationScheduler
 import com.mtdevelopment.checkout.domain.repository.PaymentRepository
+import com.mtdevelopment.checkout.domain.usecase.ClearPendingPaymentFinalizationUseCase
 import com.mtdevelopment.checkout.domain.usecase.CreateNewCheckoutUseCase
 import com.mtdevelopment.checkout.domain.usecase.CreateNewOrderUseCase
 import com.mtdevelopment.checkout.domain.usecase.CreatePaymentsClientUseCase
@@ -28,9 +31,11 @@ import com.mtdevelopment.checkout.domain.usecase.GetPreviouslyCreatedCheckoutUse
 import com.mtdevelopment.checkout.domain.usecase.GetSavedOrderUseCase
 import com.mtdevelopment.checkout.domain.usecase.ProcessSumUpCheckoutUseCase
 import com.mtdevelopment.checkout.domain.usecase.ResetCheckoutStatusUseCase
+import com.mtdevelopment.checkout.domain.usecase.ResumePendingPaymentFinalizationUseCase
 import com.mtdevelopment.checkout.domain.usecase.SaveCheckoutReferenceUseCase
 import com.mtdevelopment.checkout.domain.usecase.SaveCreatedCheckoutUseCase
 import com.mtdevelopment.checkout.domain.usecase.SavePaymentStateUseCase
+import com.mtdevelopment.checkout.domain.usecase.SchedulePaymentFinalizationUseCase
 import com.mtdevelopment.checkout.domain.usecase.UpdateOrderStatus
 import com.mtdevelopment.checkout.presentation.viewmodel.CheckoutViewModel
 import com.mtdevelopment.core.data.Constants.ADDRESS_API_BASE_URL_WITHOUT_HTTPS
@@ -186,6 +191,12 @@ val mainAppModule = module {
     factory { SavePaymentStateUseCase(get()) }
     factory { ResetCheckoutStatusUseCase(get()) }
     factory { GetIsPaymentSuccessUseCase(get()) }
+
+    // Durable payment finalization (WorkManager)
+    single<PaymentFinalizationScheduler> { WorkManagerPaymentFinalizationScheduler(get()) }
+    factory { SchedulePaymentFinalizationUseCase(get(), get()) }
+    factory { ResumePendingPaymentFinalizationUseCase(get(), get()) }
+    factory { ClearPendingPaymentFinalizationUseCase(get()) }
 
     factory { GetLastFirestoreDatabaseUpdateUseCase(get(), get()) }
 
@@ -368,7 +379,8 @@ val provideSumUpDataSource = module {
         }
         install(Logging) {
             logger = Logger.ANDROID
-            level = LogLevel.ALL
+            // Bodies contain payment tokens and buyer details: only log them in debug builds.
+            level = if (BuildConfig.DEBUG) LogLevel.ALL else LogLevel.NONE
             sanitizeHeader { header -> header == HttpHeaders.Authorization }
         }
         install(ContentNegotiation) {

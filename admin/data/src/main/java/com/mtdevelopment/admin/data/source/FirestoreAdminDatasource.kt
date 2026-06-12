@@ -1,5 +1,6 @@
 package com.mtdevelopment.admin.data.source
 
+import android.util.Log
 import com.google.firebase.Firebase
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FirebaseFirestore
@@ -155,8 +156,15 @@ class FirestoreAdminDatasource(
 
     /**
      * Fetches all orders from the "orders" collection.
-     * // TODO: This method uses callbacks instead of [suspend]. Consider refactoring for consistency.
-     * // TODO: Manual mapping is used here; consider using [toObject] if models align perfectly.
+     *
+     * Kept callback-based on purpose: its consumers (admin view models) plug UI callbacks
+     * straight into it, and converting it to a suspend function would ripple through the whole
+     * admin call chain for no behavioral gain. Manual mapping is also intentional: the documents
+     * use snake_case keys and a string status that needs an explicit [OrderStatus] conversion,
+     * which [com.google.firebase.firestore.DocumentSnapshot.toObject] cannot do here.
+     *
+     * Documents that cannot be mapped (e.g. an unknown status written by a newer app version)
+     * are skipped instead of failing the entire list.
      */
     fun getAllOrders(
         onSuccess: (List<OrderData>) -> Unit,

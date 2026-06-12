@@ -1,6 +1,7 @@
 package com.mtdevelopment.checkout.domain.repository
 
 import com.mtdevelopment.checkout.domain.model.NewCheckoutResult
+import com.mtdevelopment.checkout.domain.model.PendingPaymentFinalization
 import com.mtdevelopment.core.model.Order
 import kotlinx.coroutines.flow.Flow
 
@@ -23,7 +24,7 @@ interface CheckoutDatastorePreference {
 
     suspend fun saveCheckoutReference(reference: String)
 
-    val createdCheckoutFlow: Flow<NewCheckoutResult>
+    val createdCheckoutFlow: Flow<NewCheckoutResult?>
 
     suspend fun saveCreatedCheckout(data: NewCheckoutResult)
 
@@ -36,4 +37,10 @@ interface CheckoutDatastorePreference {
     val orderFlow: Flow<Order?>
 
     suspend fun saveOrder(order: Order)
+
+    val pendingFinalizationFlow: Flow<PendingPaymentFinalization?>
+
+    suspend fun setPendingFinalization(pending: PendingPaymentFinalization)
+
+    suspend fun clearPendingFinalization()
 }

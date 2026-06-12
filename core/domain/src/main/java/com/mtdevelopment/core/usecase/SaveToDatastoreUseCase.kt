@@ -8,16 +8,18 @@ class SaveToDatastoreUseCase(
     private val sharedDatastore: SharedDatastore
 ) {
 
+    /**
+     * Persists every non-null argument. Arguments are independent: passing several at once saves
+     * them all instead of only the first one.
+     */
     suspend operator fun invoke(
         cartItems: CartItems? = null,
         userInformation: UserInformation? = null,
         deliveryDate: Long? = null
     ) {
-        when {
-            cartItems != null -> sharedDatastore.setCartItems(cartItems)
-            userInformation != null -> sharedDatastore.setUserInformation(userInformation)
-            deliveryDate != null -> sharedDatastore.setDeliveryDate(deliveryDate)
-        }
+        cartItems?.let { sharedDatastore.setCartItems(it) }
+        userInformation?.let { sharedDatastore.setUserInformation(it) }
+        deliveryDate?.let { sharedDatastore.setDeliveryDate(it) }
     }
 
 }

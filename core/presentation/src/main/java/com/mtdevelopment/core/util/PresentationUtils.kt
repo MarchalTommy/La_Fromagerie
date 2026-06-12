@@ -260,6 +260,7 @@ object ImageCompressor {
             try {
                 tempFile?.takeIf { it.exists() }?.delete()
             } catch (cleanEx: Exception) {
+                Log.w("ImageCompressor", "Could not delete temp file after failure", cleanEx)
             }
             return@withContext null 
         } finally {
@@ -267,6 +268,7 @@ object ImageCompressor {
                 inputStream?.close()
                 outputStream?.close()
             } catch (e: Exception) {
+                Log.w("ImageCompressor", "Could not close streams", e)
             }
         }
     }

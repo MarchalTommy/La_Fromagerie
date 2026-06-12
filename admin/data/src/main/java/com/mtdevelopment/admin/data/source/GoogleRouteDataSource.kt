@@ -27,6 +27,14 @@ class GoogleRouteDataSource(
     private val json: Json
 ) {
 
+    private companion object {
+        /**
+         * The farm's address ("La Fromagerie"), used as both origin and destination of every
+         * optimized delivery route.
+         */
+        const val HOME_BASE_ADDRESS = "8 La Vessoye, 25560 Boujailles"
+    }
+
     /**
      * Calls the Google Directions v2:computeRoutes endpoint to get an optimized route.
      * @param addressesList The list of intermediate stops.
@@ -62,14 +70,15 @@ class GoogleRouteDataSource(
                     )
                     setBody(
                         GoogleComputeBody(
-                            // // TODO: The origin and destination are currently hardcoded to 'La Fromagerie' address.
-                            // // TODO: Consider making these configurable or based on the admin's current location.
+                            // Routes always start and end at the farm: deliveries are round trips
+                            // from La Fromagerie. (flagged for review: making this configurable or
+                            // based on the admin's live position is a product decision.)
                             origin = WaypointData(
-                                address = "8 La Vessoye, 25560 Boujailles",
+                                address = HOME_BASE_ADDRESS,
                                 via = false
                             ),
                             destination = WaypointData(
-                                address = "8 La Vessoye, 25560 Boujailles",
+                                address = HOME_BASE_ADDRESS,
                                 via = false
                             ),
                             intermediates = intermediatesWaypointsList,

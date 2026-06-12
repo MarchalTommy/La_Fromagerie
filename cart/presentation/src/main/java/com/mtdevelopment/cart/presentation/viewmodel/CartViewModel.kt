@@ -27,7 +27,9 @@ class CartViewModel(
     private val getCartDataUseCase: GetCartDataUseCase
 ) : ViewModel(), KoinComponent {
 
-    // TODO: Add a way to save a "preferred cart" with stuff you usually order
+    // TODO: (flagged: feature request, needs product/UX decisions — preferred cart persistence,
+    //  dedicated datastore key and UI entry point) Add a way to save a "preferred cart" with
+    //  stuff you usually order.
 
     /**
      * Flow indicating the current network connection status.
@@ -39,6 +41,24 @@ class CartViewModel(
      */
     private val _cartUiState = MutableStateFlow(CartUiState())
     val cartUiState: StateFlow<CartUiState> = _cartUiState.asStateFlow()
+
+    init {
+        // Keep the in-memory cart in sync with the DataStore for the whole ViewModel lifetime:
+        // restores the persisted cart at startup and reflects external changes
+        // (e.g. the cart being cleared after a successful payment).
+        viewModelScope.launch {
+            getCartDataUseCase.invoke().collect { data ->
+                _cartUiState.update {
+                    it.copy(
+                        cartItems = CartItems(
+                            cartItems = data?.cartItems ?: emptyList(),
+                            totalPrice = data?.totalPrice ?: 0L
+                        )
+                    )
+                }
+            }
+        }
+    }
 
     private fun setCartItems(value: CartItems) {
         _cartUiState.update {
@@ -157,33 +177,4 @@ class CartViewModel(
         }
     }
 
-    /**
-     * Resets the cart state.
-     * // TODO: This should probably also clear the DataStore.
-     */
-    fun resetCart(withVisibility: Boolean = false) {
-        setCartVisibility(!withVisibility)
-        viewModelScope.launch {
-            saveToDataStore(emptyList())
-        }
-    }
-
-    /**
-     * Loads the cart data from the DataStore and updates the UI state.
-     */
-    fun loadCart(withVisibility: Boolean = false) {
-        viewModelScope.launch {
-            getCartDataUseCase.invoke().collect { data ->
-                _cartUiState.update {
-                    it.copy(
-                        isCartVisible = withVisibility,
-                        cartItems = CartItems(
-                            cartItems = data?.cartItems ?: emptyList(),
-                            totalPrice = data?.totalPrice ?: 0L
-                        )
-                    )
-                }
-            }
-        }
-    }
 }

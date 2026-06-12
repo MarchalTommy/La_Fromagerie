@@ -240,7 +240,8 @@ fun CheckoutScreen(
 
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    // TODO: VOIR LÉGALITÉ ET AUTOMATISATION POUR FACTURE
+                    // TODO: (flagged for review: legal/product decision, not actionable in code alone)
+                    //  VOIR LÉGALITÉ ET AUTOMATISATION POUR FACTURE
 
                     Text(
                         modifier = Modifier.padding(start = 12.dp, end = 12.dp, top = 12.dp),
@@ -250,7 +251,8 @@ fun CheckoutScreen(
                         fontWeight = FontWeight.SemiBold
                     )
 
-                    // TODO: Add a mapBoxComposable with given address (need state rework first)
+                    // TODO: (flagged for review: feature blocked on a state rework of this screen)
+                    //  Add a mapBoxComposable with given address
                 }
             }
 
@@ -311,7 +313,11 @@ fun CheckoutScreen(
                                     task.addOnCompleteListener { completedTask ->
                                         if(completedTask.isSuccessful) {
                                             completedTask.result.let {
-                                                Log.i("Google Pay result", it.toJson())
+                                                // The payment data contains the raw Google Pay token:
+                                                // never log it in release builds.
+                                                if (BuildConfig.DEBUG) {
+                                                    Log.i("Google Pay result", it.toJson())
+                                                }
                                                 // Step 5 & 6: Process the payment
                                                 checkoutViewModel.setPaymentData(
                                                     context = context,

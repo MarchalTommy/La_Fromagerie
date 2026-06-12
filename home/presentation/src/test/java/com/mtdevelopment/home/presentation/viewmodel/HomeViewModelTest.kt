@@ -110,6 +110,62 @@ class HomeViewModelTest {
         }
 
     @Test
+    fun `product loading error with message surfaces it as dynamic string`() =
+        runTest(testDispatcher) {
+            // Arrange
+            coEvery { getLastFirestoreDatabaseUpdateUseCase.invoke(any(), any()) } answers {
+                firstArg<() -> Unit>().invoke()
+            }
+            coEvery { getAllProductsUseCase.invoke(false) } returns
+                    DataResult.Error(message = "Chargement des produits impossible")
+
+            // Act
+            viewModel = HomeViewModel(
+                getAllProductsUseCase,
+                getAllCheesesUseCase,
+                getLastFirestoreDatabaseUpdateUseCase,
+                getIsNetworkConnectedUseCase
+            )
+            testScheduler.advanceUntilIdle()
+
+            // Assert
+            val state = viewModel.homeUiState.value
+            assertEquals(false, state.isLoading)
+            assertTrue(state.isError is UiText.DynamicString)
+            assertEquals(
+                "Chargement des produits impossible",
+                (state.isError as UiText.DynamicString).value
+            )
+        }
+
+    @Test
+    fun `product loading error without message falls back to generic resource`() =
+        runTest(testDispatcher) {
+            // Arrange
+            coEvery { getLastFirestoreDatabaseUpdateUseCase.invoke(any(), any()) } answers {
+                firstArg<() -> Unit>().invoke()
+            }
+            coEvery { getAllProductsUseCase.invoke(false) } returns DataResult.Error()
+
+            // Act
+            viewModel = HomeViewModel(
+                getAllProductsUseCase,
+                getAllCheesesUseCase,
+                getLastFirestoreDatabaseUpdateUseCase,
+                getIsNetworkConnectedUseCase
+            )
+            testScheduler.advanceUntilIdle()
+
+            // Assert
+            val state = viewModel.homeUiState.value
+            assertTrue(state.isError is UiText.StringResource)
+            assertEquals(
+                R.string.error_loading_products,
+                (state.isError as UiText.StringResource).resId
+            )
+        }
+
+    @Test
     fun `refreshProducts triggers getAllProducts with forceRefresh`() = runTest(testDispatcher) {
         // Arrange
         coEvery { getLastFirestoreDatabaseUpdateUseCase.invoke(any(), any()) } answers {

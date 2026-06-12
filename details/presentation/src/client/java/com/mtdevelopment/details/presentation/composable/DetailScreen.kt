@@ -106,7 +106,6 @@ fun DetailScreen(
 
     val scrollState = rememberScrollState()
 
-    var showEditDialog by remember { mutableStateOf(false) }
     var showError by remember { mutableStateOf(false) }
     var showLoading by remember { mutableStateOf(false) }
 

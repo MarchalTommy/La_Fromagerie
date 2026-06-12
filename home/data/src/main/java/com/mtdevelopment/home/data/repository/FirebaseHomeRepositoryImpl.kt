@@ -28,8 +28,8 @@ class FirebaseHomeRepositoryImpl(
     }
 
     /**
-     * Currently retrieves all products (same as [getAllProducts]). 
-     * // TODO: Implement specific filtering for cheeses if the database supports it.
+     * Retrieves only cheese products. The filtering happens server-side: the underlying
+     * [FirestoreDatabase.getAllCheeses] queries Firestore with `type == "cheese"`.
      */
     override suspend fun getAllCheeses(): DataResult<List<Product>> {
         return try {
