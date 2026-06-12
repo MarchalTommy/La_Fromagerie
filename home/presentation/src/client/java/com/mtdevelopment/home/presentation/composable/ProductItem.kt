@@ -227,21 +227,54 @@ fun ProductItem(
                 }
 
 
+                // LESS INTRUSIVE, BUT LESS VISIBLE
+//                if (product?.isAvailable == true) {
+//                    FilledTonalIconButton(
+//                        modifier = Modifier.size(36.dp),
+//                        onClick = {
+//                            vibratePhoneClick(context)
+//                            animateAddToCart()
+//                            onAddClick.invoke()
+//                        },
+//                        colors = IconButtonDefaults.filledTonalIconButtonColors(
+//                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+//                            contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+//                        )
+//                    ) {
+//                        Icon(
+//                            modifier = Modifier.size(20.dp),
+//                            imageVector = Icons.Default.Add,
+//                            contentDescription = "Add"
+//                        )
+//                    }
+//                }
+
+                // MORE INTRUSIVE, BUT MORE VISIBLE
                 if (product?.isAvailable == true) {
-                    FilledTonalIconButton(
-                        modifier = Modifier.size(36.dp),
+                    Button(
+                        modifier = Modifier
+                            .width(32.dp)
+                            .height(32.dp),
                         onClick = {
                             vibratePhoneClick(context)
                             animateAddToCart()
                             onAddClick.invoke()
                         },
-                        colors = IconButtonDefaults.filledTonalIconButtonColors(
-                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                            contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-                        )
+                        colors = ButtonColors(
+                            containerColor = MaterialTheme.colorScheme.secondary,
+                            contentColor = MaterialTheme.colorScheme.primaryContainer,
+                            disabledContainerColor = MaterialTheme.colorScheme.secondary,
+                            disabledContentColor = MaterialTheme.colorScheme.primaryContainer
+                        ),
+                        contentPadding = PaddingValues(4.dp),
+                        border = BorderStroke(
+                            width = 2.dp,
+                            color = MaterialTheme.colorScheme.secondary
+                        ),
+                        elevation = ButtonDefaults.elevatedButtonElevation(),
+                        shape = RoundedCornerShape(8.dp)
                     ) {
                         Icon(
-                            modifier = Modifier.size(20.dp),
                             imageVector = Icons.Default.Add,
                             contentDescription = "Add"
                         )
