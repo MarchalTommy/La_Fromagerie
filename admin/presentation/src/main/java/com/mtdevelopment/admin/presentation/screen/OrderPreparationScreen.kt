@@ -38,18 +38,21 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.mtdevelopment.admin.presentation.viewmodel.AdminViewModel
+import com.mtdevelopment.core.domain.toLocalDate
 import com.mtdevelopment.core.domain.toTimeStamp
 import com.mtdevelopment.core.model.Order
 import com.mtdevelopment.core.model.PreparationStatus
 import com.mtdevelopment.core.presentation.composable.ErrorOverlay
 import com.mtdevelopment.core.presentation.composable.RiveAnimation
 import com.mtdevelopment.core.util.koinViewModel
+import java.time.LocalDate
 
 /**
  * Screen for administrative order preparation.
@@ -97,15 +100,20 @@ fun OrderPreparationList(
     preparationStatuses: List<PreparationStatus>,
     onUpdateStatus: (PreparationStatus) -> Unit
 ) {
-    // Sort and unique delivery dates
+    // Sort and unique delivery dates, newest first
     val nextDeliveryDates =
-        orders.map { it.deliveryDate }.sortedBy { it.toTimeStamp() }.toSet()
+        orders.map { it.deliveryDate }.sortedByDescending { it.toTimeStamp() }.toSet()
     val ordersByDeliveryDate = orders.groupBy { it.deliveryDate }
+
+    // Captured once so every item of a frame compares against the same day and
+    // scrolling does not re-evaluate the clock.
+    val today = remember { LocalDate.now() }
 
     LazyColumn {
 
         for (deliveryDate in nextDeliveryDates) {
             val ordersForDate = ordersByDeliveryDate[deliveryDate] ?: emptyList()
+            val isPastDate = deliveryDate.toLocalDate()?.isBefore(today) == true
             if (ordersForDate.isNotEmpty()) {
 
                 // Aggregate product quantities for the current delivery date.
@@ -119,10 +127,17 @@ fun OrderPreparationList(
                     }
 
                 stickyHeader {
+                    // Past dates get a muted header so expired deliveries read as history
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(color = MaterialTheme.colorScheme.secondary)
+                            .background(
+                                color = if (isPastDate) {
+                                    MaterialTheme.colorScheme.surfaceVariant
+                                } else {
+                                    MaterialTheme.colorScheme.secondary
+                                }
+                            )
                     ) {
                         Text(
                             modifier = Modifier
@@ -130,7 +145,11 @@ fun OrderPreparationList(
                                 .align(Alignment.CenterStart),
                             text = deliveryDate,
                             style = MaterialTheme.typography.titleLarge,
-                            color = MaterialTheme.colorScheme.onSecondary
+                            color = if (isPastDate) {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            } else {
+                                MaterialTheme.colorScheme.onSecondary
+                            }
                         )
                     }
                 }
@@ -156,6 +175,7 @@ fun OrderPreparationList(
                         quantity = item.second,
                         itemsPerClients = ordersByDeliveryDate[deliveryDate] ?: listOf(),
                         deliveryDate = deliveryDate,
+                        isPastDate = isPastDate,
                         preparationStatuses = preparationStatuses,
                         onUpdateStatus = onUpdateStatus
                     )
@@ -177,6 +197,7 @@ fun OrderPreparationListItem(
     quantity: Int,
     itemsPerClients: List<Order>,
     deliveryDate: String,
+    isPastDate: Boolean,
     preparationStatuses: List<PreparationStatus>,
     onUpdateStatus: (PreparationStatus) -> Unit
 ) {
@@ -212,7 +233,10 @@ fun OrderPreparationListItem(
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp),
+            .padding(horizontal = 16.dp, vertical = 4.dp)
+            // Past/expired deliveries are faded out as a whole, keeping their inner
+            // colors and layout untouched
+            .alpha(if (isPastDate) 0.6f else 1f),
         shape = RoundedCornerShape(12.dp),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         colors = CardColors(
