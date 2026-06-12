@@ -9,13 +9,16 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxState
@@ -27,6 +30,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.mtdevelopment.core.model.CartItem
@@ -114,30 +118,46 @@ fun CartItem(
                     )
                 }
                 Row(
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     // Quantity controls
-                    IconButton(onClick = { onRemoveOne.invoke() }) {
+                    FilledTonalIconButton(
+                        modifier = Modifier
+                            .padding(4.dp)
+                            .size(32.dp),
+                        colors = IconButtonDefaults.filledTonalIconButtonColors(
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                        ),
+                        onClick = { onRemoveOne.invoke() }
+                    ) {
                         Icon(
-                            modifier = Modifier
-                                .align(Alignment.CenterVertically)
-                                .padding(4.dp)
-                                .size(32.dp),
-                            imageVector = Icons.Default.KeyboardArrowDown,
+                            modifier = Modifier.size(20.dp),
+                            imageVector = Icons.Default.Remove,
                             contentDescription = "Remove one"
                         )
                     }
                     Text(
-                        modifier = Modifier.align(Alignment.CenterVertically),
-                        text = item.quantity.toString()
+                        modifier = Modifier
+                            .padding(horizontal = 4.dp)
+                            .widthIn(min = 20.dp),
+                        text = item.quantity.toString(),
+                        style = MaterialTheme.typography.titleMedium,
+                        textAlign = TextAlign.Center
                     )
-                    IconButton(onClick = { onAddMore.invoke() }) {
+                    FilledTonalIconButton(
+                        modifier = Modifier
+                            .padding(4.dp)
+                            .size(32.dp),
+                        colors = IconButtonDefaults.filledTonalIconButtonColors(
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                        ),
+                        onClick = { onAddMore.invoke() }
+                    ) {
                         Icon(
-                            modifier = Modifier
-                                .align(Alignment.CenterVertically)
-                                .padding(4.dp)
-                                .size(32.dp),
-                            imageVector = Icons.Default.KeyboardArrowUp,
+                            modifier = Modifier.size(20.dp),
+                            imageVector = Icons.Default.Add,
                             contentDescription = "Add more"
                         )
                     }

@@ -187,12 +187,19 @@ class MainActivity : ComponentActivity() {
                                 Text("La Fromagerie")
                             },
                             navigationIcon = {
+                                // previousBackStackEntry is not snapshot state: it is re-read here
+                                // on every back stack change because currentBackStackEntry is.
+                                val currentRoute =
+                                    currentBackStackEntry.value?.destination?.route
+                                val canNavigateBack =
+                                    navController.previousBackStackEntry != null &&
+                                            currentRoute?.replace(
+                                                "?shouldRefresh={shouldRefresh}",
+                                                ""
+                                            ) != HomeScreenDestination::class.java.name &&
+                                            currentRoute != AfterPaymentScreenDestination::class.java.name
                                 AnimatedVisibility(
-                                    visible = currentBackStackEntry.value?.destination?.route?.replace(
-                                        "?shouldRefresh={shouldRefresh}",
-                                        ""
-                                    ) != HomeScreenDestination::class.java.name &&
-                                            currentBackStackEntry.value?.destination?.route != AfterPaymentScreenDestination::class.java.name,
+                                    visible = canNavigateBack,
                                     exit = fadeOut(animationSpec = tween(300)),
                                     enter = fadeIn(animationSpec = tween(500))
                                 ) {
