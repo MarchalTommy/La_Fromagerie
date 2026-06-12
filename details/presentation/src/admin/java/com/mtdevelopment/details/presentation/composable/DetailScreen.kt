@@ -64,12 +64,12 @@ import com.mtdevelopment.core.presentation.MainViewModel
 import com.mtdevelopment.core.presentation.composable.ErrorOverlay
 import com.mtdevelopment.core.presentation.composable.RiveAnimation
 import com.mtdevelopment.core.util.ScreenSize
+import com.mtdevelopment.core.util.koinViewModel
 import com.mtdevelopment.core.util.rememberScreenSize
 import com.mtdevelopment.core.util.vibratePhoneClick
 import com.skydoves.landscapist.ImageOptions
 import com.skydoves.landscapist.glide.GlideImage
 import kotlinx.coroutines.launch
-import org.koin.compose.koinInject
 
 /**
  * Screen displaying detailed information about a specific product for the administrator.
@@ -92,7 +92,7 @@ fun DetailScreen(
     val coroutineScope = rememberCoroutineScope()
 
     val context = LocalContext.current
-    val adminViewModel = koinInject<AdminViewModel>()
+    val adminViewModel = koinViewModel<AdminViewModel>()
 
     val state by viewModel.cartUiState.collectAsStateWithLifecycle()
     val scaleCart = remember { Animatable(1f) }

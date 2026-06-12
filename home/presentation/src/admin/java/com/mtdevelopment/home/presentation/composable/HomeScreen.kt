@@ -36,7 +36,6 @@ import com.mtdevelopment.core.presentation.composable.RiveAnimation
 import com.mtdevelopment.core.presentation.sharedModels.UiProductObject
 import com.mtdevelopment.core.util.koinViewModel
 import com.mtdevelopment.home.presentation.viewmodel.HomeViewModel
-import org.koin.compose.koinInject
 
 /**
  * Main dashboard screen for the administrator.
@@ -57,7 +56,7 @@ fun HomeScreen(
     val context = LocalContext.current
 
     val homeViewModel = koinViewModel<HomeViewModel>()
-    val adminViewModel = koinInject<AdminViewModel>()
+    val adminViewModel = koinViewModel<AdminViewModel>()
 
     val homeState by homeViewModel.homeUiState.collectAsStateWithLifecycle()
     var showEditDialog by remember { mutableStateOf(false) }

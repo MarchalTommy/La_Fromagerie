@@ -175,27 +175,38 @@ class FirestoreAdminDatasource(
             .addOnFailureListener {
                 onFailure.invoke()
             }
-            .addOnSuccessListener {
-                onSuccess.invoke(it.documents.mapNotNull { item ->
-                    try {
+            .addOnSuccessListener { snapshot ->
+                // A throw inside this listener would crash the app: map defensively
+                // and route any malformed document to the failure callback instead.
+                try {
+                    onSuccess.invoke(snapshot.documents.map { item ->
                         OrderData(
                             id = item.id,
                             customer_name = item.data?.get("customer_name").toString(),
                             customer_address = item.data?.get("customer_address").toString(),
                             delivery_date = item.data?.get("delivery_date").toString(),
                             order_date = item.data?.get("order_date").toString(),
-                            products = item.data?.get("products") as? Map<String, Int>
-                                ?: emptyMap(),
-                            status = OrderStatus.valueOf(item.data?.get("status").toString()),
+                            // Firestore stores numbers as Long: an unchecked cast to
+                            // Map<String, Int> would throw ClassCastException at read time.
+                            products = (item.data?.get("products") as? Map<*, *>)
+                                ?.entries
+                                ?.mapNotNull { (key, value) ->
+                                    val name = key as? String ?: return@mapNotNull null
+                                    val quantity =
+                                        (value as? Number)?.toInt() ?: return@mapNotNull null
+                                    name to quantity
+                                }?.toMap() ?: emptyMap(),
+                            status = runCatching {
+                                OrderStatus.valueOf(item.data?.get("status").toString())
+                            }.getOrDefault(OrderStatus.PENDING),
                             note = item.data?.get("note") as? String,
                             billing_address = item.data?.get("billing_address").toString(),
                             is_manually_added = item.data?.get("is_manually_added") as? Boolean
                         )
-                    } catch (e: Exception) {
-                        Log.e("FirestoreAdmin", "Skipping malformed order ${item.id}", e)
-                        null
-                    }
-                })
+                    })
+                } catch (e: Exception) {
+                    onFailure.invoke()
+                }
             }
     }
 

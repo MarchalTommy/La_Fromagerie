@@ -173,22 +173,18 @@ class AdminViewModel(
     ) {
         viewModelScope.launch {
             onLoading.invoke(true)
-            // Only device-local images need to be uploaded; product pictures that are already
-            // hosted (https URLs) are kept as-is instead of being re-uploaded on every edit.
-            if (!uploadLocalImageIfAny(product)) {
-                // The image could not be uploaded: abort instead of persisting a device-local
-                // URI in Firestore that no other device could ever display.
+            try {
+                uploadProductImageIfLocal(product)
+                updateProductUseCase.invoke(product.toDomainProduct(), onSuccess = {
+                    onSuccess.invoke()
+                }, onError = {
+                    onError.invoke()
+                })
+            } catch (e: Exception) {
+                onError.invoke()
+            } finally {
                 onLoading.invoke(false)
-                onError.invoke()
-                return@launch
             }
-
-            updateProductUseCase.invoke(product.toDomainProduct(), onSuccess = {
-                onSuccess.invoke()
-            }, onError = {
-                onError.invoke()
-            })
-            onLoading.invoke(false)
         }
     }
 
@@ -209,44 +205,37 @@ class AdminViewModel(
     ) {
         viewModelScope.launch {
             onLoading.invoke(true)
-            if (!uploadLocalImageIfAny(product)) {
+            try {
+                uploadProductImageIfLocal(product)
+                addNewProductUseCase.invoke(product.toDomainProduct(), onSuccess = {
+                    onSuccess.invoke()
+                }, onError = {
+                    onError.invoke()
+                })
+            } catch (e: Exception) {
+                onError.invoke()
+            } finally {
                 onLoading.invoke(false)
-                onError.invoke()
-                return@launch
             }
-
-            addNewProductUseCase.invoke(product.toDomainProduct(), onSuccess = {
-                onSuccess.invoke()
-            }, onError = {
-                onError.invoke()
-            })
-            onLoading.invoke(false)
         }
     }
 
     /**
-     * Uploads the product picture when (and only when) it still points to a device-local URI,
-     * replacing it with the hosted URL on success.
-     *
-     * @return false when a local image exists but its upload failed: callers must abort the
-     * save, otherwise an unusable local URI would be persisted in Firestore.
+     * Uploads the product image to Cloudinary only when it points to a local file picked
+     * on the device. An http(s) URL is already hosted and must not be re-uploaded
+     * (e.g., a simple availability toggle would otherwise trigger a useless upload).
      */
-    private suspend fun uploadLocalImageIfAny(product: UiProductObject): Boolean {
-        val localImageUri = product.imageUrl?.toUri()
-            ?.takeIf { it.scheme == "content" || it.scheme == "file" }
-            ?: return true
-
-        var uploadSucceeded = false
+    private suspend fun uploadProductImageIfLocal(product: UiProductObject) {
+        val uri = product.imageUrl?.toUri() ?: return
+        if (uri.scheme != "content" && uri.scheme != "file") return
         uploadImageUseCase.invoke(
-            imageUri = localImageUri,
+            imageUri = uri,
             onResult = { result ->
                 result.onSuccess { onlineUrl ->
                     product.imageUrl = onlineUrl
-                    uploadSucceeded = true
                 }
             }
         )
-        return uploadSucceeded
     }
 
     ///////////////////////////////////////////////////////////////////////////
