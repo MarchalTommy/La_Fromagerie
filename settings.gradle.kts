@@ -19,7 +19,13 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
-        maven("https://jitpack.io")
+        maven {
+            url = uri("https://jitpack.io")
+            credentials {
+                username = System.getenv("JITPACK_TOKEN")
+                    ?: providers.gradleProperty("JITPACK_TOKEN").orNull.orEmpty()
+            }
+        }
 
         maven {
             url = uri("https://api.mapbox.com/downloads/v2/releases/maven")
