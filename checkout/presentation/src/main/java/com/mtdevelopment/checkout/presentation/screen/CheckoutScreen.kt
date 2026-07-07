@@ -3,10 +3,12 @@ package com.mtdevelopment.checkout.presentation.screen
 import android.app.Activity.RESULT_OK
 import android.content.ContentValues.TAG
 import android.icu.text.SimpleDateFormat
+import android.net.Uri
 import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.browser.customtabs.CustomTabsIntent
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -23,6 +25,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardColors
 import androidx.compose.material3.CardDefaults
@@ -34,6 +37,7 @@ import androidx.compose.material3.contentColorFor
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -52,6 +56,7 @@ import com.mtdevelopment.checkout.presentation.BuildConfig
 import com.mtdevelopment.checkout.presentation.composable.UserInfoFormComposable
 import com.mtdevelopment.checkout.presentation.viewmodel.CheckoutViewModel
 import com.mtdevelopment.core.domain.toStringPrice
+import com.mtdevelopment.core.presentation.MainViewModel
 import com.mtdevelopment.core.presentation.composable.ErrorOverlay
 import com.mtdevelopment.core.presentation.composable.RiveAnimation
 import com.mtdevelopment.core.util.ScreenSize
@@ -73,6 +78,7 @@ import java.util.Locale
  */
 @Composable
 fun CheckoutScreen(
+    mainViewModel: MainViewModel,
     onNavigatePaymentSuccess: (String) -> Unit
 ) {
 
@@ -85,6 +91,14 @@ fun CheckoutScreen(
 
     val focusRequester = remember { FocusRequester() }
     val focusManager = LocalFocusManager.current
+
+    val sumUpCallback by mainViewModel.sumUpCallbackTrigger.collectAsState()
+    LaunchedEffect(sumUpCallback) {
+        if (sumUpCallback) {
+            checkoutViewModel.verifySumUpWebCheckoutStatus()
+            mainViewModel.clearSumUpCallback()
+        }
+    }
 
     /**
      * Launcher to handle the result of the Google Pay "Intent Sender".
@@ -300,7 +314,7 @@ fun CheckoutScreen(
                 modifier = Modifier
                     .testTag("payButton")
                     .fillMaxWidth()
-                    .padding(horizontal = 32.dp, vertical = 16.dp),
+                    .padding(start = 32.dp, end = 32.dp, top = 16.dp, bottom = 8.dp),
                 onClick = {
                     // Step 2: Create order in Firestore
                     checkoutViewModel.createOrder() { isSuccess ->
@@ -341,7 +355,7 @@ fun CheckoutScreen(
                                                     )
                                             }
 
-                                            else -> {
+                                                else -> {
                                                 Log.e(
                                                     "Google Pay API error",
                                                     "Unexpected non API exception"
@@ -364,6 +378,45 @@ fun CheckoutScreen(
                 allowedPaymentMethods = checkoutViewModel.allowedPaymentMethods,
                 enabled = uiData.value.isGooglePayAvailable
             )
+
+            /**
+             * SumUp Hosted checkout button.
+             * Creates the order and opens the SumUp checkout link in a Chrome CustomTab.
+             */
+            Button(
+                onClick = {
+                    checkoutViewModel.createOrder() { isSuccess ->
+                        if (isSuccess) {
+                            checkoutViewModel.getSumUpPaymentLink { url ->
+                                try {
+                                    val customTabsIntent = CustomTabsIntent.Builder().build()
+                                    customTabsIntent.launchUrl(context, Uri.parse(url))
+                                } catch (e: Exception) {
+                                    checkoutViewModel.setPaymentError("Impossible d'ouvrir le navigateur pour le paiement.")
+                                }
+                            }
+                        } else {
+                            checkoutViewModel.setPaymentError("Une erreur est survenue lors de la création de la commande.\nMerci de réessayer ultérieurement.")
+                        }
+                    }
+                },
+                modifier = Modifier
+                    .testTag("sumUpPayButton")
+                    .fillMaxWidth()
+                    .padding(start = 32.dp, end = 32.dp, top = 8.dp, bottom = 16.dp),
+                shape = MaterialTheme.shapes.medium,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                )
+            ) {
+                Text(
+                    text = "Payer par Carte / SumUp",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(vertical = 4.dp)
+                )
+            }
 
             // Debug tool
             if (BuildConfig.DEBUG) {

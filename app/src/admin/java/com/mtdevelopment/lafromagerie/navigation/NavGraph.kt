@@ -169,6 +169,7 @@ fun NavGraph(
         ) {
 
             CheckoutScreen(
+                mainViewModel = mainViewModel,
                 onNavigatePaymentSuccess = {
                     navController.navigate(
                         AfterPaymentScreenDestination(

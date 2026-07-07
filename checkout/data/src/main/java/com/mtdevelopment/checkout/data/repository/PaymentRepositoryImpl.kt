@@ -304,6 +304,31 @@ class PaymentRepositoryImpl(
         }
     }
 
+    override suspend fun getSumUpPaymentLink(amount: Double, orderId: String): Result<String> {
+        return try {
+            val url = sumUpDataSource.getSumUpPaymentLink(amount, orderId)
+            Result.success(url)
+        } catch (e: Exception) {
+            Log.e("PaymentRepository", "Error getting SumUp payment link: ${e.message}", e)
+            Result.failure(e)
+        }
+    }
+
+    override fun getCheckoutsByReference(reference: String): Flow<List<Checkout>> {
+        return sumUpDataSource.getCheckoutsList(reference = reference).mapNotNull { value ->
+            when (value) {
+                is NetWorkResult.Success -> {
+                    value.data?.mapNotNull { it?.toDomainCheckout() }
+                }
+
+                is NetWorkResult.Error -> {
+                    Log.e("GetCheckoutsByReference", "Error: ${value.message}")
+                    null
+                }
+            }
+        }
+    }
+
     ///////////////////////////////////////////////////////////////////////////
     // ORDER MANAGEMENT
     ///////////////////////////////////////////////////////////////////////////

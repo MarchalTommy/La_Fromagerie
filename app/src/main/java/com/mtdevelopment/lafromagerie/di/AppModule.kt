@@ -24,11 +24,13 @@ import com.mtdevelopment.checkout.domain.usecase.CreatePaymentsClientUseCase
 import com.mtdevelopment.checkout.domain.usecase.FetchAllowedPaymentMethods
 import com.mtdevelopment.checkout.domain.usecase.GetCanUseGooglePayUseCase
 import com.mtdevelopment.checkout.domain.usecase.GetCheckoutDataUseCase
+import com.mtdevelopment.checkout.domain.usecase.GetCheckoutsByReferenceUseCase
 import com.mtdevelopment.checkout.domain.usecase.GetIsPaymentSuccessUseCase
 import com.mtdevelopment.checkout.domain.usecase.GetIsReadyToPayUseCase
 import com.mtdevelopment.checkout.domain.usecase.GetPaymentDataRequestUseCase
 import com.mtdevelopment.checkout.domain.usecase.GetPreviouslyCreatedCheckoutUseCase
 import com.mtdevelopment.checkout.domain.usecase.GetSavedOrderUseCase
+import com.mtdevelopment.checkout.domain.usecase.GetSumUpPaymentLinkUseCase
 import com.mtdevelopment.checkout.domain.usecase.ProcessSumUpCheckoutUseCase
 import com.mtdevelopment.checkout.domain.usecase.ResetCheckoutStatusUseCase
 import com.mtdevelopment.checkout.domain.usecase.ResumePendingPaymentFinalizationUseCase
@@ -99,6 +101,7 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.URLProtocol
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
+import org.koin.androidx.viewmodel.dsl.viewModel
 import org.koin.androidx.viewmodel.dsl.viewModelOf
 import org.koin.dsl.module
 
@@ -184,6 +187,8 @@ val mainAppModule = module {
     factory { UpdateOrderStatus(get()) }
 
     factory { CreateNewCheckoutUseCase(get()) }
+    factory { GetSumUpPaymentLinkUseCase(get()) }
+    factory { GetCheckoutsByReferenceUseCase(get()) }
     factory { SaveCreatedCheckoutUseCase(get()) }
     factory { GetPreviouslyCreatedCheckoutUseCase(get()) }
     factory { ProcessSumUpCheckoutUseCase(get()) }
@@ -212,7 +217,33 @@ val mainAppModule = module {
     viewModelOf(::MainViewModel)
     viewModelOf(::DeliveryViewModel)
     viewModelOf(::CartViewModel)
-    viewModelOf(::CheckoutViewModel)
+    viewModel {
+        CheckoutViewModel(
+            getIsConnectedUseCase = get(),
+            fetchAllowedPaymentMethods = get(),
+            createPaymentsClientUseCase = get(),
+            json = get(),
+            getCheckoutDataUseCase = get(),
+            getCanUseGooglePayUseCase = get(),
+            getPaymentDataRequestUseCase = get(),
+            createNewCheckoutUseCase = get(),
+            processSumUpCheckoutUseCase = get(),
+            saveCheckoutReferenceUseCase = get(),
+            getPreviouslyCreatedCheckoutUseCase = get(),
+            saveCreatedCheckoutUseCase = get(),
+            savePaymentStateUseCase = get(),
+            getIsPaymentSuccessUseCase = get(),
+            clearCartUseCase = get(),
+            resetCheckoutStatusUseCase = get(),
+            createNewOrderUseCase = get(),
+            updateOrderStatus = get(),
+            getSavedOrderUseCase = get(),
+            schedulePaymentFinalizationUseCase = get(),
+            clearPendingPaymentFinalizationUseCase = get(),
+            getSumUpPaymentLinkUseCase = get(),
+            getCheckoutsByReferenceUseCase = get()
+        )
+    }
 }
 
 /**

@@ -97,4 +97,5 @@ dependencies {
 
     implementation(libs.play.service.wallet)
     implementation(libs.google.pay.compose)
+    implementation(libs.androidx.browser)
 }

@@ -21,6 +21,7 @@ import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
 import io.ktor.http.path
+import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.currentCoroutineContext
@@ -32,6 +33,8 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.isActive
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 
 /**
  * Internal marker to indicate that the initial PUT request to process a checkout 
@@ -359,4 +362,36 @@ class SumUpDataSource(private val httpClient: HttpClient) {
             }
         }.flowOn(Dispatchers.IO)
     }
+
+    private val genericHttpClient = HttpClient(io.ktor.client.engine.cio.CIO) {
+        install(io.ktor.client.plugins.contentnegotiation.ContentNegotiation) {
+            json(kotlinx.serialization.json.Json {
+                ignoreUnknownKeys = true
+                isLenient = true
+            })
+        }
+    }
+
+    suspend fun getSumUpPaymentLink(amount: Double, orderId: String): String {
+        val response =
+            genericHttpClient.post("https://createsumupcheckout-ocgett4nrq-uc.a.run.app") {
+                contentType(ContentType.Application.Json)
+                setBody(FirebaseCheckoutRequest(amount, orderId))
+            }.body<FirebaseCheckoutResponse>()
+        return response.paymentUrl
+    }
 }
+
+@Serializable
+data class FirebaseCheckoutRequest(
+    @SerialName("amount")
+    val amount: Double,
+    @SerialName("orderId")
+    val orderId: String
+)
+
+@Serializable
+data class FirebaseCheckoutResponse(
+    @SerialName("payment_url")
+    val paymentUrl: String
+)

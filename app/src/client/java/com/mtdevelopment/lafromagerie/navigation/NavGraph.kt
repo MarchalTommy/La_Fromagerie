@@ -4,6 +4,9 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
@@ -37,6 +40,12 @@ fun NavGraph(
 
         composable<HomeScreenDestination> {
             val args = it.toRoute<HomeScreenDestination>()
+            val sumUpCallback by mainViewModel.sumUpCallbackTrigger.collectAsState()
+            LaunchedEffect(sumUpCallback) {
+                if (sumUpCallback) {
+                    navController.navigate(CheckoutScreenDestination)
+                }
+            }
             HomeScreen(
                 mainViewModel = mainViewModel,
                 cartViewModel = cartViewModel,
@@ -124,6 +133,7 @@ fun NavGraph(
         ) {
 
             CheckoutScreen(
+                mainViewModel = mainViewModel,
                 onNavigatePaymentSuccess = {
                     navController.navigate(
                         AfterPaymentScreenDestination(

@@ -11,6 +11,7 @@ import com.google.android.gms.wallet.PaymentDataRequest
 import com.google.android.gms.wallet.PaymentsClient
 import com.google.firebase.Timestamp
 import com.google.firebase.crashlytics.FirebaseCrashlytics
+import com.mtdevelopment.checkout.domain.model.CHECKOUT_STATUS
 import com.mtdevelopment.checkout.domain.model.GooglePayData
 import com.mtdevelopment.checkout.domain.model.ProcessCheckoutResult
 import com.mtdevelopment.checkout.domain.usecase.ClearPendingPaymentFinalizationUseCase
@@ -20,10 +21,12 @@ import com.mtdevelopment.checkout.domain.usecase.CreatePaymentsClientUseCase
 import com.mtdevelopment.checkout.domain.usecase.FetchAllowedPaymentMethods
 import com.mtdevelopment.checkout.domain.usecase.GetCanUseGooglePayUseCase
 import com.mtdevelopment.checkout.domain.usecase.GetCheckoutDataUseCase
+import com.mtdevelopment.checkout.domain.usecase.GetCheckoutsByReferenceUseCase
 import com.mtdevelopment.checkout.domain.usecase.GetIsPaymentSuccessUseCase
 import com.mtdevelopment.checkout.domain.usecase.GetPaymentDataRequestUseCase
 import com.mtdevelopment.checkout.domain.usecase.GetPreviouslyCreatedCheckoutUseCase
 import com.mtdevelopment.checkout.domain.usecase.GetSavedOrderUseCase
+import com.mtdevelopment.checkout.domain.usecase.GetSumUpPaymentLinkUseCase
 import com.mtdevelopment.checkout.domain.usecase.ProcessSumUpCheckoutUseCase
 import com.mtdevelopment.checkout.domain.usecase.ResetCheckoutStatusUseCase
 import com.mtdevelopment.checkout.domain.usecase.SaveCheckoutReferenceUseCase
@@ -92,7 +95,9 @@ class CheckoutViewModel(
     private val updateOrderStatus: UpdateOrderStatus,
     private val getSavedOrderUseCase: GetSavedOrderUseCase,
     private val schedulePaymentFinalizationUseCase: SchedulePaymentFinalizationUseCase,
-    private val clearPendingPaymentFinalizationUseCase: ClearPendingPaymentFinalizationUseCase
+    private val clearPendingPaymentFinalizationUseCase: ClearPendingPaymentFinalizationUseCase,
+    private val getSumUpPaymentLinkUseCase: GetSumUpPaymentLinkUseCase,
+    private val getCheckoutsByReferenceUseCase: GetCheckoutsByReferenceUseCase
 ) : ViewModel(), KoinComponent {
 
     /**
@@ -500,6 +505,85 @@ class CheckoutViewModel(
             it.copy(
                 error = message
             )
+        }
+    }
+
+    fun getSumUpPaymentLink(onUrlReceived: (String) -> Unit) {
+        _paymentScreenState.update { it.copy(isLoading = true) }
+        viewModelScope.launch {
+            try {
+                val amount = paymentScreenState.value.totalPrice?.toPriceDouble() ?: 0.0
+                val orderId = paymentScreenState.value.orderId ?: ""
+
+                getSumUpPaymentLinkUseCase(amount, orderId).fold(
+                    onSuccess = { url ->
+                        _paymentScreenState.update { it.copy(isLoading = false) }
+                        onUrlReceived(url)
+                    },
+                    onFailure = { throwable ->
+                        _paymentScreenState.update {
+                            it.copy(
+                                isLoading = false,
+                                error = "Impossible d'obtenir le lien de paiement: ${throwable.message}"
+                            )
+                        }
+                    }
+                )
+            } catch (e: Exception) {
+                _paymentScreenState.update {
+                    it.copy(
+                        isLoading = false,
+                        error = "Une erreur est survenue lors de la préparation du paiement."
+                    )
+                }
+            }
+        }
+    }
+
+    fun verifySumUpWebCheckoutStatus() {
+        _paymentScreenState.update { it.copy(isLoading = true) }
+        viewModelScope.launch {
+            try {
+                // Get the saved order to obtain the ID
+                getSavedOrderUseCase().first()?.let { order ->
+                    val orderId = order.id
+
+                    getCheckoutsByReferenceUseCase(orderId).collect { checkouts ->
+                        val paidCheckout = checkouts.find { it.status == CHECKOUT_STATUS.PAID }
+                        if (paidCheckout != null) {
+                            // Success! Finalize Firestore order state and clear cart
+                            resetAppStateAfterSuccess()
+                            _paymentScreenState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    isPaymentSuccess = true
+                                )
+                            }
+                        } else {
+                            _paymentScreenState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    error = "Le paiement n'a pas été validé par SumUp. Si vous avez été débité, merci de contacter notre support."
+                                )
+                            }
+                        }
+                    }
+                } ?: run {
+                    _paymentScreenState.update {
+                        it.copy(
+                            isLoading = false,
+                            error = "Aucune commande en attente trouvée pour vérification."
+                        )
+                    }
+                }
+            } catch (e: Exception) {
+                _paymentScreenState.update {
+                    it.copy(
+                        isLoading = false,
+                        error = "Impossible de récupérer les détails de la commande pour validation."
+                    )
+                }
+            }
         }
     }
 

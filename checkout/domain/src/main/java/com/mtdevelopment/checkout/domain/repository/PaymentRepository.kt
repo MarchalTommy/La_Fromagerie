@@ -45,6 +45,10 @@ interface PaymentRepository {
         on3DSecureRequired: (ProcessCheckoutResult.NextStep) -> Unit
     ): Flow<Checkout>
 
+    suspend fun getSumUpPaymentLink(amount: Double, orderId: String): Result<String>
+
+    fun getCheckoutsByReference(reference: String): Flow<List<Checkout>>
+
     ///////////////////////////////////////////////////////////////////////////
     // ORDERS
     ///////////////////////////////////////////////////////////////////////////

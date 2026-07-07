@@ -33,6 +33,20 @@ class MainViewModel() : ViewModel(), KoinComponent {
     val shouldGoToDeliveryHelper: StateFlow<Boolean> = _shouldGoToDeliveryHelper.asStateFlow()
 
     /**
+     * Trigger for SumUp Hosted Checkout callback.
+     */
+    private val _sumUpCallbackTrigger: MutableStateFlow<Boolean> = MutableStateFlow(false)
+    val sumUpCallbackTrigger: StateFlow<Boolean> = _sumUpCallbackTrigger.asStateFlow()
+
+    fun triggerSumUpCallback() {
+        _sumUpCallbackTrigger.tryEmit(true)
+    }
+
+    fun clearSumUpCallback() {
+        _sumUpCallbackTrigger.tryEmit(false)
+    }
+
+    /**
      * Global error state displayed to the user.
      */
     var errorState by mutableStateOf(ErrorState())
