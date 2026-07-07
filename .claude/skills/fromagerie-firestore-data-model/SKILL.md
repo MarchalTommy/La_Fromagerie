@@ -117,16 +117,18 @@ the `@Serializable` DTO. Unknown/newer status values from a future app version d
   (`delivery/data/.../FirestoreDeliveryDataSource`) reads `path_name`, `cities`,
   `delivery_day`, `postcodes`, **and `streets` (List&lt;String&gt;)**.
 
-⚠️ **Two real inconsistencies in `delivery_paths` — verify before editing:**
+⚠️ **Inconsistencies in `delivery_paths` — verify before editing** (item 1 live; item 2 fixed 2026-07-07):
 1. The reader expects a **`streets`** field that the admin write DTO (`DataDeliveryPath`)
    does **not** write. Streets are populated by other write paths (fine-grained streets, see
    git `bb3d36a`), so `streets` may be absent on older path docs — the reader defaults to
    `emptyList()`. Additive field; keep defaulting.
-2. `FirestoreDeliveryDataSource.getDeliveryPath` queries
-   `whereEqualTo("pathName", pathName)` — but the stored field is `path_name`. This query
-   filters on a field that does not exist and will not match. Looks like a latent bug; do
-   not "rely" on this method returning results. (Report via change-control, don't silently
-   rename in prod.)
+2. `FirestoreDeliveryDataSource.getDeliveryPath` **used to** query
+   `whereEqualTo("pathName", pathName)` while the stored field is `path_name`, so it filtered
+   on a non-existent field and never matched. **FIXED 2026-07-07 (commit `58f85c9`, PR #43):**
+   the query now uses `path_name` (matching the write DTO and `getAllDeliveryPaths`), and
+   `FirestoreDeliveryDataSourceTest` asserts the field name as a regression guard. No stored
+   field changed — read-query fix only, so no schema/compat impact. (The method is still
+   uninvoked in main source; the fix makes it correct for when it is wired up.)
 
 ### 2.4 `preparation_status`  — DTO `PreparationStatusData` (`core/data/.../model/PreparationStatusData.kt`)
 

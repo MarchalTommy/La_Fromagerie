@@ -67,7 +67,7 @@ with live route guidance. All facts verified 2026-07-06 against branch `claude/d
 4. If `withGeoJson = true` (admin map only, see below), fetch road-line geometry from OpenRouteService using the resolved city coordinates.
 5. If **all** paths in the whole fetch failed to geocode, `onFailure` fires; otherwise the (possibly-partial) successful list is returned via `onSuccess`.
 
-`getDeliveryPath(pathName)` (used to resolve a customer's previously-saved path name) does **not** geocode or fetch GeoJSON — it is a lighter partial reconstruction. **KNOWN LATENT BUG (as of 2026-07-06):** this method queries `whereEqualTo("pathName", …)` but the stored Firestore field is `path_name`, so the query can never match — see `fromagerie-firestore-data-model` §2.3 before relying on or "fixing" it.
+`getDeliveryPath(pathName)` (used to resolve a customer's previously-saved path name) does **not** geocode or fetch GeoJSON — it is a lighter partial reconstruction. **FIXED (2026-07-07, commit `58f85c9`, PR #43):** this method previously queried `whereEqualTo("pathName", …)` while the stored Firestore field is `path_name`, so the query could never match. The query key is now `path_name` and a regression test (`FirestoreDeliveryDataSourceTest`) guards it — see `fromagerie-firestore-data-model` §2.3.
 
 ### Address APIs — which does what
 
