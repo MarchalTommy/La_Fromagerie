@@ -37,7 +37,7 @@ class FirestoreDeliveryDataSource(
         onFailure: () -> Unit
     ) {
         firestore.collection("delivery_paths")
-            .whereEqualTo("pathName", pathName)
+            .whereEqualTo("path_name", pathName)
             .get()
             .addOnFailureListener {
                 onFailure.invoke()
