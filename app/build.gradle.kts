@@ -158,6 +158,8 @@ dependencies {
     implementation(libs.firebase.analytics)
     implementation(libs.firebase.auth)
     implementation(libs.firebase.firestore)
+    // Client-only: push notifications (the admin flavor has no FCM consumer).
+    "clientImplementation"(libs.firebase.messaging)
 
     ksp(libs.room.compiler)
     implementation(libs.room.ktx)

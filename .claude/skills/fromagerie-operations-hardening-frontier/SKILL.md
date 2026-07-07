@@ -53,7 +53,7 @@ real payment; all changes go via PR to main. See **fromagerie-change-control**.
 | 5 | No CI | quality | Broken flavor/tests reach main unnoticed |
 | 6 | 2 failing AdminViewModelTest tests | quality | Green baseline is a lie; masks regressions |
 | 7 | AGP 10 migration debt | infra | Future toolchain bump blocked |
-| 8 | Cart persistence / client notifications | product | UX gaps (product-decision-pending) |
+| 8 | Cart persistence (client notifications SHIPPED 2026-07-07) | product | UX gap (product-decision-pending) |
 
 ---
 
@@ -240,29 +240,32 @@ roadmap entry so no session misses them.
 - **Result when…** both flavors assemble and the unit suite runs with
   `android.builtInKotlin` and `android.newDsl` at their AGP-10 defaults (flags removed).
 
-## 8. Cart persistence / client notifications (product-decision-pending)
+## 8. Cart persistence / client notifications (notifications SHIPPED 2026-07-07; cart still product-decision-pending)
 
-- **Why it falls short:** two flagged TODOs mark deliberately-deferred product decisions,
-  not bugs:
-  - **Client notifications not built:** `app/src/client/.../MainActivity.kt:227` ("notifications
-    feature not built yet"). The client has a notification button placeholder but no feature.
+- **Client notifications — SHIPPED 2026-07-07** (owner-requested, which lifted the
+  product-decision hold). FCM push via topic `clients` (no per-device token registry; no
+  Firestore involvement), client-only under
+  `app/src/client/.../notifications/`: `ClientMessagingService`, `NotificationLocalStore`
+  (own DataStore file `client_notifications`, capped at 50, Koin single in the client
+  `FlavorModules`), `NotificationViewModel`, `NotificationCenterSheet`. Toolbar bell badge
+  wired to unread count; `POST_NOTIFICATIONS` runtime request in client `MainActivity`;
+  system channel `fromagerie_client_general`. Send from the Firebase console → topic
+  `clients`. **Caveat:** notification-messages received in background are posted by the FCM
+  SDK without calling `onMessageReceived`, so they reach the tray but NOT the in-app list —
+  include DATA keys `title`/`body` in campaigns if the in-app list must catch them.
+- **Still open (product-decision-pending, do NOT implement autonomously):**
   - **Preferred-cart persistence:** `cart/presentation/.../CartViewModel.kt:30` (a "save a
     preferred cart" feature request "needs product/UX decisions").
   - (Related deferred: `checkout/.../CheckoutScreen.kt:243` legal/CGV decision, `:254` feature
     blocked on a state rework of the screen.)
 - **Why it's ranked last:** none of these can break a payment or a delivery day; they are UX
-  enhancements. Both are explicitly **product-decision-pending** — do NOT implement them
-  autonomously (adding/removing user-facing features requires owner sign-off; see the "+
-  button" doctrine in **fromagerie-change-control §3**).
-- **First three steps (only after Tommy decides scope):**
-  1. Surface the decision to Tommy with the two TODOs quoted.
-  2. For notifications: confirm the delivery-day/notification infra already built for admin
-     (`DeliveryTrackingService`, git `f272679`/`83b4ff2`) and what, if anything, is reusable.
-  3. For cart persistence: define the DataStore key and UI entry point the TODO asks for
-     (`shared_settings` already holds the live cart — see **fromagerie-run-and-operate** /
-     **fromagerie-config-and-secrets**).
-- **Result when…** the product decision is recorded, then (if approved) the feature ships
-  behind the normal gate. Until then, this stays labeled **open / product-decision-pending**.
+  enhancements. Adding/removing user-facing features requires owner sign-off; see the "+
+  button" doctrine in **fromagerie-change-control §3**.
+- **First steps for cart persistence (only after Tommy decides scope):** define the DataStore
+  key and UI entry point the TODO asks for (`shared_settings` already holds the live cart —
+  see **fromagerie-run-and-operate** / **fromagerie-config-and-secrets**).
+- **Result when…** the cart-persistence product decision is recorded, then (if approved) the
+  feature ships behind the normal gate.
 
 ---
 
