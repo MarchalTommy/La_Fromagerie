@@ -15,6 +15,7 @@ import kotlinx.serialization.Serializable
  * @property status Current lifecycle state (PENDING, PAID, etc.).
  * @property note Optional instructions provided by the customer.
  * @property isManuallyAdded True if the order was created by an admin (e.g., phone order) rather than through the regular checkout.
+ * @property totalPrice Total order amount in cents. Null on documents written before this field existed.
  */
 @Serializable
 data class Order(
@@ -27,5 +28,6 @@ data class Order(
     val products: Map<String, Int>,
     val status: OrderStatus,
     val note: String?,
-    val isManuallyAdded: Boolean? = false
+    val isManuallyAdded: Boolean? = false,
+    val totalPrice: Long? = null
 )

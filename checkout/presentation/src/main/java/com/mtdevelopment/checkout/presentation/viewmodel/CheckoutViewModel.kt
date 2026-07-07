@@ -36,6 +36,7 @@ import com.mtdevelopment.checkout.domain.usecase.SchedulePaymentFinalizationUseC
 import com.mtdevelopment.checkout.domain.usecase.UpdateOrderStatus
 import com.mtdevelopment.checkout.presentation.ThreeDSecureActivity
 import com.mtdevelopment.checkout.presentation.model.PaymentScreenState
+import com.mtdevelopment.core.domain.toCentsLong
 import com.mtdevelopment.core.domain.toPriceDouble
 import com.mtdevelopment.core.domain.toStringDate
 import com.mtdevelopment.core.model.Order
@@ -460,7 +461,8 @@ class CheckoutViewModel(
                         orderDate = Timestamp.now().toDate().time.toStringDate(),
                         products = orderProduct,
                         status = OrderStatus.PENDING,
-                        note = _paymentScreenState.value.checkoutNote.toString()
+                        note = _paymentScreenState.value.checkoutNote.toString(),
+                        totalPrice = _paymentScreenState.value.totalPrice
                     )
                 )
             )
@@ -512,10 +514,19 @@ class CheckoutViewModel(
         _paymentScreenState.update { it.copy(isLoading = true) }
         viewModelScope.launch {
             try {
-                val amount = paymentScreenState.value.totalPrice?.toPriceDouble() ?: 0.0
-                val orderId = paymentScreenState.value.orderId ?: ""
+                val totalPrice = paymentScreenState.value.totalPrice
+                val orderId = paymentScreenState.value.orderId
+                if (totalPrice == null || totalPrice <= 0L || orderId.isNullOrBlank()) {
+                    _paymentScreenState.update {
+                        it.copy(
+                            isLoading = false,
+                            error = "Impossible de préparer le paiement : commande incomplète."
+                        )
+                    }
+                    return@launch
+                }
 
-                getSumUpPaymentLinkUseCase(amount, orderId).fold(
+                getSumUpPaymentLinkUseCase(totalPrice.toPriceDouble(), orderId).fold(
                     onSuccess = { url ->
                         _paymentScreenState.update { it.copy(isLoading = false) }
                         onUrlReceived(url)
@@ -549,7 +560,13 @@ class CheckoutViewModel(
                     val orderId = order.id
 
                     getCheckoutsByReferenceUseCase(orderId).collect { checkouts ->
-                        val paidCheckout = checkouts.find { it.status == CHECKOUT_STATUS.PAID }
+                        // A PAID checkout only proves the order if its amount matches the
+                        // order total — anyone can create a cheap checkout with our reference.
+                        val expectedCents = order.totalPrice
+                        val paidCheckout = checkouts.find {
+                            it.status == CHECKOUT_STATUS.PAID &&
+                                    expectedCents != null && it.amount.toCentsLong() == expectedCents
+                        }
                         if (paidCheckout != null) {
                             // Success! Finalize Firestore order state and clear cart
                             resetAppStateAfterSuccess()

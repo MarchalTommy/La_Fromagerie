@@ -14,7 +14,9 @@ import com.mtdevelopment.checkout.domain.usecase.GetCheckoutDataUseCase
 import com.mtdevelopment.checkout.domain.usecase.GetIsPaymentSuccessUseCase
 import com.mtdevelopment.checkout.domain.usecase.GetPaymentDataRequestUseCase
 import com.mtdevelopment.checkout.domain.usecase.GetPreviouslyCreatedCheckoutUseCase
+import com.mtdevelopment.checkout.domain.usecase.GetCheckoutsByReferenceUseCase
 import com.mtdevelopment.checkout.domain.usecase.GetSavedOrderUseCase
+import com.mtdevelopment.checkout.domain.usecase.GetSumUpPaymentLinkUseCase
 import com.mtdevelopment.checkout.domain.usecase.ProcessSumUpCheckoutUseCase
 import com.mtdevelopment.checkout.domain.usecase.ResetCheckoutStatusUseCase
 import com.mtdevelopment.checkout.domain.usecase.SaveCheckoutReferenceUseCase
@@ -78,6 +80,8 @@ class CheckoutViewModelTest {
         mockk(relaxed = true)
     private val clearPendingPaymentFinalizationUseCase: ClearPendingPaymentFinalizationUseCase =
         mockk(relaxed = true)
+    private val getSumUpPaymentLinkUseCase: GetSumUpPaymentLinkUseCase = mockk()
+    private val getCheckoutsByReferenceUseCase: GetCheckoutsByReferenceUseCase = mockk()
 
     @Before
     fun setUp() {
@@ -121,7 +125,9 @@ class CheckoutViewModelTest {
         updateOrderStatus,
         getSavedOrderUseCase,
         schedulePaymentFinalizationUseCase,
-        clearPendingPaymentFinalizationUseCase
+        clearPendingPaymentFinalizationUseCase,
+        getSumUpPaymentLinkUseCase,
+        getCheckoutsByReferenceUseCase
     )
 
     @Test
