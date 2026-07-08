@@ -1,5 +1,9 @@
 import { onRequest } from "firebase-functions/v2/https";
+import { initializeApp } from "firebase-admin/app";
+import { getFirestore } from "firebase-admin/firestore";
 import axios, { AxiosError } from "axios";
+
+initializeApp();
 
 export const createSumUpCheckout = onRequest({ invoker: "public", cors: true }, async (req, res) => {
     // 1. Sécurité : On vérifie la méthode POST
@@ -8,14 +12,31 @@ export const createSumUpCheckout = onRequest({ invoker: "public", cors: true }, 
         return;
     }
 
-    const { amount, orderId } = req.body;
+    const { orderId } = req.body;
+
+    if (typeof orderId !== "string" || orderId.trim() === "") {
+        res.status(400).send("orderId manquant");
+        return;
+    }
+
+    // 2. Intégrité du montant : on lit le total depuis la commande Firestore.
+    // Le montant envoyé par le client est ignoré — un client modifié pourrait
+    // sinon créer un checkout à 0,01 € pour sa propre référence de commande.
+    const orderSnap = await getFirestore().collection("orders").doc(orderId).get();
+    const totalPriceCents = orderSnap.get("total_price");
+    if (!orderSnap.exists || typeof totalPriceCents !== "number" || totalPriceCents <= 0) {
+        console.error(`Commande introuvable ou total_price invalide pour ${orderId}`);
+        res.status(400).send("Commande invalide");
+        return;
+    }
+    const amount = Number((totalPriceCents / 100).toFixed(2));
 
     // Récupération sécurisée du secret
     const sumUpSecretKey = process.env.SUMUP_SECRET_KEY;
     const sumUpMerchantCode = process.env.SUMUP_MERCHANT_CODE;
 
     try {
-                // 2. Appel à l'API de SumUp
+                // 3. Appel à l'API de SumUp
         const response = await axios.post(
             "https://api.sumup.com/v0.1/checkouts",
             {
@@ -37,7 +58,7 @@ export const createSumUpCheckout = onRequest({ invoker: "public", cors: true }, 
         );
 
         console.log("SumUp Response:", response.data);
-        // 3. Renvoi de la payment_url à l'application Android
+        // 4. Renvoi de la payment_url à l'application Android
         res.status(200).json({ payment_url: response.data.hosted_checkout_url });
         return;
 
