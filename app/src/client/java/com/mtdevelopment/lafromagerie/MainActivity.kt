@@ -1,14 +1,18 @@
 package com.mtdevelopment.lafromagerie
 
+import android.Manifest
 import android.animation.ObjectAnimator
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.view.View
 import android.view.animation.OvershootInterpolator
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -36,15 +40,21 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarColors
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.core.animation.doOnEnd
+import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.lifecycleScope
+import com.google.firebase.messaging.FirebaseMessaging
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
@@ -55,6 +65,9 @@ import com.mtdevelopment.lafromagerie.navigation.AfterPaymentScreenDestination
 import com.mtdevelopment.lafromagerie.navigation.DeliveryOptionScreenDestination
 import com.mtdevelopment.lafromagerie.navigation.HomeScreenDestination
 import com.mtdevelopment.lafromagerie.navigation.NavGraph
+import com.mtdevelopment.lafromagerie.notifications.ClientMessagingService
+import com.mtdevelopment.lafromagerie.notifications.NotificationCenterSheet
+import com.mtdevelopment.lafromagerie.notifications.NotificationViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
@@ -66,12 +79,18 @@ class MainActivity : ComponentActivity() {
 
     private val cartViewModel: CartViewModel by viewModel()
     private val mainViewModel: MainViewModel by viewModel()
+    private val notificationViewModel: NotificationViewModel by viewModel()
 
     @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         intent?.let { handleDeepLink(it) }
+
+        // Topic-based push targeting: every client device listens to the same topic, so
+        // the shop can push from the Firebase console without a token registry.
+        FirebaseMessaging.getInstance()
+            .subscribeToTopic(ClientMessagingService.TOPIC_ALL_CLIENTS)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             installSplashScreen().apply {
                 setOnExitAnimationListener { screen ->
@@ -154,6 +173,25 @@ class MainActivity : ComponentActivity() {
                     SnackbarHostState()
                 }
 
+                val notifications by notificationViewModel.notifications.collectAsState()
+                val unreadCount by notificationViewModel.unreadCount.collectAsState()
+                var showNotificationCenter by remember { mutableStateOf(false) }
+
+                val notificationPermissionLauncher = rememberLauncherForActivityResult(
+                    ActivityResultContracts.RequestPermission()
+                ) { /* Refusal is respected: pushes stay in-app only (see ClientMessagingService). */ }
+
+                LaunchedEffect(Unit) {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                        ContextCompat.checkSelfPermission(
+                            this@MainActivity,
+                            Manifest.permission.POST_NOTIFICATIONS
+                        ) != PackageManager.PERMISSION_GRANTED
+                    ) {
+                        notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                    }
+                }
+
                 LaunchedEffect(errorState.shouldShowError) {
                     if (errorState.shouldShowError) {
                         coroutineScope.launch {
@@ -222,30 +260,18 @@ class MainActivity : ComponentActivity() {
                                 IconButton(
                                     modifier = Modifier.size(64.dp),
                                     onClick = {
-                                        mainViewModel.setError(
-                                            "Cette fonctionnalité viendra plus tard ! Un peu de patience :)",
-                                            actionLabel = "Je comprends",
-                                            action = { mainViewModel.clearError() })
-                                        // TODO: (flagged: notifications feature not built yet —
-                                        //  needs a notifications screen/modal sheet, a real unread
-                                        //  count source, and the badge wired to it. The button
-                                        //  intentionally shows a "coming later" message until then.)
+                                        showNotificationCenter = true
                                     },
                                     content = {
                                         BadgedBox(
                                             modifier = Modifier,
                                             badge = {
-                                                // Hidden until the notifications feature exists
-                                                // (see flagged TODO above).
-                                                if (
-                                                    false
-                                                ) {
+                                                if (unreadCount > 0) {
                                                     Badge(
                                                         containerColor = Color.Red,
                                                         contentColor = Color.White
                                                     ) {
-                                                        val notificationsNumber = 4
-                                                        Text("$notificationsNumber")
+                                                        Text("$unreadCount")
                                                     }
                                                 }
                                             }
@@ -280,6 +306,19 @@ class MainActivity : ComponentActivity() {
                         mainViewModel = mainViewModel,
                         cartViewModel = cartViewModel
                     )
+
+                    if (showNotificationCenter) {
+                        NotificationCenterSheet(
+                            notifications = notifications,
+                            onClearAll = { notificationViewModel.clearAll() },
+                            onDismiss = {
+                                // Committed on dismiss so unread items stay highlighted
+                                // while the sheet is open.
+                                notificationViewModel.markAllRead()
+                                showNotificationCenter = false
+                            }
+                        )
+                    }
                 }
             }
         }

@@ -11,6 +11,7 @@ import com.mtdevelopment.checkout.domain.usecase.CreatePaymentsClientUseCase
 import com.mtdevelopment.checkout.domain.usecase.FetchAllowedPaymentMethods
 import com.mtdevelopment.checkout.domain.usecase.GetCanUseGooglePayUseCase
 import com.mtdevelopment.checkout.domain.usecase.GetCheckoutDataUseCase
+import com.mtdevelopment.checkout.domain.usecase.GetCheckoutsByReferenceUseCase
 import com.mtdevelopment.checkout.domain.usecase.GetIsPaymentSuccessUseCase
 import com.mtdevelopment.checkout.domain.usecase.GetPaymentDataRequestUseCase
 import com.mtdevelopment.checkout.domain.usecase.GetPreviouslyCreatedCheckoutUseCase

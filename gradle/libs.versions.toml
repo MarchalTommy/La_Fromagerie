@@ -116,6 +116,7 @@ firebase-firestore = { module = "com.google.firebase:firebase-firestore" }
 firebase-analytics = { module = "com.google.firebase:firebase-analytics" }
 firebase-crashlytics = { module = "com.google.firebase:firebase-crashlytics" }
 firebase-crashlytics-ndk = { module = "com.google.firebase:firebase-crashlytics-ndk" }
+firebase-messaging = { module = "com.google.firebase:firebase-messaging" }
 
 
 
