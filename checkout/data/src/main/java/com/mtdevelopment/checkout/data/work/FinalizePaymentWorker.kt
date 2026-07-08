@@ -26,7 +26,9 @@ import org.koin.core.component.inject
  * window, the customer may be charged while the order stays PENDING forever.
  *
  * This worker is enqueued (as unique, persisted work) right before the payment is
- * submitted. It polls SumUp for the terminal status and:
+ * submitted (Google Pay path) or right before the hosted-checkout page is opened
+ * (hosted path, where the customer may pay in the browser and never return to the
+ * app). It polls SumUp for the terminal status and:
  * - on PAID: marks the Firestore order as PAID and clears the local cart,
  * - on FAILED: marks the Firestore order as CANCELED (the cart is kept so the
  *   customer can retry),
@@ -52,19 +54,30 @@ class FinalizePaymentWorker(
 
         if (pending.isExpired(System.currentTimeMillis())) {
             // The SumUp session has expired; stop reconciling automatically.
-            Log.w(TAG, "Pending finalization for ${pending.checkoutId} expired, giving up.")
+            Log.w(TAG, "Pending finalization for order ${pending.orderId} expired, giving up.")
             checkoutDatastorePreference.clearPendingFinalization()
             return Result.success()
         }
 
         Log.i(
             TAG,
-            "Reconciling checkout ${pending.checkoutId} (attempt ${runAttemptCount + 1})"
+            "Reconciling order ${pending.orderId} " +
+                    "(checkoutId=${pending.checkoutId}, attempt ${runAttemptCount + 1})"
         )
 
-        // pollCheckoutStatus loops internally (up to ~2 minutes) and emits exactly once:
-        // either a terminal status or an error/timeout.
-        return when (val result = sumUpDataSource.pollCheckoutStatus(pending.checkoutId).first()) {
+        // Both polling calls loop internally (up to ~2 minutes) and emit exactly once:
+        // either a terminal status or an error/timeout. The hosted-checkout path never
+        // learns the SumUp session id, so its marker is reconciled through the
+        // checkout_reference (= the order id) with an amount-integrity check.
+        val checkoutId = pending.checkoutId
+        val result = if (checkoutId != null) {
+            sumUpDataSource.pollCheckoutStatus(checkoutId).first()
+        } else {
+            sumUpDataSource
+                .pollHostedCheckoutStatus(pending.orderId, pending.expectedAmountCents)
+                .first()
+        }
+        return when (result) {
             is NetWorkResult.Success -> when (result.data.status) {
                 CHECKOUT_STATUS.PAID -> finalize(pending, OrderStatus.PAID)
                 CHECKOUT_STATUS.FAILED -> finalize(pending, OrderStatus.CANCELED)

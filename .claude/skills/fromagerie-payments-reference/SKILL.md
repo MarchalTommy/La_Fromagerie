@@ -33,9 +33,9 @@ Path differences that matter (as of `ecda756`):
 | `checkout_reference` | `"<buyerName>_<epochMillis>"` | **`orderId`** (identifiers unified) |
 | Secret location | `SUMUP_PRIVATE_KEY` in APK (creation + verification) | Server-side for creation; app-side key still used for **verification** (`getCheckoutsByReference`) |
 | Outcome detection | Polling loop (`MAX_POLLING_ATTEMPTS`) | Single check on deep-link return (no poll loop) |
-| Durable safety net | `FinalizePaymentWorker` scheduled | **None observed in `ecda756`** — if the customer pays in the tab but never returns (app killed, tab dismissed), no reconciliation runs |
+| Durable safety net | `FinalizePaymentWorker` scheduled with the session id | **Scheduled since 2026-07-08** before the tab opens: marker has `checkoutId = null` + `expectedAmountCents`; the worker reconciles by reference (= orderId) via `SumUpDataSource.pollHostedCheckoutStatus` and only trusts a PAID session whose amount matches the order total |
 
-The backend is under version control since `ecda756` (`la-fromagerie-backend/` tracked; `functions/.env` correctly gitignored). Rotating `SUMUP_PRIVATE_KEY` still requires an app release while verification uses the app-side key. Hardening items for the hosted path (safety net, single-check vs poll, hardcoded function URL, `Double` amount at the boundary) are tracked in fromagerie-payment-reliability-campaign.
+The backend is under version control since `ecda756` (`la-fromagerie-backend/` tracked; `functions/.env` correctly gitignored). Rotating `SUMUP_PRIVATE_KEY` still requires an app release while verification uses the app-side key. Remaining hardening items for the hosted path (single-check vs poll on return, hardcoded function URL, `Double` amount at the boundary — the durable safety net was closed 2026-07-08) are tracked in fromagerie-payment-reliability-campaign.
 
 ## The happy path, file by file
 
@@ -156,7 +156,7 @@ The canonical key catalog (names, file:line, missing-key behavior) is owned by *
 All facts verified 2026-07-06 against the working tree (branch `claude/distracted-chaum-0986e4`, HEAD `b97eb83`). Re-verify drift-prone claims:
 
 - Hosted path still wired as described: `grep -rn "getSumUpPaymentLink\|checkout-callback\|createsumupcheckout" --include="*.kt" --include="*.xml" . | grep -v "/build/"` (expect hits in SumUpDataSource, PaymentRepositoryImpl, CheckoutViewModel, both MainActivities, AndroidManifest.xml)
-- Hosted path still lacks a WorkManager safety net: `grep -n "schedulePaymentFinalization" checkout/presentation/src/main/java/com/mtdevelopment/checkout/presentation/viewmodel/CheckoutViewModel.kt` (if it now appears inside `getSumUpPaymentLink`/`verifySumUpWebCheckoutStatus`, the gap was closed — update the path-differences table)
+- Hosted path safety net wired (since 2026-07-08): `grep -n "schedulePaymentFinalization" checkout/presentation/src/main/java/com/mtdevelopment/checkout/presentation/viewmodel/CheckoutViewModel.kt` (expect a hit inside `getSumUpPaymentLink`; if gone, update the path-differences table)
 - No deep link for redirect: `grep -rn "lafromagerie://" --include="AndroidManifest.xml" app/src checkout` (expect empty)
 - Direct-API base URL + Bearer: `grep -n "SUM_UP_BASE_URL\|SUMUP_PRIVATE_KEY" core/data/src/main/java/com/mtdevelopment/core/data/Constants.kt app/src/main/java/com/mtdevelopment/lafromagerie/di/AppModule.kt`
 - Google Pay env still PRODUCTION: `grep -n "PAYMENTS_ENVIRONMENT" core/data/src/main/java/com/mtdevelopment/core/data/Constants.kt`

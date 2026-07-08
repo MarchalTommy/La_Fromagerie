@@ -528,6 +528,16 @@ class CheckoutViewModel(
 
                 getSumUpPaymentLinkUseCase(totalPrice.toPriceDouble(), orderId).fold(
                     onSuccess = { url ->
+                        // Durable safety net BEFORE opening the hosted page: the customer
+                        // may pay in the browser and never come back to the app. The
+                        // SumUp session id is unknown here (the Cloud Function only
+                        // returns the URL), so the worker reconciles by reference
+                        // (= orderId) and only trusts a PAID session of the right amount.
+                        schedulePaymentFinalizationUseCase.invoke(
+                            checkoutId = null,
+                            orderId = orderId,
+                            expectedAmountCents = totalPrice
+                        )
                         _paymentScreenState.update { it.copy(isLoading = false) }
                         onUrlReceived(url)
                     },

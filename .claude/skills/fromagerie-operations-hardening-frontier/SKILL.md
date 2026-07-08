@@ -86,12 +86,15 @@ The hosted-checkout path landed in `ecda756` as working WIP (see
 **fromagerie-payment-reliability-campaign** ("LANDED as working WIP" block); this is the
 roadmap entry so no session misses them.
 
-- **MAJOR TODO 1 — No durable safety net on the hosted path.** Unlike the Google Pay
-  path, no `FinalizePaymentWorker` marker is scheduled around the custom-tab flow
-  (`CheckoutViewModel.getSumUpPaymentLink` / `verifySumUpWebCheckoutStatus`): a customer
-  who pays in the tab and never returns to the app leaves a paid-but-`PENDING` order
-  that nobody reconciles. Fix direction: schedule the FPW marker before launching the
-  tab (webhook confirmation is the stronger long-term fix).
+- **MAJOR TODO 1 — hosted-path durable safety net — ✅ CLOSED 2026-07-08.**
+  `CheckoutViewModel.getSumUpPaymentLink` now schedules the `FinalizePaymentWorker`
+  marker BEFORE opening the custom tab. The Cloud Function never returns the SumUp
+  session id, so the marker carries `checkoutId = null` + `expectedAmountCents`, and
+  the worker reconciles by `checkout_reference` (= orderId) via
+  `SumUpDataSource.pollHostedCheckoutStatus`, refusing any PAID session whose amount
+  does not match the order total (unit-tested: `SumUpDataSourceTest`,
+  `PaymentFinalizationUseCasesTest`, `CheckoutViewModelTest`). Webhook confirmation
+  remains the stronger long-term fix (campaign Phase 5).
 - **MAJOR TODO 2 — Single-shot verification on return.** `verifySumUpWebCheckoutStatus()`
   checks the checkout reference once; a payment still processing at that instant shows
   the "contact support" error while money may have moved. Fix direction: reuse the
@@ -175,8 +178,14 @@ roadmap entry so no session misses them.
   2. Decide the mechanism with Tommy (Firebase Auth email/single-operator vs device
      attestation) — **security change, surface first** (see change-control autonomy table).
   3. Implement the gate in the empty `:auth` module + admin `MainActivity`, and pair it with
-     **Firestore Security Rules** (currently the real backstop is absent too — inspect rules
-     read-only in the Firebase console).
+     **Firestore Security Rules**. The live rules were exported 2026-07-08 into
+     `la-fromagerie-backend/firestore.rules` and are confirmed **world-writable**
+     (`allow write: if true` on `/{document=**}` — the in-file comment claiming
+     admin-only writes is wrong). A hardened draft awaits this auth work in
+     `la-fromagerie-backend/firestore.rules.hardened-proposal`; full analysis in
+     `la-fromagerie-backend/FIRESTORE_RULES_AUDIT.md`. This makes admin auth MORE
+     urgent: today the shop's whole database is one `curl` away for anyone with the
+     APK's API key.
 - **Result when…** launching the admin flavor requires authenticating, AND prod Firestore
   rules reject unauthenticated writes to `products`/`delivery_paths`/`orders` — falsifiable
   by attempting an unauthenticated write from a test harness (never against prod data).
@@ -273,7 +282,7 @@ roadmap entry so no session misses them.
 
 | Item | Re-verification command |
 |---|---|
-| 1b. hosted-path safety net still missing | `grep -n "schedulePaymentFinalization" checkout/presentation/src/main/java/com/mtdevelopment/checkout/presentation/viewmodel/CheckoutViewModel.kt` (if it appears in the hosted-path functions, TODO 1 is done — update §1b) |
+| 1b. hosted-path safety net CLOSED 2026-07-08 | `grep -n "schedulePaymentFinalization" checkout/presentation/src/main/java/com/mtdevelopment/checkout/presentation/viewmodel/CheckoutViewModel.kt` (expect a hit inside `getSumUpPaymentLink`; if gone, the net was removed — reopen §1b) |
 | 2. backend tracked, secrets out | `git ls-files la-fromagerie-backend | head` (expect functions source + firebase.json) and `git check-ignore la-fromagerie-backend/functions/.env` (expect a match) |
 | 3. path offline support | `grep -rn 'offline' delivery --include='*.kt' \| grep -v /build/` |
 | 3. Firestore offline persistence | `grep -rin 'persistenceEnabled\|PersistentCacheSettings\|setFirestoreSettings' . \| grep -v /build/` (empty = SDK defaults, UNVERIFIED) |
