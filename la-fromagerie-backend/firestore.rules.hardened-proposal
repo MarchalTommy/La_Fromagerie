@@ -1,0 +1,84 @@
+// PROPOSAL — NOT DEPLOYED. Drafted 2026-07-08 from the audit of the exported
+// live rules (see FIRESTORE_RULES_AUDIT.md). Deploying rules changes payment-live
+// behaviour and needs Tommy's explicit sign-off.
+//
+// Honest scope statement: the app has NO user auth (client and admin flavors both
+// talk to Firestore anonymously), so these rules cannot distinguish the admin app
+// from an attacker. What they CAN do without any app change:
+//   - stop blind deletes/overwrites of `orders` (the money-side record),
+//   - constrain order writes to the shapes the two apps actually produce,
+//   - close the "rewrite history" hole on immutable order fields.
+// What they CANNOT do until admin auth lands (operations-hardening-frontier item):
+//   - protect products/delivery_paths/preparation_status/database_update writes,
+//     because the anonymous admin app needs them. Real fix = Firebase Auth for the
+//     admin flavor (+ App Check), then flip the TODO(admin-auth) blocks below.
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Client + admin read the catalog; only the admin app writes it.
+    // TODO(admin-auth): change write to `request.auth != null` once the admin
+    // flavor signs in. Until then anonymous writes must stay open for the admin app.
+    match /products/{productId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    match /delivery_paths/{pathId} {
+      allow read: if true;
+      allow write: if true; // TODO(admin-auth)
+    }
+
+    match /database_update/{docId} {
+      allow read: if true;
+      // Only the two known timestamp documents, only their known shape.
+      allow write: if docId in ['products_timestamp', 'path_timestamp']
+        && request.resource.data.keys().hasOnly(['last_update'])
+        && request.resource.data.last_update is timestamp; // TODO(admin-auth)
+    }
+
+    match /preparation_status/{statusId} {
+      allow read: if true;
+      allow write: if true; // TODO(admin-auth)
+    }
+
+    // The money-side record. Client creates PENDING orders and flips status to
+    // PAID/CANCELED (FinalizePaymentWorker / CheckoutViewModel); the admin app
+    // lists all orders, creates manual IN_PREPARATION orders (DeliveryAddDialog)
+    // and flips status to IN_PREPARATION/DELIVERED.
+    match /orders/{orderId} {
+      allow read: if true; // admin list; TODO(admin-auth)
+
+      // Client checkout order: PENDING with a positive cent total (the Cloud
+      // Function derives the charged amount from total_price — a fake total here
+      // only makes the customer pay that fake total, it cannot underpay a real one
+      // since verification compares the paid amount to this same field).
+      // Admin manual order: IN_PREPARATION, no total_price (verified in
+      // DeliveryAddDialog as of 2026-07-08).
+      allow create: if request.resource.data.id == orderId
+        && (
+          (request.resource.data.status == 'PENDING'
+            && request.resource.data.total_price is int
+            && request.resource.data.total_price > 0)
+          || (request.resource.data.status == 'IN_PREPARATION'
+            && request.resource.data.is_manually_added == true)
+        );
+
+      // Both apps only ever update the status field; everything else (amount,
+      // products, addresses) is immutable once written.
+      allow update: if request.resource.data.diff(resource.data)
+          .affectedKeys().hasOnly(['status'])
+        && request.resource.data.status in
+          ['PENDING', 'PAID', 'CANCELED', 'IN_PREPARATION', 'PREPARED',
+           'IN_DELIVERY', 'DELIVERED'];
+
+      // Nobody deletes orders today (verified: no .delete() on orders in either
+      // flavor). An attacker must not be able to erase a paid order.
+      allow delete: if false;
+    }
+
+    // Anything not matched above is denied (no catch-all match in this proposal,
+    // unlike the live rules).
+  }
+}
