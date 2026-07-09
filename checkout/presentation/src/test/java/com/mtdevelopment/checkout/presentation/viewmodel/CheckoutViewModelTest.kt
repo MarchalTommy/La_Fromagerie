@@ -15,7 +15,6 @@ import com.mtdevelopment.checkout.domain.usecase.GetCheckoutsByReferenceUseCase
 import com.mtdevelopment.checkout.domain.usecase.GetIsPaymentSuccessUseCase
 import com.mtdevelopment.checkout.domain.usecase.GetPaymentDataRequestUseCase
 import com.mtdevelopment.checkout.domain.usecase.GetPreviouslyCreatedCheckoutUseCase
-import com.mtdevelopment.checkout.domain.usecase.GetCheckoutsByReferenceUseCase
 import com.mtdevelopment.checkout.domain.usecase.GetSavedOrderUseCase
 import com.mtdevelopment.checkout.domain.usecase.GetSumUpPaymentLinkUseCase
 import com.mtdevelopment.checkout.domain.usecase.ProcessSumUpCheckoutUseCase
@@ -250,6 +249,103 @@ class CheckoutViewModelTest {
 
             assertEquals(false, callbackResult)
             assertFalse(viewModel.paymentScreenState.value.isLoading)
+        }
+
+    @Test
+    fun `getSumUpPaymentLink schedules hosted finalization before handing out the url`() =
+        runTest(testDispatcher) {
+            val cart = CartItems(
+                cartItems = listOf(CartItem(name = "Comté", price = 1000L, quantity = 2)),
+                totalPrice = 2000L
+            )
+            every { getCheckoutDataUseCase.invoke() } returns flowOf(
+                LocalCheckoutInformation(
+                    buyerName = "Jane",
+                    buyerAddress = "1 rue du Fromage",
+                    cartItems = cart,
+                    totalPrice = 2000L,
+                    deliveryDate = 42L,
+                    billingAddress = "2 rue de la Facture"
+                )
+            )
+            coEvery { createNewOrderUseCase.invoke(any()) } returns true
+            coEvery { getSumUpPaymentLinkUseCase.invoke(any(), any()) } returns
+                    Result.success("https://pay.sumup.com/hosted")
+
+            val viewModel = buildViewModel()
+            testScheduler.advanceUntilIdle()
+            viewModel.updateUiState()
+            testScheduler.advanceUntilIdle()
+            viewModel.createOrder { }
+            testScheduler.advanceUntilIdle()
+            val orderId = viewModel.paymentScreenState.value.orderId!!
+
+            var receivedUrl: String? = null
+            viewModel.getSumUpPaymentLink { receivedUrl = it }
+            testScheduler.advanceUntilIdle()
+
+            assertEquals("https://pay.sumup.com/hosted", receivedUrl)
+            coVerify(exactly = 1) {
+                schedulePaymentFinalizationUseCase.invoke(
+                    checkoutId = null,
+                    orderId = orderId,
+                    expectedAmountCents = 2000L
+                )
+            }
+            assertFalse(viewModel.paymentScreenState.value.isLoading)
+        }
+
+    @Test
+    fun `getSumUpPaymentLink does not schedule finalization when the link request fails`() =
+        runTest(testDispatcher) {
+            val cart = CartItems(
+                cartItems = listOf(CartItem(name = "Comté", price = 1000L, quantity = 2)),
+                totalPrice = 2000L
+            )
+            every { getCheckoutDataUseCase.invoke() } returns flowOf(
+                LocalCheckoutInformation(
+                    buyerName = "Jane",
+                    buyerAddress = "1 rue du Fromage",
+                    cartItems = cart,
+                    totalPrice = 2000L,
+                    deliveryDate = 42L,
+                    billingAddress = "2 rue de la Facture"
+                )
+            )
+            coEvery { createNewOrderUseCase.invoke(any()) } returns true
+            coEvery { getSumUpPaymentLinkUseCase.invoke(any(), any()) } returns
+                    Result.failure(IllegalStateException("backend down"))
+
+            val viewModel = buildViewModel()
+            testScheduler.advanceUntilIdle()
+            viewModel.updateUiState()
+            testScheduler.advanceUntilIdle()
+            viewModel.createOrder { }
+            testScheduler.advanceUntilIdle()
+
+            var receivedUrl: String? = null
+            viewModel.getSumUpPaymentLink { receivedUrl = it }
+            testScheduler.advanceUntilIdle()
+
+            assertNull(receivedUrl)
+            coVerify(exactly = 0) { schedulePaymentFinalizationUseCase.invoke(any(), any(), any()) }
+            assertNotNull(viewModel.paymentScreenState.value.error)
+        }
+
+    @Test
+    fun `getSumUpPaymentLink aborts without order id instead of creating a blank checkout`() =
+        runTest(testDispatcher) {
+            val viewModel = buildViewModel()
+            testScheduler.advanceUntilIdle()
+
+            var receivedUrl: String? = null
+            viewModel.getSumUpPaymentLink { receivedUrl = it }
+            testScheduler.advanceUntilIdle()
+
+            assertNull(receivedUrl)
+            coVerify(exactly = 0) { getSumUpPaymentLinkUseCase.invoke(any(), any()) }
+            coVerify(exactly = 0) { schedulePaymentFinalizationUseCase.invoke(any(), any(), any()) }
+            assertNotNull(viewModel.paymentScreenState.value.error)
         }
 
     private fun checkoutResult(status: String?) = NewCheckoutResult(

@@ -41,10 +41,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.core.animation.doOnEnd
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.mtdevelopment.auth.presentation.screen.PinLockScreen
+import com.mtdevelopment.auth.presentation.viewmodel.AuthViewModel
 import com.mtdevelopment.cart.presentation.viewmodel.CartViewModel
 import com.mtdevelopment.core.presentation.MainViewModel
 import com.mtdevelopment.core.presentation.theme.ui.AppTheme
@@ -68,6 +72,7 @@ class MainActivity : ComponentActivity() {
 
     private val cartViewModel: CartViewModel by viewModel()
     private val mainViewModel: MainViewModel by viewModel()
+    private val authViewModel: AuthViewModel by viewModel()
 
     @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -145,6 +150,23 @@ class MainActivity : ComponentActivity() {
         }
         setContent {
             AppTheme {
+                // Admin gate: until the operator signs in with the PIN, show only the
+                // lock screen. Firebase persists the session, so this is a one-time
+                // prompt per install unless signed out.
+                val authState by authViewModel.uiState.collectAsState()
+                if (!authState.isAuthenticated) {
+                    // The splash is normally dismissed by HomeScreen; when the gate is
+                    // closed HomeScreen never composes, so release it here to avoid the
+                    // 5 s "trouble loading" fallback lingering over the lock screen.
+                    LaunchedEffect(Unit) { mainViewModel.setCanRemoveSplash() }
+                    PinLockScreen(
+                        state = authState,
+                        onDigitEntered = authViewModel::onDigitEntered,
+                        onDeleteDigit = authViewModel::onDeleteDigit
+                    )
+                    return@AppTheme
+                }
+
                 val navController: NavHostController = rememberNavController()
                 val currentBackStackEntry = navController.currentBackStackEntryAsState()
 

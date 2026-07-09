@@ -186,27 +186,36 @@ class CheckoutDatastorePreferenceImpl(private val context: Context) : CheckoutDa
         stringPreferencesKey("pending_finalization_order_id")
     private val PENDING_FINALIZATION_CREATED_AT =
         longPreferencesKey("pending_finalization_created_at")
+    private val PENDING_FINALIZATION_EXPECTED_AMOUNT =
+        longPreferencesKey("pending_finalization_expected_amount")
 
     override val pendingFinalizationFlow: Flow<PendingPaymentFinalization?>
         get() = context.dataStore.data.map { preferences ->
-            val checkoutId = preferences[PENDING_FINALIZATION_CHECKOUT_ID]
+            // The order id is the marker's identity: the checkout id is unknown on the
+            // hosted-checkout path (resolved later by reference).
             val orderId = preferences[PENDING_FINALIZATION_ORDER_ID]
-            if (checkoutId.isNullOrBlank() || orderId.isNullOrBlank()) {
+            if (orderId.isNullOrBlank()) {
                 null
             } else {
                 PendingPaymentFinalization(
-                    checkoutId = checkoutId,
+                    checkoutId = preferences[PENDING_FINALIZATION_CHECKOUT_ID]
+                        ?.takeUnless { it.isBlank() },
                     orderId = orderId,
-                    createdAtMillis = preferences[PENDING_FINALIZATION_CREATED_AT] ?: 0L
+                    createdAtMillis = preferences[PENDING_FINALIZATION_CREATED_AT] ?: 0L,
+                    expectedAmountCents = preferences[PENDING_FINALIZATION_EXPECTED_AMOUNT]
                 )
             }
         }
 
     override suspend fun setPendingFinalization(pending: PendingPaymentFinalization) {
         context.dataStore.edit { settings ->
-            settings[PENDING_FINALIZATION_CHECKOUT_ID] = pending.checkoutId
+            pending.checkoutId?.let { settings[PENDING_FINALIZATION_CHECKOUT_ID] = it }
+                ?: settings.remove(PENDING_FINALIZATION_CHECKOUT_ID)
             settings[PENDING_FINALIZATION_ORDER_ID] = pending.orderId
             settings[PENDING_FINALIZATION_CREATED_AT] = pending.createdAtMillis
+            pending.expectedAmountCents
+                ?.let { settings[PENDING_FINALIZATION_EXPECTED_AMOUNT] = it }
+                ?: settings.remove(PENDING_FINALIZATION_EXPECTED_AMOUNT)
         }
     }
 
@@ -215,6 +224,7 @@ class CheckoutDatastorePreferenceImpl(private val context: Context) : CheckoutDa
             settings.remove(PENDING_FINALIZATION_CHECKOUT_ID)
             settings.remove(PENDING_FINALIZATION_ORDER_ID)
             settings.remove(PENDING_FINALIZATION_CREATED_AT)
+            settings.remove(PENDING_FINALIZATION_EXPECTED_AMOUNT)
         }
     }
 }

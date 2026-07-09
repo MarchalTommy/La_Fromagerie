@@ -9,6 +9,7 @@ import com.mtdevelopment.checkout.data.remote.model.response.sumUp.NewCheckoutRe
 import com.mtdevelopment.checkout.data.remote.model.response.sumUp.ProcessCheckoutResponse
 import com.mtdevelopment.checkout.data.remote.model.response.sumUp.toNextStep
 import com.mtdevelopment.checkout.domain.model.ProcessCheckoutResult
+import com.mtdevelopment.core.domain.toCentsLong
 import com.mtdevelopment.core.util.NetWorkResult
 import com.mtdevelopment.core.util.toResultFlow
 import io.ktor.client.HttpClient
@@ -352,6 +353,90 @@ class SumUpDataSource(private val httpClient: HttpClient) {
                 Log.w(
                     "PollCheckoutStatus",
                     "Polling timeout for checkout $checkoutId after $MAX_POLLING_ATTEMPTS attempts."
+                )
+                emit(
+                    NetWorkResult.Error(
+                        "Timeout du polling du statut du checkout.",
+                        "POLLING_TIMEOUT"
+                    )
+                )
+            }
+        }.flowOn(Dispatchers.IO)
+    }
+
+    /**
+     * Polls the SumUp API by `checkout_reference` until the session tied to [reference]
+     * reaches a terminal state, mirroring [pollCheckoutStatus] for the hosted-checkout
+     * path where the session id is never returned to the app (the Cloud Function only
+     * sends back the payment URL; the reference equals the Firestore order id).
+     *
+     * A PAID session only counts if its amount matches [expectedAmountCents]: anyone can
+     * create a cheap checkout carrying our reference, so a mismatched PAID must never
+     * finalize the order (same integrity rule as the in-app deep-link verification).
+     */
+    internal fun pollHostedCheckoutStatus(
+        reference: String,
+        expectedAmountCents: Long?
+    ): Flow<NetWorkResult<CheckoutResponse>> {
+        return flow {
+            for (attempt in 0 until MAX_POLLING_ATTEMPTS) {
+                if (!currentCoroutineContext().isActive) {
+                    Log.i("PollHostedCheckout", "Polling cancelled for reference $reference")
+                    break
+                }
+
+                when (val result = getCheckoutsList(reference).first()) {
+                    is NetWorkResult.Success -> {
+                        val candidates = result.data.filterNotNull()
+
+                        val paid = candidates.firstOrNull {
+                            it.status == CHECKOUT_STATUS.PAID &&
+                                    (expectedAmountCents == null ||
+                                            it.amount?.toCentsLong() == expectedAmountCents)
+                        }
+                        if (paid != null) {
+                            emit(NetWorkResult.Success(paid))
+                            return@flow
+                        }
+
+                        // A PAID session with the wrong amount must never finalize the
+                        // order: keep looking and let the timeout leave it PENDING for
+                        // a human to reconcile.
+                        candidates.firstOrNull { it.status == CHECKOUT_STATUS.PAID }?.let {
+                            Log.e(
+                                "PollHostedCheckout",
+                                "PAID checkout ${it.id} for reference $reference has amount " +
+                                        "${it.amount}, expected $expectedAmountCents cents — ignored."
+                            )
+                        }
+
+                        if (candidates.isNotEmpty() &&
+                            candidates.all { it.status == CHECKOUT_STATUS.FAILED }
+                        ) {
+                            emit(NetWorkResult.Success(candidates.first()))
+                            return@flow
+                        }
+                    }
+
+                    is NetWorkResult.Error -> {
+                        Log.e(
+                            "PollHostedCheckout",
+                            "Error polling reference $reference: ${result.message}"
+                        )
+                        emit(result)
+                        return@flow
+                    }
+                }
+
+                if (attempt < MAX_POLLING_ATTEMPTS - 1 && currentCoroutineContext().isActive) {
+                    delay(POLLING_INTERVAL_MS)
+                }
+            }
+
+            if (currentCoroutineContext().isActive) {
+                Log.w(
+                    "PollHostedCheckout",
+                    "Polling timeout for reference $reference after $MAX_POLLING_ATTEMPTS attempts."
                 )
                 emit(
                     NetWorkResult.Error(

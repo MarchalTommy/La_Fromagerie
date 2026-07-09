@@ -111,6 +111,7 @@ dependencies {
     "adminImplementation"(project(":admin:data"))
     "adminImplementation"(project(":admin:domain"))
     "adminImplementation"(project(":admin:presentation"))
+    "adminImplementation"(project(":auth"))
 
     implementation(libs.core.ktx)
     implementation(libs.splashscreen)

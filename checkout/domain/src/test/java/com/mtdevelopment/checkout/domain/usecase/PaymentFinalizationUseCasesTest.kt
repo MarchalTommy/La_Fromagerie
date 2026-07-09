@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -40,9 +41,25 @@ class PaymentFinalizationUseCasesTest {
 
         assertEquals("checkout-1", markerSlot.captured.checkoutId)
         assertEquals("order-1", markerSlot.captured.orderId)
+        assertNull(markerSlot.captured.expectedAmountCents)
         coVerify(exactly = 1) { preferences.setPendingFinalization(any()) }
         verify(exactly = 1) { scheduler.scheduleFinalizationWork() }
     }
+
+    @Test
+    fun `schedule persists a hosted marker without checkout id but with expected amount`() =
+        runTest {
+            val markerSlot = slot<PendingPaymentFinalization>()
+            coEvery { preferences.setPendingFinalization(capture(markerSlot)) } just Runs
+
+            SchedulePaymentFinalizationUseCase(preferences, scheduler)
+                .invoke(checkoutId = null, orderId = "order-1", expectedAmountCents = 2050L)
+
+            assertNull(markerSlot.captured.checkoutId)
+            assertEquals("order-1", markerSlot.captured.orderId)
+            assertEquals(2050L, markerSlot.captured.expectedAmountCents)
+            verify(exactly = 1) { scheduler.scheduleFinalizationWork() }
+        }
 
     @Test
     fun `resume does nothing when no marker is present`() = runTest {

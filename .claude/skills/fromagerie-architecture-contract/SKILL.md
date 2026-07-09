@@ -58,24 +58,44 @@ to three horizontal layers. Not every feature has every layer.
 | **core** | ✅ | ✅ | ✅ |
 
 Plus the top-level `app` module (wires everything, holds `MainActivity`, DI composition
-root, the Room `FromagerieDatabase`) and **`auth` — an empty stub module** (verify below).
+root, the Room `FromagerieDatabase`) and **`auth` — the admin PIN-gate module** (see §1.1).
 
 Verify the module list:
 ```bash
 grep -E 'include\(' settings.gradle.kts
 ```
 
-### 1.1 The `auth` module is empty (verify it still is)
+### 1.1 The `auth` module — admin PIN gate (since 2026-07-08)
 
-`auth` is declared in `settings.gradle.kts` and has a `build.gradle.kts`, but its only
-source is the two IDE-generated example tests — no `src/main` Kotlin at all.
+`auth` was an empty stub until 2026-07-08; it now holds the **admin authentication
+gate** (branch `claude/admin-pin-auth`). It is a single flavorless library module
+(package `com.mtdevelopment.auth`) with its own thin data/domain/presentation layers
+plus a `di/authModule()`:
+
+- `domain/AuthConfig` — `PIN_LENGTH = 6`, fixed `ADMIN_EMAIL`.
+- `domain/repository/AuthRepository` + `data/repository/AuthRepositoryImpl` — wraps
+  `FirebaseAuth`; the PIN is the *password* of the fixed `ADMIN_EMAIL` account
+  (`signInWithEmailAndPassword`), giving a real `request.auth != null` identity.
+- `domain/usecase/{SignInWithPinUseCase, ObserveAuthStateUseCase}`.
+- `presentation/{viewmodel/AuthViewModel, screen/PinLockScreen, state/AuthUiState}`.
+
+Wiring: **admin-only** via `"adminImplementation"(project(":auth"))` in
+`app/build.gradle.kts`; `authModule()` is added to the admin `flavorModules()`; the
+admin `MainActivity` renders `PinLockScreen` in place of the app while
+`!isAuthenticated` (Firebase persists the session, so it is a one-time prompt per
+install). The client flavor never sees `:auth`. Because the module is flavorless its
+test task is `testDebugUnitTest` (`:auth:testDebugUnitTest`).
+
+**One-time console setup is required** (enable Email/Password, create the single
+operator account) — the app cannot self-provision it. See
+`la-fromagerie-backend/ADMIN_AUTH_SETUP.md`.
 
 ```bash
-find auth -type f | grep -v /build/ | grep -v -iE 'example|\.gitignore|\.pro$|build.gradle|AndroidManifest'
-# As of 2026-07-06: prints nothing. If it prints files, auth has grown real code — update this.
+# Confirm auth now has real source (was empty before 2026-07-08):
+find auth/src/main -name '*.kt' | grep -v /build/    # expect AuthConfig, repo, use cases, VM, screen, di
+grep -n 'adminImplementation.*:auth' app/build.gradle.kts
+grep -n 'authModule' app/src/admin/java/com/mtdevelopment/lafromagerie/di/FlavorModules.kt
 ```
-No module depends on `:auth`. It is a placeholder for a future login feature. See §6 for
-the "no admin auth" weak point it hints at.
 
 ### 1.2 Dependency rules (and the real violations)
 
@@ -360,9 +380,9 @@ grep -nE 'import android|Locale|roundToLong|getCurrencyInstance' \
 
 | Weak point | Evidence | Consequence |
 |---|---|---|
-| **No authentication in the admin flavor.** | Grep-verified: no login/auth gate anywhere in admin code; `auth` module is empty (§1.1); Firebase Auth is a dependency in `home/data` but unused for gating. | The admin app is protected ONLY by controlled APK distribution. Anyone with the admin APK has full admin power (edit products/prices, see orders, run deliveries). Roadmap item — see **fromagerie-operations-hardening-frontier**. |
+| **Admin auth is a PIN gate only (since 2026-07-08).** | The `:auth` module now signs the operator in via a 6-digit PIN = password of a fixed Firebase account (§1.1); the admin `MainActivity` blocks the UI until authenticated. | App-side gate is in place and yields a real `request.auth != null`. **BUT** it is only fully protective once (a) the console account exists (`ADMIN_AUTH_SETUP.md`) AND (b) the hardened Firestore rules are deployed — until (b), prod is still world-writable (see `firestore.rules`), so the PIN keeps casual users out of the admin UI but not a `curl` out of the database. Low PIN entropy (10^6) leans on Firebase throttling + hand-distributed APK. |
 | ~~Backend is not in version control~~ **RESOLVED 2026-07-07** (`ecda756`). | `la-fromagerie-backend/` (Cloud Function `createSumUpCheckout`, now the live hosted-checkout path) is git-tracked; `functions/.env` stays gitignored. | Residuals tracked in **fromagerie-operations-hardening-frontier** §2 (deploy README, stray Xcode-tool artifact). |
-| **Empty `auth` module.** | §1.1. | Dead scaffolding; signals intended-but-absent auth. |
+| **Firestore rules are world-writable** (`allow write: if true`). | Exported 2026-07-08 to `la-fromagerie-backend/firestore.rules`; audit in `FIRESTORE_RULES_AUDIT.md`. | Anyone with the APK's API key can write/delete any collection. Hardened draft blocked on deploying (needs Tommy) — the PIN gate above is the app-side half of the fix. |
 | **SumUp keys live in `BuildConfig` (client-side secrets).** | `SUMUP_PRIVATE_KEY` is read into the app's Ktor client in `AppModule.kt` `provideSumUpDataSource`. | A private payment key is baked into the APK. Mitigation/rationale is in **fromagerie-payments-reference** / **fromagerie-config-and-secrets**; do not treat it as safe. |
 | **Single `applicationId` for both flavors.** | §2 (no `applicationIdSuffix`). | Cannot run client and admin side-by-side on one device; test-device juggling. |
 | **DI has no compile-time graph check.** | §3.3. | Missing Koin definitions crash at runtime, not build time. |
@@ -378,7 +398,7 @@ Re-verify each drift-prone claim (all commands from repo root):
 | Claim | Re-verification command |
 |---|---|
 | Module list | `grep -E 'include\(' settings.gradle.kts` |
-| `auth` still empty | `find auth -type f \| grep -v /build/ \| grep -viE 'example\|gitignore\|\.pro$\|build.gradle\|Manifest'` (empty = still a stub) |
+| `auth` module is the admin PIN gate (since 2026-07-08) | `find auth/src/main -name '*.kt' \| grep -v /build/` (expect AuthConfig, AuthRepository(Impl), use cases, AuthViewModel, PinLockScreen, authModule) + `grep -n ':auth' app/build.gradle.kts` |
 | Dependency graph | the `for f in $(find . -name build.gradle.kts …)` loop in §1.2 |
 | `adminImplementation` wiring | `grep -n 'adminImplementation' app/build.gradle.kts` |
 | admin presentation leaks into client | `grep -rn 'com.mtdevelopment.admin' */presentation/src/main \| grep '\.kt:' \| grep -v /build/` |
