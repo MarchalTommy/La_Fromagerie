@@ -49,7 +49,7 @@ real payment; all changes go via PR to main. See **fromagerie-change-control**.
 | 1b | **Hosted-checkout hardening — 3 MAJOR TODOs** (§1b) | payment | Paid-but-PENDING orders on the new path |
 | 2 | Backend not in version control — ✅ resolved `ecda756` (2026-07-07), README residual | infra | ~~Server logic unrecoverable~~ — closed |
 | 3 | Delivery-day offline resilience | ops | Delivery day derailed by dead signal |
-| 4 | No admin authentication | security | Anyone with the APK controls the shop |
+| 4 | Admin auth — PIN gate LANDED 2026-07-08; hardened Firestore rules still undeployed | security | UI gated; DB still world-writable until rules ship |
 | 5 | No CI | quality | Broken flavor/tests reach main unnoticed |
 | 6 | 2 failing AdminViewModelTest tests | quality | Green baseline is a lie; masks regressions |
 | 7 | AGP 10 migration debt | infra | Future toolchain bump blocked |
@@ -161,34 +161,36 @@ roadmap entry so no session misses them.
   still see the full ordered stop list and per-stop addresses for the day. (Falsifiable on
   device — never tap pay; this is admin flavor, no payment.)
 
-## 4. No admin authentication
+## 4. Admin authentication — app-side gate LANDED 2026-07-08, rules half still open
 
-- **Why it falls short:** the admin flavor has **no auth of any kind** (grep-verified; the
-  `auth` module is an empty stub — see **fromagerie-architecture-contract §1.1, §6**).
-  Firebase Auth is a dependency in `home/data` but is not used to gate anything. The admin
-  app is protected **only** by controlled APK distribution. Anyone who obtains the admin APK
-  can edit prices/products, read every customer's order and address, and run deliveries.
-- **Our leverage:** Firebase Auth is already a project dependency and Firestore is already
-  Firebase; a single-operator login (one owner) is a small surface. The empty `auth` module
-  is a ready home.
-- **First three steps:**
-  1. Confirm the current no-auth state:
-     `grep -rin 'signIn\|FirebaseAuth\|currentUser\|login' app/src/admin admin --include='*.kt' | grep -v /build/`
-     (expect no gate as of 2026-07-06).
-  2. Decide the mechanism with Tommy (Firebase Auth email/single-operator vs device
-     attestation) — **security change, surface first** (see change-control autonomy table).
-  3. Implement the gate in the empty `:auth` module + admin `MainActivity`, and pair it with
-     **Firestore Security Rules**. The live rules were exported 2026-07-08 into
-     `la-fromagerie-backend/firestore.rules` and are confirmed **world-writable**
-     (`allow write: if true` on `/{document=**}` — the in-file comment claiming
-     admin-only writes is wrong). A hardened draft awaits this auth work in
-     `la-fromagerie-backend/firestore.rules.hardened-proposal`; full analysis in
-     `la-fromagerie-backend/FIRESTORE_RULES_AUDIT.md`. This makes admin auth MORE
-     urgent: today the shop's whole database is one `curl` away for anyone with the
-     APK's API key.
-- **Result when…** launching the admin flavor requires authenticating, AND prod Firestore
-  rules reject unauthenticated writes to `products`/`delivery_paths`/`orders` — falsifiable
-  by attempting an unauthenticated write from a test harness (never against prod data).
+- **What landed:** the admin flavor now has a **PIN gate** in the `:auth` module
+  (branch `claude/admin-pin-auth`; details in **fromagerie-architecture-contract §1.1**).
+  A 6-digit PIN is the password of one fixed Firebase account, so the admin app now
+  holds a real `request.auth != null` identity, and the admin `MainActivity` blocks the
+  whole UI until sign-in. Session persists (one prompt per install). Unit-tested
+  (`:auth:testDebugUnitTest`, 10 tests).
+- **What still falls short (the open half):** the gate only *keeps people out of the
+  admin UI*. It does NOT yet protect the database, because the live Firestore rules are
+  still `allow write: if true` (`la-fromagerie-backend/firestore.rules`). Anyone with
+  ANY APK's API key can still `curl` prod. Deploying the hardened rules
+  (`firestore.rules.hardened-proposal`, which gates on `request.auth != null`) is the
+  remaining step — **needs Tommy** (rules deploy + it depends on the console account
+  existing). Also low PIN entropy (10^6), mitigated by Firebase throttling + hand
+  distribution, not bank-grade.
+- **Remaining steps:**
+  1. **Console setup** (owner, one-time): enable Email/Password, create the single
+     operator account — `la-fromagerie-backend/ADMIN_AUTH_SETUP.md`. Until done, every
+     PIN returns an error (provider/user absent).
+  2. **Deploy hardened rules** and flip the `TODO(admin-auth)` blocks to
+     `request.auth != null` once the account exists — `FIRESTORE_RULES_AUDIT.md`.
+  3. On-device verify the gate (admin flavor, no payment): PIN screen → wrong/right code
+     → session persists across relaunch.
+- **Result when…** launching the admin flavor requires the PIN, AND prod Firestore rules
+  reject unauthenticated writes to `products`/`delivery_paths`/`orders` — falsifiable by
+  attempting an unauthenticated write from a test harness (never against prod data).
+  App-side milestone is met; rules milestone is not yet.
+- **Re-verify the gate exists:**
+  `grep -rn 'PinLockScreen\|authViewModel' app/src/admin --include='*.kt' | grep -v /build/`
 
 ## 5. No CI
 
