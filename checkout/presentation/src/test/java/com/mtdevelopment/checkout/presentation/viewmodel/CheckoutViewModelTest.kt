@@ -454,6 +454,62 @@ class CheckoutViewModelTest {
             coVerify(exactly = 0) { verifyHostedCheckoutStatusUseCase.invoke(any(), any()) }
         }
 
+    @Test
+    fun `onReturnedFromHostedCheckout does nothing when no hosted checkout is pending`() =
+        runTest(testDispatcher) {
+            val viewModel = buildViewModel()
+            testScheduler.advanceUntilIdle()
+
+            // An unrelated ON_RESUME (never opened the hosted page): must not verify.
+            viewModel.onReturnedFromHostedCheckout()
+            testScheduler.advanceUntilIdle()
+
+            coVerify(exactly = 0) { verifyHostedCheckoutStatusUseCase.invoke(any(), any()) }
+        }
+
+    @Test
+    fun `onReturnedFromHostedCheckout verifies exactly once even when triggered repeatedly`() =
+        runTest(testDispatcher) {
+            val cart = CartItems(
+                cartItems = listOf(CartItem(name = "Comté", price = 1000L, quantity = 2)),
+                totalPrice = 2000L
+            )
+            every { getCheckoutDataUseCase.invoke() } returns flowOf(
+                LocalCheckoutInformation(
+                    buyerName = "Jane",
+                    buyerAddress = "1 rue du Fromage",
+                    cartItems = cart,
+                    totalPrice = 2000L,
+                    deliveryDate = 42L,
+                    billingAddress = "2 rue de la Facture"
+                )
+            )
+            coEvery { createNewOrderUseCase.invoke(any()) } returns true
+            coEvery { getSumUpPaymentLinkUseCase.invoke(any(), any()) } returns
+                    Result.success("https://pay.sumup.com/hosted")
+            every { getSavedOrderUseCase.invoke() } returns flowOf(savedOrder(totalPrice = 2000L))
+            every { verifyHostedCheckoutStatusUseCase.invoke("order-1", 2000L) } returns
+                    flowOf(Result.success(domainCheckout(CHECKOUT_STATUS.PAID, amount = 20.0)))
+
+            val viewModel = buildViewModel()
+            testScheduler.advanceUntilIdle()
+            viewModel.updateUiState()
+            testScheduler.advanceUntilIdle()
+            viewModel.createOrder { }
+            testScheduler.advanceUntilIdle()
+
+            // Opening the hosted page arms the return trigger.
+            viewModel.getSumUpPaymentLink { }
+            testScheduler.advanceUntilIdle()
+
+            // Both the deep-link callback AND ON_RESUME can fire on return: exactly one verify.
+            viewModel.onReturnedFromHostedCheckout()
+            viewModel.onReturnedFromHostedCheckout()
+            testScheduler.advanceUntilIdle()
+
+            coVerify(exactly = 1) { verifyHostedCheckoutStatusUseCase.invoke("order-1", 2000L) }
+        }
+
     private fun savedOrder(totalPrice: Long?) = Order(
         id = "order-1",
         customerName = "Jane",

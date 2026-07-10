@@ -38,6 +38,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -92,12 +94,20 @@ fun CheckoutScreen(
     val focusRequester = remember { FocusRequester() }
     val focusManager = LocalFocusManager.current
 
+    // Two independent ways back from the hosted SumUp page, both funnelling through the
+    // ViewModel's awaiting-gate so verification runs exactly once:
+    // 1. The deep-link callback (fires only if SumUp's "return" button + custom scheme work).
+    // 2. ON_RESUME — the reliable path: SumUp never auto-redirects, so whenever the app
+    //    regains focus after the Custom Tab, re-check the payment if one is pending.
     val sumUpCallback by mainViewModel.sumUpCallbackTrigger.collectAsState()
     LaunchedEffect(sumUpCallback) {
         if (sumUpCallback) {
-            checkoutViewModel.verifySumUpWebCheckoutStatus()
+            checkoutViewModel.onReturnedFromHostedCheckout()
             mainViewModel.clearSumUpCallback()
         }
+    }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        checkoutViewModel.onReturnedFromHostedCheckout()
     }
 
     /**

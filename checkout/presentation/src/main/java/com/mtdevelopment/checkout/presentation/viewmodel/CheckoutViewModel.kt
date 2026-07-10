@@ -538,7 +538,12 @@ class CheckoutViewModel(
                             orderId = orderId,
                             expectedAmountCents = totalPrice
                         )
-                        _paymentScreenState.update { it.copy(isLoading = false) }
+                        // Arm the return trigger: SumUp's hosted page never auto-redirects,
+                        // so we must verify when the app regains focus, not only on the
+                        // (unreliable) deep-link callback.
+                        _paymentScreenState.update {
+                            it.copy(isLoading = false, isAwaitingHostedCheckoutReturn = true)
+                        }
                         onUrlReceived(url)
                     },
                     onFailure = { throwable ->
@@ -562,7 +567,22 @@ class CheckoutViewModel(
     }
 
     /**
-     * Called when the customer returns from the hosted SumUp page (deep-link callback).
+     * Single entry point for "the customer came back from the hosted SumUp page".
+     *
+     * SumUp's hosted checkout never auto-redirects — it only shows a "return to merchant"
+     * button pointing at our custom scheme, which browsers handle inconsistently — so we
+     * cannot rely on the deep-link callback alone. Both the deep-link callback and the
+     * checkout screen's ON_RESUME funnel through here; the awaiting flag makes the actual
+     * verification run exactly once per hosted attempt (whichever trigger fires first wins).
+     */
+    fun onReturnedFromHostedCheckout() {
+        if (!_paymentScreenState.value.isAwaitingHostedCheckoutReturn) return
+        _paymentScreenState.update { it.copy(isAwaitingHostedCheckoutReturn = false) }
+        verifySumUpWebCheckoutStatus()
+    }
+
+    /**
+     * Called when the customer returns from the hosted SumUp page (via [onReturnedFromHostedCheckout]).
      *
      * Resiliently polls SumUp for the order's checkout outcome instead of a single lookup:
      * a checkout still processing at the instant of return — or a momentary loss of
