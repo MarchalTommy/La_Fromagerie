@@ -55,6 +55,14 @@ private const val MAX_POLLING_ATTEMPTS =
     40 // e.g., 40 attempts * 3 seconds = 2 minutes max (covers most 3DS scenarios)
 private const val POLLING_INTERVAL_MS = 3000L // 3 seconds
 
+/**
+ * Shorter budget for the FOREGROUND hosted-checkout verification (customer just returned
+ * from the SumUp page): ~30 s so they are not left staring at a spinner for two minutes.
+ * If it times out, the durable [FinalizePaymentWorker] — scheduled before the page opened —
+ * keeps reconciling in the background with the full [MAX_POLLING_ATTEMPTS] budget.
+ */
+internal const val HOSTED_CHECKOUT_INTERACTIVE_MAX_ATTEMPTS = 10 // ~30 seconds
+
 class SumUpDataSource(private val httpClient: HttpClient) {
 
     /**
@@ -376,10 +384,11 @@ class SumUpDataSource(private val httpClient: HttpClient) {
      */
     internal fun pollHostedCheckoutStatus(
         reference: String,
-        expectedAmountCents: Long?
+        expectedAmountCents: Long?,
+        maxAttempts: Int = MAX_POLLING_ATTEMPTS
     ): Flow<NetWorkResult<CheckoutResponse>> {
         return flow {
-            for (attempt in 0 until MAX_POLLING_ATTEMPTS) {
+            for (attempt in 0 until maxAttempts) {
                 if (!currentCoroutineContext().isActive) {
                     Log.i("PollHostedCheckout", "Polling cancelled for reference $reference")
                     break
@@ -419,16 +428,21 @@ class SumUpDataSource(private val httpClient: HttpClient) {
                     }
 
                     is NetWorkResult.Error -> {
-                        Log.e(
+                        // A lookup error here is treated as transient (a brief DNS/
+                        // connectivity blip is exactly what killed a whole reconciliation
+                        // attempt before this fix): a single failed GET must NOT collapse
+                        // the poll. Keep trying until a terminal status is seen or the
+                        // budget runs out — the caller then retries. PENDING is never
+                        // finalized on an error, so this only ever delays, never mis-reports.
+                        Log.w(
                             "PollHostedCheckout",
-                            "Error polling reference $reference: ${result.message}"
+                            "Transient error polling reference $reference " +
+                                    "(attempt ${attempt + 1}/$maxAttempts): ${result.message}"
                         )
-                        emit(result)
-                        return@flow
                     }
                 }
 
-                if (attempt < MAX_POLLING_ATTEMPTS - 1 && currentCoroutineContext().isActive) {
+                if (attempt < maxAttempts - 1 && currentCoroutineContext().isActive) {
                     delay(POLLING_INTERVAL_MS)
                 }
             }
@@ -436,7 +450,7 @@ class SumUpDataSource(private val httpClient: HttpClient) {
             if (currentCoroutineContext().isActive) {
                 Log.w(
                     "PollHostedCheckout",
-                    "Polling timeout for reference $reference after $MAX_POLLING_ATTEMPTS attempts."
+                    "Polling timeout for reference $reference after $maxAttempts attempts."
                 )
                 emit(
                     NetWorkResult.Error(

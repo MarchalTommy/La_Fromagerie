@@ -97,8 +97,8 @@ class SumUpDataSourceTest {
     @Test
     fun `hosted polling never finalizes on a PAID session with the wrong amount`() = runTest {
         // First round: only a mismatched PAID session (attacker-priced). Second round:
-        // a network error, which ends the poll. The mismatched PAID must not have been
-        // emitted as a success in between.
+        // a network error. Neither the mismatched PAID nor the transient error may be
+        // emitted as a terminal result — the poll must run out its budget and time out.
         every { dataSource.getCheckoutsList("order-1") } returnsMany listOf(
             flowOf(
                 NetWorkResult.Success(
@@ -110,25 +110,53 @@ class SumUpDataSourceTest {
 
         // One real 3 s polling delay elapses between the two rounds: raise Turbine's
         // default 3 s timeout accordingly.
-        dataSource.pollHostedCheckoutStatus("order-1", expectedAmountCents = 2050L).test(
-            timeout = 10.seconds
-        ) {
+        dataSource.pollHostedCheckoutStatus(
+            "order-1", expectedAmountCents = 2050L, maxAttempts = 2
+        ).test(timeout = 10.seconds) {
             val result = awaitItem()
             assertTrue(result is NetWorkResult.Error)
+            assertEquals("POLLING_TIMEOUT", (result as NetWorkResult.Error).code)
             awaitComplete()
         }
     }
 
     @Test
-    fun `hosted polling surfaces lookup errors`() = runTest {
+    fun `hosted polling keeps trying through a transient lookup error then times out`() = runTest {
+        // A lookup error must NOT collapse the whole poll (the pre-fix behaviour): the
+        // loop keeps trying and only surfaces a timeout once the budget is exhausted.
         every { dataSource.getCheckoutsList("order-1") } returns flowOf(
             NetWorkResult.Error("boom", "EXCEPTION")
         )
 
-        dataSource.pollHostedCheckoutStatus("order-1", expectedAmountCents = 2050L).test {
+        dataSource.pollHostedCheckoutStatus(
+            "order-1", expectedAmountCents = 2050L, maxAttempts = 2
+        ).test(timeout = 10.seconds) {
             val result = awaitItem()
             assertTrue(result is NetWorkResult.Error)
-            assertEquals("EXCEPTION", (result as NetWorkResult.Error).code)
+            assertEquals("POLLING_TIMEOUT", (result as NetWorkResult.Error).code)
+            awaitComplete()
+        }
+    }
+
+    @Test
+    fun `hosted polling recovers when a transient error precedes a PAID session`() = runTest {
+        // First round errors (e.g. a brief DNS blip), second round returns the real PAID
+        // session: the poll must recover and finalize instead of giving up on the error.
+        every { dataSource.getCheckoutsList("order-1") } returnsMany listOf(
+            flowOf(NetWorkResult.Error("boom", "EXCEPTION")),
+            flowOf(
+                NetWorkResult.Success(
+                    listOf(checkout("real", CHECKOUT_STATUS.PAID, amount = 20.5))
+                )
+            )
+        )
+
+        dataSource.pollHostedCheckoutStatus(
+            "order-1", expectedAmountCents = 2050L
+        ).test(timeout = 10.seconds) {
+            val result = awaitItem()
+            assertTrue(result is NetWorkResult.Success)
+            assertEquals("real", (result as NetWorkResult.Success).data.id)
             awaitComplete()
         }
     }

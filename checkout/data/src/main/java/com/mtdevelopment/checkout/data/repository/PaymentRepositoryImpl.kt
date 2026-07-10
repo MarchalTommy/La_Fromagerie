@@ -16,11 +16,13 @@ import com.mtdevelopment.checkout.data.remote.model.response.sumUp.CHECKOUT_STAT
 import com.mtdevelopment.checkout.data.remote.model.response.sumUp.toDomainCheckout
 import com.mtdevelopment.checkout.data.remote.model.response.sumUp.toNewCheckoutResult
 import com.mtdevelopment.checkout.data.remote.source.FirestoreOrderDataSource
+import com.mtdevelopment.checkout.data.remote.source.HOSTED_CHECKOUT_INTERACTIVE_MAX_ATTEMPTS
 import com.mtdevelopment.checkout.data.remote.source.SumUpDataSource
 import com.mtdevelopment.checkout.domain.model.Checkout
 import com.mtdevelopment.checkout.domain.model.GooglePayData
 import com.mtdevelopment.checkout.domain.model.NewCheckoutResult
 import com.mtdevelopment.checkout.domain.model.ProcessCheckoutResult
+import com.mtdevelopment.checkout.domain.repository.HostedCheckoutStatusUnresolvedException
 import com.mtdevelopment.checkout.domain.repository.PaymentRepository
 import com.mtdevelopment.core.data.Constants
 import com.mtdevelopment.core.model.Order
@@ -28,6 +30,7 @@ import com.mtdevelopment.core.model.OrderStatus
 import com.mtdevelopment.core.model.toOrderData
 import com.mtdevelopment.core.util.NetWorkResult
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.flow.transform
 import kotlinx.coroutines.tasks.await
@@ -314,16 +317,28 @@ class PaymentRepositoryImpl(
         }
     }
 
-    override fun getCheckoutsByReference(reference: String): Flow<List<Checkout>> {
-        return sumUpDataSource.getCheckoutsList(reference = reference).mapNotNull { value ->
-            when (value) {
-                is NetWorkResult.Success -> {
-                    value.data?.mapNotNull { it?.toDomainCheckout() }
-                }
+    override fun pollHostedCheckoutStatus(
+        reference: String,
+        expectedAmountCents: Long?
+    ): Flow<Result<Checkout>> {
+        return sumUpDataSource.pollHostedCheckoutStatus(
+            reference = reference,
+            expectedAmountCents = expectedAmountCents,
+            maxAttempts = HOSTED_CHECKOUT_INTERACTIVE_MAX_ATTEMPTS
+        ).map { result ->
+            when (result) {
+                // Guard the mapper: toDomainCheckout() throws if a core field is null, which
+                // would otherwise surface as an opaque flow exception. A terminal SumUp
+                // session always carries them, but a malformed payload becomes "unresolved"
+                // rather than crashing the verification.
+                is NetWorkResult.Success -> runCatching { result.data.toDomainCheckout() }
 
                 is NetWorkResult.Error -> {
-                    Log.e("GetCheckoutsByReference", "Error: ${value.message}")
-                    null
+                    Log.w(
+                        "PollHostedCheckout",
+                        "Hosted checkout status unresolved for $reference: ${result.message}"
+                    )
+                    Result.failure(HostedCheckoutStatusUnresolvedException(result.message))
                 }
             }
         }

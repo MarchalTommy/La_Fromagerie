@@ -2,6 +2,8 @@ package com.mtdevelopment.checkout.presentation.viewmodel
 
 import com.google.android.gms.wallet.PaymentData
 import com.google.firebase.crashlytics.FirebaseCrashlytics
+import com.mtdevelopment.checkout.domain.model.CHECKOUT_STATUS
+import com.mtdevelopment.checkout.domain.model.Checkout
 import com.mtdevelopment.checkout.domain.model.LocalCheckoutInformation
 import com.mtdevelopment.checkout.domain.model.NewCheckoutResult
 import com.mtdevelopment.checkout.domain.usecase.ClearPendingPaymentFinalizationUseCase
@@ -11,7 +13,6 @@ import com.mtdevelopment.checkout.domain.usecase.CreatePaymentsClientUseCase
 import com.mtdevelopment.checkout.domain.usecase.FetchAllowedPaymentMethods
 import com.mtdevelopment.checkout.domain.usecase.GetCanUseGooglePayUseCase
 import com.mtdevelopment.checkout.domain.usecase.GetCheckoutDataUseCase
-import com.mtdevelopment.checkout.domain.usecase.GetCheckoutsByReferenceUseCase
 import com.mtdevelopment.checkout.domain.usecase.GetIsPaymentSuccessUseCase
 import com.mtdevelopment.checkout.domain.usecase.GetPaymentDataRequestUseCase
 import com.mtdevelopment.checkout.domain.usecase.GetPreviouslyCreatedCheckoutUseCase
@@ -24,8 +25,11 @@ import com.mtdevelopment.checkout.domain.usecase.SaveCreatedCheckoutUseCase
 import com.mtdevelopment.checkout.domain.usecase.SavePaymentStateUseCase
 import com.mtdevelopment.checkout.domain.usecase.SchedulePaymentFinalizationUseCase
 import com.mtdevelopment.checkout.domain.usecase.UpdateOrderStatus
+import com.mtdevelopment.checkout.domain.usecase.VerifyHostedCheckoutStatusUseCase
 import com.mtdevelopment.core.model.CartItem
 import com.mtdevelopment.core.model.CartItems
+import com.mtdevelopment.core.model.Order
+import com.mtdevelopment.core.model.OrderStatus
 import com.mtdevelopment.core.usecase.ClearCartUseCase
 import com.mtdevelopment.core.usecase.GetIsNetworkConnectedUseCase
 import io.mockk.coEvery
@@ -36,6 +40,7 @@ import io.mockk.mockkStatic
 import io.mockk.unmockkAll
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestDispatcher
@@ -81,7 +86,7 @@ class CheckoutViewModelTest {
     private val clearPendingPaymentFinalizationUseCase: ClearPendingPaymentFinalizationUseCase =
         mockk(relaxed = true)
     private val getSumUpPaymentLinkUseCase: GetSumUpPaymentLinkUseCase = mockk()
-    private val getCheckoutsByReferenceUseCase: GetCheckoutsByReferenceUseCase = mockk()
+    private val verifyHostedCheckoutStatusUseCase: VerifyHostedCheckoutStatusUseCase = mockk()
 
     @Before
     fun setUp() {
@@ -127,7 +132,7 @@ class CheckoutViewModelTest {
         schedulePaymentFinalizationUseCase,
         clearPendingPaymentFinalizationUseCase,
         getSumUpPaymentLinkUseCase,
-        getCheckoutsByReferenceUseCase
+        verifyHostedCheckoutStatusUseCase
     )
 
     @Test
@@ -347,6 +352,128 @@ class CheckoutViewModelTest {
             coVerify(exactly = 0) { schedulePaymentFinalizationUseCase.invoke(any(), any(), any()) }
             assertNotNull(viewModel.paymentScreenState.value.error)
         }
+
+    @Test
+    fun `verifySumUpWebCheckoutStatus finalizes the order on a matching PAID checkout`() =
+        runTest(testDispatcher) {
+            every { getSavedOrderUseCase.invoke() } returns flowOf(savedOrder(totalPrice = 2000L))
+            every { verifyHostedCheckoutStatusUseCase.invoke("order-1", 2000L) } returns
+                    flowOf(Result.success(domainCheckout(CHECKOUT_STATUS.PAID, amount = 20.0)))
+
+            val viewModel = buildViewModel()
+            testScheduler.advanceUntilIdle()
+
+            viewModel.verifySumUpWebCheckoutStatus()
+            testScheduler.advanceUntilIdle()
+
+            val state = viewModel.paymentScreenState.value
+            assertFalse(state.isLoading)
+            assertNull(state.error)
+            // The PAID branch ran: order marked PAID and cart cleared.
+            coVerify(exactly = 1) {
+                updateOrderStatus.invoke(orderId = "order-1", newStatus = OrderStatus.PAID)
+            }
+            coVerify(exactly = 1) { clearCartUseCase.invoke() }
+        }
+
+    @Test
+    fun `verifySumUpWebCheckoutStatus keeps the cart and reports failure on a FAILED checkout`() =
+        runTest(testDispatcher) {
+            every { getSavedOrderUseCase.invoke() } returns flowOf(savedOrder(totalPrice = 2000L))
+            every { verifyHostedCheckoutStatusUseCase.invoke("order-1", 2000L) } returns
+                    flowOf(Result.success(domainCheckout(CHECKOUT_STATUS.FAILED, amount = 20.0)))
+
+            val viewModel = buildViewModel()
+            testScheduler.advanceUntilIdle()
+
+            viewModel.verifySumUpWebCheckoutStatus()
+            testScheduler.advanceUntilIdle()
+
+            val state = viewModel.paymentScreenState.value
+            assertFalse(state.isLoading)
+            assertFalse(state.isPaymentSuccess)
+            assertNotNull(state.error)
+            assertTrue(state.error!!.contains("panier est conservé"))
+            coVerify(exactly = 0) { clearCartUseCase.invoke() }
+        }
+
+    @Test
+    fun `verifySumUpWebCheckoutStatus does not claim not-charged when the outcome is unknown`() =
+        runTest(testDispatcher) {
+            every { getSavedOrderUseCase.invoke() } returns flowOf(savedOrder(totalPrice = 2000L))
+            every { verifyHostedCheckoutStatusUseCase.invoke("order-1", 2000L) } returns
+                    flowOf(Result.failure(Exception("unresolved")))
+
+            val viewModel = buildViewModel()
+            testScheduler.advanceUntilIdle()
+
+            viewModel.verifySumUpWebCheckoutStatus()
+            testScheduler.advanceUntilIdle()
+
+            val state = viewModel.paymentScreenState.value
+            assertFalse(state.isLoading)
+            assertFalse(state.isPaymentSuccess)
+            assertNotNull(state.error)
+            // Honest ambiguity: verifying, do not pay again — never "you were not charged".
+            assertTrue(state.error!!.contains("Nous vérifions"))
+            coVerify(exactly = 0) { clearCartUseCase.invoke() }
+        }
+
+    @Test
+    fun `verifySumUpWebCheckoutStatus fails closed when the order total is unknown`() =
+        runTest(testDispatcher) {
+            every { getSavedOrderUseCase.invoke() } returns flowOf(savedOrder(totalPrice = null))
+
+            val viewModel = buildViewModel()
+            testScheduler.advanceUntilIdle()
+
+            viewModel.verifySumUpWebCheckoutStatus()
+            testScheduler.advanceUntilIdle()
+
+            val state = viewModel.paymentScreenState.value
+            assertFalse(state.isLoading)
+            assertNotNull(state.error)
+            // Without the total we cannot enforce amount integrity: never poll/accept a PAID.
+            coVerify(exactly = 0) { verifyHostedCheckoutStatusUseCase.invoke(any(), any()) }
+        }
+
+    @Test
+    fun `verifySumUpWebCheckoutStatus reports when no order is pending`() =
+        runTest(testDispatcher) {
+            every { getSavedOrderUseCase.invoke() } returns emptyFlow()
+
+            val viewModel = buildViewModel()
+            testScheduler.advanceUntilIdle()
+
+            viewModel.verifySumUpWebCheckoutStatus()
+            testScheduler.advanceUntilIdle()
+
+            val state = viewModel.paymentScreenState.value
+            assertFalse(state.isLoading)
+            assertNotNull(state.error)
+            coVerify(exactly = 0) { verifyHostedCheckoutStatusUseCase.invoke(any(), any()) }
+        }
+
+    private fun savedOrder(totalPrice: Long?) = Order(
+        id = "order-1",
+        customerName = "Jane",
+        customerAddress = "1 rue du Fromage",
+        customerBillingAddress = "2 rue de la Facture",
+        deliveryDate = "10/07/2026",
+        orderDate = "09/07/2026",
+        products = mapOf("Comté" to 2),
+        status = OrderStatus.PENDING,
+        note = null,
+        totalPrice = totalPrice
+    )
+
+    private fun domainCheckout(status: CHECKOUT_STATUS, amount: Double) = Checkout(
+        amount = amount,
+        checkoutReference = "order-1",
+        currency = "EUR",
+        merchantCode = "MERCHANT",
+        status = status
+    )
 
     private fun checkoutResult(status: String?) = NewCheckoutResult(
         amount = 10.5,

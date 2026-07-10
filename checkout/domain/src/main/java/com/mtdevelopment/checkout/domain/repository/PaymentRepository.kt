@@ -47,7 +47,22 @@ interface PaymentRepository {
 
     suspend fun getSumUpPaymentLink(amount: Double, orderId: String): Result<String>
 
-    fun getCheckoutsByReference(reference: String): Flow<List<Checkout>>
+    /**
+     * Resiliently polls the hosted-checkout outcome by its reference (= orderId), with an
+     * amount-integrity check, for the foreground "customer just returned from SumUp" path.
+     *
+     * Emits exactly once:
+     * - [Result.success] with the terminal [Checkout] — either PAID (amount matches
+     *   [expectedAmountCents]) or FAILED;
+     * - [Result.failure] ([HostedCheckoutStatusUnresolvedException]) when the outcome is
+     *   still unknown within the interactive budget (session still processing, or a
+     *   transient connectivity blip). Callers MUST NOT tell the customer they were not
+     *   charged in this case: the durable finalization worker keeps reconciling.
+     */
+    fun pollHostedCheckoutStatus(
+        reference: String,
+        expectedAmountCents: Long?
+    ): Flow<Result<Checkout>>
 
     ///////////////////////////////////////////////////////////////////////////
     // ORDERS
@@ -56,3 +71,10 @@ interface PaymentRepository {
 
     suspend fun updateFirestoreOrderStatus(orderId: String, newStatus: OrderStatus): Result<Unit>
 }
+
+/**
+ * Raised when [PaymentRepository.pollHostedCheckoutStatus] cannot resolve a terminal
+ * outcome within its budget (still processing, or transient connectivity). Signals
+ * "unknown", never "not charged".
+ */
+class HostedCheckoutStatusUnresolvedException(message: String?) : Exception(message)

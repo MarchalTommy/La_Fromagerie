@@ -253,4 +253,75 @@ class PaymentRepositoryImplTest {
     }
 
     // endregion
+
+    // region pollHostedCheckoutStatus
+
+    @Test
+    fun `pollHostedCheckoutStatus maps a terminal session to success`() = runTest {
+        every {
+            sumUpDataSource.pollHostedCheckoutStatus(any(), any(), any())
+        } returns flowOf(
+            NetWorkResult.Success(
+                CheckoutResponse(
+                    id = "real",
+                    status = CHECKOUT_STATUS.PAID,
+                    amount = 20.5,
+                    checkoutReference = "order-1",
+                    currency = "EUR",
+                    merchantCode = "M"
+                )
+            )
+        )
+
+        repository.pollHostedCheckoutStatus("order-1", expectedAmountCents = 2050L).test {
+            val result = awaitItem()
+            assertTrue(result.isSuccess)
+            assertEquals(
+                com.mtdevelopment.checkout.domain.model.CHECKOUT_STATUS.PAID,
+                result.getOrThrow().status
+            )
+            awaitComplete()
+        }
+    }
+
+    @Test
+    fun `pollHostedCheckoutStatus maps an unresolved outcome to failure`() = runTest {
+        every {
+            sumUpDataSource.pollHostedCheckoutStatus(any(), any(), any())
+        } returns flowOf(NetWorkResult.Error("Timeout", "POLLING_TIMEOUT"))
+
+        repository.pollHostedCheckoutStatus("order-1", expectedAmountCents = 2050L).test {
+            val result = awaitItem()
+            assertTrue(result.isFailure)
+            awaitComplete()
+        }
+    }
+
+    @Test
+    fun `pollHostedCheckoutStatus fails safely when the terminal payload is malformed`() = runTest {
+        // Missing currency: toDomainCheckout() would throw — the guard must turn that into
+        // a failure rather than crashing the verification flow.
+        every {
+            sumUpDataSource.pollHostedCheckoutStatus(any(), any(), any())
+        } returns flowOf(
+            NetWorkResult.Success(
+                CheckoutResponse(
+                    id = "real",
+                    status = CHECKOUT_STATUS.PAID,
+                    amount = 20.5,
+                    checkoutReference = "order-1",
+                    currency = null,
+                    merchantCode = "M"
+                )
+            )
+        )
+
+        repository.pollHostedCheckoutStatus("order-1", expectedAmountCents = 2050L).test {
+            val result = awaitItem()
+            assertTrue(result.isFailure)
+            awaitComplete()
+        }
+    }
+
+    // endregion
 }

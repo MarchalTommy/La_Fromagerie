@@ -24,7 +24,6 @@ import com.mtdevelopment.checkout.domain.usecase.CreatePaymentsClientUseCase
 import com.mtdevelopment.checkout.domain.usecase.FetchAllowedPaymentMethods
 import com.mtdevelopment.checkout.domain.usecase.GetCanUseGooglePayUseCase
 import com.mtdevelopment.checkout.domain.usecase.GetCheckoutDataUseCase
-import com.mtdevelopment.checkout.domain.usecase.GetCheckoutsByReferenceUseCase
 import com.mtdevelopment.checkout.domain.usecase.GetIsPaymentSuccessUseCase
 import com.mtdevelopment.checkout.domain.usecase.GetIsReadyToPayUseCase
 import com.mtdevelopment.checkout.domain.usecase.GetPaymentDataRequestUseCase
@@ -39,6 +38,7 @@ import com.mtdevelopment.checkout.domain.usecase.SaveCreatedCheckoutUseCase
 import com.mtdevelopment.checkout.domain.usecase.SavePaymentStateUseCase
 import com.mtdevelopment.checkout.domain.usecase.SchedulePaymentFinalizationUseCase
 import com.mtdevelopment.checkout.domain.usecase.UpdateOrderStatus
+import com.mtdevelopment.checkout.domain.usecase.VerifyHostedCheckoutStatusUseCase
 import com.mtdevelopment.checkout.presentation.viewmodel.CheckoutViewModel
 import com.mtdevelopment.core.data.Constants.ADDRESS_API_BASE_URL_WITHOUT_HTTPS
 import com.mtdevelopment.core.data.Constants.AUTOCOMPLETE_API_BASE_URL_WITHOUT_HTTPS
@@ -188,7 +188,7 @@ val mainAppModule = module {
 
     factory { CreateNewCheckoutUseCase(get()) }
     factory { GetSumUpPaymentLinkUseCase(get()) }
-    factory { GetCheckoutsByReferenceUseCase(get()) }
+    factory { VerifyHostedCheckoutStatusUseCase(get()) }
     factory { SaveCreatedCheckoutUseCase(get()) }
     factory { GetPreviouslyCreatedCheckoutUseCase(get()) }
     factory { ProcessSumUpCheckoutUseCase(get()) }
@@ -241,7 +241,7 @@ val mainAppModule = module {
             schedulePaymentFinalizationUseCase = get(),
             clearPendingPaymentFinalizationUseCase = get(),
             getSumUpPaymentLinkUseCase = get(),
-            getCheckoutsByReferenceUseCase = get()
+            verifyHostedCheckoutStatusUseCase = get()
         )
     }
 }
