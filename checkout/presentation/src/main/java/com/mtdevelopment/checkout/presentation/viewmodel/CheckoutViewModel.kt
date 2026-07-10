@@ -21,7 +21,6 @@ import com.mtdevelopment.checkout.domain.usecase.CreatePaymentsClientUseCase
 import com.mtdevelopment.checkout.domain.usecase.FetchAllowedPaymentMethods
 import com.mtdevelopment.checkout.domain.usecase.GetCanUseGooglePayUseCase
 import com.mtdevelopment.checkout.domain.usecase.GetCheckoutDataUseCase
-import com.mtdevelopment.checkout.domain.usecase.GetCheckoutsByReferenceUseCase
 import com.mtdevelopment.checkout.domain.usecase.GetIsPaymentSuccessUseCase
 import com.mtdevelopment.checkout.domain.usecase.GetPaymentDataRequestUseCase
 import com.mtdevelopment.checkout.domain.usecase.GetPreviouslyCreatedCheckoutUseCase
@@ -34,9 +33,9 @@ import com.mtdevelopment.checkout.domain.usecase.SaveCreatedCheckoutUseCase
 import com.mtdevelopment.checkout.domain.usecase.SavePaymentStateUseCase
 import com.mtdevelopment.checkout.domain.usecase.SchedulePaymentFinalizationUseCase
 import com.mtdevelopment.checkout.domain.usecase.UpdateOrderStatus
+import com.mtdevelopment.checkout.domain.usecase.VerifyHostedCheckoutStatusUseCase
 import com.mtdevelopment.checkout.presentation.ThreeDSecureActivity
 import com.mtdevelopment.checkout.presentation.model.PaymentScreenState
-import com.mtdevelopment.core.domain.toCentsLong
 import com.mtdevelopment.core.domain.toPriceDouble
 import com.mtdevelopment.core.domain.toStringDate
 import com.mtdevelopment.core.model.Order
@@ -49,6 +48,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -98,7 +98,7 @@ class CheckoutViewModel(
     private val schedulePaymentFinalizationUseCase: SchedulePaymentFinalizationUseCase,
     private val clearPendingPaymentFinalizationUseCase: ClearPendingPaymentFinalizationUseCase,
     private val getSumUpPaymentLinkUseCase: GetSumUpPaymentLinkUseCase,
-    private val getCheckoutsByReferenceUseCase: GetCheckoutsByReferenceUseCase
+    private val verifyHostedCheckoutStatusUseCase: VerifyHostedCheckoutStatusUseCase
 ) : ViewModel(), KoinComponent {
 
     /**
@@ -561,47 +561,75 @@ class CheckoutViewModel(
         }
     }
 
+    /**
+     * Called when the customer returns from the hosted SumUp page (deep-link callback).
+     *
+     * Resiliently polls SumUp for the order's checkout outcome instead of a single lookup:
+     * a checkout still processing at the instant of return — or a momentary loss of
+     * connectivity — must not be mis-reported as "not paid". The amount-integrity check
+     * (a PAID session only counts if its amount matches the order total) lives in the poll.
+     *
+     * Three honest outcomes:
+     * - PAID: finalize the order and clear the cart.
+     * - FAILED: surface the failure; the cart is kept so the customer can retry.
+     * - unknown (still processing / connectivity): do NOT claim "not charged" — the durable
+     *   [com.mtdevelopment.checkout.data.work.FinalizePaymentWorker], scheduled before the
+     *   page opened, keeps reconciling in the background.
+     */
     fun verifySumUpWebCheckoutStatus() {
         _paymentScreenState.update { it.copy(isLoading = true) }
         viewModelScope.launch {
             try {
-                // Get the saved order to obtain the ID
-                getSavedOrderUseCase().first()?.let { order ->
-                    val orderId = order.id
-
-                    getCheckoutsByReferenceUseCase(orderId).collect { checkouts ->
-                        // A PAID checkout only proves the order if its amount matches the
-                        // order total — anyone can create a cheap checkout with our reference.
-                        val expectedCents = order.totalPrice
-                        val paidCheckout = checkouts.find {
-                            it.status == CHECKOUT_STATUS.PAID &&
-                                    expectedCents != null && it.amount.toCentsLong() == expectedCents
-                        }
-                        if (paidCheckout != null) {
-                            // Success! Finalize Firestore order state and clear cart
-                            resetAppStateAfterSuccess()
-                            _paymentScreenState.update {
-                                it.copy(
-                                    isLoading = false,
-                                    isPaymentSuccess = true
-                                )
-                            }
-                        } else {
-                            _paymentScreenState.update {
-                                it.copy(
-                                    isLoading = false,
-                                    error = "Le paiement n'a pas été validé par SumUp. Si vous avez été débité, merci de contacter notre support."
-                                )
-                            }
-                        }
-                    }
-                } ?: run {
+                val order = getSavedOrderUseCase().firstOrNull()
+                if (order == null) {
                     _paymentScreenState.update {
                         it.copy(
                             isLoading = false,
                             error = "Aucune commande en attente trouvée pour vérification."
                         )
                     }
+                    return@launch
+                }
+
+                val expectedCents = order.totalPrice
+                if (expectedCents == null) {
+                    // Without the order total we cannot enforce amount integrity — fail
+                    // closed rather than trust any PAID session for this reference.
+                    _paymentScreenState.update {
+                        it.copy(
+                            isLoading = false,
+                            error = "Commande incomplète : montant introuvable pour la vérification."
+                        )
+                    }
+                    return@launch
+                }
+
+                verifyHostedCheckoutStatusUseCase(order.id, expectedCents).collect { result ->
+                    result.fold(
+                        onSuccess = { checkout ->
+                            if (checkout.status == CHECKOUT_STATUS.PAID) {
+                                resetAppStateAfterSuccess()
+                                _paymentScreenState.update {
+                                    it.copy(isLoading = false, isPaymentSuccess = true)
+                                }
+                            } else {
+                                _paymentScreenState.update {
+                                    it.copy(
+                                        isLoading = false,
+                                        error = "Le paiement a échoué. Votre panier est conservé, vous pouvez réessayer."
+                                    )
+                                }
+                            }
+                        },
+                        onFailure = {
+                            _paymentScreenState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    error = "Nous vérifions votre paiement. Si vous avez été débité, votre commande sera confirmée automatiquement — merci de ne pas payer une seconde fois."
+                                )
+                            }
+                        }
+                    )
                 }
             } catch (e: Exception) {
                 _paymentScreenState.update {
