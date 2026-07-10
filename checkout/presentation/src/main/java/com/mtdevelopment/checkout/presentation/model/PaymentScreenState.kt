@@ -20,6 +20,11 @@ import com.mtdevelopment.core.model.CartItems
  * @property checkoutResult Result of the SumUp checkout session creation.
  * @property orderId The ID of the order record created in Firestore.
  * @property checkoutNote Optional customer notes for delivery instructions.
+ * @property isAwaitingHostedCheckoutReturn True once the hosted SumUp page has been opened
+ *   and we are waiting for the customer to come back. SumUp's hosted checkout never
+ *   auto-redirects (it only shows a "return to merchant" button), so this flag lets the
+ *   checkout screen trigger verification when the app regains focus — not only when the
+ *   deep-link callback fires. Reset as soon as verification is triggered.
  */
 data class PaymentScreenState(
     val isLoading: Boolean = false,
@@ -35,5 +40,6 @@ data class PaymentScreenState(
     val deliveryDate: Long? = null,
     val checkoutResult: NewCheckoutResult? = null,
     var orderId: String? = null,
-    var checkoutNote: String? = null
+    var checkoutNote: String? = null,
+    val isAwaitingHostedCheckoutReturn: Boolean = false
 )
