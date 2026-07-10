@@ -8,7 +8,6 @@ import com.mtdevelopment.checkout.data.remote.model.response.sumUp.CHECKOUT_STAT
 import com.mtdevelopment.checkout.data.remote.source.FirestoreOrderDataSource
 import com.mtdevelopment.checkout.data.remote.source.SumUpDataSource
 import com.mtdevelopment.checkout.data.work.FinalizePaymentWorker.Companion.MAX_RUN_ATTEMPTS
-import com.mtdevelopment.checkout.domain.model.PaymentOutcome
 import com.mtdevelopment.checkout.domain.model.PendingPaymentFinalization
 import com.mtdevelopment.checkout.domain.repository.CheckoutDatastorePreference
 import com.mtdevelopment.core.model.OrderStatus
@@ -104,23 +103,6 @@ class FinalizePaymentWorker(
         if (status == OrderStatus.PAID) {
             sharedDatastore.clearCartItems()
         }
-
-        // Reaching here means the in-app flow was gone (app killed / backgrounded),
-        // otherwise it would have cleared the marker and this worker would have no-oped.
-        // Record the outcome so the app can tell the customer on its next launch — on
-        // PAID it routes to the success screen, otherwise it shows a "cart kept" notice.
-        val clientName = checkoutDatastorePreference.orderFlow.first()
-            ?.takeIf { it.id == pending.orderId }
-            ?.customerName
-            .orEmpty()
-        checkoutDatastorePreference.setPaymentOutcome(
-            PaymentOutcome(
-                orderId = pending.orderId,
-                clientName = clientName,
-                isPaid = status == OrderStatus.PAID
-            )
-        )
-
         checkoutDatastorePreference.clearPendingFinalization()
         Log.i(TAG, "Order ${pending.orderId} finalized as $status")
         return Result.success()

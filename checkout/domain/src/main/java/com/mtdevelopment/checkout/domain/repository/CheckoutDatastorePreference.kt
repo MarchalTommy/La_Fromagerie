@@ -1,7 +1,6 @@
 package com.mtdevelopment.checkout.domain.repository
 
 import com.mtdevelopment.checkout.domain.model.NewCheckoutResult
-import com.mtdevelopment.checkout.domain.model.PaymentOutcome
 import com.mtdevelopment.checkout.domain.model.PendingPaymentFinalization
 import com.mtdevelopment.core.model.Order
 import kotlinx.coroutines.flow.Flow
@@ -44,10 +43,4 @@ interface CheckoutDatastorePreference {
     suspend fun setPendingFinalization(pending: PendingPaymentFinalization)
 
     suspend fun clearPendingFinalization()
-
-    val paymentOutcomeFlow: Flow<PaymentOutcome?>
-
-    suspend fun setPaymentOutcome(outcome: PaymentOutcome)
-
-    suspend fun clearPaymentOutcome()
 }

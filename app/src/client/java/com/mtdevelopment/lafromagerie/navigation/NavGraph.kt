@@ -14,7 +14,6 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.toRoute
 import com.mtdevelopment.cart.presentation.viewmodel.CartViewModel
-import com.mtdevelopment.checkout.domain.usecase.ConsumePaymentOutcomeUseCase
 import com.mtdevelopment.checkout.presentation.screen.AfterPaymentScreen
 import com.mtdevelopment.checkout.presentation.screen.CheckoutScreen
 import com.mtdevelopment.core.presentation.MainViewModel
@@ -24,7 +23,6 @@ import com.mtdevelopment.core.presentation.theme.ui.scaleOutOfContainer
 import com.mtdevelopment.delivery.presentation.screen.DeliveryOptionScreen
 import com.mtdevelopment.details.presentation.composable.DetailScreen
 import com.mtdevelopment.home.presentation.composable.HomeScreen
-import org.koin.compose.koinInject
 
 
 @Composable
@@ -48,27 +46,6 @@ fun NavGraph(
                     navController.navigate(CheckoutScreenDestination)
                 }
             }
-
-            // A payment reconciled in the background (app killed during hosted checkout)
-            // leaves an outcome to surface exactly once: on success we route to the same
-            // success screen a normal return would reach; on failure we keep the cart and
-            // tell the customer they can retry.
-            val consumePaymentOutcome = koinInject<ConsumePaymentOutcomeUseCase>()
-            LaunchedEffect(Unit) {
-                consumePaymentOutcome()?.let { outcome ->
-                    if (outcome.isPaid) {
-                        navController.navigate(
-                            AfterPaymentScreenDestination(clientName = outcome.clientName)
-                        )
-                    } else {
-                        mainViewModel.setError(
-                            "Votre dernier paiement n'a pas abouti. " +
-                                    "Votre panier est conservé, vous pouvez réessayer."
-                        )
-                    }
-                }
-            }
-
             HomeScreen(
                 mainViewModel = mainViewModel,
                 cartViewModel = cartViewModel,

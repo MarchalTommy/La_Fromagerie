@@ -18,7 +18,6 @@ import com.mtdevelopment.checkout.domain.repository.CheckoutDatastorePreference
 import com.mtdevelopment.checkout.domain.repository.PaymentFinalizationScheduler
 import com.mtdevelopment.checkout.domain.repository.PaymentRepository
 import com.mtdevelopment.checkout.domain.usecase.ClearPendingPaymentFinalizationUseCase
-import com.mtdevelopment.checkout.domain.usecase.ConsumePaymentOutcomeUseCase
 import com.mtdevelopment.checkout.domain.usecase.CreateNewCheckoutUseCase
 import com.mtdevelopment.checkout.domain.usecase.CreateNewOrderUseCase
 import com.mtdevelopment.checkout.domain.usecase.CreatePaymentsClientUseCase
@@ -203,7 +202,6 @@ val mainAppModule = module {
     factory { SchedulePaymentFinalizationUseCase(get(), get()) }
     factory { ResumePendingPaymentFinalizationUseCase(get(), get()) }
     factory { ClearPendingPaymentFinalizationUseCase(get()) }
-    factory { ConsumePaymentOutcomeUseCase(get()) }
 
     factory { GetLastFirestoreDatabaseUpdateUseCase(get(), get()) }
 
