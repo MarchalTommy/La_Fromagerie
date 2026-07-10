@@ -1,5 +1,6 @@
 package com.mtdevelopment.checkout.domain.usecase
 
+import com.mtdevelopment.checkout.domain.model.PaymentOutcome
 import com.mtdevelopment.checkout.domain.model.PendingPaymentFinalization
 import com.mtdevelopment.checkout.domain.repository.CheckoutDatastorePreference
 import com.mtdevelopment.checkout.domain.repository.PaymentFinalizationScheduler
@@ -109,6 +110,28 @@ class PaymentFinalizationUseCasesTest {
         ClearPendingPaymentFinalizationUseCase(preferences).invoke()
 
         coVerify(exactly = 1) { preferences.clearPendingFinalization() }
+    }
+
+    @Test
+    fun `consume returns null and does not clear when no outcome is recorded`() = runTest {
+        coEvery { preferences.paymentOutcomeFlow } returns flowOf(null)
+
+        val result = ConsumePaymentOutcomeUseCase(preferences).invoke()
+
+        assertNull(result)
+        coVerify(exactly = 0) { preferences.clearPaymentOutcome() }
+    }
+
+    @Test
+    fun `consume returns the recorded outcome and clears it exactly once`() = runTest {
+        coEvery { preferences.clearPaymentOutcome() } just Runs
+        val outcome = PaymentOutcome(orderId = "order-1", clientName = "Jane", isPaid = true)
+        coEvery { preferences.paymentOutcomeFlow } returns flowOf(outcome)
+
+        val result = ConsumePaymentOutcomeUseCase(preferences).invoke()
+
+        assertEquals(outcome, result)
+        coVerify(exactly = 1) { preferences.clearPaymentOutcome() }
     }
 
     @Test

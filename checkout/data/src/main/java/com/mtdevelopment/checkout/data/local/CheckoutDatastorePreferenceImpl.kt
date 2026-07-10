@@ -11,6 +11,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.mtdevelopment.checkout.domain.model.NewCheckoutResult
+import com.mtdevelopment.checkout.domain.model.PaymentOutcome
 import com.mtdevelopment.checkout.domain.model.PendingPaymentFinalization
 import com.mtdevelopment.checkout.domain.repository.CheckoutDatastorePreference
 import com.mtdevelopment.core.model.Order
@@ -225,6 +226,45 @@ class CheckoutDatastorePreferenceImpl(private val context: Context) : CheckoutDa
             settings.remove(PENDING_FINALIZATION_ORDER_ID)
             settings.remove(PENDING_FINALIZATION_CREATED_AT)
             settings.remove(PENDING_FINALIZATION_EXPECTED_AMOUNT)
+        }
+    }
+
+    /**
+     * Keys describing the terminal outcome of a payment that the background worker
+     * finalized while the app was away. Read once on the next launch to inform the
+     * customer, then cleared. The order id is the record's identity.
+     */
+    private val PAYMENT_OUTCOME_ORDER_ID = stringPreferencesKey("payment_outcome_order_id")
+    private val PAYMENT_OUTCOME_CLIENT_NAME = stringPreferencesKey("payment_outcome_client_name")
+    private val PAYMENT_OUTCOME_IS_PAID = booleanPreferencesKey("payment_outcome_is_paid")
+
+    override val paymentOutcomeFlow: Flow<PaymentOutcome?>
+        get() = context.dataStore.data.map { preferences ->
+            val orderId = preferences[PAYMENT_OUTCOME_ORDER_ID]
+            if (orderId.isNullOrBlank()) {
+                null
+            } else {
+                PaymentOutcome(
+                    orderId = orderId,
+                    clientName = preferences[PAYMENT_OUTCOME_CLIENT_NAME] ?: "",
+                    isPaid = preferences[PAYMENT_OUTCOME_IS_PAID] ?: false
+                )
+            }
+        }
+
+    override suspend fun setPaymentOutcome(outcome: PaymentOutcome) {
+        context.dataStore.edit { settings ->
+            settings[PAYMENT_OUTCOME_ORDER_ID] = outcome.orderId
+            settings[PAYMENT_OUTCOME_CLIENT_NAME] = outcome.clientName
+            settings[PAYMENT_OUTCOME_IS_PAID] = outcome.isPaid
+        }
+    }
+
+    override suspend fun clearPaymentOutcome() {
+        context.dataStore.edit { settings ->
+            settings.remove(PAYMENT_OUTCOME_ORDER_ID)
+            settings.remove(PAYMENT_OUTCOME_CLIENT_NAME)
+            settings.remove(PAYMENT_OUTCOME_IS_PAID)
         }
     }
 }
