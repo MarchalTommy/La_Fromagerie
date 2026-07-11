@@ -37,6 +37,21 @@ export const createSumUpCheckout = onRequest({ invoker: "public", cors: true }, 
     }
     const amount = Number((totalPriceCents / 100).toFixed(2));
 
+    // Description lisible sur le dashboard SumUp : la liste des produits de la
+    // commande ("<quantité> x <nom>"), même format que le chemin Google Pay in-app.
+    // Sans elle, SumUp n'affiche que le nom du marchand. Lue depuis Firestore
+    // (source de vérité) comme le montant. SumUp tronque à 255 caractères.
+    const products = orderSnap.get("products");
+    let description: string | undefined;
+    if (products && typeof products === "object") {
+        const label = Object.entries(products as Record<string, number>)
+            .map(([name, quantity]) => `${quantity} x ${name}`)
+            .join(", ");
+        if (label.length > 0) {
+            description = label.length > 255 ? `${label.slice(0, 252)}...` : label;
+        }
+    }
+
     // Récupération sécurisée du secret
     const sumUpSecretKey = process.env.SUMUP_SECRET_KEY;
     const sumUpMerchantCode = process.env.SUMUP_MERCHANT_CODE;
@@ -54,6 +69,7 @@ export const createSumUpCheckout = onRequest({ invoker: "public", cors: true }, 
                 amount: amount,
                 currency: "EUR",
                 checkout_reference: orderId,
+                description: description,
                 redirect_url: "lafromagerie://checkout-callback",
                 merchant_code: sumUpMerchantCode,
                 hosted_checkout: {
