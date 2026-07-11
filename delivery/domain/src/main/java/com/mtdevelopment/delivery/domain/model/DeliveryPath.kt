@@ -20,6 +20,7 @@ data class DeliveryPath(
     val availableCities: List<Pair<String, Int>>,
     val locations: List<Pair<Double, Double>>?,
     val deliveryDay: String,
+    val deliveryFrequency: String = "WEEKLY",
     val streets: List<String> = emptyList(),
     val geoJson: GeoJsonFeatureCollection?
 )

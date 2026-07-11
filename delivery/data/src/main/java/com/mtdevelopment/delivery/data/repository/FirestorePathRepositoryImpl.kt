@@ -98,6 +98,7 @@ class FirestorePathRepositoryImpl(
                                 availableCities = zippedCities,
                                 locations = locations,
                                 deliveryDay = pathData.deliveryDay,
+                                deliveryFrequency = pathData.deliveryFrequency,
                                 streets = pathData.streets ?: emptyList(),
                                 geoJson = geoJsonData 
                             )
@@ -140,7 +141,8 @@ class FirestorePathRepositoryImpl(
                             pathName = path.path_name,
                             availableCities = listOfZipped[0],
                             geoJson = null,
-                            deliveryDay = "",
+                            deliveryDay = path.deliveryDay,
+                            deliveryFrequency = path.deliveryFrequency,
                             locations = null,
                             streets = path.streets ?: emptyList()
                         )

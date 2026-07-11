@@ -4,15 +4,22 @@ import androidx.room.Database
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverter
 import androidx.room.TypeConverters
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import com.mtdevelopment.delivery.data.model.entity.PathEntity
 import com.mtdevelopment.home.data.model.ProductEntity
 import com.mtdevelopment.home.data.source.local.dao.HomeDao
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+
+val MIGRATION_4_5 = object : Migration(4, 5) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE paths ADD COLUMN deliveryFrequency TEXT NOT NULL DEFAULT 'WEEKLY'")
+    }
+}
 
 @Database(
     entities = [ProductEntity::class, PathEntity::class],
-    version = 4,
+    version = 5,
 )
 @TypeConverters(Converters::class, CoordinatesConverter::class, MapConverter::class)
 abstract class FromagerieDatabase : RoomDatabase() {

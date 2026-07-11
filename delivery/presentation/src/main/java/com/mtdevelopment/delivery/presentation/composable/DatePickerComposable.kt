@@ -65,9 +65,18 @@ fun DatePickerComposable(
             }
             val dates = mutableListOf<LocalDate>()
             var current = LocalDate.now()
+            val weekFields = java.time.temporal.WeekFields.of(java.util.Locale.FRANCE)
             while (dates.size < 4) {
                 if (current.dayOfWeek == targetDay) {
-                    dates.add(current)
+                    val weekNumber = current.get(weekFields.weekOfWeekBasedYear())
+                    val isAvailable = when (selectedPath.deliveryFrequency) {
+                        "BIWEEKLY_EVEN" -> weekNumber % 2 == 0
+                        "BIWEEKLY_ODD" -> weekNumber % 2 != 0
+                        else -> true // "WEEKLY"
+                    }
+                    if (isAvailable) {
+                        dates.add(current)
+                    }
                 }
                 current = current.plusDays(1)
             }

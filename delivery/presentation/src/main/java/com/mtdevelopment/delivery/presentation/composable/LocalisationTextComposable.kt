@@ -18,9 +18,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.mtdevelopment.delivery.presentation.R
 import com.mtdevelopment.delivery.presentation.model.UiDeliveryPath
+import com.mtdevelopment.delivery.presentation.model.getFormattedDeliveryDayAndFrequency
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
-import java.time.DayOfWeek
 
 @Composable
 fun LocalisationTextComposable(
@@ -97,20 +97,14 @@ fun LocalisationTextComposable(
             stringResource(
                 R.string.auto_geoloc_success,
                 userCity,
-                DayOfWeek.valueOf(selectedPath.deliveryDay).getDisplayName(
-                    java.time.format.TextStyle.FULL,
-                    java.util.Locale.FRENCH
-                )
+                selectedPath.getFormattedDeliveryDayAndFrequency()
             )
         }
 
         selectedPath != null -> {
             stringResource(
                 R.string.manual_path_chosen,
-                DayOfWeek.valueOf(selectedPath.deliveryDay).getDisplayName(
-                    java.time.format.TextStyle.FULL,
-                    java.util.Locale.FRENCH
-                )
+                selectedPath.getFormattedDeliveryDayAndFrequency()
             )
         }
 

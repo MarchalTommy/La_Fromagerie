@@ -159,3 +159,27 @@ fun <T> reorderList(list: List<T>, indices: List<Int?>): List<T> {
     @Suppress("UNCHECKED_CAST")
     return result as List<T>
 }
+
+/**
+ * Formats the delivery day and frequency into a localized French string.
+ * Supporting full or short display formats (short format for admin UI).
+ */
+fun getFormattedDeliveryDayAndFrequency(
+    deliveryDay: String,
+    deliveryFrequency: String,
+    shortFormat: Boolean = false
+): String {
+    val dayName = try {
+        java.time.DayOfWeek.valueOf(deliveryDay.uppercase()).getDisplayName(
+            java.time.format.TextStyle.FULL,
+            java.util.Locale.FRENCH
+        )
+    } catch (e: Exception) {
+        ""
+    }
+    return when (deliveryFrequency) {
+        "BIWEEKLY_EVEN" -> if (shortFormat) "$dayName (1 sem. sur 2 - paires)" else "$dayName (1 semaine sur 2 - paires)"
+        "BIWEEKLY_ODD" -> if (shortFormat) "$dayName (1 sem. sur 2 - impaires)" else "$dayName (1 semaine sur 2 - impaires)"
+        else -> "$dayName"
+    }
+}
