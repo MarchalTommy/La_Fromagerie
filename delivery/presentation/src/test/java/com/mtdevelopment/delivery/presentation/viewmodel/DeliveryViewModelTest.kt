@@ -105,7 +105,6 @@ class DeliveryViewModelTest {
             assertEquals(1, state.deliveryPaths.size)
             assertEquals("Tournée du Lundi", state.deliveryPaths.first().name)
             assertEquals("Jane", state.userNameFieldText)
-            assertEquals("jane@example.com", state.userEmailFieldText)
             assertEquals("1 rue du Fromage", state.deliveryAddressSearchQuery)
             assertEquals("Tournée du Lundi", state.selectedPath?.name)
             assertFalse(state.isLoading)
@@ -131,9 +130,17 @@ class DeliveryViewModelTest {
     @Test
     fun `saveUserInfo persists user information when mandatory fields are filled`() =
         runTest(testDispatcher) {
+            every { getUserInfoFromDatastoreUseCase.invoke() } returns flowOf(
+                UserInformation(
+                    name = "Jane",
+                    email = "jane@example.com",
+                    address = "1 rue du Fromage",
+                    billingAddress = "",
+                    lastSelectedPath = "Tournée du Lundi"
+                )
+            )
             val viewModel = buildViewModel()
             viewModel.setUserNameFieldText("Jane")
-            viewModel.setUserEmailFieldText("jane@example.com")
             viewModel.setAddressFieldText("1 rue du Fromage")
             viewModel.updateSelectedPath(uiPath)
 
@@ -159,7 +166,6 @@ class DeliveryViewModelTest {
     fun `saveUserInfo fails fast when no path is selected`() = runTest(testDispatcher) {
         val viewModel = buildViewModel()
         viewModel.setAddressFieldText("1 rue du Fromage")
-        viewModel.setUserEmailFieldText("jane@example.com")
 
         var errored = false
         viewModel.saveUserInfo { errored = true }
@@ -173,7 +179,6 @@ class DeliveryViewModelTest {
     fun `saveUserInfo fails fast when address is blank`() = runTest(testDispatcher) {
         val viewModel = buildViewModel()
         viewModel.updateSelectedPath(uiPath)
-        viewModel.setUserEmailFieldText("jane@example.com")
 
         var errored = false
         viewModel.saveUserInfo { errored = true }

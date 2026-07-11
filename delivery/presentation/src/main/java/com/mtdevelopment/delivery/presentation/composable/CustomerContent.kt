@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Email
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardColors
@@ -70,13 +69,9 @@ fun CustomerContent(
 ) {
     val isButtonEnabled = remember(
         state.value.userNameFieldText,
-        state.value.userEmailFieldText,
         state.value.deliveryAddressSearchQuery
     ) {
         state.value.userNameFieldText.isNotBlank()
-                && state.value.userEmailFieldText.isNotBlank()
-                && android.util.Patterns.EMAIL_ADDRESS.matcher(state.value.userEmailFieldText)
-            .matches()
                 && state.value.deliveryAddressSearchQuery.isNotBlank()
     }
 
@@ -140,25 +135,12 @@ fun CustomerContent(
             // Tightened gap between the map card above and the first form field.
             Spacer(modifier = Modifier.height(12.dp))
 
-            if (state.value.deliveryAddressSearchQuery.isBlank() || state.value.userNameFieldText.isBlank() || state.value.userEmailFieldText.isBlank()) {
+            if (state.value.deliveryAddressSearchQuery.isBlank() || state.value.userNameFieldText.isBlank()) {
                 Text(
                     modifier = Modifier
                         .padding(bottom = 8.dp, start = 16.dp, end = 16.dp)
                         .fillMaxWidth(),
                     text = "Veuillez remplir les champs ci-dessous pour continuer.",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.error,
-                    textAlign = TextAlign.Center
-                )
-            } else if (state.value.userEmailFieldText.isNotBlank() && !android.util.Patterns.EMAIL_ADDRESS.matcher(
-                    state.value.userEmailFieldText
-                ).matches()
-            ) {
-                Text(
-                    modifier = Modifier
-                        .padding(bottom = 8.dp, start = 16.dp, end = 16.dp)
-                        .fillMaxWidth(),
-                    text = "Veuillez saisir une adresse email valide.",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.error,
                     textAlign = TextAlign.Center
@@ -176,22 +158,6 @@ fun CustomerContent(
                 },
                 leadingIcon = {
                     Icon(Icons.Rounded.Person, "")
-                }
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            UserInfoComposable(
-                fieldText = state.value.userEmailFieldText,
-                label = "Adresse e-mail",
-                imeAction = ImeAction.Next,
-                focusRequester = focusRequester,
-                focusManager = focusManager,
-                updateText = {
-                    deliveryViewModel.setUserEmailFieldText(it)
-                },
-                leadingIcon = {
-                    Icon(Icons.Rounded.Email, "")
                 }
             )
 

@@ -225,6 +225,7 @@ val mainAppModule = module {
             createPaymentsClientUseCase = get(),
             json = get(),
             getCheckoutDataUseCase = get(),
+            sharedDatastore = get(),
             getCanUseGooglePayUseCase = get(),
             getPaymentDataRequestUseCase = get(),
             createNewCheckoutUseCase = get(),

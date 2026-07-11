@@ -40,6 +40,7 @@ import com.mtdevelopment.core.domain.toPriceDouble
 import com.mtdevelopment.core.domain.toStringDate
 import com.mtdevelopment.core.model.Order
 import com.mtdevelopment.core.model.OrderStatus
+import com.mtdevelopment.core.repository.SharedDatastore
 import com.mtdevelopment.core.usecase.ClearCartUseCase
 import com.mtdevelopment.core.usecase.GetIsNetworkConnectedUseCase
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -81,6 +82,7 @@ class CheckoutViewModel(
     createPaymentsClientUseCase: CreatePaymentsClientUseCase,
     private val json: Json,
     private val getCheckoutDataUseCase: GetCheckoutDataUseCase,
+    private val sharedDatastore: SharedDatastore,
     private val getCanUseGooglePayUseCase: GetCanUseGooglePayUseCase,
     private val getPaymentDataRequestUseCase: GetPaymentDataRequestUseCase,
     private val createNewCheckoutUseCase: CreateNewCheckoutUseCase,
@@ -172,6 +174,14 @@ class CheckoutViewModel(
     fun updateBuyerEmail(email: String) {
         _paymentScreenState.update {
             it.copy(buyerEmail = email)
+        }
+        viewModelScope.launch {
+            val currentInfo = sharedDatastore.userInformationFlow.firstOrNull()
+            if (currentInfo != null) {
+                sharedDatastore.setUserInformation(
+                    currentInfo.copy(email = email)
+                )
+            }
         }
     }
 
