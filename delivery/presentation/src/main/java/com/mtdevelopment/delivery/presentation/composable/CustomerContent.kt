@@ -5,11 +5,8 @@ import android.content.Intent
 import android.location.Address
 import android.location.Geocoder
 import android.os.Build
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -18,14 +15,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Person
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonColors
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
-import androidx.compose.material3.DatePickerState
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -50,6 +44,7 @@ import com.mtdevelopment.core.domain.normalizeCityName
 import com.mtdevelopment.core.model.AutoCompleteSuggestion
 import com.mtdevelopment.core.presentation.composable.AddressAutocompleteTextField
 import com.mtdevelopment.core.presentation.composable.ErrorOverlay
+import com.mtdevelopment.core.presentation.composable.PrimaryButton
 import com.mtdevelopment.delivery.presentation.model.UiDeliveryPath
 import com.mtdevelopment.delivery.presentation.state.DeliveryUiDataState
 import com.mtdevelopment.delivery.presentation.viewmodel.DeliveryViewModel
@@ -64,9 +59,8 @@ import kotlin.coroutines.suspendCoroutine
 @Composable
 fun CustomerContent(
     deliveryViewModel: DeliveryViewModel,
-    navigateToCheckout: () -> Unit,
+    onContinue: () -> Unit,
     state: State<DeliveryUiDataState>,
-    datePickerState: State<DatePickerState>,
     scrollState: ScrollState,
     onError: (String) -> Unit
 ) {
@@ -99,19 +93,25 @@ fun CustomerContent(
         }
     }
 
+    // The lower "form" section lives on its own harmonizing surface so it reads as a
+    // sheet tucked under the (now shorter) map card, mirroring the pre-payment screen.
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+    ) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            .padding(bottom = 8.dp)
     ) {
 
         val isButtonEnabled = remember(
             state.value.userNameFieldText,
-            state.value.deliveryAddressSearchQuery,
-            state.value.dateFieldText
+            state.value.deliveryAddressSearchQuery
         ) {
             state.value.userNameFieldText.isNotBlank()
                     && state.value.deliveryAddressSearchQuery.isNotBlank()
-                    && state.value.dateFieldText.isNotBlank()
         }
 
         val focusRequester = remember {
@@ -119,9 +119,9 @@ fun CustomerContent(
         }
 
         val focusManager = LocalFocusManager.current
-        val scope = rememberCoroutineScope()
 
-        Spacer(modifier = Modifier.height(32.dp))
+        // Tightened gap between the map card above and the first form field.
+        Spacer(modifier = Modifier.height(12.dp))
 
         if (state.value.deliveryAddressSearchQuery.isBlank() || state.value.userNameFieldText.isBlank()) {
             Text(
@@ -265,41 +265,14 @@ fun CustomerContent(
             )
         }
 
-        AnimatedVisibility(
-            visible = state.value.selectedPath != null
-        ) {
-            DateTextField(
-                shouldBeClickable = state.value.shouldDatePickerBeClickable,
-                dateFieldText = state.value.dateFieldText,
-                datePickerState = datePickerState.value,
-                shouldShowDatePicker = {
-                    deliveryViewModel.setIsDatePickerShown(true)
-                },
-                newDateFieldText = {
-                    deliveryViewModel.setDateFieldText(it)
-                }
-            )
-        }
-
         when {
             state.value.userLocationCloseFromPath -> {
-                Button(
+                PrimaryButton(
                     modifier = Modifier
-                        .align(Alignment.CenterHorizontally)
-                        .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 16.dp),
-                    contentPadding = PaddingValues(16.dp),
-                    border = BorderStroke(
-                        width = 2.dp,
-                        MaterialTheme.colorScheme.secondary
-                    ),
-                    colors = ButtonColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer,
-                        contentColor = MaterialTheme.colorScheme.secondary,
-                        disabledContainerColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                        disabledContentColor = MaterialTheme.colorScheme.onSurface
-                    ),
-                    elevation = ButtonDefaults.elevatedButtonElevation(),
-                    shape = RoundedCornerShape(8.dp),
+                        .fillMaxWidth()
+                        .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 16.dp),
+                    text = "Demander une prise en charge",
+                    trailingIcon = null,
                     onClick = {
                         val emailIntent =
                             Intent(Intent.ACTION_SENDTO).apply {
@@ -327,44 +300,24 @@ fun CustomerContent(
                             deliveryViewModel.setIsError("Aucune application de messagerie n'a été trouvée.")
                         }
                     }
-                ) {
-                    Text("Demander une prise en charge")
-                }
+                )
             }
 
 
             state.value.selectedPath != null -> {
-                Button(
+                // Step 1 → Step 2: "Continuer" opens the delivery-date calendar.
+                // Persisting the date and navigating to the payment screen happens once
+                // the customer confirms a date (handled by the screen's date dialog).
+                PrimaryButton(
                     modifier = Modifier
-                        .align(Alignment.CenterHorizontally)
-                        .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 16.dp),
-                    contentPadding = PaddingValues(16.dp),
-                    border = BorderStroke(
-                        width = 2.dp,
-                        color = if (isButtonEnabled) {
-                            MaterialTheme.colorScheme.secondary
-                        } else {
-                            MaterialTheme.colorScheme.inverseSurface
-                        }
-                    ),
-                    colors = ButtonColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer,
-                        contentColor = MaterialTheme.colorScheme.secondary,
-                        disabledContainerColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                        disabledContentColor = MaterialTheme.colorScheme.onSurface
-                    ),
-                    elevation = ButtonDefaults.elevatedButtonElevation(),
-                    shape = RoundedCornerShape(8.dp),
+                        .fillMaxWidth()
+                        .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 16.dp),
+                    text = "Continuer",
                     enabled = isButtonEnabled,
                     onClick = {
-                        deliveryViewModel.saveUserInfo(onError = {
-                            onError.invoke("Erreur lors de la sauvegarde des informations")
-                        })
-                        navigateToCheckout.invoke()
+                        onContinue.invoke()
                     }
-                ) {
-                    Text("Valider et passer au paiement")
-                }
+                )
             }
 
             else -> {}
@@ -376,6 +329,7 @@ fun CustomerContent(
             message = state.value.isError,
         )
 
+    }
     }
 }
 

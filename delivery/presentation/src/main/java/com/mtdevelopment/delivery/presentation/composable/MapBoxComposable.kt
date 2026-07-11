@@ -81,6 +81,9 @@ fun MapBoxComposable(
     chosenPath: UiDeliveryPath? = null,
     allPaths: List<UiDeliveryPath>? = null,
     isConnectedToInternet: Boolean,
+    // Amount subtracted from the map's max height. Used by the customer assisted-journey
+    // screen to make the map more compact, leaving room for the form sheet below it.
+    heightReduction: androidx.compose.ui.unit.Dp = 0.dp,
     setIsLoading: (Boolean) -> Unit,
     setColumnScrollingEnabled: (Boolean) -> Unit,
     onError: (String) -> Unit = {}
@@ -174,7 +177,10 @@ fun MapBoxComposable(
 
     Card(
         modifier = modifier
-            .heightIn(min = 150.dp, max = (screenSize.height / 5) * 2)
+            .heightIn(
+                min = 150.dp,
+                max = ((screenSize.height / 5) * 2 - heightReduction).coerceAtLeast(150.dp)
+            )
             .fillMaxWidth()
             .padding(4.dp)
             .focusable(true),

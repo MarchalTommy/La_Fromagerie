@@ -9,6 +9,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.browser.customtabs.CustomTabsIntent
+import android.util.Patterns
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -23,9 +24,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardColors
 import androidx.compose.material3.CardDefaults
@@ -48,6 +49,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.google.android.gms.common.api.ApiException
@@ -60,6 +63,7 @@ import com.mtdevelopment.checkout.presentation.viewmodel.CheckoutViewModel
 import com.mtdevelopment.core.domain.toStringPrice
 import com.mtdevelopment.core.presentation.MainViewModel
 import com.mtdevelopment.core.presentation.composable.ErrorOverlay
+import com.mtdevelopment.core.presentation.composable.PrimaryButton
 import com.mtdevelopment.core.presentation.composable.RiveAnimation
 import com.mtdevelopment.core.util.ScreenSize
 import com.mtdevelopment.core.util.rememberScreenSize
@@ -93,6 +97,13 @@ fun CheckoutScreen(
 
     val focusRequester = remember { FocusRequester() }
     val focusManager = LocalFocusManager.current
+
+    // The email is mandatory: it is where the purchase confirmation is sent. Both pay
+    // buttons stay disabled until a syntactically valid address is entered.
+    val isEmailValid = remember(uiData.value.buyerEmail) {
+        val email = uiData.value.buyerEmail
+        !email.isNullOrBlank() && Patterns.EMAIL_ADDRESS.matcher(email).matches()
+    }
 
     // Two independent ways back from the hosted SumUp page, both funnelling through the
     // ViewModel's awaiting-gate so verification runs exactly once:
@@ -226,9 +237,11 @@ fun CheckoutScreen(
             }
 
             // SECTION: User Information
+            // No max-height cap here: unlike the order summary (a scrollable list), this card
+            // holds fixed content (name, address, the mandatory email field, the wallet note)
+            // and must wrap it fully — the whole screen already scrolls.
             Card(
                 modifier = Modifier
-                    .heightIn(min = 0.dp, max = (screenSize.height / 5) * 2)
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 8.dp)
                     .focusable(true),
@@ -260,6 +273,32 @@ fun CheckoutScreen(
                         text = "${uiData.value.buyerAddress}",
                         style = MaterialTheme.typography.bodyMedium,
                         fontSize = 20.sp
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Mandatory email — used to send the purchase confirmation to the customer.
+                    OutlinedTextField(
+                        modifier = Modifier.fillMaxWidth(),
+                        value = uiData.value.buyerEmail ?: "",
+                        onValueChange = { checkoutViewModel.updateBuyerEmail(it.trim()) },
+                        singleLine = true,
+                        label = { Text("Adresse e-mail *") },
+                        placeholder = { Text("prenom.nom@exemple.com") },
+                        isError = !uiData.value.buyerEmail.isNullOrBlank() && !isEmailValid,
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Email,
+                            imeAction = ImeAction.Done
+                        ),
+                        supportingText = {
+                            Text(
+                                text = if (uiData.value.buyerEmail.isNullOrBlank() || isEmailValid) {
+                                    "Nous y enverrons votre confirmation d'achat."
+                                } else {
+                                    "Merci de saisir une adresse e-mail valide."
+                                }
+                            )
+                        }
                     )
 
                     Spacer(modifier = Modifier.height(8.dp))
@@ -386,14 +425,21 @@ fun CheckoutScreen(
                     }
                 },
                 allowedPaymentMethods = checkoutViewModel.allowedPaymentMethods,
-                enabled = uiData.value.isGooglePayAvailable
+                enabled = uiData.value.isGooglePayAvailable && isEmailValid
             )
 
             /**
              * SumUp Hosted checkout button.
              * Creates the order and opens the SumUp checkout link in a Chrome CustomTab.
              */
-            Button(
+            PrimaryButton(
+                modifier = Modifier
+                    .testTag("sumUpPayButton")
+                    .fillMaxWidth()
+                    .padding(start = 32.dp, end = 32.dp, top = 8.dp, bottom = 16.dp),
+                text = "Payer par Carte / SumUp",
+                trailingIcon = null,
+                enabled = isEmailValid,
                 onClick = {
                     checkoutViewModel.createOrder() { isSuccess ->
                         if (isSuccess) {
@@ -409,24 +455,8 @@ fun CheckoutScreen(
                             checkoutViewModel.setPaymentError("Une erreur est survenue lors de la création de la commande.\nMerci de réessayer ultérieurement.")
                         }
                     }
-                },
-                modifier = Modifier
-                    .testTag("sumUpPayButton")
-                    .fillMaxWidth()
-                    .padding(start = 32.dp, end = 32.dp, top = 8.dp, bottom = 16.dp),
-                shape = MaterialTheme.shapes.medium,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary
-                )
-            ) {
-                Text(
-                    text = "Payer par Carte / SumUp",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(vertical = 4.dp)
-                )
-            }
+                }
+            )
 
             // Debug tool
             if (BuildConfig.DEBUG) {

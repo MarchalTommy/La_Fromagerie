@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
@@ -24,6 +23,7 @@ import androidx.compose.ui.unit.TextUnitType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.mtdevelopment.core.presentation.composable.PrimaryButton
 
 @Composable
 fun DeliveryPathPickerComposable(
@@ -64,17 +64,17 @@ fun DeliveryPathPickerComposable(
                     )
                 }
 
-                Button(
+                PrimaryButton(
                     modifier = Modifier
-                        .padding(8.dp)
-                        .align(Alignment.CenterHorizontally),
+                        .fillMaxWidth()
+                        .padding(8.dp),
+                    text = "Valider",
+                    trailingIcon = null,
                     onClick = {
                         onPathSelected(selectedOption)
                         onDismiss()
                     }
-                ) {
-                    Text(text = "Valider")
-                }
+                )
             }
         }
     )

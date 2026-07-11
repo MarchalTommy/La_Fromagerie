@@ -7,6 +7,9 @@ import kotlinx.serialization.Serializable
  * 
  * @property id Unique identifier (generated during checkout).
  * @property customerName Full name of the buyer.
+ * @property customerEmail Contact email captured at checkout, used to send the purchase
+ *   confirmation. Null on documents written before this field existed (and on some
+ *   admin-created orders).
  * @property customerAddress Shipping/Delivery address.
  * @property customerBillingAddress Address used for payment authorization.
  * @property deliveryDate Target date for delivery (formatted string).
@@ -21,6 +24,7 @@ import kotlinx.serialization.Serializable
 data class Order(
     val id: String,
     val customerName: String,
+    val customerEmail: String? = null,
     val customerAddress: String,
     val customerBillingAddress: String,
     val deliveryDate: String,

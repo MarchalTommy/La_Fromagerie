@@ -455,6 +455,7 @@ class CheckoutViewModel(
                     Order(
                         id = orderId,
                         customerName = _paymentScreenState.value.buyerName.toString(),
+                        customerEmail = _paymentScreenState.value.buyerEmail,
                         customerAddress = _paymentScreenState.value.buyerAddress.toString(),
                         customerBillingAddress = _paymentScreenState.value.buyerBillingAddress.toString(),
                         deliveryDate = _paymentScreenState.value.deliveryDate?.toStringDate() ?: "",

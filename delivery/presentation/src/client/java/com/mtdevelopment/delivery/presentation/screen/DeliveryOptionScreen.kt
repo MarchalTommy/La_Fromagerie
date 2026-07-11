@@ -103,10 +103,12 @@ fun DeliveryOptionScreen(
                 )
                 .padding(8.dp)
         ) {
-            // MAP SECTION: Visualizes delivery zones
+            // MAP SECTION: Visualizes delivery zones.
+            // Made more compact (assisted journey step 1) so the form sheet fits below it.
             MapBoxComposable(
                 userLocation = state.value.userCityLocation,
                 isConnectedToInternet = isConnected.value,
+                heightReduction = 64.dp,
                 setIsLoading = {
                     deliveryViewModel.setIsLoading(it)
                 },
@@ -119,13 +121,20 @@ fun DeliveryOptionScreen(
                 }
             )
 
-            // FORM SECTION: Collects user data and selections
+            // FORM SECTION: Collects user data and selections.
+            // Step 1 of the assisted journey: "Continuer" persists the info and opens the
+            // delivery-date calendar; the actual navigation to checkout happens once a date
+            // is confirmed (see the DatePicker dialog below).
             CustomerContent(
-                deliveryViewModel,
-                navigateToCheckout,
-                state,
-                datePickerState,
-                scrollState,
+                deliveryViewModel = deliveryViewModel,
+                onContinue = {
+                    deliveryViewModel.saveUserInfo(onError = {
+                        deliveryViewModel.setIsError("Erreur lors de la sauvegarde de vos informations")
+                    })
+                    deliveryViewModel.setIsDatePickerShown(true)
+                },
+                state = state,
+                scrollState = scrollState,
                 onError = {
                     deliveryViewModel.setIsError("Erreur lors de la sauvegarde de vos informations")
                 }
@@ -186,7 +195,8 @@ fun DeliveryOptionScreen(
             }
         )
 
-        // DIALOG: Date selection
+        // DIALOG: Date selection — step 2 of the assisted journey ("Calendrier Épuré").
+        // Confirming a date persists it and moves on to the pre-payment validation screen.
         if (state.value.datePickerVisibility) {
             DatePickerComposable(
                 datePickerState = datePickerState.value,
@@ -198,6 +208,7 @@ fun DeliveryOptionScreen(
                 },
                 onDateSelected = {
                     deliveryViewModel.saveSelectedDate(it)
+                    navigateToCheckout.invoke()
                 }
             )
         }
