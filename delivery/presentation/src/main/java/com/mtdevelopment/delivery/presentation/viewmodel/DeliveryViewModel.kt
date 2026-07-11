@@ -137,6 +137,7 @@ class DeliveryViewModel(
             val userInfo = getUserInfoFromDatastoreUseCase.invoke().firstOrNull()
             deliveryUiDataState = deliveryUiDataState.copy(
                 userNameFieldText = userInfo?.name ?: "",
+                userEmailFieldText = userInfo?.email ?: "",
                 deliveryAddressSearchQuery = userInfo?.address ?: "",
                 // Match the saved path name to a full UI path object
                 selectedPath = deliveryUiDataState.deliveryPaths.firstOrNull { it.name == userInfo?.lastSelectedPath },
@@ -176,13 +177,17 @@ class DeliveryViewModel(
     fun saveUserInfo(onError: () -> Unit = {}) {
         viewModelScope.launch {
             // Validation: Ensure mandatory fields are filled
-            if (deliveryUiDataState.selectedPath == null || deliveryUiDataState.deliveryAddressSearchQuery.isBlank()) {
+            if (deliveryUiDataState.selectedPath == null ||
+                deliveryUiDataState.deliveryAddressSearchQuery.isBlank() ||
+                deliveryUiDataState.userEmailFieldText.isBlank()
+            ) {
                 onError.invoke()
                 return@launch
             }
             saveToDatastoreUseCase.invoke(
                 userInformation = UserInformation(
                     name = deliveryUiDataState.userNameFieldText,
+                    email = deliveryUiDataState.userEmailFieldText,
                     address = deliveryUiDataState.deliveryAddressSearchQuery,
                     billingAddress = deliveryUiDataState.billingAddressSearchQuery,
                     lastSelectedPath = deliveryUiDataState.selectedPath?.name ?: ""
@@ -315,6 +320,10 @@ class DeliveryViewModel(
 
     fun setUserNameFieldText(name: String) {
         deliveryUiDataState = deliveryUiDataState.copy(userNameFieldText = name)
+    }
+
+    fun setUserEmailFieldText(email: String) {
+        deliveryUiDataState = deliveryUiDataState.copy(userEmailFieldText = email)
     }
 
     fun setAddressFieldText(address: String, isBilling: Boolean = false) {

@@ -69,6 +69,7 @@ class SharedDatastoreImpl(private val context: Context) : SharedDatastore {
                 Log.e(TAG, "userInformationFlow:", e)
                 UserInformation(
                     name = "",
+                    email = "",
                     address = "",
                     lastSelectedPath = "",
                     billingAddress = ""

@@ -6,21 +6,25 @@ import android.location.Address
 import android.location.Geocoder
 import android.os.Build
 import androidx.compose.foundation.ScrollState
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Email
 import androidx.compose.material.icons.rounded.Person
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardColors
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.contentColorFor
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
@@ -64,6 +68,17 @@ fun CustomerContent(
     scrollState: ScrollState,
     onError: (String) -> Unit
 ) {
+    val isButtonEnabled = remember(
+        state.value.userNameFieldText,
+        state.value.userEmailFieldText,
+        state.value.deliveryAddressSearchQuery
+    ) {
+        state.value.userNameFieldText.isNotBlank()
+                && state.value.userEmailFieldText.isNotBlank()
+                && android.util.Patterns.EMAIL_ADDRESS.matcher(state.value.userEmailFieldText)
+            .matches()
+                && state.value.deliveryAddressSearchQuery.isNotBlank()
+    }
 
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -93,243 +108,273 @@ fun CustomerContent(
         }
     }
 
+    Spacer(modifier = Modifier.height(8.dp))
+
     // The lower "form" section lives on its own harmonizing surface so it reads as a
     // sheet tucked under the (now shorter) map card, mirroring the pre-payment screen.
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
-        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
-    ) {
-    Column(
+    Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(bottom = 8.dp)
+            .padding(horizontal = 4.dp, vertical = 8.dp)
+            .focusable(true),
+        colors = CardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainer,
+            contentColor = MaterialTheme.colorScheme.contentColorFor(MaterialTheme.colorScheme.surfaceContainer),
+            disabledContainerColor = MaterialTheme.colorScheme.secondaryContainer,
+            disabledContentColor = MaterialTheme.colorScheme.contentColorFor(MaterialTheme.colorScheme.secondaryContainer)
+        ),
+        elevation = CardDefaults.elevatedCardElevation()
     ) {
-
-        val isButtonEnabled = remember(
-            state.value.userNameFieldText,
-            state.value.deliveryAddressSearchQuery
-        ) {
-            state.value.userNameFieldText.isNotBlank()
-                    && state.value.deliveryAddressSearchQuery.isNotBlank()
-        }
-
-        val focusRequester = remember {
-            FocusRequester()
-        }
-
-        val focusManager = LocalFocusManager.current
-
-        // Tightened gap between the map card above and the first form field.
-        Spacer(modifier = Modifier.height(12.dp))
-
-        if (state.value.deliveryAddressSearchQuery.isBlank() || state.value.userNameFieldText.isBlank()) {
-            Text(
-                modifier = Modifier
-                    .padding(bottom = 8.dp, start = 16.dp, end = 16.dp)
-                    .fillMaxWidth(),
-                text = "Veuillez remplir les champs ci-dessous pour continuer.",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.error,
-                textAlign = TextAlign.Center
-            )
-        }
-
-        UserInfoComposable(
-            fieldText = state.value.userNameFieldText,
-            label = "Nom et prénom",
-            imeAction = ImeAction.Next,
-            focusRequester = focusRequester,
-            focusManager = focusManager,
-            updateText = {
-                deliveryViewModel.setUserNameFieldText(it)
-            },
-            leadingIcon = {
-                Icon(Icons.Rounded.Person, "")
-            }
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Row(
-            Modifier
+        Column(
+            modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .padding(bottom = 8.dp)
         ) {
-            Checkbox(
-                checked = state.value.isBillingDifferent,
-                onCheckedChange = {
-                    deliveryViewModel.setIsBillingDifferent(it)
-                }
-            )
-            Text(
-                text = "Adresse de facturation différente de l'adresse de livraison",
-                style = MaterialTheme.typography.bodyLarge,
-                modifier = Modifier.padding(start = 16.dp)
-            )
-        }
 
-
-        AddressAutocompleteTextField(
-            label = "Adresse de livraison",
-            searchQuery = state.value.deliveryAddressSearchQuery,
-            suggestions = state.value.deliveryAddressSuggestions,
-            isLoading = state.value.addressSuggestionsLoading,
-            showDropdown = state.value.showAddressSuggestions,
-            focusRequester = focusRequester,
-            focusManager = focusManager,
-            onDropDownDismiss = {
-                deliveryViewModel.setShowAddressesSuggestions(false, isBilling = false)
-            },
-            onValueChange = {
-                deliveryViewModel.setAddressFieldText(it)
-            },
-            onAddressValidated = { string, suggestion ->
-                if (suggestion != null) {
-                    deliveryViewModel.onSuggestionSelected(suggestion)
-                } else {
-                    deliveryViewModel.setAddressFieldText(string)
-                }
-
-                coroutineScope.launch {
-                    checkLocationEligibility(
-                        context = context,
-                        address = string,
-                        location = suggestion,
-                        allPaths = state.value.deliveryPaths,
-                        onResult = { eligibility, city, userLocation, selectedPath ->
-                            if (city != null) {
-                                deliveryViewModel.updateUserCity(city)
-                            }
-                            if (userLocation != null) {
-                                deliveryViewModel.updateUserCityLocation(userLocation)
-                            }
-                            deliveryViewModel.updateSelectedPath(selectedPath)
-                            deliveryViewModel.updateUserLocationOnPath(eligibility == DeliveryEligibility.DELIVERABLE)
-                            deliveryViewModel.updateUserLocationCloseFromPath(eligibility == DeliveryEligibility.ASK_FOR_SUPPORT)
-                        }
-                    )
-                }
-            },
-            onClick = {
-                deliveryViewModel.startAutocomplete(isBilling = false)
+            val focusRequester = remember {
+                FocusRequester()
             }
-        )
 
-        if (state.value.isBillingDifferent) {
+            val focusManager = LocalFocusManager.current
+
+            // Tightened gap between the map card above and the first form field.
+            Spacer(modifier = Modifier.height(12.dp))
+
+            if (state.value.deliveryAddressSearchQuery.isBlank() || state.value.userNameFieldText.isBlank() || state.value.userEmailFieldText.isBlank()) {
+                Text(
+                    modifier = Modifier
+                        .padding(bottom = 8.dp, start = 16.dp, end = 16.dp)
+                        .fillMaxWidth(),
+                    text = "Veuillez remplir les champs ci-dessous pour continuer.",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.error,
+                    textAlign = TextAlign.Center
+                )
+            } else if (state.value.userEmailFieldText.isNotBlank() && !android.util.Patterns.EMAIL_ADDRESS.matcher(
+                    state.value.userEmailFieldText
+                ).matches()
+            ) {
+                Text(
+                    modifier = Modifier
+                        .padding(bottom = 8.dp, start = 16.dp, end = 16.dp)
+                        .fillMaxWidth(),
+                    text = "Veuillez saisir une adresse email valide.",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.error,
+                    textAlign = TextAlign.Center
+                )
+            }
+
+            UserInfoComposable(
+                fieldText = state.value.userNameFieldText,
+                label = "Nom et prénom",
+                imeAction = ImeAction.Next,
+                focusRequester = focusRequester,
+                focusManager = focusManager,
+                updateText = {
+                    deliveryViewModel.setUserNameFieldText(it)
+                },
+                leadingIcon = {
+                    Icon(Icons.Rounded.Person, "")
+                }
+            )
+
             Spacer(modifier = Modifier.height(8.dp))
+
+            UserInfoComposable(
+                fieldText = state.value.userEmailFieldText,
+                label = "Adresse e-mail",
+                imeAction = ImeAction.Next,
+                focusRequester = focusRequester,
+                focusManager = focusManager,
+                updateText = {
+                    deliveryViewModel.setUserEmailFieldText(it)
+                },
+                leadingIcon = {
+                    Icon(Icons.Rounded.Email, "")
+                }
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Checkbox(
+                    checked = state.value.isBillingDifferent,
+                    onCheckedChange = {
+                        deliveryViewModel.setIsBillingDifferent(it)
+                    }
+                )
+                Text(
+                    text = "Adresse de facturation différente de l'adresse de livraison",
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.padding(start = 16.dp)
+                )
+            }
+
+
             AddressAutocompleteTextField(
-                label = "Adresse de facturation",
-                searchQuery = state.value.billingAddressSearchQuery,
-                suggestions = state.value.billingAddressSuggestions,
+                label = "Adresse de livraison",
+                searchQuery = state.value.deliveryAddressSearchQuery,
+                suggestions = state.value.deliveryAddressSuggestions,
                 isLoading = state.value.addressSuggestionsLoading,
-                showDropdown = state.value.showBillingAddressSuggestions,
+                showDropdown = state.value.showAddressSuggestions,
                 focusRequester = focusRequester,
                 focusManager = focusManager,
                 onDropDownDismiss = {
-                    deliveryViewModel.setShowAddressesSuggestions(false, isBilling = true)
+                    deliveryViewModel.setShowAddressesSuggestions(false, isBilling = false)
                 },
                 onValueChange = {
-                    deliveryViewModel.setAddressFieldText(it, isBilling = true)
+                    deliveryViewModel.setAddressFieldText(it)
                 },
                 onAddressValidated = { string, suggestion ->
                     if (suggestion != null) {
-                        deliveryViewModel.onSuggestionSelected(suggestion, isBilling = true)
+                        deliveryViewModel.onSuggestionSelected(suggestion)
                     } else {
-                        deliveryViewModel.setAddressFieldText(string, isBilling = true)
+                        deliveryViewModel.setAddressFieldText(string)
+                    }
+
+                    coroutineScope.launch {
+                        checkLocationEligibility(
+                            context = context,
+                            address = string,
+                            location = suggestion,
+                            allPaths = state.value.deliveryPaths,
+                            onResult = { eligibility, city, userLocation, selectedPath ->
+                                if (city != null) {
+                                    deliveryViewModel.updateUserCity(city)
+                                }
+                                if (userLocation != null) {
+                                    deliveryViewModel.updateUserCityLocation(userLocation)
+                                }
+                                deliveryViewModel.updateSelectedPath(selectedPath)
+                                deliveryViewModel.updateUserLocationOnPath(eligibility == DeliveryEligibility.DELIVERABLE)
+                                deliveryViewModel.updateUserLocationCloseFromPath(eligibility == DeliveryEligibility.ASK_FOR_SUPPORT)
+                            }
+                        )
                     }
                 },
                 onClick = {
-                    deliveryViewModel.startAutocomplete(isBilling = true)
+                    deliveryViewModel.startAutocomplete(isBilling = false)
                 }
             )
-        }
 
-        Spacer(modifier = Modifier.height(16.dp))
-
-        if (state.value.localisationSuccess || state.value.selectedPath != null || state.value.userLocationOnPath || state.value.deliveryAddressSearchQuery != "") {
-            LocalisationTextComposable(
-                selectedPath = state.value.selectedPath,
-                geolocIsOnPath = state.value.userLocationOnPath && state.value.localisationSuccess,
-                canAskForDelivery = state.value.userLocationCloseFromPath,
-                userCity = state.value.userCity
-            )
-        } else {
-            LocalisationTypePicker(
-                selectedPath = state.value.selectedPath,
-                localisationSuccess = state.value.localisationSuccess,
-                shouldAskLocalisationPermission = {
-                    deliveryViewModel.updateShouldShowLocalisationPermission(true)
-                }
-            )
-        }
-
-        when {
-            state.value.userLocationCloseFromPath -> {
-                PrimaryButton(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 16.dp),
-                    text = "Demander une prise en charge",
-                    trailingIcon = null,
-                    onClick = {
-                        val emailIntent =
-                            Intent(Intent.ACTION_SENDTO).apply {
-                                data = "mailto:".toUri()
-                                putExtra(
-                                    Intent.EXTRA_EMAIL,
-                                    arrayOf("marchal.gilles25560@gmail.com")
-                                )
-                                putExtra(
-                                    Intent.EXTRA_SUBJECT,
-                                    "Demande d'ajout aux livraisons"
-                                )
-                                putExtra(
-                                    Intent.EXTRA_TEXT,
-                                    "Bonjour Mr. Marchal.\n\nJ'habite à une " +
-                                            "adresse proche d'un de vos points de livraison et j'aurais aimé être livré aussi. " +
-                                            "\nEst-ce possible pour vous d'ajouter ${state.value.userCity} à une de vos livraison ?" +
-                                            "\n\nMerci d'avance !"
-                                )
-                            }
-
-                        try {
-                            context.startActivity(emailIntent)
-                        } catch (e: android.content.ActivityNotFoundException) {
-                            deliveryViewModel.setIsError("Aucune application de messagerie n'a été trouvée.")
+            if (state.value.isBillingDifferent) {
+                Spacer(modifier = Modifier.height(8.dp))
+                AddressAutocompleteTextField(
+                    label = "Adresse de facturation",
+                    searchQuery = state.value.billingAddressSearchQuery,
+                    suggestions = state.value.billingAddressSuggestions,
+                    isLoading = state.value.addressSuggestionsLoading,
+                    showDropdown = state.value.showBillingAddressSuggestions,
+                    focusRequester = focusRequester,
+                    focusManager = focusManager,
+                    onDropDownDismiss = {
+                        deliveryViewModel.setShowAddressesSuggestions(false, isBilling = true)
+                    },
+                    onValueChange = {
+                        deliveryViewModel.setAddressFieldText(it, isBilling = true)
+                    },
+                    onAddressValidated = { string, suggestion ->
+                        if (suggestion != null) {
+                            deliveryViewModel.onSuggestionSelected(suggestion, isBilling = true)
+                        } else {
+                            deliveryViewModel.setAddressFieldText(string, isBilling = true)
                         }
-                    }
-                )
-            }
-
-
-            state.value.selectedPath != null -> {
-                // Step 1 → Step 2: "Continuer" opens the delivery-date calendar.
-                // Persisting the date and navigating to the payment screen happens once
-                // the customer confirms a date (handled by the screen's date dialog).
-                PrimaryButton(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 16.dp),
-                    text = "Continuer",
-                    enabled = isButtonEnabled,
+                    },
                     onClick = {
-                        onContinue.invoke()
+                        deliveryViewModel.startAutocomplete(isBilling = true)
                     }
                 )
             }
 
-            else -> {}
+            Spacer(modifier = Modifier.height(16.dp))
+
+            if (state.value.localisationSuccess || state.value.selectedPath != null || state.value.userLocationOnPath || state.value.deliveryAddressSearchQuery != "") {
+                LocalisationTextComposable(
+                    selectedPath = state.value.selectedPath,
+                    geolocIsOnPath = state.value.userLocationOnPath && state.value.localisationSuccess,
+                    canAskForDelivery = state.value.userLocationCloseFromPath,
+                    userCity = state.value.userCity
+                )
+            } else {
+                LocalisationTypePicker(
+                    selectedPath = state.value.selectedPath,
+                    localisationSuccess = state.value.localisationSuccess,
+                    shouldAskLocalisationPermission = {
+                        deliveryViewModel.updateShouldShowLocalisationPermission(true)
+                    }
+                )
+            }
+
+            ErrorOverlay(
+                isShown = state.value.isError.isNotBlank(),
+                duration = 3000L,
+                message = state.value.isError,
+            )
+        }
+    }
+
+    when {
+        state.value.userLocationCloseFromPath -> {
+            PrimaryButton(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 16.dp),
+                text = "Demander une prise en charge",
+                trailingIcon = null,
+                onClick = {
+                    val emailIntent =
+                        Intent(Intent.ACTION_SENDTO).apply {
+                            data = "mailto:".toUri()
+                            putExtra(
+                                Intent.EXTRA_EMAIL,
+                                arrayOf("marchal.gilles25560@gmail.com")
+                            )
+                            putExtra(
+                                Intent.EXTRA_SUBJECT,
+                                "Demande d'ajout aux livraisons"
+                            )
+                            putExtra(
+                                Intent.EXTRA_TEXT,
+                                "Bonjour Mr. Marchal.\n\nJ'habite à une " +
+                                        "adresse proche d'un de vos points de livraison et j'aurais aimé être livré aussi. " +
+                                        "\nEst-ce possible pour vous d'ajouter ${state.value.userCity} à une de vos livraison ?" +
+                                        "\n\nMerci d'avance !"
+                            )
+                        }
+
+                    try {
+                        context.startActivity(emailIntent)
+                    } catch (e: android.content.ActivityNotFoundException) {
+                        deliveryViewModel.setIsError("Aucune application de messagerie n'a été trouvée.")
+                    }
+                }
+            )
         }
 
-        ErrorOverlay(
-            isShown = state.value.isError.isNotBlank(),
-            duration = 3000L,
-            message = state.value.isError,
-        )
 
-    }
+        state.value.selectedPath != null -> {
+            // Step 1 → Step 2: "Continuer" opens the delivery-date calendar.
+            // Persisting the date and navigating to the payment screen happens once
+            // the customer confirms a date (handled by the screen's date dialog).
+            PrimaryButton(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 16.dp),
+                text = "Continuer",
+                enabled = isButtonEnabled,
+                onClick = {
+                    onContinue.invoke()
+                }
+            )
+        }
+
+        else -> {}
     }
 }
 

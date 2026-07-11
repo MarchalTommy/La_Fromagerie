@@ -17,6 +17,7 @@ class GetCheckoutDataUseCaseTest {
 
     private val user = UserInformation(
         name = "Jane",
+        email = "jane@example.com",
         address = "1 rue du Fromage",
         billingAddress = "2 rue de la Facture",
         lastSelectedPath = "Pontarlier"
@@ -47,6 +48,7 @@ class GetCheckoutDataUseCaseTest {
         useCase().invoke().test {
             val info = awaitItem()
             assertEquals("Jane", info?.buyerName)
+            assertEquals("jane@example.com", info?.buyerEmail)
             assertEquals("1 rue du Fromage", info?.buyerAddress)
             assertEquals("2 rue de la Facture", info?.billingAddress)
             assertEquals(cart, info?.cartItems)

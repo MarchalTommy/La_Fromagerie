@@ -2,7 +2,6 @@ package com.mtdevelopment.delivery.presentation.screen
 
 import android.annotation.SuppressLint
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
@@ -28,7 +27,6 @@ import com.mtdevelopment.delivery.presentation.composable.DatePickerComposable
 import com.mtdevelopment.delivery.presentation.composable.DeliveryEligibility
 import com.mtdevelopment.delivery.presentation.composable.MapBoxComposable
 import com.mtdevelopment.delivery.presentation.composable.PermissionManagerComposable
-import com.mtdevelopment.delivery.presentation.composable.getDatePickerState
 import com.mtdevelopment.delivery.presentation.viewmodel.DeliveryViewModel
 import org.koin.androidx.compose.koinViewModel
 
@@ -65,11 +63,7 @@ fun DeliveryOptionScreen(
     /**
      * The DatePicker state is sensitive to the selected delivery path (different paths have different schedules).
      */
-    val datePickerState = remember(state.value.selectedPath) {
-        derivedStateOf {
-            getDatePickerState(state.value.selectedPath)
-        }
-    }
+
     val scrollState = rememberScrollState()
 
     // Initialize MapBox access token
@@ -199,7 +193,7 @@ fun DeliveryOptionScreen(
         // Confirming a date persists it and moves on to the pre-payment validation screen.
         if (state.value.datePickerVisibility) {
             DatePickerComposable(
-                datePickerState = datePickerState.value,
+                selectedPath = state.value.selectedPath,
                 shouldRemoveDatePicker = {
                     deliveryViewModel.setIsDatePickerShown(false)
                 },

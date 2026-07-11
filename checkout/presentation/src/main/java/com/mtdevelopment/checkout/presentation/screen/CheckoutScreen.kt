@@ -5,11 +5,11 @@ import android.content.ContentValues.TAG
 import android.icu.text.SimpleDateFormat
 import android.net.Uri
 import android.util.Log
+import android.util.Patterns
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.browser.customtabs.CustomTabsIntent
-import android.util.Patterns
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -39,8 +39,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -53,6 +51,8 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import com.google.android.gms.common.api.ApiException
 import com.google.android.gms.common.api.ResolvableApiException
 import com.google.android.gms.wallet.PaymentData
@@ -292,6 +292,7 @@ fun CheckoutScreen(
                         ),
                         supportingText = {
                             Text(
+                                style = MaterialTheme.typography.bodyMedium,
                                 text = if (uiData.value.buyerEmail.isNullOrBlank() || isEmailValid) {
                                     "Nous y enverrons votre confirmation d'achat."
                                 } else {
@@ -303,24 +304,13 @@ fun CheckoutScreen(
 
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    // TODO: (flagged for review: legal/product decision, not actionable in code alone)
-                    //  VOIR LÉGALITÉ ET AUTOMATISATION POUR FACTURE
-
-                    Text(
-                        modifier = Modifier.padding(start = 12.dp, end = 12.dp, top = 12.dp),
-                        text = "Vous pourrez retrouver une trace de votre achat sur votre Google Wallet.",
-                        style = MaterialTheme.typography.bodyLarge,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
-
                     // TODO: (flagged for review: feature blocked on a state rework of this screen)
                     //  Add a mapBoxComposable with given address
                 }
             }
 
             Text(
-                modifier = Modifier.padding(16.dp),
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                 text = "Montant Total : ${uiData.value.totalPrice?.toStringPrice()}",
                 style = MaterialTheme.typography.displaySmall,
                 fontWeight = FontWeight.Bold,
@@ -330,9 +320,9 @@ fun CheckoutScreen(
             // SECTION: Delivery Notes
             OutlinedTextField(
                 modifier = Modifier
-                    .height((screenSize.height / 5))
+                    .height((screenSize.height / 6))
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                    .padding(horizontal = 16.dp),
                 value = uiData.value.checkoutNote ?: "",
                 onValueChange = {
                     checkoutViewModel.updateCheckoutNote(it)
@@ -437,7 +427,7 @@ fun CheckoutScreen(
                     .testTag("sumUpPayButton")
                     .fillMaxWidth()
                     .padding(start = 32.dp, end = 32.dp, top = 8.dp, bottom = 16.dp),
-                text = "Payer par Carte / SumUp",
+                text = "Payer par Carte",
                 trailingIcon = null,
                 enabled = isEmailValid,
                 onClick = {

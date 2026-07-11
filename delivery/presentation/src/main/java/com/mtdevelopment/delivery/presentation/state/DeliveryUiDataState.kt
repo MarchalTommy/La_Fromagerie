@@ -35,6 +35,7 @@ data class DeliveryUiDataState(
     val datePickerVisibility: Boolean = false,
     val dateFieldText: String = "",
     val userNameFieldText: String = "",
+    val userEmailFieldText: String = "",
 
     val deliveryAddressSearchQuery: String = "",
     val deliveryAddressSuggestions: List<AutoCompleteSuggestion> = emptyList(),

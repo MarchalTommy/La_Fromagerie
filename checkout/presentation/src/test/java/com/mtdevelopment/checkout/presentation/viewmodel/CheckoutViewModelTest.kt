@@ -196,6 +196,7 @@ class CheckoutViewModelTest {
             LocalCheckoutInformation(
                 buyerName = "Jane",
                 buyerAddress = "1 rue du Fromage",
+                buyerEmail = "jane@example.com",
                 cartItems = cart,
                 totalPrice = 2000L,
                 deliveryDate = 42L,
@@ -211,6 +212,7 @@ class CheckoutViewModelTest {
 
         val state = viewModel.paymentScreenState.value
         assertEquals("Jane", state.buyerName)
+        assertEquals("jane@example.com", state.buyerEmail)
         assertEquals("1 rue du Fromage", state.buyerAddress)
         assertEquals("2 rue de la Facture", state.buyerBillingAddress)
         assertEquals(2000L, state.totalPrice)
@@ -267,6 +269,7 @@ class CheckoutViewModelTest {
                 LocalCheckoutInformation(
                     buyerName = "Jane",
                     buyerAddress = "1 rue du Fromage",
+                    buyerEmail = "jane@example.com",
                     cartItems = cart,
                     totalPrice = 2000L,
                     deliveryDate = 42L,
@@ -311,6 +314,7 @@ class CheckoutViewModelTest {
                 LocalCheckoutInformation(
                     buyerName = "Jane",
                     buyerAddress = "1 rue du Fromage",
+                    buyerEmail = "jane@example.com",
                     cartItems = cart,
                     totalPrice = 2000L,
                     deliveryDate = 42L,
@@ -478,6 +482,7 @@ class CheckoutViewModelTest {
                 LocalCheckoutInformation(
                     buyerName = "Jane",
                     buyerAddress = "1 rue du Fromage",
+                    buyerEmail = "jane@example.com",
                     cartItems = cart,
                     totalPrice = 2000L,
                     deliveryDate = 42L,

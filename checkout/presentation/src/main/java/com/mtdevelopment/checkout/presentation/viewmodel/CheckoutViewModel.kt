@@ -155,6 +155,7 @@ class CheckoutViewModel(
                         buyerName = data.buyerName,
                         buyerAddress = data.buyerAddress,
                         buyerBillingAddress = data.billingAddress,
+                        buyerEmail = data.buyerEmail ?: it.buyerEmail,
                         totalPrice = data.totalPrice,
                         deliveryDate = data.deliveryDate,
                         cartItems = data.cartItems,

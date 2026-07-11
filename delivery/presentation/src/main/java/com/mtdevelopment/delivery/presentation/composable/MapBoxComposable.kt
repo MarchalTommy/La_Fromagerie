@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardColors
 import androidx.compose.material3.CardDefaults
@@ -20,6 +21,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.pointer.pointerInteropFilter
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -54,7 +56,6 @@ import com.mtdevelopment.core.util.ScreenSize
 import com.mtdevelopment.core.util.rememberScreenSize
 import com.mtdevelopment.delivery.presentation.R
 import com.mtdevelopment.delivery.presentation.model.UiDeliveryPath
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlin.math.abs
 
@@ -184,18 +185,19 @@ fun MapBoxComposable(
             .fillMaxWidth()
             .padding(4.dp)
             .focusable(true),
-        elevation = CardDefaults.elevatedCardElevation(),
         colors = CardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer,
-            contentColor = MaterialTheme.colorScheme.contentColorFor(MaterialTheme.colorScheme.primaryContainer),
+            containerColor = MaterialTheme.colorScheme.surfaceContainer,
+            contentColor = MaterialTheme.colorScheme.contentColorFor(MaterialTheme.colorScheme.surfaceContainer),
             disabledContainerColor = MaterialTheme.colorScheme.secondaryContainer,
             disabledContentColor = MaterialTheme.colorScheme.contentColorFor(MaterialTheme.colorScheme.secondaryContainer)
         ),
+        elevation = CardDefaults.elevatedCardElevation()
     ) {
         MapboxMap(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(8.dp)
+                .clip(RoundedCornerShape(12.dp))
                 .pointerInteropFilter {
                     when (it.action) {
                         MotionEvent.ACTION_DOWN -> {

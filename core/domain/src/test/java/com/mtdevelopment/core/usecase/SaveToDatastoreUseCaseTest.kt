@@ -21,6 +21,7 @@ class SaveToDatastoreUseCaseTest {
     )
     private val userInformation = UserInformation(
         name = "Jane",
+        email = "jane@example.com",
         address = "1 rue du Fromage",
         billingAddress = "1 rue du Fromage",
         lastSelectedPath = "Pontarlier"
