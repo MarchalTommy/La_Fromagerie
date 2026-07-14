@@ -114,6 +114,7 @@ fun PathEditDialog(
                     ?: "",
                 cities = path?.cities ?: emptyList(),
                 deliveryDay = path?.deliveryDay ?: "",
+                deliveryFrequency = path?.deliveryFrequency ?: "WEEKLY",
                 streets = path?.streets ?: emptyList()
             )
         )
@@ -223,6 +224,40 @@ fun PathEditDialog(
                                     Text(
                                         i.getDisplayName(TextStyle.SHORT, Locale.FRANCE)
                                     )
+                                }
+                            )
+                        }
+                    }
+                }
+
+                // Sélection de la fréquence
+                Text(
+                    text = "Fréquence de livraison",
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                )
+
+                Row(
+                    modifier = Modifier
+                        .horizontalScroll(rememberScrollState())
+                        .padding(vertical = 8.dp)
+                ) {
+                    val frequencies = listOf(
+                        Pair("WEEKLY", "Chaque semaine"),
+                        Pair("BIWEEKLY_EVEN", "Semaines paires"),
+                        Pair("BIWEEKLY_ODD", "Semaines impaires")
+                    )
+                    for (freq in frequencies) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            FilterChip(
+                                modifier = Modifier.padding(horizontal = 4.dp),
+                                selected = tempPath.value.deliveryFrequency == freq.first,
+                                onClick = {
+                                    tempPath.value =
+                                        tempPath.value.copy(deliveryFrequency = freq.first)
+                                },
+                                label = {
+                                    Text(freq.second)
                                 }
                             )
                         }

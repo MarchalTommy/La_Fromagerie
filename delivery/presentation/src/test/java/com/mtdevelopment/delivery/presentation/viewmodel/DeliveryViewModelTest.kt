@@ -90,6 +90,7 @@ class DeliveryViewModelTest {
             every { getUserInfoFromDatastoreUseCase.invoke() } returns flowOf(
                 UserInformation(
                     name = "Jane",
+                    email = "jane@example.com",
                     address = "1 rue du Fromage",
                     billingAddress = "",
                     lastSelectedPath = "Tournée du Lundi"
@@ -129,6 +130,15 @@ class DeliveryViewModelTest {
     @Test
     fun `saveUserInfo persists user information when mandatory fields are filled`() =
         runTest(testDispatcher) {
+            every { getUserInfoFromDatastoreUseCase.invoke() } returns flowOf(
+                UserInformation(
+                    name = "Jane",
+                    email = "jane@example.com",
+                    address = "1 rue du Fromage",
+                    billingAddress = "",
+                    lastSelectedPath = "Tournée du Lundi"
+                )
+            )
             val viewModel = buildViewModel()
             viewModel.setUserNameFieldText("Jane")
             viewModel.setAddressFieldText("1 rue du Fromage")
@@ -143,6 +153,7 @@ class DeliveryViewModelTest {
                 saveToDatastoreUseCase.invoke(
                     userInformation = UserInformation(
                         name = "Jane",
+                        email = "jane@example.com",
                         address = "1 rue du Fromage",
                         billingAddress = "",
                         lastSelectedPath = "Tournée du Lundi"

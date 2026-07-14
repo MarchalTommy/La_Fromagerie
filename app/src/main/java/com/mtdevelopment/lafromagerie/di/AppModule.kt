@@ -86,6 +86,7 @@ import com.mtdevelopment.home.domain.usecase.GetAllProductsUseCase
 import com.mtdevelopment.home.domain.usecase.GetLastFirestoreDatabaseUpdateUseCase
 import com.mtdevelopment.home.presentation.viewmodel.HomeViewModel
 import com.mtdevelopment.lafromagerie.FromagerieDatabase
+import com.mtdevelopment.lafromagerie.MIGRATION_4_5
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.plugins.DefaultRequest
@@ -224,6 +225,7 @@ val mainAppModule = module {
             createPaymentsClientUseCase = get(),
             json = get(),
             getCheckoutDataUseCase = get(),
+            sharedDatastore = get(),
             getCanUseGooglePayUseCase = get(),
             getPaymentDataRequestUseCase = get(),
             createNewCheckoutUseCase = get(),
@@ -457,4 +459,6 @@ fun provideDataBase(application: Application): FromagerieDatabase =
         application,
         FromagerieDatabase::class.java,
         "lafromagerie_database"
-    ).fallbackToDestructiveMigration(true).build()
+    ).addMigrations(MIGRATION_4_5)
+        .fallbackToDestructiveMigration(true)
+        .build()

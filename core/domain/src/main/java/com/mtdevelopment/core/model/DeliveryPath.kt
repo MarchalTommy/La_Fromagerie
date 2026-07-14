@@ -5,5 +5,6 @@ data class DeliveryPath(
     val pathName: String,
     val availableCities: List<Pair<String, Int>>,
     val deliveryDay: String,
+    val deliveryFrequency: String = "WEEKLY",
     val streets: List<String> = emptyList()
 )

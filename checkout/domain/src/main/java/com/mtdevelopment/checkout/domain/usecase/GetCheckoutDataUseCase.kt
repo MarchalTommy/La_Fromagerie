@@ -20,6 +20,7 @@ class GetCheckoutDataUseCase(
                 LocalCheckoutInformation(
                     buyerName = user.name,
                     buyerAddress = user.address,
+                    buyerEmail = user.email,
                     cartItems = cart,
                     totalPrice = totalPrice ?: 0L,
                     deliveryDate = 0L,

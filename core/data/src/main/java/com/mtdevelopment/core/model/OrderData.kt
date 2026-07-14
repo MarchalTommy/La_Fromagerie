@@ -11,6 +11,8 @@ data class OrderData(
     val id: String,
     @SerialName("customer_name")
     val customer_name: String,
+    @SerialName("customer_email")
+    val customer_email: String? = null,
     @SerialName("customer_address")
     val customer_address: String,
     @SerialName("billing_address")
@@ -35,6 +37,7 @@ fun OrderData.toOrder(): Order {
     return Order(
         id = id,
         customerName = customer_name,
+        customerEmail = customer_email,
         customerAddress = customer_address,
         customerBillingAddress = billing_address,
         deliveryDate = delivery_date,
@@ -51,6 +54,7 @@ fun Order.toOrderData(): OrderData {
     return OrderData(
         id = id,
         customer_name = customerName,
+        customer_email = customerEmail,
         customer_address = customerAddress,
         billing_address = customerBillingAddress,
         delivery_date = deliveryDate,

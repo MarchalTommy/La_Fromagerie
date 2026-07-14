@@ -2,7 +2,7 @@
   "project_info": {
     "project_number": "541930609515",
     "project_id": "la-fromagerie-25560",
-    "storage_bucket": "la-fromagerie-25560.appspot.com"
+    "storage_bucket": "la-fromagerie-25560.firebasestorage.app"
   },
   "client": [
     {
@@ -12,15 +12,76 @@
           "package_name": "com.mtdevelopment.lafromagerie"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "541930609515-3clgu4g9t9r6dms72grgvmks5pdnddcr.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.mtdevelopment.lafromagerie",
+            "certificate_hash": "5cbbf6af1025d939d96f5ca4089c3efbe79c6ad3"
+          }
+        },
+        {
+          "client_id": "541930609515-3md2h3soa14g52hur09t2i6iv7phnoh3.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.mtdevelopment.lafromagerie",
+            "certificate_hash": "6081aa142d6f55a17c042f65af20fbacd7adbbc7"
+          }
+        },
+        {
+          "client_id": "541930609515-rngj7a8ta42urnogorgiala3km8en6ka.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyC2Ew_BcBaZzr3PJz6Iil8B0ReklP3GSi4"
+        },
+        {
+          "current_key": "AIzaSyCKCKYChbQujiSHHj9dbALzIXF4wNlDXWo"
         }
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "541930609515-rngj7a8ta42urnogorgiala3km8en6ka.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:541930609515:android:7e23ed291e4d84496d4a2e",
+        "android_client_info": {
+          "package_name": "com.mtdevelopment.lafromagerie.demo"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "541930609515-rngj7a8ta42urnogorgiala3km8en6ka.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC2Ew_BcBaZzr3PJz6Iil8B0ReklP3GSi4"
+        },
+        {
+          "current_key": "AIzaSyCKCKYChbQujiSHHj9dbALzIXF4wNlDXWo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "541930609515-rngj7a8ta42urnogorgiala3km8en6ka.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

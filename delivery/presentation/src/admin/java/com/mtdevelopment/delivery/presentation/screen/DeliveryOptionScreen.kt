@@ -31,7 +31,7 @@ import com.mtdevelopment.delivery.presentation.composable.AdminContent
 import com.mtdevelopment.delivery.presentation.composable.DatePickerComposable
 import com.mtdevelopment.delivery.presentation.composable.MapBoxComposable
 import com.mtdevelopment.delivery.presentation.composable.PathEditDialog
-import com.mtdevelopment.delivery.presentation.composable.getDatePickerState
+
 import com.mtdevelopment.delivery.presentation.model.toAdminUiDeliveryPath
 import com.mtdevelopment.delivery.presentation.viewmodel.DeliveryViewModel
 import org.koin.androidx.compose.koinViewModel
@@ -55,11 +55,6 @@ fun DeliveryOptionScreen(
         }
     }
 
-    val datePickerState = remember(state.value.selectedPath) {
-        derivedStateOf {
-            getDatePickerState(state.value.selectedPath)
-        }
-    }
 
     val isConnected = deliveryViewModel.isConnected.collectAsState()
 
@@ -149,7 +144,7 @@ fun DeliveryOptionScreen(
 
         if (state.value.datePickerVisibility) {
             DatePickerComposable(
-                datePickerState = datePickerState.value,
+                selectedPath = state.value.selectedPath,
                 shouldRemoveDatePicker = {
                     deliveryViewModel.setIsDatePickerShown(false)
                 },

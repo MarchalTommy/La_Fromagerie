@@ -7,6 +7,7 @@ import com.mtdevelopment.core.model.CartItems
 data class LocalCheckoutInformation(
     val buyerName: String? = null,
     val buyerAddress: String? = null,
+    val buyerEmail: String? = null,
     val cartItems: CartItems? = null,
     val totalPrice: Long? = null,
     val deliveryDate: Long? = null,

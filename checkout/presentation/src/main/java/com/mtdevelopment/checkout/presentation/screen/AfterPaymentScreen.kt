@@ -3,10 +3,10 @@ package com.mtdevelopment.checkout.presentation.screen
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -23,6 +23,7 @@ import com.airbnb.lottie.compose.animateLottieCompositionAsState
 import com.airbnb.lottie.compose.rememberLottieComposition
 import com.mtdevelopment.checkout.presentation.R
 import com.mtdevelopment.checkout.presentation.viewmodel.CheckoutViewModel
+import com.mtdevelopment.core.presentation.composable.PrimaryButton
 import com.mtdevelopment.core.util.rememberScreenSize
 import org.koin.androidx.compose.koinViewModel
 
@@ -94,14 +95,16 @@ fun AfterPaymentScreen(
             text = "Merci de le conserver, il ne pourra pas vous être dupliqué"
         )
 
-        Button(
-            modifier = Modifier.padding(32.dp),
+        PrimaryButton(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(32.dp),
+            text = "Revenir au catalogue",
+            trailingIcon = null,
             onClick = {
                 onHomeClick.invoke()
             }
-        ) {
-            Text(text = "Revenir au catalogue")
-        }
+        )
     }
 }
 

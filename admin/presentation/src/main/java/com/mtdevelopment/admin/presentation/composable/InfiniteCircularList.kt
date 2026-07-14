@@ -34,9 +34,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.mtdevelopment.admin.presentation.model.AdminUiDeliveryPath
-import java.time.DayOfWeek
-import java.time.format.TextStyle
-import java.util.Locale
+import com.mtdevelopment.core.domain.getFormattedDeliveryDayAndFrequency
 import java.util.UUID
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -58,7 +56,8 @@ fun <T> InfiniteCircularList(
         id = UUID.randomUUID().toString(),
         name = "Ajouter un parcours",
         cities = emptyList(),
-        deliveryDay = ""
+        deliveryDay = "",
+        deliveryFrequency = "WEEKLY"
     )
 
     var hasScrolled by remember { mutableStateOf(false) }
@@ -184,8 +183,11 @@ fun <T> InfiniteCircularList(
                             )
                             Text(
                                 modifier = Modifier.padding(8.dp),
-                                text = (DayOfWeek.valueOf(item.deliveryDay)
-                                    .getDisplayName(TextStyle.FULL, Locale.FRANCE)).uppercase(),
+                                text = getFormattedDeliveryDayAndFrequency(
+                                    deliveryDay = item.deliveryDay,
+                                    deliveryFrequency = item.deliveryFrequency,
+                                    shortFormat = true
+                                ).uppercase(),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = textColor,
                                 fontWeight = FontWeight.Bold,

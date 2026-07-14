@@ -7,6 +7,8 @@ import com.google.gson.annotations.SerializedName
 data class UserInformation(
     @SerializedName("name")
     val name: String,
+    @SerializedName("email")
+    val email: String,
     @SerializedName("address")
     val address: String,
     @SerializedName("billingAddress")

@@ -18,6 +18,8 @@ data class DataDeliveryPath(
     val path_name: String? = null,
     @SerialName("delivery_day")
     val delivery_day: String = "",
+    @SerialName("delivery_frequency")
+    val delivery_frequency: String = "WEEKLY",
     @SerialName("cities")
     val cities: List<String>? = null,
     @SerialName("postcodes")
@@ -32,6 +34,7 @@ fun DeliveryPath.toDataDeliveryPath() = DataDeliveryPath(
     id = id,
     path_name = pathName,
     delivery_day = deliveryDay,
+    delivery_frequency = deliveryFrequency,
     cities = availableCities.map { it.first },
     postcodes = availableCities.map { it.second }
 )

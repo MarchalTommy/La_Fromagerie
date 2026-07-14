@@ -176,13 +176,18 @@ class DeliveryViewModel(
     fun saveUserInfo(onError: () -> Unit = {}) {
         viewModelScope.launch {
             // Validation: Ensure mandatory fields are filled
-            if (deliveryUiDataState.selectedPath == null || deliveryUiDataState.deliveryAddressSearchQuery.isBlank()) {
+            if (deliveryUiDataState.selectedPath == null || 
+                deliveryUiDataState.deliveryAddressSearchQuery.isBlank() ||
+                deliveryUiDataState.userNameFieldText.isBlank()
+            ) {
                 onError.invoke()
                 return@launch
             }
+            val existingUserInfo = getUserInfoFromDatastoreUseCase.invoke().firstOrNull()
             saveToDatastoreUseCase.invoke(
                 userInformation = UserInformation(
                     name = deliveryUiDataState.userNameFieldText,
+                    email = existingUserInfo?.email ?: "",
                     address = deliveryUiDataState.deliveryAddressSearchQuery,
                     billingAddress = deliveryUiDataState.billingAddressSearchQuery,
                     lastSelectedPath = deliveryUiDataState.selectedPath?.name ?: ""

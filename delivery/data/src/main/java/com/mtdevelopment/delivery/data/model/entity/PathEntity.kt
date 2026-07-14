@@ -6,7 +6,6 @@ import com.mtdevelopment.delivery.domain.model.DeliveryPath
 import com.mtdevelopment.delivery.domain.model.GeoJsonFeatureCollection
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
 @Serializable
@@ -22,6 +21,8 @@ data class PathEntity(
     val locations: List<Coordinate>,
     @SerialName("delivery_day")
     val deliveryDay: String = "",
+    @SerialName("delivery_frequency")
+    val deliveryFrequency: String = "WEEKLY",
     @SerialName("geojson")
     val geojson: String = ""
 )
@@ -35,6 +36,7 @@ fun PathEntity.toPath(): DeliveryPath {
             Pair(it.latitude, it.longitude)
         },
         deliveryDay = deliveryDay,
+        deliveryFrequency = deliveryFrequency,
         geoJson = if (this.geojson != null && this.geojson != "null") {
             Json.decodeFromString<GeoJsonFeatureCollection>(
                 this.geojson
@@ -57,6 +59,7 @@ fun DeliveryPath.toPathEntity(): PathEntity {
             )
         },
         deliveryDay = deliveryDay,
+        deliveryFrequency = deliveryFrequency,
         geojson = Json.encodeToString(this.geoJson)
     )
 }

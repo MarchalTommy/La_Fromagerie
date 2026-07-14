@@ -10,6 +10,7 @@ data class UiDeliveryPath(
     val cities: List<Pair<String, Int>>,
     val locations: List<Pair<Double, Double>>?,
     val deliveryDay: String,
+    val deliveryFrequency: String = "WEEKLY",
     val streets: List<String> = emptyList(),
     val geoJson: GeoJsonFeatureCollection?
 )
@@ -21,6 +22,7 @@ fun DeliveryPath.toUiDeliveryPath(): UiDeliveryPath {
         cities = this.availableCities,
         locations = this.locations,
         deliveryDay = deliveryDay,
+        deliveryFrequency = deliveryFrequency,
         streets = this.streets,
         geoJson = geoJson
     )
@@ -32,6 +34,7 @@ fun UiDeliveryPath.toAdminUiDeliveryPath(): AdminUiDeliveryPath {
         name = this.name,
         cities = this.cities,
         deliveryDay = deliveryDay,
+        deliveryFrequency = deliveryFrequency,
         streets = this.streets
     )
 }
@@ -43,7 +46,24 @@ fun AdminUiDeliveryPath.toUiDeliveryPath(): UiDeliveryPath {
         cities = this.cities,
         locations = null,
         deliveryDay = deliveryDay,
+        deliveryFrequency = deliveryFrequency,
         streets = this.streets,
         geoJson = null
+    )
+}
+
+fun UiDeliveryPath.getFormattedDeliveryDayAndFrequency(): String {
+    return com.mtdevelopment.core.domain.getFormattedDeliveryDayAndFrequency(
+        deliveryDay = this.deliveryDay,
+        deliveryFrequency = this.deliveryFrequency,
+        shortFormat = false
+    )
+}
+
+fun AdminUiDeliveryPath.getFormattedDeliveryDayAndFrequency(): String {
+    return com.mtdevelopment.core.domain.getFormattedDeliveryDayAndFrequency(
+        deliveryDay = this.deliveryDay,
+        deliveryFrequency = this.deliveryFrequency,
+        shortFormat = true
     )
 }

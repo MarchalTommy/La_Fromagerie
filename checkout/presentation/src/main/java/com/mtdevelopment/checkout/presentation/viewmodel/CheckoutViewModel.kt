@@ -40,6 +40,7 @@ import com.mtdevelopment.core.domain.toPriceDouble
 import com.mtdevelopment.core.domain.toStringDate
 import com.mtdevelopment.core.model.Order
 import com.mtdevelopment.core.model.OrderStatus
+import com.mtdevelopment.core.repository.SharedDatastore
 import com.mtdevelopment.core.usecase.ClearCartUseCase
 import com.mtdevelopment.core.usecase.GetIsNetworkConnectedUseCase
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -81,6 +82,7 @@ class CheckoutViewModel(
     createPaymentsClientUseCase: CreatePaymentsClientUseCase,
     private val json: Json,
     private val getCheckoutDataUseCase: GetCheckoutDataUseCase,
+    private val sharedDatastore: SharedDatastore,
     private val getCanUseGooglePayUseCase: GetCanUseGooglePayUseCase,
     private val getPaymentDataRequestUseCase: GetPaymentDataRequestUseCase,
     private val createNewCheckoutUseCase: CreateNewCheckoutUseCase,
@@ -155,6 +157,7 @@ class CheckoutViewModel(
                         buyerName = data.buyerName,
                         buyerAddress = data.buyerAddress,
                         buyerBillingAddress = data.billingAddress,
+                        buyerEmail = data.buyerEmail ?: it.buyerEmail,
                         totalPrice = data.totalPrice,
                         deliveryDate = data.deliveryDate,
                         cartItems = data.cartItems,
@@ -171,6 +174,14 @@ class CheckoutViewModel(
     fun updateBuyerEmail(email: String) {
         _paymentScreenState.update {
             it.copy(buyerEmail = email)
+        }
+        viewModelScope.launch {
+            val currentInfo = sharedDatastore.userInformationFlow.firstOrNull()
+            if (currentInfo != null) {
+                sharedDatastore.setUserInformation(
+                    currentInfo.copy(email = email)
+                )
+            }
         }
     }
 
@@ -455,6 +466,7 @@ class CheckoutViewModel(
                     Order(
                         id = orderId,
                         customerName = _paymentScreenState.value.buyerName.toString(),
+                        customerEmail = _paymentScreenState.value.buyerEmail,
                         customerAddress = _paymentScreenState.value.buyerAddress.toString(),
                         customerBillingAddress = _paymentScreenState.value.buyerBillingAddress.toString(),
                         deliveryDate = _paymentScreenState.value.deliveryDate?.toStringDate() ?: "",

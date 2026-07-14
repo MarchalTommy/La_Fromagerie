@@ -30,6 +30,8 @@ import com.mtdevelopment.core.model.CartItem
 import com.mtdevelopment.core.model.CartItems
 import com.mtdevelopment.core.model.Order
 import com.mtdevelopment.core.model.OrderStatus
+import com.mtdevelopment.core.model.UserInformation
+import com.mtdevelopment.core.repository.SharedDatastore
 import com.mtdevelopment.core.usecase.ClearCartUseCase
 import com.mtdevelopment.core.usecase.GetIsNetworkConnectedUseCase
 import io.mockk.coEvery
@@ -67,6 +69,7 @@ class CheckoutViewModelTest {
     private val fetchAllowedPaymentMethods: FetchAllowedPaymentMethods = mockk()
     private val createPaymentsClientUseCase: CreatePaymentsClientUseCase = mockk()
     private val getCheckoutDataUseCase: GetCheckoutDataUseCase = mockk()
+    private val sharedDatastore: SharedDatastore = mockk(relaxed = true)
     private val getCanUseGooglePayUseCase: GetCanUseGooglePayUseCase = mockk()
     private val getPaymentDataRequestUseCase: GetPaymentDataRequestUseCase = mockk()
     private val createNewCheckoutUseCase: CreateNewCheckoutUseCase = mockk()
@@ -115,6 +118,7 @@ class CheckoutViewModelTest {
         createPaymentsClientUseCase,
         Json { ignoreUnknownKeys = true },
         getCheckoutDataUseCase,
+        sharedDatastore,
         getCanUseGooglePayUseCase,
         getPaymentDataRequestUseCase,
         createNewCheckoutUseCase,
@@ -160,15 +164,20 @@ class CheckoutViewModelTest {
 
     @Test
     fun `updateBuyerEmail and updateCheckoutNote mutate state`() = runTest(testDispatcher) {
+        val userInformation =
+            UserInformation("Jane", "jane@example.com", "1 rue du Fromage", "", "")
+        every { sharedDatastore.userInformationFlow } returns flowOf(userInformation)
         val viewModel = buildViewModel()
         testScheduler.advanceUntilIdle()
 
-        viewModel.updateBuyerEmail("jane@example.com")
+        viewModel.updateBuyerEmail("new-jane@example.com")
         viewModel.updateCheckoutNote("Sonner au portail")
+        testScheduler.advanceUntilIdle()
 
         val state = viewModel.paymentScreenState.value
-        assertEquals("jane@example.com", state.buyerEmail)
+        assertEquals("new-jane@example.com", state.buyerEmail)
         assertEquals("Sonner au portail", state.checkoutNote)
+        coVerify { sharedDatastore.setUserInformation(userInformation.copy(email = "new-jane@example.com")) }
     }
 
     @Test
@@ -196,6 +205,7 @@ class CheckoutViewModelTest {
             LocalCheckoutInformation(
                 buyerName = "Jane",
                 buyerAddress = "1 rue du Fromage",
+                buyerEmail = "jane@example.com",
                 cartItems = cart,
                 totalPrice = 2000L,
                 deliveryDate = 42L,
@@ -211,6 +221,7 @@ class CheckoutViewModelTest {
 
         val state = viewModel.paymentScreenState.value
         assertEquals("Jane", state.buyerName)
+        assertEquals("jane@example.com", state.buyerEmail)
         assertEquals("1 rue du Fromage", state.buyerAddress)
         assertEquals("2 rue de la Facture", state.buyerBillingAddress)
         assertEquals(2000L, state.totalPrice)
@@ -267,6 +278,7 @@ class CheckoutViewModelTest {
                 LocalCheckoutInformation(
                     buyerName = "Jane",
                     buyerAddress = "1 rue du Fromage",
+                    buyerEmail = "jane@example.com",
                     cartItems = cart,
                     totalPrice = 2000L,
                     deliveryDate = 42L,
@@ -311,6 +323,7 @@ class CheckoutViewModelTest {
                 LocalCheckoutInformation(
                     buyerName = "Jane",
                     buyerAddress = "1 rue du Fromage",
+                    buyerEmail = "jane@example.com",
                     cartItems = cart,
                     totalPrice = 2000L,
                     deliveryDate = 42L,
@@ -478,6 +491,7 @@ class CheckoutViewModelTest {
                 LocalCheckoutInformation(
                     buyerName = "Jane",
                     buyerAddress = "1 rue du Fromage",
+                    buyerEmail = "jane@example.com",
                     cartItems = cart,
                     totalPrice = 2000L,
                     deliveryDate = 42L,

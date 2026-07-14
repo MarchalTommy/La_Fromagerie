@@ -5,6 +5,7 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class UserInformationData(
     val name: String,
+    val email: String,
     val address: String,
     val lastSelectedPath: String,
     val billingAddress: String
@@ -13,6 +14,7 @@ data class UserInformationData(
 // Data to domain
 fun UserInformationData.toUserInformation() = UserInformation(
     name = name,
+    email = email,
     address = address,
     lastSelectedPath = lastSelectedPath,
     billingAddress = billingAddress
@@ -21,6 +23,7 @@ fun UserInformationData.toUserInformation() = UserInformation(
 // Domain to data
 fun UserInformation.toUserInformationData() = UserInformationData(
     name = name,
+    email = email,
     address = address,
     lastSelectedPath = lastSelectedPath,
     billingAddress = billingAddress

@@ -2,7 +2,6 @@ package com.mtdevelopment.delivery.presentation.screen
 
 import android.annotation.SuppressLint
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
@@ -28,7 +27,6 @@ import com.mtdevelopment.delivery.presentation.composable.DatePickerComposable
 import com.mtdevelopment.delivery.presentation.composable.DeliveryEligibility
 import com.mtdevelopment.delivery.presentation.composable.MapBoxComposable
 import com.mtdevelopment.delivery.presentation.composable.PermissionManagerComposable
-import com.mtdevelopment.delivery.presentation.composable.getDatePickerState
 import com.mtdevelopment.delivery.presentation.viewmodel.DeliveryViewModel
 import org.koin.androidx.compose.koinViewModel
 
@@ -65,11 +63,7 @@ fun DeliveryOptionScreen(
     /**
      * The DatePicker state is sensitive to the selected delivery path (different paths have different schedules).
      */
-    val datePickerState = remember(state.value.selectedPath) {
-        derivedStateOf {
-            getDatePickerState(state.value.selectedPath)
-        }
-    }
+
     val scrollState = rememberScrollState()
 
     // Initialize MapBox access token
@@ -103,10 +97,12 @@ fun DeliveryOptionScreen(
                 )
                 .padding(8.dp)
         ) {
-            // MAP SECTION: Visualizes delivery zones
+            // MAP SECTION: Visualizes delivery zones.
+            // Made more compact (assisted journey step 1) so the form sheet fits below it.
             MapBoxComposable(
                 userLocation = state.value.userCityLocation,
                 isConnectedToInternet = isConnected.value,
+                heightReduction = 64.dp,
                 setIsLoading = {
                     deliveryViewModel.setIsLoading(it)
                 },
@@ -119,13 +115,20 @@ fun DeliveryOptionScreen(
                 }
             )
 
-            // FORM SECTION: Collects user data and selections
+            // FORM SECTION: Collects user data and selections.
+            // Step 1 of the assisted journey: "Continuer" persists the info and opens the
+            // delivery-date calendar; the actual navigation to checkout happens once a date
+            // is confirmed (see the DatePicker dialog below).
             CustomerContent(
-                deliveryViewModel,
-                navigateToCheckout,
-                state,
-                datePickerState,
-                scrollState,
+                deliveryViewModel = deliveryViewModel,
+                onContinue = {
+                    deliveryViewModel.saveUserInfo(onError = {
+                        deliveryViewModel.setIsError("Erreur lors de la sauvegarde de vos informations")
+                    })
+                    deliveryViewModel.setIsDatePickerShown(true)
+                },
+                state = state,
+                scrollState = scrollState,
                 onError = {
                     deliveryViewModel.setIsError("Erreur lors de la sauvegarde de vos informations")
                 }
@@ -186,10 +189,11 @@ fun DeliveryOptionScreen(
             }
         )
 
-        // DIALOG: Date selection
+        // DIALOG: Date selection — step 2 of the assisted journey ("Calendrier Épuré").
+        // Confirming a date persists it and moves on to the pre-payment validation screen.
         if (state.value.datePickerVisibility) {
             DatePickerComposable(
-                datePickerState = datePickerState.value,
+                selectedPath = state.value.selectedPath,
                 shouldRemoveDatePicker = {
                     deliveryViewModel.setIsDatePickerShown(false)
                 },
@@ -198,6 +202,7 @@ fun DeliveryOptionScreen(
                 },
                 onDateSelected = {
                     deliveryViewModel.saveSelectedDate(it)
+                    navigateToCheckout.invoke()
                 }
             )
         }
