@@ -50,7 +50,7 @@ accompanist = "0.36.0"
 accompanist-permissions = "0.37.3"
 contentment = "2.0.1"
 # Maps
-mapbox = "11.6.1"
+mapbox = "11.18.2"
 mapbox-geojson = "7.3.1"
 location = "21.3.0"
 google-maps = "8.1.0"
@@ -182,8 +182,11 @@ androidx-navigation-common-ktx = { group = "androidx.navigation", name = "naviga
 
 
 ## Map
-mapbox = { module = "com.mapbox.maps:android", version.ref = "mapbox" }
-mapbox-extension = { module = "com.mapbox.extension:maps-compose", version.ref = "mapbox" }
+# The `-ndk27` artifacts are Mapbox's NDK 27 builds: their .so files are 16 KB
+# page-aligned, which Android 15+ 64-bit devices (and Google Play) require. The plain
+# `android`/`maps-compose` artifacts are still NDK 23 (4 KB) — do not switch back.
+mapbox = { module = "com.mapbox.maps:android-ndk27", version.ref = "mapbox" }
+mapbox-extension = { module = "com.mapbox.extension:maps-compose-ndk27", version.ref = "mapbox" }
 mapbox-geojson = { module = "com.mapbox.mapboxsdk:mapbox-sdk-geojson", version.ref = "mapbox-geojson" }
 google-maps = { module = "com.google.maps.android:maps-compose", version.ref = "google-maps" }
 
