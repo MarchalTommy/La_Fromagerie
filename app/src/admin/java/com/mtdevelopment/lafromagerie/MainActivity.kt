@@ -210,7 +210,7 @@ class MainActivity : ComponentActivity() {
                                 scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer
                             ),
                             title = {
-                                Text("La Fromagerie")
+                                Text("FromDeBique")
                             },
                             navigationIcon = {
                                 AnimatedVisibility(
