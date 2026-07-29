@@ -16,6 +16,10 @@ import kotlinx.coroutines.launch
  * 1. Checks if a refresh is needed by comparing local state with the `shouldRefreshPaths` flag from [SharedDatastore].
  * 2. If refresh is needed (or forced):
  *    - Fetches paths from [FirestorePathRepository].
+ *    - **If the fetch comes back empty, it is treated as a failure**: the flag stays set and
+ *      nothing is written. An empty list must never be persisted as the truth — doing so used
+ *      to wipe the cache and leave the customer with no deliverable address until the remote
+ *      `path_timestamp` changed.
  *    - Persists each path into the local [RoomDeliveryRepository].
  *    - Performs a cleanup: deletes paths from local Room that are no longer present in Firestore.
  *    - Resets the `shouldRefreshPaths` flag to false.
@@ -49,38 +53,52 @@ class GetAllDeliveryPathsUseCase(
             repository.getAllDeliveryPaths(
                 withGeoJson = withGeoJson,
                 onSuccess = { pathsList ->
-                    /**
-                     * Cache synchronization: Persist all new/updated paths to Room
-                     */
-                    pathsList.forEach { path ->
+                    val fetchedPaths = pathsList.filterNotNull()
+
+                    if (fetchedPaths.isEmpty()) {
+                        /**
+                         * Defence in depth against the "poisoned cache" failure: an empty
+                         * fetch must never mark the cache as synchronized, and must never
+                         * reach the cleanup below — which would delete every locally
+                         * cached path because none of them appear in the empty list. The
+                         * refresh flag stays set so the next attempt retries.
+                         */
                         scope.launch {
-                            if (path != null) {
+                            sharedDatastore.setShouldRefreshPaths(true)
+                            onFailure.invoke()
+                        }
+                    } else {
+                        /**
+                         * Cache synchronization: Persist all new/updated paths to Room
+                         */
+                        fetchedPaths.forEach { path ->
+                            scope.launch {
                                 roomRepository.persistPath(path)
                             }
                         }
-                    }
 
-                    scope.launch {
-                        /**
-                         * Mark local cache as synchronized
-                         */
-                        sharedDatastore.setShouldRefreshPaths(false)
+                        scope.launch {
+                            /**
+                             * Mark local cache as synchronized
+                             */
+                            sharedDatastore.setShouldRefreshPaths(false)
 
-                        /**
-                         * Cache cleanup: Remove local paths that no longer exist on the server
-                         */
-                        roomRepository.getPaths { localPathsList ->
-                            localPathsList.forEach { entity ->
-                                if (!pathsList.any { data -> entity.id == data?.id }) {
-                                    scope.launch {
-                                        roomRepository.deletePath(entity)
+                            /**
+                             * Cache cleanup: Remove local paths that no longer exist on the server
+                             */
+                            roomRepository.getPaths { localPathsList ->
+                                localPathsList.forEach { entity ->
+                                    if (fetchedPaths.none { data -> entity.id == data.id }) {
+                                        scope.launch {
+                                            roomRepository.deletePath(entity)
+                                        }
                                     }
                                 }
                             }
                         }
-                    }
 
-                    onSuccess(pathsList)
+                        onSuccess(pathsList)
+                    }
                 }, onFailure = {
                     // In case of network failure, keep the refresh flag true for next attempt
                     scope.launch {

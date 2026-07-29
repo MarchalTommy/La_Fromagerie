@@ -115,6 +115,59 @@ class GetAllDeliveryPathsUseCaseTest {
         assertEquals(listOf(remotePath), received)
     }
 
+    /**
+     * Regression: an offline first launch made Firestore's `get()` complete successfully
+     * with zero documents. That empty list used to be persisted as the truth, which reset
+     * the refresh flag and left the app permanently pathless — every customer address was
+     * then reported as "not on a delivery path".
+     */
+    @Test
+    fun `empty fetch is reported as failure and keeps the refresh flag set`() = runTest {
+        every { sharedDatastore.shouldRefreshPaths } returns flowOf(true)
+        every {
+            firestoreRepository.getAllDeliveryPaths(any(), any(), any())
+        } answers {
+            secondArg<(List<DeliveryPath?>) -> Unit>().invoke(emptyList())
+        }
+
+        var success = false
+        var failure = false
+        useCase(
+            scope = this,
+            onSuccess = { success = true },
+            onFailure = { failure = true }
+        )
+        advanceUntilIdle()
+
+        assertFalse(success)
+        assertTrue(failure)
+        coVerify(exactly = 1) { sharedDatastore.setShouldRefreshPaths(true) }
+        coVerify(exactly = 0) { sharedDatastore.setShouldRefreshPaths(false) }
+    }
+
+    @Test
+    fun `empty fetch never wipes the local cache`() = runTest {
+        every { sharedDatastore.shouldRefreshPaths } returns flowOf(true)
+        every {
+            firestoreRepository.getAllDeliveryPaths(any(), any(), any())
+        } answers {
+            secondArg<(List<DeliveryPath?>) -> Unit>().invoke(emptyList())
+        }
+        coEvery { roomRepository.getPaths(any()) } answers {
+            firstArg<(List<DeliveryPath>) -> Unit>().invoke(listOf(remotePath, stalePath))
+        }
+
+        useCase(
+            scope = this,
+            onSuccess = { },
+            onFailure = { }
+        )
+        advanceUntilIdle()
+
+        coVerify(exactly = 0) { roomRepository.deletePath(any()) }
+        coVerify(exactly = 0) { roomRepository.persistPath(any()) }
+    }
+
     @Test
     fun `keeps refresh flag set and reports failure on network error`() = runTest {
         every { sharedDatastore.shouldRefreshPaths } returns flowOf(true)
