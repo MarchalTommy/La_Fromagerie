@@ -40,7 +40,7 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "La Fromagerie"
+rootProject.name = "FromDeBique"
 include(":app")
 include(":auth")
 include(":core")

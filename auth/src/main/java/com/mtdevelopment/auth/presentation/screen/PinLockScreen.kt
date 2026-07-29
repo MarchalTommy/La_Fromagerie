@@ -56,7 +56,7 @@ fun PinLockScreen(
             verticalArrangement = Arrangement.Center
         ) {
             Text(
-                text = "La Fromagerie",
+                text = "FromDeBique",
                 style = MaterialTheme.typography.headlineMedium,
                 color = MaterialTheme.colorScheme.onBackground
             )

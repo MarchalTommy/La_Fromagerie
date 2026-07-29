@@ -224,7 +224,7 @@ class MainActivity : ComponentActivity() {
                                 scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer
                             ),
                             title = {
-                                Text("La Fromagerie")
+                                Text("FromDeBique")
                             },
                             navigationIcon = {
                                 // previousBackStackEntry is not snapshot state: it is re-read here

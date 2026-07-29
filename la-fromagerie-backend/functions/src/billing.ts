@@ -149,7 +149,7 @@ async function buildInvoiceLines(
 ): Promise<InvoiceLine[]> {
     const entries = Object.entries(products);
     const fallback: InvoiceLine[] = [
-        { description: `Commande La Fromagerie #${orderId}`, unitPriceCents: totalCents, quantity: 1 },
+        { description: `Commande FromDeBique #${orderId}`, unitPriceCents: totalCents, quantity: 1 },
     ];
     if (entries.length === 0) {
         return fallback;

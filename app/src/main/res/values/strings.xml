@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">La Fromagerie</string>
+    <string name="app_name">FromDeBique</string>
     <string name="cart_content_description">Panier</string>
     <string name="loading_animation">Animation de chargement</string>
     <string name="error_database_update">Mise à jour de la base de donnée impossible</string>
