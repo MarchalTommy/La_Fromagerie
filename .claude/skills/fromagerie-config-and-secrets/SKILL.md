@@ -103,8 +103,12 @@ as-is unless a change is explicitly scoped to remove it, and NEVER commit them u
 | `android.builtInKotlin` | `false` | **Temporary / must migrate** — AGP 9 opt-out to keep the explicit `kotlin-android` plugin; removal required before AGP 10 (per in-file comment) |
 | `android.newDsl` | `false` | **Temporary / must migrate** — AGP 9 new-DSL opt-out, same AGP 10 deadline |
 
-Root `gradle.properties` is git-tracked — never put secrets in it. As of 2026-07-06 it
-contains only the flags above (verified: no ALL_CAPS secret keys present).
+Root `gradle.properties` is git-tracked and NOT in `.gitignore`. The **committed** version
+contains only the flags above. ⚠️ **But as of 2026-07-27 the main checkout's working copy
+carries all 18 secrets as an uncommitted modification** — see "Where values live locally"
+below and **fromagerie-operations-hardening-frontier §4b**. Never `git add`, `git restore`,
+or `git checkout` this file: staging it leaks the SumUp and keystore credentials, reverting
+it destroys the only copy.
 
 ## google-services.json (Firebase config)
 
@@ -151,17 +155,36 @@ Facts verified 2026-07-06, updated 2026-07-07 (commit `ecda756`):
   the function's env. These are NOT Gradle keys — setting them in gradle.properties does
   nothing.
 
-## Where values live locally — as of 2026-07-06
+## Where values live locally — RESOLVED 2026-07-27 (supersedes the 2026-07-06 guess)
 
-Verified by existence-only checks on this machine: none of the Gradle keys above are
-present in the worktree `local.properties` (only `sdk.dir`), the root
-`gradle.properties`, or `~/.gradle/gradle.properties`, and none are exported in a
-non-interactive shell. UNVERIFIED: the exact supply mechanism on Tommy's machine —
-presumably the interactive shell profile or Android Studio's run environment exports
-them as env vars (the `System.getenv` branch). Consequence for agents: **a CLI Gradle
-build from a fresh non-interactive shell will bake `"null"` into every secret BuildConfig
-field** and cannot sign a release. Do not conclude "config is broken" from that alone;
-confirm with the wiring checks below and ask before touching anything.
+**The 18 secrets live in the MAIN CHECKOUT's root `gradle.properties`** —
+`/Users/tommy/StudioProjects/LaFromagerie/gradle.properties`, 58 lines, carrying
+`KEYSTORE_*`, `MAPBOX_*`, `SUMUP_*`, `GOOGLE_PAY_*`, `GOOGLE_API`, `OPEN_ROUTE_TOKEN`,
+`CLOUDINARY_*`. They are **not** env vars: `~/.gradle/gradle.properties` does not exist on
+this machine, and no shell profile exports them. The earlier "presumably the interactive
+shell profile or Android Studio" note was wrong — discard it.
+
+Two consequences that bite agents, both verified 2026-07-27:
+
+1. **Worktrees do not inherit them.** `gradle.properties` is a *tracked* file and the
+   secrets are an **uncommitted working-tree modification** in the main checkout. A
+   `git worktree` checkout therefore gets the committed, secret-free 26-line version, so
+   **every build from a `.claude/worktrees/*` session bakes `"null"` into every secret
+   BuildConfig field.** Symptoms: black Mapbox map, OpenRouteService
+   `Access to this API has been disallowed`, unsignable release. Do not conclude "the map
+   is broken" or "the API key expired" from a worktree build — check `BuildConfig` first:
+   ```
+   find delivery/presentation/build -name BuildConfig.java | xargs grep MAPBOX_PUBLIC_TOKEN
+   ```
+   To build a genuinely testable APK from a worktree, pass the values explicitly
+   (`-PMAPBOX_PUBLIC_TOKEN=… -POPEN_ROUTE_TOKEN=…`) or build from the main checkout /
+   Android Studio. Never ask Tommy to paste secret values into a session.
+
+2. **They are one `git add -A` from being published**, and one `git restore` from being
+   lost — `gradle.properties` is tracked and NOT in `.gitignore`. This is an open hardening
+   item with the full remediation sequence (rescue → move to `~/.gradle/gradle.properties`
+   → fail fast on `"null"`): **fromagerie-operations-hardening-frontier §4b**. Do not
+   "helpfully" `git add` or `git checkout` that file.
 
 ## Checklist — add a new secret/config axis correctly
 
@@ -270,6 +293,8 @@ facts with (run from repo root):
 | Backend tracked, `.env` still ignored | `git ls-files la-fromagerie-backend/functions` (expect source files) and `git check-ignore la-fromagerie-backend/functions/.env` (expect a match) |
 | Hardcoded function URL unchanged | `grep -n "createsumupcheckout" checkout/data/src/main/java/com/mtdevelopment/checkout/data/remote/source/SumUpDataSource.kt` |
 | local.properties still sdk.dir-only | `grep -o "^[A-Za-z._-]*=" local.properties` |
+| Secrets still in the tracked root gradle.properties (2026-07-27) | `git -C /Users/tommy/StudioProjects/LaFromagerie status --short gradle.properties` (expect ` M`) and `git ls-files --error-unmatch gradle.properties` (expect tracked) |
+| A worktree build baked `"null"` secrets | `find delivery/presentation/build -name BuildConfig.java \| xargs grep MAPBOX_PUBLIC_TOKEN` |
 
 If any command's output no longer matches this file, update the file — key names and
 line numbers here are load-bearing for other agents.

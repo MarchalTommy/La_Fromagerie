@@ -10,8 +10,10 @@ description: >
   Items covered: payment-funnel observability gaps, hosted-checkout hardening (3 MAJOR
   TODOs, owner-confirmed 2026-07-07: missing safety net, single-shot verification,
   hardcoded URL/key-in-APK batch), backend versioning (RESOLVED 2026-07-07, README
-  residual), no admin auth, no CI, the 2 failing AdminViewModelTest tests, AGP 10
-  migration debt, delivery-day offline resilience, cart persistence / client notifications.
+  residual), no admin auth, secret handling (18 secrets in a TRACKED gradle.properties and
+  `"null"`-sentinel builds that pass silently, found 2026-07-27), no CI, the 2 failing
+  AdminViewModelTest tests, AGP 10 migration debt, delivery-day offline resilience, cart
+  persistence / client notifications.
 ---
 
 # LaFromagerie — Operations Hardening Frontier
@@ -50,6 +52,7 @@ real payment; all changes go via PR to main. See **fromagerie-change-control**.
 | 2 | Backend not in version control — ✅ resolved `ecda756` (2026-07-07), README residual | infra | ~~Server logic unrecoverable~~ — closed |
 | 3 | Delivery-day offline resilience | ops | Delivery day derailed by dead signal |
 | 4 | Admin auth — PIN gate LANDED 2026-07-08; hardened Firestore rules still undeployed | security | UI gated; DB still world-writable until rules ship |
+| 4b | **Secrets in a tracked `gradle.properties` + `"null"` builds pass silently** (§4b) | security / quality | One `git add -A` leaks SumUp + keystore keys; one `git restore` loses them |
 | 5 | No CI | quality | Broken flavor/tests reach main unnoticed |
 | 6 | 2 failing AdminViewModelTest tests | quality | Green baseline is a lie; masks regressions |
 | 7 | AGP 10 migration debt | infra | Future toolchain bump blocked |
@@ -191,6 +194,61 @@ roadmap entry so no session misses them.
   App-side milestone is met; rules milestone is not yet.
 - **Re-verify the gate exists:**
   `grep -rn 'PinLockScreen\|authViewModel' app/src/admin --include='*.kt' | grep -v /build/`
+
+## 4b. Secret handling — 18 secrets live in a TRACKED file, and `"null"` builds pass silently
+
+Discovered 2026-07-27 while diagnosing a black delivery map on an AI-built APK. Two distinct
+problems, one shared root: `gradle.properties`.
+
+- **Why it falls short — (a) the leak risk.** All 18 secrets (`SUMUP_PRIVATE_KEY`,
+  `KEYSTORE_PASS`, `KEYSTORE_ALIAS_PASS`, `CLOUDINARY_PRIVATE`, `MAPBOX_*`,
+  `GOOGLE_PAY_*`, `OPEN_ROUTE_TOKEN`, …) live in the **root `gradle.properties`**, which is
+  **tracked by git and absent from `.gitignore`**. They exist only as an *uncommitted
+  working-tree modification* (` M gradle.properties`). This is the worst of both worlds:
+  - one `git add -A` / `git commit -a` in the main repo publishes the SumUp private key and
+    the release-keystore passwords to a public GitHub repo;
+  - one `git restore`/`git stash`/`git clean` **destroys the only copy** — there is no
+    backup, and the release keystore becomes unusable if its passwords are lost.
+  Note the config skill previously asserted these lived in `~/.gradle/gradle.properties`;
+  that file **does not exist** on this machine. Corrected in **fromagerie-config-and-secrets**.
+- **Why it falls short — (b) the `"null"` sentinel.** Every secret is wired as
+  `buildConfigField("String", "X", "\"${System.getenv("X") ?: findProperty("X")}\"")`. When
+  the value is absent, Kotlin interpolates the **literal string `"null"`** — the build
+  **succeeds** and ships a silently broken APK. Observed symptoms: black Mapbox map
+  (`MapboxOptions.accessToken = "null"`), OpenRouteService `Access to this API has been
+  disallowed` (Bearer `"null"`). Nothing at build time says a word.
+- **The worktree multiplier:** `git worktree` checkouts get the **committed** (secret-free,
+  26-line) `gradle.properties`, not Tommy's 58-line local modification. So **every AI
+  worktree session builds token-less APKs by default** and any on-device map/routing check
+  from such a build is meaningless. This burned a real session (2026-07-27).
+- **Our leverage:** both fixes are small, local, and independent of prod. The env-var
+  fallback (`System.getenv`) already exists in every consumer, so moving the store is a
+  no-code change.
+- **First three steps:**
+  1. **Rescue the secrets first** (owner, before anything else): copy the 58-line
+     `gradle.properties` somewhere durable — a password manager entry or an encrypted note.
+     Everything below risks the working-tree copy.
+  2. **Move them out of the repo.** Create `~/.gradle/gradle.properties` with the 18 keys,
+     revert the root `gradle.properties` to its committed state. Gradle merges the user-home
+     file into every build, including worktrees — which fixes the worktree trap at the same
+     time. (Do NOT just add `gradle.properties` to `.gitignore`: it is already tracked, so
+     ignoring it does nothing until `git rm --cached` — and that would delete the shop's
+     build config for everyone.)
+  3. **Fail fast on `"null"`.** In each `build.gradle.kts` that declares a secret
+     `buildConfigField`, throw on a missing value for release builds and warn loudly for
+     debug — so a token-less APK is impossible to ship and obvious to spot locally.
+     Consumers: `delivery/presentation` (`MAPBOX_*`), `delivery/data` (`OPEN_ROUTE_TOKEN`),
+     `checkout/data` (`SUMUP_*`, `GOOGLE_PAY_*`), `core/data` (`CLOUDINARY_*`, `GOOGLE_API`).
+- **Result when…** (a) `git log -p -- gradle.properties` shows no secret ever committed AND
+  the working tree is clean because the values now live in `~/.gradle/gradle.properties`;
+  (b) a build with a secret unset **fails or warns audibly** instead of producing an APK
+  whose `BuildConfig` field is `"null"`; (c) a fresh worktree builds a working map with no
+  extra setup.
+- **Re-verify the exposure:**
+  `git ls-files --error-unmatch gradle.properties && git check-ignore -v gradle.properties; git status --short gradle.properties`
+- ⚠️ **If a secret was ever committed**, rotating it is the only real remedy (history
+  rewriting is not enough on a pushed public repo) — SumUp keys and the keystore passwords
+  first. Verify with `git log --oneline -S 'SUMUP_PRIVATE_KEY' -- gradle.properties`.
 
 ## 5. No CI
 
