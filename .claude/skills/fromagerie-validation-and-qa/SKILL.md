@@ -35,7 +35,7 @@ only the first two silently misses `core:domain`, `delivery:domain`, `checkout:d
 |---|---|---|
 | `testClientDebugUnitTest --continue` | 147 | 2 (`admin/presentation` `AdminViewModelTest`) |
 | `testAdminDebugUnitTest --continue` | 147 | 2 (same class, same two tests) |
-| `testDebugUnitTest --continue` | 85 | 0 |
+| `testDebugUnitTest --continue` | 87 | 0 |
 
 The two flavored runs largely re-execute the **same** tests against a different variant, so do not
 add their totals together and report ~380 — that double-counts, and it double-counts the two
@@ -144,7 +144,7 @@ Conventions and protocol verified 2026-07-06 against branch `claude/distracted-c
 **test counts and module coverage re-verified 2026-07-29** on `claude/streets-city-split-fix-f75c12`.
 Re-verify drift-prone claims:
 
-- Counts per command (147 / 147 / 85, with 2 failures on each flavored run): run each of the three
+- Counts per command (147 / 147 / 87, with 2 failures on each flavored run): run each of the three
   commands above, then total the XML rather than trusting the console summary, which only reports
   the last module:
   ```bash

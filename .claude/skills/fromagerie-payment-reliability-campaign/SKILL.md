@@ -125,6 +125,41 @@ What is **actually guaranteed** today (traced from `FinalizePaymentWorker` + `Wo
 6. **Firestore rules — exported 2026-07-08, finding CRITICAL:** the live rules are now in the repo (`la-fromagerie-backend/firestore.rules`, wired into `firebase.json`; indexes + `.firebaserc` alongside) and they confirm the worst case: `allow read, write: if true` on `/{document=**}` — **all of prod Firestore is world-writable with the APK's API key** (the in-file comment claiming admin-only writes is wrong). Full analysis + a hardened draft (`firestore.rules.hardened-proposal`, order-shape validation only — real enforcement is blocked on admin auth) in `la-fromagerie-backend/FIRESTORE_RULES_AUDIT.md`. **Deploying any rules change needs Tommy** — the draft is intentionally NOT the wired file.
 7. **App-killed outcome surfacing — TRIED then REVERTED (#50 branch, 2026-07-10):** an attempt to record the worker's terminal outcome (`PaymentOutcome` in the checkout DataStore, written by `FinalizePaymentWorker.finalize()`) and, on next launch, route the customer straight to `AfterPaymentScreen` on PAID / snackbar on FAILED (consumed via `ConsumePaymentOutcomeUseCase` in the client `NavGraph`). **Rolled back on owner device-testing — the forced navigate-to-success-on-launch caused abnormal navigation in some cases** (e.g. being thrown onto the after-payment screen when reopening the app just to shop). The whole feature commit was reverted; the ON_RESUME fallback (item 2) already covers the common case (customer closes the tab → app shows success), so this is not load-bearing. **If revisited, use a NON-navigating notice** (a dismissible dialog/snackbar on whatever screen the user is on), never a forced `navController.navigate` from a launch `LaunchedEffect`. **Redirect decision (owner 2026-07-10): leave the `lafromagerie://checkout-callback` custom scheme as-is** — the ON_RESUME fallback removed the dependency on it firing, so an HTTPS App Link (verified domain + `assetlinks.json` + backend redirect change) is NOT worth it; the next step up is the webhook (Phase 5), not the redirect.
 
+### Invoicing pipeline (order-confirmation email) — idempotency under retry
+
+**Landed 2026-07-14: automated order-confirmation invoicing via Invoice Ninja (self-hosted on Le Serv) → Brevo.** Two Cloud Functions feed one shared, idempotent routine `createAndSendInvoice` (`la-fromagerie-backend/functions/src/billing.ts`):
+- `onOrderPaidCreateInvoice` — Firestore trigger on `orders/{orderId}`, `retry: true` (`index.ts:111`). Primary path, covers ALL payment flows (fires on the PAID transition).
+- `handleSumUpWebhook` — hosted-checkout defence-in-depth; returns 5xx on failure so SumUp re-delivers (1 min / 5 min / 20 min / 2 h).
+
+Idempotency is enforced by a transactional claim doc in the `invoices/{orderId}` collection (`billing.ts:106` `claimInvoice`): a full success marks it `sent`, so any later replay short-circuits to `skipped`. **No double invoice on the common paths.**
+
+**Deploy warning is expected, not a defect.** `firebase deploy` prints `functions will newly be retried in case of failure: onOrderPaidCreateInvoice` — that is the intended `retry: true` (owner-chosen for reliability: don't lose an invoice when Invoice Ninja is transiently down). It is not blocking. Firebase's reminder ("ensure your functions are idempotent") points at the one real gap below.
+
+**GAP (found 2026-07-14, owner-deferred same day — do NOT fix without sign-off): release-on-failure after a partial success double-invoices under retry.** In `createAndSendInvoice` the `catch` calls `releaseClaim` (`billing.ts:97`) for ANY throw. But the external side-effect — `markPaidAndEmail` (`billing.ts:91`, sends the Brevo email) — runs BEFORE `markInvoiced` (`billing.ts:93`, the write that stamps the claim `sent`). So the narrow window is:
+
+```
+claim → createInvoice → markPaidAndEmail ✅ (email sent)
+                              ↓
+                        markInvoiced ❌ throws (Firestore write fails)
+                              ↓
+                        catch → releaseClaim  ← claim freed
+                              ↓
+        retry (trigger rejoué, up to 7 days / SumUp re-delivery)
+                              ↓
+        re-claims → creates a 2ND invoice + sends a 2ND email
+```
+
+Impact: duplicate invoice + duplicate confirmation email to the customer. **Not a payment loss** (no money moves; the total on each invoice is still exact) — a customer-facing annoyance, amplified by `retry: true`'s up-to-7-day horizon and the webhook's own retry schedule. Low probability (a Firestore `set` failing immediately after a successful HTTP round-trip), which is why it is deferred, not urgent.
+
+**Option B (candidate — the durable fix, owner-deferred 2026-07-14):** make the claim survive partial progress instead of being torn down.
+1. Persist `invoice_ninja_id` into the claim doc as soon as `createInvoice` returns (before `markPaidAndEmail`), keeping it in the `processing` state.
+2. Only `releaseClaim` for failures that happen BEFORE any Invoice Ninja side-effect (i.e. before `createInvoice`); once an invoice exists, never release — leave the claim as a resumable marker.
+3. On replay, if the claim already carries an `invoice_ninja_id`, resume at the email/mark-sent step (or check Invoice Ninja for an existing invoice by `po_number == orderId`) instead of recreating.
+
+Verification obligation: unit tests (mock the Invoice Ninja client + Firestore) proving that a throw injected between `markPaidAndEmail` and `markInvoiced` leaves exactly ONE invoice after a replay, and that a pre-`createInvoice` failure still releases and retries cleanly. Deploy needs Tommy (backend + prod).
+
+**Option A (accepted for now):** leave as-is. A duplicated confirmation email is a benign incident for a single-shop business; revisit only if it actually occurs.
+
 ## Solution menu, ranked
 
 | Rank | Solution | Status | Verification obligation |
@@ -138,6 +173,7 @@ What is **actually guaranteed** today (traced from `FinalizePaymentWorker` + `Wo
 | 7 | Admin stale-PENDING alert (Phase 3.3) | **candidate** | blocked on admin-screen UNVERIFIED item |
 | 8 | Webhook confirmation via Cloud Function (Phase 5) | **candidate — owner-designated next (2026-07-10)** | capability VERIFIED 2026-07-10 (`CHECKOUT_STATUS_CHANGED` via `return_url`; re-fetch to confirm); build on a branch, **deploy needs Tommy** (backend + prod) |
 | 9 | Hosted-checkout path via `createSumUpCheckout` | **LANDED as working WIP** (`ecda756`) | remaining before "done": ~~FPW safety net~~ (2026-07-08), ~~single-shot verification~~ (resilient poll #49 + ON_RESUME trigger #50, 2026-07-10), app-killed outcome surfacing (tried+reverted #50 — needs a non-navigating UX), two-path duplicate analysis, hardcoded URL — see the LANDED block above |
+| 10 | Invoicing idempotency Option B (release-on-failure gap) | **candidate — owner-deferred 2026-07-14** | unit test: throw between `markPaidAndEmail` and `markInvoiced` leaves exactly ONE invoice after replay — see "Invoicing pipeline" block |
 
 ## Known wrong paths — fenced off
 
@@ -181,3 +217,4 @@ Traced 2026-07-06 against HEAD `b97eb83` (worktree branch `claude/distracted-cha
 - Identifier mismatch: `grep -n "checkoutRef\|orderId = " checkout/presentation/src/main/java/com/mtdevelopment/checkout/presentation/viewmodel/CheckoutViewModel.kt`
 - 3DS still WebView / no deep link: `grep -rn "lafromagerie://" --include="AndroidManifest.xml" app/src checkout` (expect empty)
 - Backend still unversioned: from the main checkout, `git -C /Users/tommy/StudioProjects/LaFromagerie check-ignore la-fromagerie-backend/functions && echo STILL-IGNORED`
+- Invoicing release-on-failure gap still open: `grep -n "releaseClaim\|markPaidAndEmail\|markInvoiced" la-fromagerie-backend/functions/src/billing.ts` (release in the `catch` after `markPaidAndEmail` = Option B unfixed)

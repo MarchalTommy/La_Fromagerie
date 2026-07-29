@@ -105,12 +105,21 @@ class FirestorePathRepositoryImpl(
                         }
                     }
 
-                // Check if paths were skipped due to geocoding errors
-                if (finalPaths.size != deferredCityInfoList.size && finalPaths.isEmpty()) {
-                    // If all paths failed, call onFailure
+                // An empty result is ALWAYS a failure, never a legitimate "nothing is
+                // deliverable" answer: the shop always has at least one path. Three ways to
+                // land here, and all of them used to be reported as success:
+                //  - Firestore returned no document at all. Offline, `get()` falls back to
+                //    the local Firestore cache and COMPLETES SUCCESSFULLY with zero
+                //    documents, so the failure listener never fires.
+                //  - Every path was dropped above because a city failed to geocode.
+                //  - Every path resolved to zero cities, i.e. no document carried either
+                //    `city_entries` or the legacy `cities`/`postcodes` arrays.
+                // Calling onSuccess with an empty list makes the caller mark the cache as
+                // synchronized and wipe it, permanently leaving the customer with no
+                // deliverable address. See GetAllDeliveryPathsUseCase.
+                if (finalPaths.isEmpty()) {
                     onFailure.invoke()
                 } else {
-                    // Otherwise, return the successful paths
                     onSuccess.invoke(finalPaths)
                 }
             }

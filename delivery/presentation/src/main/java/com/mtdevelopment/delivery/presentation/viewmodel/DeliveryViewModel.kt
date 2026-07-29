@@ -73,6 +73,7 @@ class DeliveryViewModel(
 
     private var deliveryAutocompleteJob: kotlinx.coroutines.Job? = null
     private var billingAutocompleteJob: kotlinx.coroutines.Job? = null
+    private var reconnectRetryJob: kotlinx.coroutines.Job? = null
 
     init {
         viewModelScope.launch {
@@ -131,6 +132,22 @@ class DeliveryViewModel(
     fun loadClientData() {
         viewModelScope.launch {
             getAllDeliveryPaths()
+        }
+
+        // Recovery from a failed first load. A launch with no network leaves the customer
+        // with zero paths, and simply re-entering the screen does not help: the cache flag
+        // decides whether to hit the network, not the screen lifecycle. Re-fetch, bypassing
+        // the flag, as soon as connectivity is back AND we still have nothing to show.
+        // Guarded by a job handle (same pattern as the autocomplete jobs) so repeated
+        // loadClientData() calls do not stack collectors.
+        if (reconnectRetryJob == null) {
+            reconnectRetryJob = viewModelScope.launch {
+                isConnected.collect { connected ->
+                    if (connected && deliveryUiDataState.deliveryPaths.isEmpty()) {
+                        getAllDeliveryPaths(forceRefresh = true)
+                    }
+                }
+            }
         }
 
         // Populate fields with saved user info from DataStore

@@ -14,6 +14,11 @@ description: >
   `"null"`-sentinel builds that pass silently, found 2026-07-27), no CI, the 2 failing
   AdminViewModelTest tests, AGP 10 migration debt, delivery-day offline resilience, cart
   persistence / client notifications.
+  residual), no admin auth, admin code leaking into the client AAB / broken flavor
+  isolation (found 2026-07-24: manifest patched, dependency wiring still to fix — also the
+  Play Store background-location blocker), no CI, the 2 failing AdminViewModelTest tests,
+  AGP 10 migration debt, delivery-day offline resilience, cart persistence / client
+  notifications.
 ---
 
 # LaFromagerie — Operations Hardening Frontier
@@ -45,18 +50,19 @@ real payment; all changes go via PR to main. See **fromagerie-change-control**.
 
 ## Risk ranking (highest daily-operation risk first)
 
-| # | Problem | Class | Daily-op blast radius |
-|---|---|---|---|
-| 1 | Payment-funnel observability gaps | payment | **Money lost silently** — worst case |
+| #  | Problem | Class | Daily-op blast radius |
+|----|---|---|---|
+| 1  | Payment-funnel observability gaps | payment | **Money lost silently** — worst case |
 | 1b | **Hosted-checkout hardening — 3 MAJOR TODOs** (§1b) | payment | Paid-but-PENDING orders on the new path |
-| 2 | Backend not in version control — ✅ resolved `ecda756` (2026-07-07), README residual | infra | ~~Server logic unrecoverable~~ — closed |
-| 3 | Delivery-day offline resilience | ops | Delivery day derailed by dead signal |
-| 4 | Admin auth — PIN gate LANDED 2026-07-08; hardened Firestore rules still undeployed | security | UI gated; DB still world-writable until rules ship |
-| 4b | **Secrets in a tracked `gradle.properties` + `"null"` builds pass silently** (§4b) | security / quality | One `git add -A` leaks SumUp + keystore keys; one `git restore` loses them |
-| 5 | No CI | quality | Broken flavor/tests reach main unnoticed |
-| 6 | 2 failing AdminViewModelTest tests | quality | Green baseline is a lie; masks regressions |
-| 7 | AGP 10 migration debt | infra | Future toolchain bump blocked |
-| 8 | Cart persistence (client notifications SHIPPED 2026-07-07) | product | UX gap (product-decision-pending) |
+| 2  | Backend not in version control — ✅ resolved `ecda756` (2026-07-07), README residual | infra | ~~Server logic unrecoverable~~ — closed |
+| 3  | Delivery-day offline resilience | ops | Delivery day derailed by dead signal |
+| 4  | Admin auth — PIN gate LANDED 2026-07-08; hardened Firestore rules still undeployed | security | UI gated; DB still world-writable until rules ship |
+| 4b | **Admin code leaks into the client AAB** (§4b) — manifest patched 2026-07-24, wiring NOT fixed | security | Admin keys ship to customers; blocks Play releases |
+| 4c | **Secrets in a tracked `gradle.properties` + `"null"` builds pass silently** (§4b) | security / quality | One `git add -A` leaks SumUp + keystore keys; one `git restore` loses them |
+| 5  | No CI | quality | Broken flavor/tests reach main unnoticed |
+| 6  | 2 failing AdminViewModelTest tests | quality | Green baseline is a lie; masks regressions |
+| 7  | AGP 10 migration debt | infra | Future toolchain bump blocked |
+| 8  | Cart persistence (client notifications SHIPPED 2026-07-07) | product | UX gap (product-decision-pending) |
 
 ---
 
@@ -195,7 +201,57 @@ roadmap entry so no session misses them.
 - **Re-verify the gate exists:**
   `grep -rn 'PinLockScreen\|authViewModel' app/src/admin --include='*.kt' | grep -v /build/`
 
-## 4b. Secret handling — 18 secrets live in a TRACKED file, and `"null"` builds pass silently
+## 4b. Admin code leaks into the client AAB — flavor isolation is broken (found 2026-07-24)
+
+- **Why it falls short:** `app/build.gradle.kts:111-114` wires the admin modules with
+  `adminImplementation`, which *looks* like the client flavor excludes them. It does not.
+  Four **shared** modules (compiled into both flavors) depend on `:admin:presentation` with
+  a plain `implementation`, dragging the whole module — manifest *and* classes — into the
+  client build:
+  - `home/presentation/build.gradle.kts:54`
+  - `details/presentation/build.gradle.kts:50`
+  - `checkout/presentation/build.gradle.kts:54`
+  - `delivery/presentation/build.gradle.kts:59`
+
+  This **defeats the stated goal of commit `c436c68`** ("admin API keys will NOT be built
+  into clients version of the app, protecting them against reverse-engineering"): admin
+  code ships to every customer. It first surfaced as a **Play Store release blocker** —
+  `ACCESS_BACKGROUND_LOCATION` appeared in the signed client AAB with no client-facing
+  feature to justify it (blame: *"ADDED from [:admin:presentation]"* in
+  `app/build/outputs/logs/manifest-merger-client-release-report.txt`).
+- **Symptom treated, cause NOT fixed (2026-07-24):** the *manifest* half is patched —
+  `app/src/client/AndroidManifest.xml` strips `ACCESS_BACKGROUND_LOCATION` and
+  `FOREGROUND_SERVICE_LOCATION` via `tools:node="remove"`, and the admin-only
+  `DeliveryTrackingService` + `NotificationBroadcastReceiver` declarations moved from
+  `app/src/main/AndroidManifest.xml` to a new `app/src/admin/AndroidManifest.xml` (their
+  classes were always admin-only in `app/src/admin/java`, so the client AAB was declaring a
+  location foreground service it could not even run). **The classes still ship to clients.**
+  This is a band-aid with a documented removal condition, not a fix.
+- **Our leverage:** the correct wiring already exists and is proven — `adminImplementation`
+  in `app/build.gradle.kts`, plus the `auth` module precedent. The change is four lines.
+- **First three steps:**
+  1. Flip the four `implementation(project(":admin:presentation"))` above to
+     `"adminImplementation"(project(":admin:presentation"))`.
+  2. Compile the **client** flavor and triage every unresolved reference: shared code in
+     those modules that touches admin classes is the real coupling. Push it behind an
+     interface owned by the shared module (admin supplies the impl via Koin), or move it
+     into the `admin` source set. Do **not** re-add the dependency to make it compile.
+  3. Once client compiles, delete the two `tools:node="remove"` lines from
+     `app/src/client/AndroidManifest.xml` and re-verify (below). Both flavors must assemble.
+- **Result when…** the client release manifest contains **no** `ACCESS_BACKGROUND_LOCATION`
+  *without* any `tools:node="remove"` crutch, AND `:admin:presentation` no longer appears in
+  the client dependency graph:
+  ```
+  ./gradlew :app:dependencies --configuration clientReleaseRuntimeClasspath | grep -i "admin"
+  ```
+  (empty = fixed), cross-checked against the merge report blame:
+  ```
+  grep -A2 BACKGROUND_LOCATION app/build/outputs/logs/manifest-merger-client-release-report.txt
+  ```
+- **Priority:** treat as the top non-payment item — it is a security regression (admin keys
+  in customer hands) *and* it gates Play Store releases. Own branch, own PR.
+
+## 4c. Secret handling — 18 secrets live in a TRACKED file, and `"null"` builds pass silently
 
 Discovered 2026-07-27 while diagnosing a black delivery map on an AI-built APK. Two distinct
 problems, one shared root: `gradle.properties`.
@@ -348,6 +404,8 @@ problems, one shared root: `gradle.properties`.
 | 3. Firestore offline persistence | `grep -rin 'persistenceEnabled\|PersistentCacheSettings\|setFirestoreSettings' . \| grep -v /build/` (empty = SDK defaults, UNVERIFIED) |
 | 3. admin orders are Firestore-direct | read `admin/data/.../repository/FirebaseAdminRepositoryImpl.kt` (no Room = still direct) |
 | 4. no admin auth | `grep -rin 'signIn\|FirebaseAuth\|currentUser\|login' app/src/admin admin --include='*.kt' \| grep -v /build/` |
+| 4b. admin modules still in the client graph | `grep -rn 'implementation(project(":admin' home details checkout delivery --include='build.gradle.kts'` (any plain `implementation` = §4b still open; expect `adminImplementation` once fixed) |
+| 4b. manifest band-aid still needed | `grep -n 'node="remove"' app/src/client/AndroidManifest.xml` (hits = crutch still in place; delete only after the wiring fix) |
 | 5. no CI | `ls .github/workflows 2>/dev/null; find . -maxdepth 2 -iname '*.yml' -o -iname '*.yaml' \| grep -v /build/ \| grep -vi google-services` |
 | 6. failing tests | `./gradlew testAdminDebugUnitTest --continue` |
 | 7. AGP opt-out flags | `grep -nE 'builtInKotlin\|newDsl' gradle.properties; grep -n '^agp' gradle/libs.versions.toml` |

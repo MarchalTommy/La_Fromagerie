@@ -126,6 +126,47 @@ Rule: any branch with 0 unique commits is safe to ignore (and eventually delete 
 
 As of 2026-07-06, `./gradlew testClientDebugUnitTest --continue` has **2 real failures** in `admin/presentation` `AdminViewModelTest` (MockK verification failures around image-upload-abort behavior: `addNewProduct aborts when local image upload fails` at line ~196 and its `updateProduct` sibling at ~173). All checkout-module tests are green. Treat these two as the documented baseline; changing them requires an actual investigation, not test deletion. Details: fromagerie-validation-and-qa.
 
+## 14. The poisoned delivery-path cache (offline first launch)
+
+- **Symptom:** a valid customer address is rejected with "L'adresse sélectionnée ne semble pas
+  sur un parcours de livraison", even though the city IS on a path. Permanent: it survives app
+  restarts and does **not** repair itself. No error is ever shown to the customer. Reported
+  2026-07-29 against the client release build (Frasne, on the Friday path).
+- **Root cause:** an offline **first launch** poisons the local cache, permanently.
+  `firestore.collection("delivery_paths").get()` does **not** fail when offline — Firestore
+  falls back to its own local cache and, when that cache is empty, **completes successfully
+  with zero documents**, so `addOnFailureListener` never fires. From there:
+  1. `FirestorePathRepositoryImpl` guarded with
+     `finalPaths.size != deferredCityInfoList.size && finalPaths.isEmpty()`. With zero paths on
+     both sides, `0 != 0` is false, so the guard did not trigger and `onSuccess(emptyList())`
+     was called.
+  2. `GetAllDeliveryPathsUseCase` took that empty list as truth: `setShouldRefreshPaths(false)`
+     (cache declared synchronized although nothing was ever loaded) and the cleanup loop
+     **deleted every locally cached path**, since none appear in an empty list.
+  3. Forever after, `shouldRefresh` is false, so the fast path reads an empty Room and every
+     address falls through to `NOT_ELIGIBLE`.
+  Re-entering the screen did not help: `LaunchedEffect(Unit)` does re-call `loadClientData()`,
+  but the DataStore flag — not the screen lifecycle — decides whether to hit the network.
+- **Evidence:** fix on branch `fix/delivery-paths-poisoned-cache`, three files:
+  `FirestorePathRepositoryImpl` (empty result is now always a failure),
+  `GetAllDeliveryPathsUseCase` (an empty fetch never marks the cache synchronized and never
+  reaches the destructive cleanup), `DeliveryViewModel` (force-refresh when connectivity
+  returns while the path list is still empty). Guarded by 2 regression tests in
+  `GetAllDeliveryPathsUseCaseTest`. Owner-confirmed fixed on device 2026-07-29.
+- **Status:** **settled.** Two rules follow, and both are load-bearing:
+  - **An empty delivery-path list is never a legitimate answer.** The shop always has at least
+    one path. Any code path that can persist or cache "zero paths" as the truth is a bug, not a
+    defensive default.
+  - **Never trust a Firestore `get()` success to mean "the server answered".** With the default
+    source, offline reads resolve from the local cache and succeed with whatever is there,
+    including nothing. If a read's emptiness has consequences, check it explicitly.
+- **Do not confuse with** the `streets` city-splitting defects found in the same investigation
+  (`CustomerContent.checkLocationEligibility` path-level street filter, `streets` absent from
+  both the admin write DTO and `PathEntity`). Unrelated cause, and **fixed 2026-07-29 in PR #59**
+  — see fromagerie-delivery-logistics-reference for how the feature works now. The two landed
+  close enough together to collide in `main`; if you are reading a diff from that day, the
+  poisoned-cache fix and the city-split fix are separate changes.
+
 ## When NOT to use this skill
 
 - You need current payment mechanics (not history) → **fromagerie-payments-reference**

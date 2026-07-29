@@ -30,6 +30,56 @@ function centsToUnits(cents: number): number {
     return Number((cents / 100).toFixed(2));
 }
 
+/**
+ * Récapitulatif client pour `public_notes` : un produit par ligne (`\n` ->
+ * `<br>` via nl2br côté Invoice Ninja), puis la date de livraison en dernier,
+ * séparée par une ligne vide. Dérivé des lignes déjà envoyées dans
+ * `line_items` — sans le total ni le numéro de facture (l'email les gère à
+ * part). Ce texte apparaît dans l'email de confirmation ET sur le PDF.
+ */
+function buildPublicNotes(req: InvoiceRequest): string {
+    const blocks: string[] = [];
+    if (req.lines.length > 0) {
+        blocks.push(
+            req.lines.map((l) => `${l.quantity} × ${l.description}`).join("\n"),
+        );
+    }
+    if (req.deliveryDate) {
+        blocks.push(`Livraison prévue le ${req.deliveryDate}`);
+    }
+    return blocks.join("\n\n");
+}
+
+/** Id ISO numérique du pays France dans Invoice Ninja. */
+const COUNTRY_ID_FRANCE = 250;
+
+interface ParsedAddress {
+    address1: string;
+    postalCode?: string;
+    city?: string;
+}
+
+/**
+ * Découpe une adresse française mono-ligne (le seul format stocké sur la
+ * commande : le `label` renvoyé par l'API adresse gouv, ex.
+ * « 12 rue des Fromagers 69001 Lyon ») en rue / code postal / ville, pour
+ * alimenter les champs structurés du client Invoice Ninja (bloc destinataire
+ * du PDF).
+ *
+ * Le code postal FR (5 chiffres) sert de point de coupure. Repli : si aucun
+ * code postal n'est trouvé, toute la chaîne va dans `address1` (comportement
+ * historique) — mieux vaut une adresse brute qu'une adresse vide.
+ */
+function parseFrenchAddress(raw: string): ParsedAddress {
+    const trimmed = raw.trim();
+    const match = trimmed.match(/^(.*\S)[,\s]+(\d{5})[,\s]+(.+)$/);
+    if (!match) {
+        return { address1: trimmed };
+    }
+    const [, street, postalCode, city] = match;
+    return { address1: street.trim(), postalCode, city: city.trim() };
+}
+
 export class InvoiceNinjaClient {
     private readonly http: AxiosInstance;
 
@@ -55,9 +105,13 @@ export class InvoiceNinjaClient {
             return found;
         }
 
+        const addr = parseFrenchAddress(req.billingAddress);
         const created = await this.http.post("/clients", {
             name: req.clientName,
-            address1: req.billingAddress,
+            address1: addr.address1,
+            postal_code: addr.postalCode,
+            city: addr.city,
+            country_id: COUNTRY_ID_FRANCE,
             contacts: [
                 { first_name: req.clientName, email: req.email, send_email: true },
             ],
@@ -102,9 +156,7 @@ export class InvoiceNinjaClient {
             client_id: clientId,
             po_number: req.orderId,
             date: new Date().toISOString().slice(0, 10),
-            public_notes: req.deliveryDate
-                ? `Livraison prévue le ${req.deliveryDate}`
-                : "",
+            public_notes: buildPublicNotes(req),
             line_items: lineItems,
         });
         const id = res.data?.data?.id as string | undefined;
