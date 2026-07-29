@@ -14,7 +14,8 @@ with live route guidance. All facts verified 2026-07-06 against branch `claude/d
 | Term | Meaning here |
 |---|---|
 | **Delivery path** (a.k.a. "parcours", "tournée") | A named delivery zone/route: a set of (city, postcode) pairs, an assigned weekday, optional street-level restriction. Domain model `DeliveryPath`, Firestore collection `delivery_paths`. |
-| **Path streets** | Optional per-path street allow-list (`DeliveryPath.streets`). If empty, the whole city is considered deliverable. Not currently enforced against the customer's typed address — see Gaps below. |
+| **City streets** | Optional street allow-list on a **(path, city) pair** — `DeliveryCity.streets` (`core/domain/.../model/DeliveryCity.kt`), not a per-path field. Empty (the common case) means the path serves the whole city. Enforced against the customer's address by `DetermineDeliveryEligibilityUseCase`. |
+| **Split city** | A city listed by two paths, each with a different street allow-list, so the two tournées share it. The real case: Boujailles, on the Tuesday and Friday paths. |
 | **Preparation status** | Per-product, per-date checkbox state ("has this cheese been prepared for this delivery day yet") shown to the admin. Firestore collection `preparation_status`. Not the same as `Order.status`. |
 | **Order status** | `OrderStatus` enum: `PENDING → PAID → IN_PREPARATION → PREPARED → IN_DELIVERY → DELIVERED`, or `CANCELED`. Lives on the `Order` domain model (`core/domain/.../Order.kt`), not on `DeliveryPath`. |
 | **Route optimization** | Reordering today's delivery addresses into an efficient visiting order. Done by Google Routes at delivery-day execution time — **not** the same system that draws the road line on the zone map (that's OpenRouteService). |
@@ -51,13 +52,22 @@ with live route guidance. All facts verified 2026-07-06 against branch `claude/d
 | Firestore field | Kotlin property | Type |
 |---|---|---|
 | `path_name` | `path_name` | `String` |
-| `cities` | `cities` | `List<String>` |
-| `delivery_day` | `deliveryDay` | `String` (an `DayOfWeek` enum name, e.g. `"MONDAY"`) |
-| `postcodes` | `postcodes` | `List<Int>` |
-| `streets` | `streets` | `List<String>` (optional) |
+| `delivery_day` | `deliveryDay` | `String` (a `DayOfWeek` enum name, e.g. `"MONDAY"`) |
+| `delivery_frequency` | `deliveryFrequency` | `String`, defaults `"WEEKLY"` |
+| `city_entries` | `cityEntries` | `List<DataDeliveryCityResponse>` — **canonical**; each has `city`, `postcode`, `streets` |
+| `cities` | `cities` | `List<String>` — legacy parallel array |
+| `postcodes` | `postcodes` | `List<Int>` — legacy parallel array |
 | document id | `id` | used as-is |
 
-`cities` and `postcodes` are zipped positionally (`path.cities zip path.postcodes`) — **the two arrays must stay the same length and in matching order** in Firestore, or city↔postcode pairing silently breaks.
+`toDeliveryCities()` turns the document into `List<DeliveryCity>`: it uses `city_entries` when
+present and non-empty, otherwise falls back to zipping `cities`/`postcodes` into unrestricted
+cities. **Documents predating the split-city work keep working unchanged** and convert on the
+next admin save. Full contract, including why the old path-level `streets` field is never
+written any more: `fromagerie-firestore-data-model` §2.3.
+
+On the legacy fallback only, `cities` and `postcodes` are zipped positionally — **the two arrays
+must stay the same length and in matching order**, or city↔postcode pairing silently breaks.
+`city_entries` exists to retire that hazard.
 
 ### Path enrichment pipeline (`FirestorePathRepositoryImpl.getAllDeliveryPaths`)
 
@@ -68,6 +78,47 @@ with live route guidance. All facts verified 2026-07-06 against branch `claude/d
 5. If **all** paths in the whole fetch failed to geocode, `onFailure` fires; otherwise the (possibly-partial) successful list is returned via `onSuccess`.
 
 `getDeliveryPath(pathName)` (used to resolve a customer's previously-saved path name) does **not** geocode or fetch GeoJSON — it is a lighter partial reconstruction. **FIXED (2026-07-07, commit `58f85c9`, PR #43):** this method previously queried `whereEqualTo("pathName", …)` while the stored Firestore field is `path_name`, so the query could never match. The query key is now `path_name` and a regression test (`FirestoreDeliveryDataSourceTest`) guards it — see `fromagerie-firestore-data-model` §2.3.
+
+### Matching an address to a path (`DetermineDeliveryEligibilityUseCase`)
+
+`delivery/domain/src/main/java/com/mtdevelopment/delivery/domain/usecase/DetermineDeliveryEligibilityUseCase.kt`
+— the **single** decision point for "which tournée serves this address, if any". It is a pure
+function over already-geocoded inputs (`paths`, `userCity`, `userStreet`, `addressText`,
+`userLocation`), so it holds no Android `Geocoder`.
+
+Callers do the geocoding, then delegate:
+
+| Flow | Caller | Where the street comes from |
+|---|---|---|
+| Typed / autocompleted address | `CustomerContent.kt` (`delivery/presentation/src/main`) | `Address.thoroughfare` on the manual branch; **null on the autocomplete branch, which never runs the geocoder** — the street has to be recognised inside `addressText` |
+| GPS "locate me" | `PermissionManagerComposable.kt` (same module) | `Address.thoroughfare` from reverse geocoding |
+
+Resolution order:
+
+1. A path whose matching city **restricts streets and lists the customer's street** — most
+   specific, so it beats an unrestricted match.
+2. A path whose matching city carries **no** street restriction (whole city covered).
+3. City covered, but only by street-restricted entries and none matched →
+   `STREET_NOT_COVERED`.
+4. Otherwise proximity: within `MAX_DISTANCE_FOR_PICKUP_METERS` (5 km, defined in this file) →
+   `ASK_FOR_SUPPORT`, beyond → `NOT_ELIGIBLE`.
+
+`DeliveryEligibilityResult` also returns `resolvedCity`/`resolvedLocation`, recovered from the
+matched city when geocoding supplied neither.
+
+**`STREET_NOT_COVERED` is a product decision, not a fallback.** The client flavor has **no
+manual path picker**, so a wrong guess in a split city sends the van on a day it does not pass
+that street. The UI therefore says so explicitly (`auto_geoloc_street_not_covered`) and reuses
+the existing support-request email, reworded to ask for the customer's delivery day. The fix
+loop is the admin adding the street to the right city group. Do not replace this with "pick the
+first path" without Tommy's call.
+
+⚠️ **This logic used to be a private function duplicated verbatim between the two Composables
+above**, which is why a bug in it survived two months unnoticed: it treated a street list as a
+**path-level** filter, so any path restricting one of its cities became unusable for all its
+other cities (configuring Boujailles killed Frasne and Courvière). Unified and unit-tested in
+PR #59 — `DetermineDeliveryEligibilityUseCaseTest` encodes the real shop configuration. **If you
+add a third entry point, call the use case; do not copy the matching loop again.**
 
 ### Address APIs — which does what
 
@@ -113,9 +164,10 @@ Two `SelectableDates` implementations gate the Material3 `DatePicker`:
 
 ### Path editing (`PathEditDialog.kt`, `delivery/presentation/src/admin/...`)
 
-- Edits an `AdminUiDeliveryPath` (id, name, cities as `List<Pair<String,Int>>`, deliveryDay, streets).
+- Edits an `AdminUiDeliveryPath` (id, name, `cities: List<DeliveryCity>`, deliveryDay, deliveryFrequency).
 - New city added via `CityPostalCodeAutocompleteTextField` — backed by the same geopf autocomplete API described above.
 - Cities are manually reorderable (up/down arrows) and swipe-to-delete (`SwipeToDismissBox`, start-to-end only).
+- **The "Rues" field is per city**, rendered inside each city's `CityFields` row (comma-separated, blank = whole city). It moved there from a single path-level field in PR #59 — a path-level list cannot express "Boujailles is restricted on this path but Frasne is not", which is the entire point of the feature. **This is the only UI that writes street restrictions**; a path must be re-saved here for its `city_entries` to exist in Firestore.
 - `deliveryDay` is a single `FilterChip` selection over `DayOfWeek.entries` — **only one weekday per path** (matches `DeliveryPath.deliveryDay: String`, a single value not a set).
 - Validate button is only enabled when name is non-blank, cities non-empty, and deliveryDay non-blank.
 - On confirm, `DeliveryOptionScreen` (admin variant) decides add-vs-update by checking whether `newPath.id` already exists in the currently loaded path list, then calls `AdminViewModel.addNewDeliveryPath` / `updateDeliveryPath` / `deleteDeliveryPath`, which go through `FirebaseAdminRepositoryImpl` → `FirestoreAdminDatasource` → the same `delivery_paths` collection (`admin/data/src/main/java/com/mtdevelopment/admin/data/source/FirestoreAdminDatasource.kt`).
@@ -200,16 +252,35 @@ Given current GPS location and the cached optimized route, walks the waypoint li
 
 ### Room schema (`PathEntity`, table `paths`)
 
-| Column (`@SerialName`) | Kotlin type | Notes |
+⚠️ **The column name is the Kotlin property name, not the `@SerialName`.** `PathEntity` carries
+`@SerialName`s for kotlinx serialization, but no `@ColumnInfo`, so Room uses the property names —
+which is what the `ALTER TABLE` statements in `FromagerieDatabase.kt` actually name.
+
+| Column (Kotlin property) | Kotlin type | Notes |
 |---|---|---|
 | `id` | `String` | primary key |
 | `name` | `String` | maps to `DeliveryPath.pathName` |
-| `cities` | `Map<String, Int>` | city name → postcode; **note this is a Map in Room, but a `List<Pair<String,Int>>` in the domain model** — order is not guaranteed to round-trip identically through a Map |
-| `locations` | `List<Coordinate>` | geocoded lat/lng centers |
-| `delivery_day` | `String` | |
+| `availableCities` | `Map<String, Int>` | city name → postcode (`@SerialName("cities")`) |
+| `cityStreets` | `Map<String, List<String>>` | city name → its street allow-list; a city **absent from this map is served in full**. Added in schema v6 (`MIGRATION_5_6`, PR #59) |
+| `locations` | `List<Coordinate>` | geocoded lat/lng centers, **aligned positionally** with the city order |
+| `deliveryDay` | `String` | |
+| `deliveryFrequency` | `String` | added in schema v5 (`MIGRATION_4_5`) |
 | `geojson` | `String` | the whole `GeoJsonFeatureCollection` JSON-encoded as one text blob |
 
-The `cities: Map<String, Int>` vs. domain `List<Pair<String, Int>>` mismatch means **city ordering set in `PathEditDialog`'s manual reorder UI is not guaranteed to survive a Room round-trip** — reordering only matters for the in-memory session and for what's written straight back to Firestore, not for what comes back out of the local cache. UNVERIFIED (as of 2026-07-06): whether this has caused an observed bug; flagged here as a latent one from static reading of `PathEntity.kt`.
+`toPath()` rejoins the two maps into the domain `List<DeliveryCity>`; `toPathEntity()` splits
+them back, writing only the cities that actually have restrictions.
+
+**Correction to the previous entry here (2026-07-29):** this skill used to warn that city
+ordering "is not guaranteed to round-trip identically through a Map". In practice it does — the
+converters go through `Json.encodeToString`/`decodeFromString`, both sides are `LinkedHashMap`,
+and JSON preserves member order, so the sequence set in `PathEditDialog` survives. Verified by
+`PathEntityTest` (`delivery/data`), which asserts city order and postcodes across the round trip.
+
+The genuine hazard in the Map shape is different and narrower: **two entries with the same city
+name inside one path collapse into one**, in both maps. That matters now that a split city is a
+supported configuration — but a city is split across *two paths*, never twice within one, so it
+does not bite the intended setup. Keep it in mind before "helpfully" allowing duplicate cities on
+a single path.
 
 ## When NOT to use this skill
 
@@ -224,9 +295,15 @@ The `cities: Map<String, Int>` vs. domain `List<Pair<String, Int>>` mismatch mea
 
 ## Provenance and maintenance
 
-All facts verified 2026-07-06 against the working tree (branch `claude/distracted-chaum-0986e4`). Re-verify drift-prone claims:
+All facts verified 2026-07-06 against the working tree (branch `claude/distracted-chaum-0986e4`),
+**except the path/city/street model, the eligibility matcher and the `PathEntity` schema, all
+re-verified 2026-07-29 against PR #59.** Re-verify drift-prone claims:
 
-- Firestore field names for `delivery_paths`: `grep -n "path_name\|delivery_day\|postcodes" delivery/data/src/main/java/com/mtdevelopment/delivery/data/source/remote/FirestoreDeliveryDataSource.kt`
+- Firestore field names for `delivery_paths`: `grep -n "path_name\|delivery_day\|city_entries\|postcodes" delivery/data/src/main/java/com/mtdevelopment/delivery/data/source/remote/FirestoreDeliveryDataSource.kt`
+- Streets still scoped per (path, city), not per path: `grep -n "streets" core/domain/src/main/java/com/mtdevelopment/core/model/DeliveryCity.kt` (a `streets` field reappearing on `DeliveryPath` itself is a regression)
+- Eligibility matcher still single-sourced: `grep -rln "DetermineDeliveryEligibilityUseCase" delivery/presentation/src --include='*.kt'` (quote the glob — zsh expands it otherwise; expect exactly `CustomerContent.kt` and `PermissionManagerComposable.kt`, and a third copy of the matching loop is the bug PR #59 removed)
+- Matching rules still hold: `./gradlew :delivery:domain:testDebugUnitTest` (`DetermineDeliveryEligibilityUseCaseTest`, incl. the Frasne non-regression case)
+- `PathEntity` columns and Room round-trip: `grep -n "val [a-zA-Z]*:" delivery/data/src/main/java/com/mtdevelopment/delivery/data/model/entity/PathEntity.kt` and `./gradlew :delivery:data:testClientDebugUnitTest` (`PathEntityTest`)
 - `database_update` document ids/fields: `grep -n "products_timestamp\|path_timestamp\|last_update" home/data/src/main/java/com/mtdevelopment/home/data/source/remote/FirestoreDatabase.kt`
 - Admin still writes `database_update` timestamps: `grep -n "path_timestamp\|products_timestamp" admin/data/src/main/java/com/mtdevelopment/admin/data/source/FirestoreAdminDatasource.kt` (expect 2 hits — the `.set(` writers for both documents)
 - Google Routes vs OpenRouteService split still holds: `grep -rn "GOOGLE_ROUTE_BASE_URL\|OPEN_ROUTE_BASE_URL" core/data/src/main/java/com/mtdevelopment/core/data/Constants.kt`
@@ -235,5 +312,4 @@ All facts verified 2026-07-06 against the working tree (branch `claude/distracte
 - Stop-tracking still manual (not automatic on foreground): `grep -n "isInTrackingMode\|ON_RESUME\|ON_STOP" admin/presentation/src/main/java/com/mtdevelopment/admin/presentation/screen/DeliveryHelperScreen.kt app/src/admin/java/com/mtdevelopment/lafromagerie/MainActivity.kt`
 - Foreground-service fragility branch still present: `git branch -a | grep admin_delivery_instability`
 - Preparation-status composite id format: `grep -n "statusId =" admin/presentation/src/main/java/com/mtdevelopment/admin/presentation/screen/OrderPreparationScreen.kt`
-- `PathEntity` cities Map-vs-List mismatch: `grep -n "availableCities: Map" delivery/data/src/main/java/com/mtdevelopment/delivery/data/model/entity/PathEntity.kt`
 - Autocomplete hardcoded department restriction: `grep -n "terr=" core/data/src/main/java/com/mtdevelopment/core/source/AutoCompleteApiDataSource.kt`
