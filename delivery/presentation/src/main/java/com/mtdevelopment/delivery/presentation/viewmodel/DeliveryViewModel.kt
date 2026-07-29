@@ -10,6 +10,7 @@ import com.mtdevelopment.core.model.UserInformation
 import com.mtdevelopment.core.usecase.GetAutocompleteSuggestionsUseCase
 import com.mtdevelopment.core.usecase.GetIsNetworkConnectedUseCase
 import com.mtdevelopment.core.usecase.SaveToDatastoreUseCase
+import com.mtdevelopment.delivery.domain.usecase.DeliveryEligibility
 import com.mtdevelopment.delivery.domain.usecase.GetAllDeliveryPathsUseCase
 import com.mtdevelopment.delivery.domain.usecase.GetDeliveryPathUseCase
 import com.mtdevelopment.delivery.domain.usecase.GetUserInfoFromDatastoreUseCase
@@ -451,5 +452,20 @@ class DeliveryViewModel(
     fun updateUserLocationCloseFromPath(isClose: Boolean) {
         deliveryUiDataState =
             deliveryUiDataState.copy(userLocationCloseFromPath = isClose)
+    }
+
+    /**
+     * Applies a [DeliveryEligibility] verdict to the UI state.
+     *
+     * [DeliveryEligibility.STREET_NOT_COVERED] shares the "ask for support" affordance with
+     * [DeliveryEligibility.ASK_FOR_SUPPORT] but carries its own wording, hence the extra flag.
+     */
+    fun updateEligibility(eligibility: DeliveryEligibility) {
+        deliveryUiDataState = deliveryUiDataState.copy(
+            userLocationOnPath = eligibility == DeliveryEligibility.DELIVERABLE,
+            userLocationCloseFromPath = eligibility == DeliveryEligibility.ASK_FOR_SUPPORT ||
+                    eligibility == DeliveryEligibility.STREET_NOT_COVERED,
+            streetNotCovered = eligibility == DeliveryEligibility.STREET_NOT_COVERED
+        )
     }
 }

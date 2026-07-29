@@ -1,6 +1,7 @@
 package com.mtdevelopment.delivery.data.source.remote
 
 import com.google.firebase.firestore.FirebaseFirestore
+import com.mtdevelopment.delivery.data.model.response.firestore.DataDeliveryCityResponse
 import com.mtdevelopment.delivery.data.model.response.firestore.DataDeliveryPathsResponse
 
 class FirestoreDeliveryDataSource(
@@ -17,18 +18,7 @@ class FirestoreDeliveryDataSource(
             }
             .addOnSuccessListener {
                 onSuccess.invoke(it.documents.map { item ->
-                    DataDeliveryPathsResponse(
-                        id = item.id,
-                        path_name = item.data?.get("path_name").toString(),
-                        cities = item.data?.get("cities") as? List<String>,
-                        deliveryDay = item.data?.get("delivery_day").toString(),
-                        deliveryFrequency = item.data?.get("delivery_frequency")?.toString()
-                            ?: "WEEKLY",
-                        postcodes = item.data?.get("postcodes") as? List<Int>
-                            ?: emptyList(),
-                        streets = item.data?.get("streets") as? List<String>
-                            ?: emptyList()
-                    )
+                    item.data.toPathResponse(item.id)
                 })
             }
     }
@@ -45,21 +35,39 @@ class FirestoreDeliveryDataSource(
                 onFailure.invoke()
             }
             .addOnSuccessListener {
-                onSuccess.invoke(
-                    DataDeliveryPathsResponse(
-                        id = it.documents[0].id,
-                        path_name = it.documents[0].data?.get("path_name").toString(),
-                        cities = it.documents[0].data?.get("cities") as? List<String>,
-                        deliveryDay = it.documents[0].data?.get("delivery_day").toString(),
-                        deliveryFrequency = it.documents[0].data?.get("delivery_frequency")
-                            ?.toString() ?: "WEEKLY",
-                        postcodes = it.documents[0].data?.get("postcodes") as? List<Int>
-                            ?: emptyList(),
-                        streets = it.documents[0].data?.get("streets") as? List<String>
-                            ?: emptyList()
-                    )
-                )
+                val document = it.documents.firstOrNull()
+                if (document == null) {
+                    onFailure.invoke()
+                } else {
+                    onSuccess.invoke(document.data.toPathResponse(document.id))
+                }
             }
     }
-
 }
+
+/**
+ * Maps a raw Firestore document map to the read DTO.
+ *
+ * Numbers are read through [Number] rather than cast straight to `Int`: Firestore always hands
+ * back integers as `Long`, and `as? List<Int>` is erased at runtime, so the bad cast only blows up
+ * later at the point of use.
+ */
+private fun Map<String, Any?>?.toPathResponse(documentId: String): DataDeliveryPathsResponse =
+    DataDeliveryPathsResponse(
+        id = documentId,
+        path_name = this?.get("path_name")?.toString(),
+        cities = (this?.get("cities") as? List<*>)?.mapNotNull { it?.toString() },
+        deliveryDay = this?.get("delivery_day")?.toString() ?: "",
+        deliveryFrequency = this?.get("delivery_frequency")?.toString() ?: "WEEKLY",
+        postcodes = (this?.get("postcodes") as? List<*>)?.mapNotNull { (it as? Number)?.toInt() },
+        cityEntries = (this?.get("city_entries") as? List<*>)?.mapNotNull { entry ->
+            val fields = entry as? Map<*, *> ?: return@mapNotNull null
+            val city = fields["city"]?.toString() ?: return@mapNotNull null
+            DataDeliveryCityResponse(
+                city = city,
+                postcode = (fields["postcode"] as? Number)?.toInt() ?: 0,
+                streets = (fields["streets"] as? List<*>)?.mapNotNull { it?.toString() }
+                    ?: emptyList()
+            )
+        }
+    )

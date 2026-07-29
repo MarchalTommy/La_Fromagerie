@@ -41,14 +41,14 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
-import com.mtdevelopment.core.domain.calculateDistance
-import com.mtdevelopment.core.domain.isSameCity
-import com.mtdevelopment.core.domain.normalizeCityName
 import com.mtdevelopment.core.model.AutoCompleteSuggestion
 import com.mtdevelopment.core.presentation.composable.AddressAutocompleteTextField
 import com.mtdevelopment.core.presentation.composable.ErrorOverlay
 import com.mtdevelopment.core.presentation.composable.PrimaryButton
+import com.mtdevelopment.delivery.domain.usecase.DeliveryEligibility
+import com.mtdevelopment.delivery.domain.usecase.DetermineDeliveryEligibilityUseCase
 import com.mtdevelopment.delivery.presentation.model.UiDeliveryPath
+import com.mtdevelopment.delivery.presentation.model.toDomainDeliveryPath
 import com.mtdevelopment.delivery.presentation.state.DeliveryUiDataState
 import com.mtdevelopment.delivery.presentation.viewmodel.DeliveryViewModel
 import kotlinx.coroutines.Dispatchers
@@ -96,8 +96,7 @@ fun CustomerContent(
                         deliveryViewModel.updateUserCityLocation(userLocation)
                     }
                     deliveryViewModel.updateSelectedPath(selectedPath)
-                    deliveryViewModel.updateUserLocationOnPath(eligibility == DeliveryEligibility.DELIVERABLE)
-                    deliveryViewModel.updateUserLocationCloseFromPath(eligibility == DeliveryEligibility.ASK_FOR_SUPPORT)
+                    deliveryViewModel.updateEligibility(eligibility)
                 }
             )
         }
@@ -265,6 +264,7 @@ fun CustomerContent(
                     selectedPath = state.value.selectedPath,
                     geolocIsOnPath = state.value.userLocationOnPath && state.value.localisationSuccess,
                     canAskForDelivery = state.value.userLocationCloseFromPath,
+                    streetNotCovered = state.value.streetNotCovered,
                     userCity = state.value.userCity
                 )
             } else {
@@ -291,9 +291,15 @@ fun CustomerContent(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 16.dp),
-                text = "Demander une prise en charge",
+                text = if (state.value.streetNotCovered) {
+                    "Demander mon jour de livraison"
+                } else {
+                    "Demander une prise en charge"
+                },
                 trailingIcon = null,
                 onClick = {
+                    // A split city needs the customer's street to tell the two tournées apart, so
+                    // the email asks for exactly that rather than for the city to be added.
                     val emailIntent =
                         Intent(Intent.ACTION_SENDTO).apply {
                             data = "mailto:".toUri()
@@ -303,14 +309,26 @@ fun CustomerContent(
                             )
                             putExtra(
                                 Intent.EXTRA_SUBJECT,
-                                "Demande d'ajout aux livraisons"
+                                if (state.value.streetNotCovered) {
+                                    "Demande de jour de livraison"
+                                } else {
+                                    "Demande d'ajout aux livraisons"
+                                }
                             )
                             putExtra(
                                 Intent.EXTRA_TEXT,
-                                "Bonjour Mr. Marchal.\n\nJ'habite à une " +
-                                        "adresse proche d'un de vos points de livraison et j'aurais aimé être livré aussi. " +
-                                        "\nEst-ce possible pour vous d'ajouter ${state.value.userCity} à une de vos livraison ?" +
-                                        "\n\nMerci d'avance !"
+                                if (state.value.streetNotCovered) {
+                                    "Bonjour Mr. Marchal.\n\nJ'habite à ${state.value.userCity}, " +
+                                            "à l'adresse suivante :\n${state.value.deliveryAddressSearchQuery}" +
+                                            "\n\nL'application n'a pas réussi à déterminer ma tournée. " +
+                                            "Pourriez-vous me dire quel jour vous passez dans ma rue ?" +
+                                            "\n\nMerci d'avance !"
+                                } else {
+                                    "Bonjour Mr. Marchal.\n\nJ'habite à une " +
+                                            "adresse proche d'un de vos points de livraison et j'aurais aimé être livré aussi. " +
+                                            "\nEst-ce possible pour vous d'ajouter ${state.value.userCity} à une de vos livraison ?" +
+                                            "\n\nMerci d'avance !"
+                                }
                             )
                         }
 
@@ -344,6 +362,13 @@ fun CustomerContent(
     }
 }
 
+/**
+ * Resolves the customer's typed (or autocompleted) address into a city, street and coordinates,
+ * then hands the decision to [DetermineDeliveryEligibilityUseCase].
+ *
+ * Only the geocoding lives here; the path-matching rules are in the use case, shared with the GPS
+ * flow in `PermissionManagerComposable` and covered by unit tests.
+ */
 private suspend fun checkLocationEligibility(
     context: Context,
     address: String? = null,
@@ -356,9 +381,6 @@ private suspend fun checkLocationEligibility(
         var userCity: String? = null
         var userLocation: Pair<Double, Double>? = null
         var userStreet: String? = null
-        val isNearPathCity: Boolean
-        var closestDistance = Double.MAX_VALUE
-        var matchingPathForCity: UiDeliveryPath? = null
 
         // 1. Resolve user city and location
         if (address != null && location == null) {
@@ -405,100 +427,23 @@ private suspend fun checkLocationEligibility(
             }
         }
 
-        // 2. Filter paths that cover the user's city (pathsInCity)
-        val pathsInCity = mutableListOf<UiDeliveryPath>()
+        // 2. Match against the delivery paths
         val addressText = address ?: location?.fulltext
-
-        for (path in allPaths) {
-            var matchedCityName: String? = null
-            var matchedCityLocation: Pair<Double, Double>? = null
-
-            for (cityInfo in path.cities) {
-                val cityName = cityInfo.first
-                val cityIndex = path.cities.indexOf(cityInfo)
-                val cityLocation = if (path.locations != null && path.locations.size > cityIndex) {
-                    path.locations[cityIndex]
-                } else null
-
-                // Proximity calculations (only if we have resolved user location)
-                if (userLocation != null && cityLocation != null) {
-                    val distance = calculateDistance(
-                        userLocation.first,
-                        userLocation.second,
-                        cityLocation.first,
-                        cityLocation.second
-                    )
-                    if (distance < closestDistance) {
-                        closestDistance = distance.toDouble()
-                    }
-                }
-
-                // Check city match
-                val isCityMatch =
-                    isSameCity(userCity, cityName) || isAddressInCity(addressText, cityName)
-                if (isCityMatch) {
-                    matchedCityName = cityName
-                    matchedCityLocation = cityLocation
-                }
-            }
-
-            if (matchedCityName != null) {
-                if (!pathsInCity.contains(path)) {
-                    pathsInCity.add(path)
-                }
-                // Fallback / recovered coordinates and city name:
-                // If user location or userCity was null/failed, recover them using the matched city's info from the path
-                if (userCity.isNullOrBlank()) {
-                    userCity = matchedCityName
-                }
-                if (userLocation == null && matchedCityLocation != null) {
-                    userLocation = matchedCityLocation
-                    closestDistance =
-                        0.0 // Force proximity check to succeed since exact city matched
-                }
-            }
-        }
-
-        // 3. Granular street-level matching
-        if (pathsInCity.isNotEmpty()) {
-            // Step 1: Try exact street match using thoroughfare from geocoder
-            if (userStreet != null) {
-                matchingPathForCity = pathsInCity.find { path ->
-                    path.streets.any { it.equals(userStreet, ignoreCase = true) }
-                }
-            }
-
-            // Step 2: Try robust fallback street check in the full address text
-            if (matchingPathForCity == null && addressText != null) {
-                matchingPathForCity = pathsInCity.find { path ->
-                    path.streets.any { street ->
-                        isStreetInAddress(addressText, street)
-                    }
-                }
-            }
-
-            // Step 3: Fall back to generic paths covering the whole city (no street restrictions)
-            if (matchingPathForCity == null) {
-                matchingPathForCity = pathsInCity.find { it.streets.isEmpty() }
-            }
-        }
-
-        isNearPathCity = closestDistance <= MAX_DISTANCE_FOR_PICKUP_METERS
-
-        // 4. Determine eligibility
-        val eligibility = when {
-            matchingPathForCity != null -> DeliveryEligibility.DELIVERABLE
-            isNearPathCity -> DeliveryEligibility.ASK_FOR_SUPPORT
-            else -> DeliveryEligibility.NOT_ELIGIBLE
-        }
+        val result = DetermineDeliveryEligibilityUseCase().invoke(
+            paths = allPaths.map { it.toDomainDeliveryPath() },
+            userCity = userCity,
+            userStreet = userStreet,
+            addressText = addressText,
+            userLocation = userLocation
+        )
 
         // Return results to UI
         withContext(Dispatchers.Main) {
             onResult(
-                eligibility,
-                userCity,
-                userLocation,
-                if (eligibility == DeliveryEligibility.DELIVERABLE) matchingPathForCity else null
+                result.eligibility,
+                result.resolvedCity,
+                result.resolvedLocation,
+                result.matchingPath?.let { matched -> allPaths.find { it.id == matched.id } }
             )
         }
     }
@@ -520,19 +465,3 @@ private fun extractCityFromAddress(address: String): String? {
     return if (city.isNotEmpty()) city else null
 }
 
-private fun isAddressInCity(address: String?, cityName: String?): Boolean {
-    if (address == null || cityName == null) return false
-    val normalizedAddress = address.normalizeCityName()
-    val normalizedCity = cityName.normalizeCityName()
-    if (normalizedAddress.isEmpty() || normalizedCity.isEmpty()) return false
-    val regex = "\\b${Regex.escape(normalizedCity)}\\b".toRegex()
-    return regex.containsMatchIn(normalizedAddress)
-}
-
-private fun isStreetInAddress(address: String?, streetName: String): Boolean {
-    if (address == null) return false
-    val normalizedAddress = address.normalizeCityName()
-    val normalizedStreet = streetName.normalizeCityName()
-    if (normalizedAddress.isEmpty() || normalizedStreet.isEmpty()) return false
-    return normalizedAddress.contains(normalizedStreet)
-}

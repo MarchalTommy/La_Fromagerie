@@ -196,7 +196,7 @@ fun <T> InfiniteCircularList(
                             )
                             Text(
                                 modifier = Modifier.padding(8.dp),
-                                text = item.cities.joinToString(", ") { it.first.uppercase() },
+                                text = item.cities.joinToString(", ") { it.name.uppercase() },
                                 style = MaterialTheme.typography.bodyLarge,
                                 color = textColor,
                                 maxLines = 2,

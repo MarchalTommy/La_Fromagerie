@@ -87,6 +87,7 @@ import com.mtdevelopment.home.domain.usecase.GetLastFirestoreDatabaseUpdateUseCa
 import com.mtdevelopment.home.presentation.viewmodel.HomeViewModel
 import com.mtdevelopment.lafromagerie.FromagerieDatabase
 import com.mtdevelopment.lafromagerie.MIGRATION_4_5
+import com.mtdevelopment.lafromagerie.MIGRATION_5_6
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.plugins.DefaultRequest
@@ -459,6 +460,6 @@ fun provideDataBase(application: Application): FromagerieDatabase =
         application,
         FromagerieDatabase::class.java,
         "lafromagerie_database"
-    ).addMigrations(MIGRATION_4_5)
+    ).addMigrations(MIGRATION_4_5, MIGRATION_5_6)
         .fallbackToDestructiveMigration(true)
         .build()

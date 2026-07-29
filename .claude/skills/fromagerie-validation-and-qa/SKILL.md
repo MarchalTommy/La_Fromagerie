@@ -1,6 +1,6 @@
 ---
 name: fromagerie-validation-and-qa
-description: What counts as evidence that a LaFromagerie fix or feature actually works — the evidence ladder (unit test > on-device verification > "it compiles"), exact test commands and known-failing baseline, MockK/Turbine test-writing conventions from real tests, the checklist for adding tests to a stub module, and the on-device verification protocol. Load before declaring any change "done", before writing new tests, or when asked "is this actually fixed" / "how do we know this works".
+description: What counts as evidence that a LaFromagerie fix or feature actually works — the evidence ladder (unit test > on-device verification > "it compiles"), exact test commands and known-failing baseline, MockK/Turbine test-writing conventions from real tests, the checklist for bringing a new module up to the repo's testing standard, and the on-device verification protocol. Load before declaring any change "done", before writing new tests, or when asked "is this actually fixed" / "how do we know this works".
 ---
 
 # LaFromagerie Validation and QA
@@ -19,17 +19,31 @@ From weakest to strongest. A change is "done" only when it clears the bar approp
 
 A fix without a discriminating verification step (2 and/or 3, matched to what actually changed) is not done — regardless of how confident the diff looks.
 
-## Test commands (verified 2026-07-06, branch `claude/distracted-chaum-0986e4`)
+## Test commands (counts re-verified 2026-07-29 on branch `claude/streets-city-split-fix-f75c12`)
+
+**Three commands, not two** — the flavored tasks skip the unflavored modules entirely, so running
+only the first two silently misses `core:domain`, `delivery:domain`, `checkout:domain`,
+`cart:domain` and `auth`:
 
 ```bash
-./gradlew testClientDebugUnitTest --continue    # client-flavor unit tests, all modules
-./gradlew testAdminDebugUnitTest --continue     # admin-flavor unit tests, all modules
+./gradlew testClientDebugUnitTest --continue    # flavored modules, client variant
+./gradlew testAdminDebugUnitTest --continue     # flavored modules, admin variant
+./gradlew testDebugUnitTest --continue          # unflavored modules
 ```
 
-- `testClientDebugUnitTest --continue`: **367 tasks, 112 tests, 2 real failures** (both in `admin/presentation` `AdminViewModelTest`).
-- `testAdminDebugUnitTest --continue`: **371 tasks**; same `AdminViewModelTest` class fails the same way (2 failures: `` addNewProduct aborts when local image upload fails `` and `` updateProduct aborts when local image upload fails ``). Everything else green. (Task count differs slightly from the client run because flavor-specific compilation graphs differ — this is expected, not a sign of drift.)
+| Command | Tests | Failures |
+|---|---|---|
+| `testClientDebugUnitTest --continue` | 147 | 2 (`admin/presentation` `AdminViewModelTest`) |
+| `testAdminDebugUnitTest --continue` | 147 | 2 (same class, same two tests) |
+| `testDebugUnitTest --continue` | 87 | 0 |
+
+The two flavored runs largely re-execute the **same** tests against a different variant, so do not
+add their totals together and report ~380 — that double-counts, and it double-counts the two
+baseline failures too. Judge each run against its own row.
+
 - `--continue` is essential: without it, Gradle stops at the first module failure and you don't get the full picture across ~20+ modules.
-- Some modules (e.g. `checkout:domain`) have **no product flavors**, so their task is the unflavored `testDebugUnitTest`, not `testClientDebugUnitTest` — check `./gradlew :module:tasks | grep -i unittest` if a flavored task name 404s.
+- Some modules (e.g. `checkout:domain`, `delivery:domain`) have **no product flavors**, so their task is the unflavored `testDebugUnitTest` — check `./gradlew :module:tasks | grep -i unittest` if a flavored task name 404s.
+- **Task counts are not a useful drift signal** and are deliberately not quoted here: they move with the module graph, and `--rerun-tasks` changes what gets counted. The test count and the failure set are what matter.
 
 ## The known-failing baseline — do not touch without on-device verification
 
@@ -44,7 +58,7 @@ A fix without a discriminating verification step (2 and/or 3, matched to what ac
 
 ## Test-writing conventions (from real tests, not stubs)
 
-Every module still carrying only `ExampleUnitTest.kt`/`ExampleInstrumentedTest.kt` is untested scaffolding, not a signal of "nothing to test here." Before testing a ViewModel, check its actual state-holder style first — ViewModels in this repo are NOT uniform (some expose `StateFlow`, some Compose `mutableStateOf`, some a mix; see `fromagerie-architecture-contract` §4) and the assertion approach differs accordingly. The following conventions are drawn from three real test files:
+An `ExampleUnitTest.kt`/`ExampleInstrumentedTest.kt` is scaffolding, never a signal of "nothing to test here" — but note that as of 2026-07-29 those files sit alongside real tests rather than instead of them (see the checklist below). Before testing a ViewModel, check its actual state-holder style first — ViewModels in this repo are NOT uniform (some expose `StateFlow`, some Compose `mutableStateOf`, some a mix; see `fromagerie-architecture-contract` §4) and the assertion approach differs accordingly. The following conventions are drawn from three real test files:
 
 - `cart/presentation/src/test/java/com/mtdevelopment/cart/presentation/viewmodel/CartViewModelTest.kt`
 - `admin/domain/src/test/java/com/mtdevelopment/admin/domain/usecase/GetOptimizedDeliveryUseCaseTest.kt`
@@ -63,24 +77,32 @@ Conventions common to all three:
 
 ### Where tests live
 
-Standard Gradle/Android convention, per module per source set: `<module>/src/test/java/<package>/...Test.kt` for JVM unit tests, `<module>/src/androidTest/java/<package>/...` for instrumented tests (most of the latter are still `ExampleInstrumentedTest.kt` stubs — 19 files repo-wide as of 2026-07-06). Flavor-specific test sources would live under `src/test<Flavor>/...` but this repo's tests are written against shared/flavor-agnostic classes, so this pattern is not currently in use — verify with `find . -path "*/src/test*" -type d | grep -v build` if a module surprises you.
+Standard Gradle/Android convention, per module per source set: `<module>/src/test/java/<package>/...Test.kt` for JVM unit tests, `<module>/src/androidTest/java/<package>/...` for instrumented tests (**all 18 of the latter are still `ExampleInstrumentedTest.kt` stubs** as of 2026-07-29 — there is no real instrumented coverage in this repo). Flavor-specific test sources would live under `src/test<Flavor>/...` but this repo's tests are written against shared/flavor-agnostic classes, so this pattern is not currently in use — verify with `find . -path "*/src/test*" -type d | grep -v build` if a module surprises you.
 
 ### Checklist: adding tests to a module that only has `ExampleUnitTest`
 
-Compare a module with real tests (`cart/presentation`) against one still stub-only (`auth`) — the delta in `build.gradle.kts` is exactly:
+**As of 2026-07-29 there is no longer a stub-only module** — every one of the 18 modules carries at
+least one real test file, `auth` included (it has `SignInWithPinUseCaseTest` and
+`AuthViewModelTest`, and all four test dependencies). This skill used to cite `auth` as the
+stub-only counter-example; that is no longer true. Check before assuming:
+
+```bash
+find . -path '*/src/test/*' -name '*.kt' -not -path '*/build/*' | grep -v ExampleUnitTest \
+  | sed 's|/src/test.*||' | sort -u     # modules with real tests
+```
+
+The 18 `ExampleUnitTest.kt` files still on disk are leftover scaffolding sitting **alongside** real
+tests, not evidence a module is untested.
+
+The checklist below still applies to any **newly created** module. The dependency set a module
+needs is:
 
 ```kotlin
-// cart/presentation/build.gradle.kts (has real tests) — testImplementation block:
 testImplementation(libs.junit)
 testImplementation(libs.mockk)
 testImplementation(libs.turbine)
 testImplementation(libs.coroutines.test)
-
-// auth/build.gradle.kts (stub-only) — testImplementation block:
-testImplementation(libs.junit)
 ```
-
-To bring a stub module up to the same standard:
 
 1. Add `testImplementation(libs.mockk)`, `testImplementation(libs.turbine)`, `testImplementation(libs.coroutines.test)` to that module's `build.gradle.kts` (all three aliases already exist in the root `gradle/libs.versions.toml` — no new version pinning needed).
 2. Delete or leave `ExampleUnitTest.kt` alongside your real test files (it's harmless scaffolding, not a placeholder you must preserve).
@@ -118,10 +140,23 @@ Full merge-gate criteria (branch protections, review expectations, commit hygien
 
 ## Provenance and maintenance
 
-Facts verified 2026-07-06 against branch `claude/distracted-chaum-0986e4`, both flavors. Re-verify drift-prone claims:
+Conventions and protocol verified 2026-07-06 against branch `claude/distracted-chaum-0986e4`;
+**test counts and module coverage re-verified 2026-07-29** on `claude/streets-city-split-fix-f75c12`.
+Re-verify drift-prone claims:
 
-- Client baseline still 112 tests / 2 failures: `./gradlew testClientDebugUnitTest --continue` then check the summary line and `admin/presentation/build/reports/tests/testClientDebugUnitTest/index.html`
-- Admin baseline still 2 failures, same names: `./gradlew testAdminDebugUnitTest --continue` then check `admin/presentation/build/reports/tests/testAdminDebugUnitTest/index.html`
+- Counts per command (147 / 147 / 87, with 2 failures on each flavored run): run each of the three
+  commands above, then total the XML rather than trusting the console summary, which only reports
+  the last module:
+  ```bash
+  python3 -c "
+  import glob,sys,xml.etree.ElementTree as ET
+  t=sys.argv[1]; tot=f=0; bad=set()
+  for p in glob.glob('**/test-results/'+t+'/TEST-*.xml',recursive=True):
+      r=ET.parse(p).getroot(); tot+=int(r.get('tests'))
+      e=int(r.get('failures'))+int(r.get('errors')); f+=e
+      if e: bad.add(r.get('name').split('.')[-1])
+  print(t,'tests:',tot,'failures:',f,sorted(bad))" testClientDebugUnitTest
+  ```
 - The upload-failure code path is unchanged: `grep -n "uploadProductImageIfLocal" -A 12 admin/presentation/src/main/java/com/mtdevelopment/admin/presentation/viewmodel/AdminViewModel.kt` (expect no `.onFailure` branch — if one now exists, the disagreement described above may be resolved and this section needs updating)
-- Test dependency delta (real-test module vs. stub module): `grep -n "testImplementation" cart/presentation/build.gradle.kts auth/build.gradle.kts`
-- Instrumented test stub count: `find . -iname "ExampleInstrumentedTest.kt" | grep -v build | wc -l`
+- No module has regressed to stub-only: `find . -path '*/src/test/*' -name '*.kt' -not -path '*/build/*' | grep -v ExampleUnitTest | sed 's|/src/test.*||' | sort -u | wc -l` (expect 18, i.e. every module)
+- Instrumented tests still all stubs: `find . -iname "ExampleInstrumentedTest.kt" -not -path '*/build/*' | wc -l` vs `find . -path '*/src/androidTest/*' -name '*.kt' -not -path '*/build/*' | wc -l` (equal = still no real instrumented coverage)

@@ -58,7 +58,7 @@ fun DeliveryPathPickerComposable(
                     PathCardComposable(
                         allPaths,
                         it.name,
-                        it.cities.map { it.first }.toTypedArray(),
+                        it.cities.map { city -> city.name }.toTypedArray(),
                         selectedOption,
                         onOptionSelected
                     )

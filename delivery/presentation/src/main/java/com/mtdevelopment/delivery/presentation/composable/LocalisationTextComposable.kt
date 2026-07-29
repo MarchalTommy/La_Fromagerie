@@ -27,6 +27,7 @@ fun LocalisationTextComposable(
     selectedPath: UiDeliveryPath?,
     geolocIsOnPath: Boolean,
     canAskForDelivery: Boolean,
+    streetNotCovered: Boolean = false,
     userCity: String
 ) {
     val isCyclingTextMode = selectedPath == null && !canAskForDelivery
@@ -91,6 +92,12 @@ fun LocalisationTextComposable(
     val textToDisplay: String = when {
         isCyclingTextMode -> {
             stringResource(id = currentCyclingTextResId)
+        }
+
+        // The city is served, but it is split between two tournées and the street did not decide
+        // which one. Say so explicitly rather than let the near-miss wording imply we don't deliver.
+        streetNotCovered -> {
+            stringResource(R.string.auto_geoloc_street_not_covered, userCity)
         }
 
         geolocIsOnPath && selectedPath != null -> {

@@ -1,9 +1,25 @@
 package com.mtdevelopment.delivery.data.model.response.firestore
 
 import androidx.annotation.Keep
+import com.mtdevelopment.core.model.DeliveryCity
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
+/**
+ * Read shape of a `delivery_paths` document.
+ *
+ * Two on-disk shapes are accepted, because documents written before the split-city feature only
+ * have the parallel arrays:
+ * - [cityEntries] (`city_entries`): canonical, one entry per city with its own street restriction.
+ * - [cities] + [postcodes]: legacy parallel arrays, zipped positionally.
+ *
+ * [toDeliveryCities] applies the precedence. Documents convert to the new shape the first time the
+ * admin saves them; no data migration is required.
+ *
+ * The legacy path-level `streets` field is intentionally absent: it could not express a
+ * per-city restriction, and applying it path-wide is exactly what made the unrestricted cities of a
+ * path undeliverable.
+ */
 @Keep
 @Serializable
 data class DataDeliveryPathsResponse(
@@ -19,6 +35,40 @@ data class DataDeliveryPathsResponse(
     val deliveryFrequency: String = "WEEKLY",
     @SerialName("postcodes")
     val postcodes: List<Int>? = null,
-    @SerialName("streets")
-    val streets: List<String>? = null
+    @SerialName("city_entries")
+    val cityEntries: List<DataDeliveryCityResponse>? = null
 )
+
+@Keep
+@Serializable
+data class DataDeliveryCityResponse(
+    @SerialName("city")
+    val city: String = "",
+    @SerialName("postcode")
+    val postcode: Int = 0,
+    @SerialName("streets")
+    val streets: List<String> = emptyList()
+)
+
+/**
+ * Resolves the document to domain cities, preferring the canonical `city_entries` shape and
+ * falling back to zipping the legacy parallel arrays. Returns an empty list when neither shape
+ * carries usable data, which the repository treats as "skip this path".
+ */
+fun DataDeliveryPathsResponse.toDeliveryCities(): List<DeliveryCity> {
+    cityEntries?.takeIf { it.isNotEmpty() }?.let { entries ->
+        return entries.map { entry ->
+            DeliveryCity(
+                name = entry.city,
+                postcode = entry.postcode,
+                streets = entry.streets
+            )
+        }
+    }
+
+    val names = cities ?: return emptyList()
+    val codes = postcodes ?: return emptyList()
+    return names.zip(codes).map { (name, postcode) ->
+        DeliveryCity(name = name, postcode = postcode)
+    }
+}

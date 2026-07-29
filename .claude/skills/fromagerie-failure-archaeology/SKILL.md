@@ -114,6 +114,10 @@ Rule: any branch with 0 unique commits is safe to ignore (and eventually delete 
 ## 12. Code-style regime changes (context for "why does this code look different")
 
 - **Gemini mass refactor:** `657b721`/`7887bcd` "Let Gemini 3.5 refact a whole lot of code to help me maintain the app". Large mechanical changes; treat pre/post style differences as intentional.
+
+  ⚠️ **Correction (2026-07-29): it was not purely mechanical.** This entry used to say the changes were style-only. At least one of them silently changed business logic: in `checkLocationEligibility` a direct `matchingPathForCity = path` assignment became a three-step gate whose final step only accepted paths with an **empty** street list. That turned an optional street allow-list into an exclusion filter, so any path carrying streets for one city became undeliverable for all its other cities. It shipped inert — the feature was dead for other reasons — and went unnoticed for **two months**, until PR #59 (2026-07-29) found it while making per-street city splits actually work.
+
+  **What this costs a future session:** do not assume a diff from this refactor is safe because it "looks like a rename". Where it touched decision logic, re-derive the intended behaviour from the domain, not from the shape of the surrounding code. The reason it hid so long is worth its own note: the logic was a private function inside a Composable file, duplicated between two call sites, with no test referencing it — see `fromagerie-validation-and-qa` on why "no test names this symbol" is itself a finding.
 - **Mass-KDoc commits:** `07dba1d` (home/detail/core), `1733286` (checkout/delivery), `ff1dc36` (cart), `548ea05` (admin). **The docs of record are KDoc in-code; there is no README.** When code and KDoc disagree, suspect the KDoc drifted — verify against behavior. Writing conventions: see fromagerie-docs-and-writing.
 - **Hardening pass:** `4aea6ea` also added the first substantial unit-test batteries (AdminViewModel, CartViewModel, route use cases).
 - **Durable payments:** `9e386bc` (WorkManager finalization) and `7d7117f` (cart state refactor + payment security) define the current payment architecture.
@@ -158,8 +162,10 @@ As of 2026-07-06, `./gradlew testClientDebugUnitTest --continue` has **2 real fa
     including nothing. If a read's emptiness has consequences, check it explicitly.
 - **Do not confuse with** the `streets` city-splitting defects found in the same investigation
   (`CustomerContent.checkLocationEligibility` path-level street filter, `streets` absent from
-  both the admin write DTO and `PathEntity`). Those are **open**, unrelated, and tracked
-  separately — see fromagerie-delivery-logistics-reference.
+  both the admin write DTO and `PathEntity`). Unrelated cause, and **fixed 2026-07-29 in PR #59**
+  — see fromagerie-delivery-logistics-reference for how the feature works now. The two landed
+  close enough together to collide in `main`; if you are reading a diff from that day, the
+  poisoned-cache fix and the city-split fix are separate changes.
 
 ## When NOT to use this skill
 
