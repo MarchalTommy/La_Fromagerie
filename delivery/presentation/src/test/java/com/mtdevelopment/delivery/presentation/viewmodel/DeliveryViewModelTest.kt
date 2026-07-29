@@ -1,5 +1,6 @@
 package com.mtdevelopment.delivery.presentation.viewmodel
 
+import com.mtdevelopment.core.model.DeliveryCity
 import com.mtdevelopment.core.model.AutoCompleteSuggestion
 import com.mtdevelopment.core.model.UserInformation
 import com.mtdevelopment.core.usecase.GetAutocompleteSuggestionsUseCase
@@ -45,7 +46,7 @@ class DeliveryViewModelTest {
     private val uiPath = UiDeliveryPath(
         id = "1",
         name = "Tournée du Lundi",
-        cities = listOf("Pontarlier" to 25300),
+        cities = listOf(DeliveryCity("Pontarlier", 25300)),
         locations = listOf(46.9 to 6.35),
         deliveryDay = "Lundi",
         geoJson = null
@@ -77,7 +78,7 @@ class DeliveryViewModelTest {
             val domainPath = DeliveryPath(
                 id = "1",
                 pathName = "Tournée du Lundi",
-                availableCities = listOf("Pontarlier" to 25300),
+                cities = listOf(DeliveryCity("Pontarlier", 25300)),
                 locations = listOf(46.9 to 6.35),
                 deliveryDay = "Lundi",
                 geoJson = null

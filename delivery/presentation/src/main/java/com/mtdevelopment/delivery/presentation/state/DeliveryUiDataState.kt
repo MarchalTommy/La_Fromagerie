@@ -21,6 +21,9 @@ import com.mtdevelopment.delivery.presentation.model.UiDeliveryPath
  * @property localisationSuccess True if the user's location was successfully acquired.
  * @property userLocationOnPath True if the user's location matches an exact delivery city.
  * @property userLocationCloseFromPath True if the user's location is geographically close to a delivery path.
+ * @property streetNotCovered True when the city IS covered, but only by paths that restrict it to
+ *   street lists none of which matched this address. The customer has no manual path picker, so
+ *   rather than guess a tournée we route them to the same support request as a near-miss.
  * @property isLoading Global loading state for the module.
  * @property isError Error message to display, if any.
  * @property columnScrollingEnabled Used to disable parent scroll when interacting with child components (like Map).
@@ -50,6 +53,7 @@ data class DeliveryUiDataState(
     val localisationSuccess: Boolean = false,
     val userLocationOnPath: Boolean = false,
     val userLocationCloseFromPath: Boolean = false,
+    val streetNotCovered: Boolean = false,
     val isLoading: Boolean = false,
     val isError: String = "",
     val columnScrollingEnabled: Boolean = true,

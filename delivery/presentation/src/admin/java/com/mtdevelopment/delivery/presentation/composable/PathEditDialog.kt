@@ -69,6 +69,7 @@ import com.mtdevelopment.admin.presentation.composable.ProductEditField
 import com.mtdevelopment.admin.presentation.model.AdminUiDeliveryPath
 import com.mtdevelopment.core.domain.move
 import com.mtdevelopment.core.model.AutoCompleteSuggestion
+import com.mtdevelopment.core.model.DeliveryCity
 import com.mtdevelopment.core.presentation.theme.ui.black70
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -114,14 +115,12 @@ fun PathEditDialog(
                     ?: "",
                 cities = path?.cities ?: emptyList(),
                 deliveryDay = path?.deliveryDay ?: "",
-                deliveryFrequency = path?.deliveryFrequency ?: "WEEKLY",
-                streets = path?.streets ?: emptyList()
+                deliveryFrequency = path?.deliveryFrequency ?: "WEEKLY"
             )
         )
     }
 
-    val tempNewCity = remember { mutableStateOf(Pair("", 0)) }
-    val streetsInput = remember { mutableStateOf(path?.streets?.joinToString(", ") ?: "") }
+    val tempNewCity = remember { mutableStateOf(DeliveryCity(name = "", postcode = 0)) }
 
     var isDropdownExpanded by remember { mutableStateOf(false) }
 
@@ -192,20 +191,6 @@ fun PathEditDialog(
                     focusRequester = focusRequester,
                     focusManager = focusManager,
                 )
-                // Rues (optionnel)
-                ProductEditField(
-                    modifier = Modifier.fillMaxWidth(),
-                    title = "Rues (optionnel, séparées par virgule)",
-                    value = streetsInput.value,
-                    onValueChange = { input ->
-                        streetsInput.value = input
-                        val streetsList = input.split(",").map { it.trim() }.filter { it.isNotBlank() }
-                        tempPath.value = tempPath.value.copy(streets = streetsList)
-                    },
-                    imeAction = ImeAction.Next,
-                    focusManager = focusManager,
-                )
-
                 // Sélection du jour
                 Row(
                     modifier = Modifier
@@ -280,7 +265,7 @@ fun PathEditDialog(
                         // Villes existantes
                         itemsIndexed(
                             items = tempPath.value.cities,
-                            key = { _, item -> item.first + item.second }
+                            key = { _, item -> item.name + item.postcode }
                         ) { index, city ->
 
                             CityFields(
@@ -294,9 +279,14 @@ fun PathEditDialog(
                                 position = if (index == 0) LIST_POSITION.FIRST else if (index == tempPath.value.cities.lastIndex) LIST_POSITION.LAST else LIST_POSITION.NONE,
                                 onRemove = { cityToRemove ->
                                     val updatedCities =
-                                        tempPath.value.cities.filterNot { currentCityPair ->
-                                            currentCityPair.first == cityToRemove.first && currentCityPair.second == cityToRemove.second
+                                        tempPath.value.cities.filterNot { currentCity ->
+                                            currentCity.name == cityToRemove.name && currentCity.postcode == cityToRemove.postcode
                                         }
+                                    tempPath.value = tempPath.value.copy(cities = updatedCities)
+                                },
+                                onStreetsChange = { streets ->
+                                    val updatedCities = tempPath.value.cities.toMutableList()
+                                    updatedCities[index] = updatedCities[index].copy(streets = streets)
                                     tempPath.value = tempPath.value.copy(cities = updatedCities)
                                 },
                                 onReorganisedClicked = { direction ->
@@ -334,9 +324,9 @@ fun PathEditDialog(
                                         suggestion.postCode?.let { append(" ($it)") }
                                     }.trim()
                                     onAutocompleteQueryChange.invoke(displayText)
-                                    tempNewCity.value = Pair(
-                                        suggestion.city ?: "",
-                                        suggestion.postCode?.toIntOrNull() ?: 0
+                                    tempNewCity.value = DeliveryCity(
+                                        name = suggestion.city ?: "",
+                                        postcode = suggestion.postCode?.toIntOrNull() ?: 0
                                     )
                                 },
                                 onValueChange = onAutocompleteQueryChange,
@@ -363,7 +353,7 @@ fun PathEditDialog(
                                 TextButton(
                                     modifier = Modifier.padding(end = 8.dp),
                                     shape = MaterialTheme.shapes.large,
-                                    enabled = tempNewCity.value.first.isNotBlank() && tempNewCity.value.second != 0,
+                                    enabled = tempNewCity.value.name.isNotBlank() && tempNewCity.value.postcode != 0,
                                     contentPadding = PaddingValues(
                                         horizontal = 8.dp,
                                         vertical = 16.dp
@@ -373,7 +363,8 @@ fun PathEditDialog(
                                         val updatedCities =
                                             tempPath.value.cities + tempNewCity.value
                                         tempPath.value = tempPath.value.copy(cities = updatedCities)
-                                        tempNewCity.value = Pair("", 0) // Réinitialiser
+                                        tempNewCity.value =
+                                            DeliveryCity(name = "", postcode = 0) // Réinitialiser
                                         onAutocompleteQueryChange.invoke("") // Vider le champ texte
                                     }
                                 ) {
@@ -465,15 +456,28 @@ fun PathEditDialog(
     }
 }
 
+/**
+ * One row of the path's city list: the city, its postcode, and the streets of *that city* served
+ * by *this path*.
+ *
+ * The street list is per city rather than per path on purpose: that is what lets two paths share
+ * a city by splitting its streets, while the other cities of each path stay fully covered. Leaving
+ * it empty — the normal case — means the path serves the whole city.
+ */
 @Composable
 fun CityFields(
     modifier: Modifier = Modifier,
-    city: Pair<String, Int>?,
+    city: DeliveryCity?,
     position: LIST_POSITION,
-    onRemove: (Pair<String, Int>) -> Unit = {},
+    onRemove: (DeliveryCity) -> Unit = {},
+    onStreetsChange: (List<String>) -> Unit = {},
     onReorganisedClicked: (MOVE_DIRECTION) -> Unit = {},
     onRenderedHeight: (Int) -> Unit = {}
 ) {
+    val streetsInput = remember(city?.name, city?.postcode) {
+        mutableStateOf(city?.streets?.joinToString(", ") ?: "")
+    }
+
     val dismissState = rememberSwipeToDismissBoxState(
         confirmValueChange = {
             when (it) {
@@ -552,29 +556,45 @@ fun CityFields(
                 }
             }
 
-            // --- Champs Ville et Code Postal ---
-            Row(
+            // --- Champs Ville, Code Postal et Rues ---
+            Column(
                 modifier = Modifier
                     .weight(1f)
                     .padding(end = 8.dp)
-                    .onGloballyPositioned { onRenderedHeight(it.size.height) },
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
+                    .onGloballyPositioned { onRenderedHeight(it.size.height) }
             ) {
-                ProductEditField(
-                    modifier = Modifier.weight(0.6f),
-                    title = "Ville",
-                    value = city?.first ?: "",
-                    isReadOnly = true
-                )
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    ProductEditField(
+                        modifier = Modifier.weight(0.6f),
+                        title = "Ville",
+                        value = city?.name ?: "",
+                        isReadOnly = true
+                    )
+
+                    ProductEditField(
+                        modifier = Modifier
+                            .weight(0.4f)
+                            .padding(end = 8.dp),
+                        title = "Code postal",
+                        value = city?.postcode?.toString() ?: "",
+                        isReadOnly = true
+                    )
+                }
 
                 ProductEditField(
-                    modifier = Modifier
-                        .weight(0.4f)
-                        .padding(end = 8.dp),
-                    title = "Code postal",
-                    value = city?.second?.toString() ?: "",
-                    isReadOnly = true
+                    modifier = Modifier.fillMaxWidth(),
+                    title = "Rues (vide = toute la ville)",
+                    value = streetsInput.value,
+                    onValueChange = { input ->
+                        streetsInput.value = input
+                        onStreetsChange(
+                            input.split(",").map { it.trim() }.filter { it.isNotBlank() }
+                        )
+                    },
+                    imeAction = ImeAction.Next
                 )
             }
         }

@@ -33,7 +33,9 @@ android {
 
 dependencies {
 
-    implementation(project(":core:domain"))
+    // `api` and not `implementation`: DeliveryPath exposes core's DeliveryCity in its public
+    // signature, so every consumer of this module needs core:domain on its compile classpath.
+    api(project(":core:domain"))
 
     implementation(libs.core.ktx)
     implementation(libs.androidx.appcompat)

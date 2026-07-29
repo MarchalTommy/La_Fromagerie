@@ -1,6 +1,7 @@
 package com.mtdevelopment.delivery.data.repository
 
 import com.mtdevelopment.core.util.NetWorkResult
+import com.mtdevelopment.delivery.data.model.response.firestore.toDeliveryCities
 import com.mtdevelopment.delivery.data.source.remote.FirestoreDeliveryDataSource
 import com.mtdevelopment.delivery.data.source.remote.OpenRouteDataSource
 import com.mtdevelopment.delivery.domain.model.DeliveryPath
@@ -40,29 +41,29 @@ class FirestorePathRepositoryImpl(
     ) {
         firestore.getAllDeliveryPaths(onSuccess = { pathList ->
             CoroutineScope(Dispatchers.IO).launch {
-                // Prepare data for reverse geocoding
-                val pathsWithCities = pathList.filter {
-                    it.cities?.isNotEmpty() == true && it.postcodes?.isNotEmpty() == true
+                // Prepare data for reverse geocoding. Cities come from `city_entries` when present,
+                // otherwise from the legacy parallel arrays (see DataDeliveryPathsResponse).
+                val pathsWithCities = pathList.mapNotNull { path ->
+                    path.toDeliveryCities().takeIf { it.isNotEmpty() }?.let { path to it }
                 }
 
-                val deferredCityInfoList = pathsWithCities.map { path ->
-                    val zippedCities = path.cities!! zip path.postcodes!!
+                val deferredCityInfoList = pathsWithCities.map { (path, deliveryCities) ->
                     // Launch async calls for reverse geocoding in parallel for efficiency
-                    val deferredCities = zippedCities.map { cityPair ->
+                    val deferredCities = deliveryCities.map { city ->
                         async {
                             addressApiRepository.reverseGeocodeCity(
-                                name = cityPair.first,
-                                zip = cityPair.second
+                                name = city.name,
+                                zip = city.postcode
                             )
                         }
                     }
                     // Associate necessary info for final reconstruction
-                    Triple(path, zippedCities, deferredCities)
+                    Triple(path, deliveryCities, deferredCities)
                 }
 
                 // Await geocoding results and build DeliveryPaths
                 val finalPaths =
-                    deferredCityInfoList.mapNotNull { (pathData, zippedCities, deferredCities) ->
+                    deferredCityInfoList.mapNotNull { (pathData, deliveryCities, deferredCities) ->
                         // Await resolution of all geocoding requests for this path
                         val cityInfos = deferredCities.map { it.await() }
 
@@ -95,12 +96,11 @@ class FirestorePathRepositoryImpl(
                             DeliveryPath(
                                 id = pathData.id,
                                 pathName = pathData.path_name ?: "",
-                                availableCities = zippedCities,
+                                cities = deliveryCities,
                                 locations = locations,
                                 deliveryDay = pathData.deliveryDay,
                                 deliveryFrequency = pathData.deliveryFrequency,
-                                streets = pathData.streets ?: emptyList(),
-                                geoJson = geoJsonData 
+                                geoJson = geoJsonData
                             )
                         }
                     }
@@ -128,23 +128,18 @@ class FirestorePathRepositoryImpl(
         firestore.getDeliveryPath(
             pathName = pathName,
             onSuccess = { path ->
+                val deliveryCities = path.toDeliveryCities()
 
-                val listOfZipped = mutableListOf<List<Pair<String, Int>>>()
-                if (path.cities?.isNotEmpty() == true && path.postcodes?.isNotEmpty() == true) {
-                    listOfZipped.add(path.cities zip path.postcodes)
-                }
-
-                if (path.path_name?.isNotBlank() == true && path.id.isNotBlank() && path.cities != null) {
+                if (path.path_name?.isNotBlank() == true && path.id.isNotBlank() && deliveryCities.isNotEmpty()) {
                     onSuccess.invoke(
                         DeliveryPath(
                             id = path.id,
                             pathName = path.path_name,
-                            availableCities = listOfZipped[0],
+                            cities = deliveryCities,
                             geoJson = null,
                             deliveryDay = path.deliveryDay,
                             deliveryFrequency = path.deliveryFrequency,
-                            locations = null,
-                            streets = path.streets ?: emptyList()
+                            locations = null
                         )
                     )
                 } else {

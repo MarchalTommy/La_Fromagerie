@@ -24,7 +24,7 @@ import com.mtdevelopment.core.presentation.composable.RiveAnimation
 import com.mtdevelopment.delivery.presentation.BuildConfig.MAPBOX_PUBLIC_TOKEN
 import com.mtdevelopment.delivery.presentation.composable.CustomerContent
 import com.mtdevelopment.delivery.presentation.composable.DatePickerComposable
-import com.mtdevelopment.delivery.presentation.composable.DeliveryEligibility
+import com.mtdevelopment.delivery.domain.usecase.DeliveryEligibility
 import com.mtdevelopment.delivery.presentation.composable.MapBoxComposable
 import com.mtdevelopment.delivery.presentation.composable.PermissionManagerComposable
 import com.mtdevelopment.delivery.presentation.viewmodel.DeliveryViewModel
@@ -152,8 +152,7 @@ fun DeliveryOptionScreen(
                         deliveryViewModel.setAddressFieldText(userAddress)
                     }
                     deliveryViewModel.updateSelectedPath(path)
-                    deliveryViewModel.updateUserLocationOnPath(eligibility == DeliveryEligibility.DELIVERABLE)
-                    deliveryViewModel.updateUserLocationCloseFromPath(eligibility == DeliveryEligibility.ASK_FOR_SUPPORT)
+                    deliveryViewModel.updateEligibility(eligibility)
                 },
                 onUpdateUserLocation = {
                     if (it != null) {

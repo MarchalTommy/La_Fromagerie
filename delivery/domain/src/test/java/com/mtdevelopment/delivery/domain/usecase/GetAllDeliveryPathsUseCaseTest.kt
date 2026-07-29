@@ -1,5 +1,6 @@
 package com.mtdevelopment.delivery.domain.usecase
 
+import com.mtdevelopment.core.model.DeliveryCity
 import com.mtdevelopment.core.repository.SharedDatastore
 import com.mtdevelopment.delivery.domain.model.DeliveryPath
 import com.mtdevelopment.delivery.domain.repository.FirestorePathRepository
@@ -27,7 +28,7 @@ class GetAllDeliveryPathsUseCaseTest {
     private fun path(id: String, name: String) = DeliveryPath(
         id = id,
         pathName = name,
-        availableCities = listOf("Pontarlier" to 25300),
+        cities = listOf(DeliveryCity("Pontarlier", 25300)),
         locations = listOf(46.9 to 6.35),
         deliveryDay = "Lundi",
         geoJson = null
