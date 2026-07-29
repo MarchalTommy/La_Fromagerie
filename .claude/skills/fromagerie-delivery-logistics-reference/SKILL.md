@@ -14,7 +14,7 @@ with live route guidance. All facts verified 2026-07-06 against branch `claude/d
 | Term | Meaning here |
 |---|---|
 | **Delivery path** (a.k.a. "parcours", "tournée") | A named delivery zone/route: a set of (city, postcode) pairs, an assigned weekday, optional street-level restriction. Domain model `DeliveryPath`, Firestore collection `delivery_paths`. |
-| **Path streets** | Optional per-path street allow-list (`DeliveryPath.streets`). If empty, the whole city is considered deliverable. Not currently enforced against the customer's typed address — see Gaps below. |
+| **Path streets** | Optional per-path street allow-list (`DeliveryPath.streets`). If empty, the whole city is deliverable. **The feature is entirely non-functional as of 2026-07-29 — see "The `streets` city-split feature is broken" below. Read that section before touching anything street-related.** (Correction: this line previously claimed streets were "not enforced against the customer's typed address". They are — as an exclusion filter. That stale claim cost an investigation.) |
 | **Preparation status** | Per-product, per-date checkbox state ("has this cheese been prepared for this delivery day yet") shown to the admin. Firestore collection `preparation_status`. Not the same as `Order.status`. |
 | **Order status** | `OrderStatus` enum: `PENDING → PAID → IN_PREPARATION → PREPARED → IN_DELIVERY → DELIVERED`, or `CANCELED`. Lives on the `Order` domain model (`core/domain/.../Order.kt`), not on `DeliveryPath`. |
 | **Route optimization** | Reordering today's delivery addresses into an efficient visiting order. Done by Google Routes at delivery-day execution time — **not** the same system that draws the road line on the zone map (that's OpenRouteService). |
@@ -65,7 +65,13 @@ with live route guidance. All facts verified 2026-07-06 against branch `claude/d
 2. For every city in every path, reverse-geocode `(cityName, zip)` → lat/lng via `AddressApiRepository.reverseGeocodeCity()` (gouv address API), in parallel per path (`async`/`await`).
 3. If **any** city in a path fails to geocode, that whole path is dropped from the result (`mapNotNull` returning `null`). A path can silently disappear from the picker if one city's name/zip pair doesn't resolve — check this first if a path is "missing" for a customer.
 4. If `withGeoJson = true` (admin map only, see below), fetch road-line geometry from OpenRouteService using the resolved city coordinates.
-5. If **all** paths in the whole fetch failed to geocode, `onFailure` fires; otherwise the (possibly-partial) successful list is returned via `onSuccess`.
+5. **An empty result is always reported as `onFailure`** (changed 2026-07-29). Whether the emptiness comes from Firestore returning no document or from every path being dropped at step 3, "zero paths" is never a legitimate answer — the shop always has at least one. Reporting success on an empty list used to poison the cache permanently; see fromagerie-failure-archaeology §14 before relaxing this. A **partial** result (some paths dropped, at least one survivor) is still returned via `onSuccess`, unchanged.
+
+> **Firestore offline trap, worth internalizing:** `collection(...).get()` with the default
+> source does **not** fail when the device is offline. It resolves from Firestore's own local
+> cache and completes *successfully* with whatever is there — including zero documents on a
+> first launch. `addOnFailureListener` never fires. Any read whose emptiness has consequences
+> must be checked explicitly; a successful `get()` is not evidence that the server answered.
 
 `getDeliveryPath(pathName)` (used to resolve a customer's previously-saved path name) does **not** geocode or fetch GeoJSON — it is a lighter partial reconstruction. **FIXED (2026-07-07, commit `58f85c9`, PR #43):** this method previously queried `whereEqualTo("pathName", …)` while the stored Firestore field is `path_name`, so the query could never match. The query key is now `path_name` and a regression test (`FirestoreDeliveryDataSourceTest`) guards it — see `fromagerie-firestore-data-model` §2.3.
 
@@ -210,6 +216,43 @@ Given current GPS location and the cached optimized route, walks the waypoint li
 | `geojson` | `String` | the whole `GeoJsonFeatureCollection` JSON-encoded as one text blob |
 
 The `cities: Map<String, Int>` vs. domain `List<Pair<String, Int>>` mismatch means **city ordering set in `PathEditDialog`'s manual reorder UI is not guaranteed to survive a Room round-trip** — reordering only matters for the in-memory session and for what's written straight back to Firestore, not for what comes back out of the local cache. UNVERIFIED (as of 2026-07-06): whether this has caused an observed bug; flagged here as a latent one from static reading of `PathEntity.kt`.
+
+## The `streets` city-split feature is broken (OPEN, found 2026-07-29)
+
+**Intended goal** (owner-stated): let two paths cover the same city and split it by streets.
+Real example — Path A: Boujailles, Frasne, Courvière. Path B: Boujailles, Arc-sous-Montenot,
+Villers. Only Boujailles is split into two admin-defined street groups; the customer's street
+decides which path's slot they get. Every other city stays unrestricted on its own path.
+
+**The feature does not work at all.** Four independent defects, all verified in code:
+
+1. **Streets are never written to Firestore.** `DataDeliveryPath` (the admin write DTO,
+   `admin/data/.../model/DataDeliveryPath.kt`) has no `streets` field, and
+   `toDataDeliveryPath()` does not map it — even though `core/domain/.../model/DeliveryPath.kt`
+   carries it and `PathEditDialog` already collects it. Worse, `updateDeliveryPath` uses
+   `.set(path)` with no merge, so **editing any path erases a `streets` value added by hand in
+   the Firebase console**. This is why the field is simply absent from production docs.
+2. **Streets do not survive the Room cache.** `PathEntity` has no `streets` column and
+   `toPath()` does not restore it, so it falls back to `emptyList()`. Room is the normal read
+   path, so streets would be lost after the first sync even if defect 1 were fixed.
+3. **The matching semantics are an exclusion filter, not a tie-breaker.**
+   `CustomerContent.checkLocationEligibility` (`delivery/presentation/src/main/.../composable/`)
+   only rescues paths whose `streets` is empty. Consequence on the example above: putting
+   streets on Path A would make **Frasne and Courvière undeliverable**. Regression introduced by
+   `657b721` ("Let Gemini 3.5 refact a whole lot of code"), which replaced a direct
+   `matchingPathForCity = path` with a three-step street gate.
+4. **The data model cannot express the goal.** `streets` is a flat `List<String>` scoped to the
+   *path*, not to a (path, city) pair, so "Boujailles is restricted but Frasne is not" is
+   unrepresentable.
+
+**Why nothing caught it:** `checkLocationEligibility` is a private function inside a Composable
+file and no test in the repo references `DeliveryEligibility`. Extracting it into a tested
+`delivery/domain` use case is part of the fix, not a follow-up.
+
+Fixing this touches the Firestore schema (additive-only discipline: old APKs are still in the
+field) **and** customer-facing business logic, so it needs Tommy's sign-off on the schema shape
+and on the behaviour when a street matches nothing in a split city — note the client flavor has
+**no manual path selector**, so the customer has no way to correct a wrong attribution.
 
 ## When NOT to use this skill
 
