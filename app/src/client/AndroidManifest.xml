@@ -1,7 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- Stripped from the client AAB: these come from :admin:presentation, which still
+         leaks into the client variant through shared modules that depend on it with a
+         plain `implementation` (home/details/checkout/delivery :presentation) instead of
+         `adminImplementation`. They serve ONLY the admin delivery-day tracking, so the
+         client build cannot justify them to the Play Store.
+         Remove these <uses-permission> lines once that dependency wiring is fixed —
+         see fromagerie-operations-hardening-frontier ("admin code leaks into the client AAB").
+         ACCESS_FINE/COARSE_LOCATION are deliberately kept: the client legitimately uses
+         them for the delivery address and zone map. -->
+    <uses-permission
+        android:name="android.permission.ACCESS_BACKGROUND_LOCATION"
+        tools:node="remove" />
+    <uses-permission
+        android:name="android.permission.FOREGROUND_SERVICE_LOCATION"
+        tools:node="remove" />
 
     <application>
         <service

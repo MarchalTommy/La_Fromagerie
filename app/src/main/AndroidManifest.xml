@@ -5,6 +5,15 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
+    <!-- Firebase Analytics pulls in AD_ID transitively (play-services-measurement-impl).
+         Neither flavor serves ads, uses AdMob, or reads the advertising ID, so declaring it
+         to the Play Store would mean claiming a capability the app does not have. Removing
+         it is Google's documented option for apps that do not use the advertising ID; only
+         ad-attribution/audience features are lost, and we use none of them. -->
+    <uses-permission
+        android:name="com.google.android.gms.permission.AD_ID"
+        tools:node="remove" />
+
     <application
         android:name=".CheeseApplication"
         android:allowBackup="true"
@@ -51,17 +60,10 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/provider_paths" />
         </provider>
-        <service
-            android:name="com.mtdevelopment.lafromagerie.DeliveryTrackingService"
-            android:foregroundServiceType="location" />
-        <receiver
-            android:name=".NotificationBroadcastReceiver"
-            android:enabled="true"
-            android:exported="false">
-            <intent-filter>
-                <action android:name="stopUpdate" />
-            </intent-filter>
-        </receiver>
+        <!-- DeliveryTrackingService and NotificationBroadcastReceiver are declared in the
+             admin source set (app/src/admin/AndroidManifest.xml): their classes only exist
+             in that flavor, and the client AAB must not declare a location foreground
+             service it cannot run. -->
     </application>
 
 </manifest>

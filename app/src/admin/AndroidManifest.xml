@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application>
+
+        <!-- Delivery-day foreground tracking. Admin-only: both classes live in
+             app/src/admin/java, so these declarations must not reach the client AAB
+             (a location foreground service there would need a Play Store justification
+             for a feature the client flavor does not have). -->
+        <service
+            android:name="com.mtdevelopment.lafromagerie.DeliveryTrackingService"
+            android:foregroundServiceType="location" />
+        <receiver
+            android:name=".NotificationBroadcastReceiver"
+            android:enabled="true"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="stopUpdate" />
+            </intent-filter>
+        </receiver>
+    </application>
+
+</manifest>
