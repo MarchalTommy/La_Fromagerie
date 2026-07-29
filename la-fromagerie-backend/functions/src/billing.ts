@@ -139,7 +139,14 @@ async function markInvoiced(orderId: string, invoiceNinjaId: string): Promise<vo
 
 /**
  * Construit les lignes de facture depuis la collection `products`.
- * Repli : commande sans produits ou produit introuvable -> une seule ligne au
+ *
+ * ATTENTION : dans la commande, la map `products` est indexée par NOM de
+ * produit (`{ nomProduit -> quantité }`), PAS par id de document — c'est le
+ * contrat écrit par le client (CheckoutViewModel) et lu par l'admin
+ * (OrderPreparationScreen). On résout donc le prix en indexant la collection
+ * `products` par son champ `name`, jamais via `.doc(cle)`.
+ *
+ * Repli : commande sans produits ou nom introuvable -> une seule ligne au
  * montant total débité (le total facturé reste exact).
  */
 async function buildInvoiceLines(
@@ -155,18 +162,23 @@ async function buildInvoiceLines(
         return fallback;
     }
 
+    // Index nom -> priceCents (la collection produits est petite : un shop).
     const db = getFirestore();
-    const docs = await Promise.all(
-        entries.map(([productId]) => db.collection("products").doc(productId).get()),
-    );
+    const productsSnap = await db.collection("products").get();
+    const priceByName = new Map<string, number>();
+    productsSnap.forEach((doc) => {
+        const name = doc.get("name");
+        const priceCents = doc.get("priceCents");
+        if (typeof name === "string" && typeof priceCents === "number") {
+            priceByName.set(name, priceCents);
+        }
+    });
 
     const lines: InvoiceLine[] = [];
     let allResolved = true;
-    docs.forEach((snap, i) => {
-        const quantity = entries[i][1];
-        const name = snap.get("name");
-        const priceCents = snap.get("priceCents");
-        if (!snap.exists || typeof name !== "string" || typeof priceCents !== "number") {
+    entries.forEach(([name, quantity]) => {
+        const priceCents = priceByName.get(name);
+        if (priceCents === undefined) {
             allResolved = false;
             return;
         }
