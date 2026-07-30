@@ -34,9 +34,6 @@ data class PathDraft(
 
 enum class MoveDirection { UP, DOWN }
 
-/** Name a brand-new path starts with, so the field is never empty on arrival. */
-const val NEW_PATH_DEFAULT_NAME = "Nouveau Parcours"
-
 /**
  * Opens an existing path for editing, or starts a new one when [this] is null.
  *
@@ -44,9 +41,11 @@ const val NEW_PATH_DEFAULT_NAME = "Nouveau Parcours"
  * read side overwrites this field with it.
  */
 fun AdminUiDeliveryPath?.toDraft(): PathDraft = if (this == null) {
+    // The name starts empty on purpose: pre-filling it would force the shop to clear the field
+    // before typing, and a placeholder says the same thing without getting in the way.
     PathDraft(
         id = UUID.randomUUID().toString(),
-        name = NEW_PATH_DEFAULT_NAME,
+        name = "",
         isNew = true
     )
 } else {

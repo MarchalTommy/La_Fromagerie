@@ -154,6 +154,10 @@ fun PathEditScreen(
         citySearchQuery = state.value.deliveryAddressSearchQuery,
         citySuggestions = state.value.deliveryAddressSuggestions,
         showCitySuggestions = state.value.showAddressSuggestions,
+        streetSuggestions = state.value.streetSuggestions,
+        onStreetQueryChange = { query, city ->
+            deliveryViewModel.searchStreets(query, city.name, city.postcode)
+        },
         onDraftChange = { draft = it },
         onCitySearchQueryChange = { deliveryViewModel.setAddressFieldText(it) },
         onCitySuggestionsDismiss = {
@@ -205,6 +209,8 @@ fun PathEditContent(
     citySearchQuery: String = "",
     citySuggestions: List<AutoCompleteSuggestion> = emptyList(),
     showCitySuggestions: Boolean = false,
+    streetSuggestions: List<String> = emptyList(),
+    onStreetQueryChange: (query: String, city: DeliveryCity) -> Unit = { _, _ -> },
     onDraftChange: (PathDraft) -> Unit = {},
     onCitySearchQueryChange: (String) -> Unit = {},
     onCitySuggestionsDismiss: () -> Unit = {},
@@ -222,12 +228,19 @@ fun PathEditContent(
     var streetsEditIndex by remember { mutableStateOf<Int?>(null) }
 
     Surface(modifier = Modifier.fillMaxSize()) {
-        Box(modifier = Modifier.fillMaxSize()) {
+        // `imePadding` sits on the Box, not on the scrolled Column: it has to shrink the viewport
+        // so the text field being filled is scrolled above the keyboard. Applied inside the scroll
+        // it would only pad the content, leaving the field — and its autocomplete dropdown — under
+        // the IME.
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .imePadding()
+        ) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
-                    .imePadding()
                     .padding(horizontal = 20.dp)
                     .padding(top = 8.dp, bottom = 160.dp)
             ) {
@@ -263,6 +276,7 @@ fun PathEditContent(
                         value = draft.name,
                         onValueChange = { onDraftChange(draft.copy(name = it)) },
                         isError = draft.name.isBlank(),
+                        placeholder = "Ex : Tournée du mardi",
                         imeAction = ImeAction.Next,
                         focusRequester = focusRequester,
                         focusManager = focusManager
@@ -306,8 +320,9 @@ fun PathEditContent(
                         Text(
                             modifier = Modifier.padding(vertical = 8.dp),
                             text = "Aucune ville pour l'instant. Ajoutez le premier arrêt ci-dessous.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                     }
 
@@ -413,6 +428,8 @@ fun PathEditContent(
         draft.cities.getOrNull(index)?.let { city ->
             CityStreetsBottomSheet(
                 city = city,
+                suggestions = streetSuggestions,
+                onStreetQueryChange = { query -> onStreetQueryChange(query, city) },
                 onConfirm = { streets ->
                     onDraftChange(draft.withStreetsAt(index, streets))
                     streetsEditIndex = null

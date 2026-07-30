@@ -52,6 +52,41 @@ class AddressApiDataSource(
     }
 
     /**
+     * Looks up street names inside one commune.
+     *
+     * The commune name goes **into the query**, not just into the `postcode` filter. A postcode
+     * covers several communes here — 25560 is Frasne, Boujailles and Courvière — and the API ranks
+     * on the query text alone, so filtering by postcode alone hands back ten Frasne streets and
+     * nothing for Boujailles. `type=street` keeps house numbers out.
+     */
+    suspend fun getStreetsInCity(
+        query: String,
+        city: String,
+        postcode: Int,
+        limit: Int = 10
+    ): NetWorkResult<AddressData> {
+        return try {
+            val response = httpClient.get {
+                url {
+                    protocol = URLProtocol.HTTPS
+                    host = ADDRESS_API_BASE_URL_WITHOUT_HTTPS
+                    header(
+                        HttpHeaders.Accept,
+                        "application/json, application/geo+json, application/gpx+xml, img/png; charset=utf-8"
+                    )
+                    encodedPath =
+                        "/search/?q=${"$query $city".encodeURLPathPart()}&type=street&postcode=$postcode&limit=$limit"
+                }
+            }
+            NetWorkResult.Success(
+                response.body<AddressData>()
+            )
+        } catch (e: Exception) {
+            NetWorkResult.Error(e.message ?: "Unknown address API error", e::class.simpleName)
+        }
+    }
+
+    /**
      * Retrieves coordinates for a full street address.
      */
     suspend fun getLngLatFromAddress(address: String): NetWorkResult<AddressData> {

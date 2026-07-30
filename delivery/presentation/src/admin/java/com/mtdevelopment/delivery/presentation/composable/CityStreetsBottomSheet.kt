@@ -1,5 +1,8 @@
 package com.mtdevelopment.delivery.presentation.composable
 
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
@@ -10,6 +13,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -33,10 +38,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.mtdevelopment.core.domain.normalizeCityName
 import com.mtdevelopment.core.model.DeliveryCity
 import com.mtdevelopment.core.presentation.composable.PrimaryButton
 import com.mtdevelopment.core.presentation.theme.ui.AppTheme
@@ -59,6 +66,8 @@ import com.mtdevelopment.delivery.presentation.model.plusStreet
 @Composable
 fun CityStreetsBottomSheet(
     city: DeliveryCity,
+    suggestions: List<String> = emptyList(),
+    onStreetQueryChange: (String) -> Unit = {},
     onConfirm: (List<String>) -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -68,9 +77,10 @@ fun CityStreetsBottomSheet(
     var restrictToStreets by remember(city) { mutableStateOf(city.streets.isNotEmpty()) }
     var newStreet by remember(city) { mutableStateOf("") }
 
-    fun commitNewStreet() {
-        streets = streets.plusStreet(newStreet)
+    fun commitStreet(value: String) {
+        streets = streets.plusStreet(value)
         newStreet = ""
+        onStreetQueryChange("")
     }
 
     ModalBottomSheet(
@@ -80,9 +90,12 @@ fun CityStreetsBottomSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 24.dp)
                 .imePadding()
                 .navigationBarsPadding()
+                // The keyboard eats most of the sheet on a small screen; without this the confirm
+                // button becomes unreachable while typing.
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 24.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -124,8 +137,9 @@ fun CityStreetsBottomSheet(
                 } else {
                     "Toutes les adresses de ${city.name} seront livrées sur ce parcours."
                 },
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface
             )
 
             if (restrictToStreets) {
@@ -149,30 +163,69 @@ fun CityStreetsBottomSheet(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
+                // Suggestions from the national address database, shown ABOVE the input: the sheet
+                // grows upward when the keyboard opens, so anything below the field is buried.
+                // They are an aid, not a gate — a brand-new street the database does not know yet
+                // must still be enterable by hand, so this only ever appends to what was typed.
+                val unlisted = suggestions.filterNot { proposal ->
+                    streets.any { it.normalizeCityName() == proposal.normalizeCityName() }
+                }
+                if (unlisted.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        unlisted.take(5).forEach { proposal ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .clickable { commitStreet(proposal) }
+                                    .padding(vertical = 10.dp, horizontal = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.Add,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = proposal,
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                            }
+                        }
+                    }
+                }
+
+
                 OutlinedTextField(
                     modifier = Modifier.fillMaxWidth(),
                     value = newStreet,
-                    onValueChange = { newStreet = it },
+                    onValueChange = {
+                        newStreet = it
+                        onStreetQueryChange(it)
+                    },
                     label = { Text("Ajouter une rue") },
+                    placeholder = { Text("Ex : Grande Rue") },
                     singleLine = true,
                     shape = ShapeDefaults.Medium,
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                    keyboardActions = KeyboardActions(onDone = { commitNewStreet() }),
+                    keyboardActions = KeyboardActions(onDone = { commitStreet(newStreet) }),
                     trailingIcon = {
                         IconButton(
-                            onClick = { commitNewStreet() },
+                            onClick = { commitStreet(newStreet) },
                             enabled = newStreet.isNotBlank()
                         ) {
                             Icon(Icons.Rounded.Add, contentDescription = "Ajouter la rue")
                         }
                     }
                 )
-
                 if (streets.isEmpty()) {
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = "Ajoutez au moins une rue, sinon la ville sera livrée en entier.",
-                        style = MaterialTheme.typography.bodySmall,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.error
                     )
                 }
@@ -191,6 +244,7 @@ fun CityStreetsBottomSheet(
                     } else {
                         emptyList()
                     }
+                    onStreetQueryChange("")
                     onConfirm(finalStreets)
                 }
             )

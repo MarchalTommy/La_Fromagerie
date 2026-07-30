@@ -287,7 +287,9 @@ fun ProductEditField(
     imeAction: ImeAction = ImeAction.Done,
     focusRequester: FocusRequester? = null,
     focusManager: FocusManager? = null,
-    prefix: @Composable() (() -> Unit)? = null
+    prefix: @Composable() (() -> Unit)? = null,
+    /** Greyed-out example shown while the field is empty. Never becomes the field's value. */
+    placeholder: String? = null
 ) {
     val requester = focusRequester ?: remember {
         FocusRequester()
@@ -306,6 +308,7 @@ fun ProductEditField(
         label = {
             Text(title)
         },
+        placeholder = placeholder?.let { { Text(it) } },
         prefix = prefix,
         singleLine = !isBigText,
         maxLines = if (isBigText) Int.MAX_VALUE else 1,

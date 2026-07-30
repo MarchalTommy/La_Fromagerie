@@ -34,6 +34,8 @@ import com.mtdevelopment.delivery.presentation.model.UiDeliveryPath
  *   ordinary case and several when the address is genuinely covered by more than one tournée — the
  *   date picker then merges their dates and the customer's pick decides the path. Empty until an
  *   address has been matched.
+ * @property streetSuggestions Street names proposed while the shop restricts a path to part of a
+ *   commune (admin path editor only). Empty when nothing is being looked up.
  * @property deliveryPaths List of all available delivery paths.
  * @property isBillingDifferent Flag indicating if the user wants to provide a different billing address.
  */
@@ -66,6 +68,7 @@ data class DeliveryUiDataState(
     val userCityLocation: Pair<Double, Double>? = null,
     val selectedPath: UiDeliveryPath? = null,
     val candidatePaths: List<UiDeliveryPath> = emptyList(),
+    val streetSuggestions: List<String> = emptyList(),
 
     val deliveryPaths: List<UiDeliveryPath> = emptyList(),
     val isBillingDifferent: Boolean = false

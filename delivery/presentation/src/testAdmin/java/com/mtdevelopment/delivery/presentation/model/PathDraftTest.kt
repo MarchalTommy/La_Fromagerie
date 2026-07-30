@@ -29,12 +29,14 @@ class PathDraftTest {
     // Opening the editor
     ///////////////////////////////////////////////////////////////////////////
 
+    /** A pre-filled name would have to be cleared before typing; the field shows a hint instead. */
     @Test
-    fun `a null path opens a named, empty creation draft`() {
+    fun `a null path opens an empty creation draft`() {
         val created = null.toDraft()
 
         assertTrue(created.isNew)
-        assertEquals(NEW_PATH_DEFAULT_NAME, created.name)
+        assertEquals("", created.name)
+        assertFalse(created.canBeSaved)
         assertTrue(created.cities.isEmpty())
         assertTrue(created.id.isNotBlank())
     }
