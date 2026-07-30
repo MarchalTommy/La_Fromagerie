@@ -19,7 +19,7 @@ From weakest to strongest. A change is "done" only when it clears the bar approp
 
 A fix without a discriminating verification step (2 and/or 3, matched to what actually changed) is not done — regardless of how confident the diff looks.
 
-## Test commands (counts re-verified 2026-07-29 on branch `claude/streets-city-split-fix-f75c12`)
+## Test commands (counts re-verified 2026-07-30 on `main` @ `f08e38e`)
 
 **Three commands, not two** — the flavored tasks skip the unflavored modules entirely, so running
 only the first two silently misses `core:domain`, `delivery:domain`, `checkout:domain`,
@@ -33,13 +33,21 @@ only the first two silently misses `core:domain`, `delivery:domain`, `checkout:d
 
 | Command | Tests | Failures |
 |---|---|---|
-| `testClientDebugUnitTest --continue` | 147 | 2 (`admin/presentation` `AdminViewModelTest`) |
-| `testAdminDebugUnitTest --continue` | 147 | 2 (same class, same two tests) |
-| `testDebugUnitTest --continue` | 87 | 0 |
+| `testClientDebugUnitTest --continue` | 177 | 2 (`admin/presentation` `AdminViewModelTest`) |
+| `testAdminDebugUnitTest --continue` | 197 | 2 (same class, same two tests) |
+| `testDebugUnitTest --continue` | 108 | 0 |
 
 The two flavored runs largely re-execute the **same** tests against a different variant, so do not
-add their totals together and report ~380 — that double-counts, and it double-counts the two
+add their totals together and report ~480 — that double-counts, and it double-counts the two
 baseline failures too. Judge each run against its own row.
+
+⚠️ **The 20-test gap between the two flavored runs is not noise, and it is a trap.** Code in a
+flavor-specific source set (`delivery/presentation/src/admin/...`) is only compiled by that
+flavor, so its tests must live in `src/testAdmin/` and **only `testAdminDebugUnitTest` runs
+them**. `PathDraftTest` (20 tests covering the path-editor rules) is invisible to
+`testClientDebugUnitTest`. If you add tests for admin-only code and the client run's count does
+not move, that is expected — but if you only ever run the client task, you are not running them
+at all.
 
 - `--continue` is essential: without it, Gradle stops at the first module failure and you don't get the full picture across ~20+ modules.
 - Some modules (e.g. `checkout:domain`, `delivery:domain`) have **no product flavors**, so their task is the unflavored `testDebugUnitTest` — check `./gradlew :module:tasks | grep -i unittest` if a flavored task name 404s.
@@ -77,7 +85,9 @@ Conventions common to all three:
 
 ### Where tests live
 
-Standard Gradle/Android convention, per module per source set: `<module>/src/test/java/<package>/...Test.kt` for JVM unit tests, `<module>/src/androidTest/java/<package>/...` for instrumented tests (**all 18 of the latter are still `ExampleInstrumentedTest.kt` stubs** as of 2026-07-29 — there is no real instrumented coverage in this repo). Flavor-specific test sources would live under `src/test<Flavor>/...` but this repo's tests are written against shared/flavor-agnostic classes, so this pattern is not currently in use — verify with `find . -path "*/src/test*" -type d | grep -v build` if a module surprises you.
+Standard Gradle/Android convention, per module per source set: `<module>/src/test/java/<package>/...Test.kt` for JVM unit tests, `<module>/src/androidTest/java/<package>/...` for instrumented tests (**all 18 of the latter are still `ExampleInstrumentedTest.kt` stubs** as of 2026-07-29 — there is no real instrumented coverage in this repo). Flavor-specific test sources live under `src/test<Flavor>/...` and are **only run by that flavor's task**. As of 2026-07-30 there is exactly one: `delivery/presentation/src/testAdmin/.../PathDraftTest.kt`, covering the admin path editor's reducers — invisible to `testClientDebugUnitTest`. Verify with `find . -path "*/src/test*" -type d | grep -v build`.
+
+⚠️ **Instrumented (Compose UI) tests do not currently run on `delivery:presentation`.** `connectedAdminDebugAndroidTest` fails at `mergeAdminDebugAndroidTestNativeLibs`: Rive and Mapbox both ship `lib/*/libc++_shared.so`. Unblocking it needs a `packaging { jniLibs { pickFirsts += ... } }` block, which changes the **production** APK's packaging — not a trade worth making for a test without Tommy's call. Attempted and backed out 2026-07-30; verify with `./gradlew :delivery:presentation:connectedAdminDebugAndroidTest` if you think it is fixed.
 
 ### Checklist: adding tests to a module that only has `ExampleUnitTest`
 
@@ -141,10 +151,10 @@ Full merge-gate criteria (branch protections, review expectations, commit hygien
 ## Provenance and maintenance
 
 Conventions and protocol verified 2026-07-06 against branch `claude/distracted-chaum-0986e4`;
-**test counts and module coverage re-verified 2026-07-29** on `claude/streets-city-split-fix-f75c12`.
-Re-verify drift-prone claims:
+**test counts, flavor-specific test sources and the instrumented-test blocker re-verified
+2026-07-30** on `main` @ `f08e38e`. Re-verify drift-prone claims:
 
-- Counts per command (147 / 147 / 87, with 2 failures on each flavored run): run each of the three
+- Counts per command (177 / 197 / 108, with 2 failures on each flavored run): run each of the three
   commands above, then total the XML rather than trusting the console summary, which only reports
   the last module:
   ```bash

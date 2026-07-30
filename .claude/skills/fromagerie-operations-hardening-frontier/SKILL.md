@@ -10,14 +10,13 @@ description: >
   Items covered: payment-funnel observability gaps, hosted-checkout hardening (3 MAJOR
   TODOs, owner-confirmed 2026-07-07: missing safety net, single-shot verification,
   hardcoded URL/key-in-APK batch), backend versioning (RESOLVED 2026-07-07, README
-  residual), no admin auth, secret handling (18 secrets in a TRACKED gradle.properties and
-  `"null"`-sentinel builds that pass silently, found 2026-07-27), no CI, the 2 failing
-  AdminViewModelTest tests, AGP 10 migration debt, delivery-day offline resilience, cart
-  persistence / client notifications.
-  residual), no admin auth, admin code leaking into the client AAB / broken flavor
+  residual), admin auth (PIN gate landed 2026-07-08, Firestore rules still open), secret
+  handling (18 secrets in a TRACKED gradle.properties and `"null"`-sentinel builds that pass
+  silently, found 2026-07-27), admin code leaking into the client AAB / broken flavor
   isolation (found 2026-07-24: manifest patched, dependency wiring still to fix — also the
-  Play Store background-location blocker), no CI, the 2 failing AdminViewModelTest tests,
-  AGP 10 migration debt, delivery-day offline resilience, cart persistence / client
+  Play Store background-location blocker), geocoding running on a retired government host
+  (found 2026-07-30), delivery-day offline resilience, no CI, the 2 failing
+  AdminViewModelTest tests, AGP 10 migration debt, cart persistence / client
   notifications.
 ---
 
@@ -56,6 +55,7 @@ real payment; all changes go via PR to main. See **fromagerie-change-control**.
 | 1b | **Hosted-checkout hardening — 3 MAJOR TODOs** (§1b) | payment | Paid-but-PENDING orders on the new path |
 | 2  | Backend not in version control — ✅ resolved `ecda756` (2026-07-07), README residual | infra | ~~Server logic unrecoverable~~ — closed |
 | 3  | Delivery-day offline resilience | ops | Delivery day derailed by dead signal |
+| 3b | **Geocoding runs on a retired government host** (§3b) | infra | All address matching dies at once, on someone else's schedule |
 | 4  | Admin auth — PIN gate LANDED 2026-07-08; hardened Firestore rules still undeployed | security | UI gated; DB still world-writable until rules ship |
 | 4b | **Admin code leaks into the client AAB** (§4b) — manifest patched 2026-07-24, wiring NOT fixed | security | Admin keys ship to customers; blocks Play releases |
 | 4c | **Secrets in a tracked `gradle.properties` + `"null"` builds pass silently** (§4b) | security / quality | One `git add -A` leaks SumUp + keystore keys; one `git restore` loses them |
@@ -169,6 +169,43 @@ roadmap entry so no session misses them.
 - **Result when…** you can put the admin device in airplane mode after "start delivery" and
   still see the full ordered stop list and per-stop addresses for the day. (Falsifiable on
   device — never tap pay; this is admin flavor, no payment.)
+
+## 3b. Geocoding runs on a retired government host (found 2026-07-30)
+
+- **Current state (verified 2026-07-30 by curl and by Ktor logs on device):** every call to
+  `api-adresse.data.gouv.fr` answers `200` **and** carries:
+  ```
+  x-api-deprecated: true
+  sunset: Sat, 31 Jan 2026 22:59:59 GMT
+  x-api-new-host: https://data.geopf.fr/geocodage/
+  ```
+  The sunset date passed roughly six months ago; the host still answers only by grace.
+- **What breaks when it stops — all at once, with no app change to trigger it:**
+  - customer address → tournée matching (`AddressApiDataSource.getLngLatFromAddress`),
+  - path city → lat/lng, which drops any path whose cities fail to geocode **from the picker
+    entirely** (see `fromagerie-delivery-logistics-reference`, enrichment pipeline step 3),
+  - city autocomplete on both the client form and the admin path editor,
+  - street suggestions in the path editor.
+  Errors are swallowed into `emptyList()` / `null` throughout, so the failure mode is not a
+  crash — it is *"no path covers your address"* shown to paying customers.
+- **The cruel detail:** the correct constant already exists and is already wired.
+  `AUTOCOMPLETE_API_BASE_URL_WITHOUT_HTTPS = "data.geopf.fr/geocodage"` is set as the Ktor
+  `DefaultRequest` host (`AppModule.kt:372`) — but `AutoCompleteApiDataSource` sets
+  `host = ADDRESS_API_BASE_URL_WITHOUT_HTTPS` per request, and a per-request host wins. The
+  migration is half-done and inert.
+- **First three steps:**
+  1. Curl each of the three endpoint shapes against `data.geopf.fr/geocodage` and diff the
+     response bodies against the current host — the paths differ by a `/geocodage` prefix, and
+     `/completion/` must be confirmed to exist there (it does, as of 2026-07-30).
+  2. Point both `Constants.kt` files (`core/data/...` and the duplicate in `delivery/data/...`)
+     at the new host and drop the per-request `host =` override in `AutoCompleteApiDataSource`.
+     Note the duplicated constant is itself a "one home per fact" violation worth collapsing.
+  3. Re-run `./gradlew :delivery:data:testClientDebugUnitTest` and exercise the client delivery
+     form + admin path editor on device; the response DTOs (`AddressData`, `AutoCompleteSuggestions`)
+     should not need to change.
+- **Result when…** `curl -s -D- -o /dev/null "<each URL the app builds>" | grep -i deprecated`
+  returns nothing for every endpoint the app calls, and address matching still resolves a known
+  Boujailles address to the right path on device.
 
 ## 4. Admin authentication — app-side gate LANDED 2026-07-08, rules half still open
 
@@ -401,6 +438,8 @@ problems, one shared root: `gradle.properties`.
 | 1b. hosted-path safety net CLOSED 2026-07-08 | `grep -n "schedulePaymentFinalization" checkout/presentation/src/main/java/com/mtdevelopment/checkout/presentation/viewmodel/CheckoutViewModel.kt` (expect a hit inside `getSumUpPaymentLink`; if gone, the net was removed — reopen §1b) |
 | 2. backend tracked, secrets out | `git ls-files la-fromagerie-backend | head` (expect functions source + firebase.json) and `git check-ignore la-fromagerie-backend/functions/.env` (expect a match) |
 | 3. path offline support | `grep -rn 'offline' delivery --include='*.kt' \| grep -v /build/` |
+| 3b. geocoding host still deprecated | `curl -s -D- -o /dev/null "https://api-adresse.data.gouv.fr/search/?q=test&limit=1" \| grep -i "x-api-deprecated\|sunset"` (any output = §3b still open) |
+| 3b. per-request host override still shadows the good constant | `grep -n "ADDRESS_API_BASE_URL_WITHOUT_HTTPS" core/data/src/main/java/com/mtdevelopment/core/source/AutoCompleteApiDataSource.kt` (a hit = the `AUTOCOMPLETE_*` constant is still inert) |
 | 3. Firestore offline persistence | `grep -rin 'persistenceEnabled\|PersistentCacheSettings\|setFirestoreSettings' . \| grep -v /build/` (empty = SDK defaults, UNVERIFIED) |
 | 3. admin orders are Firestore-direct | read `admin/data/.../repository/FirebaseAdminRepositoryImpl.kt` (no Room = still direct) |
 | 4. no admin auth | `grep -rin 'signIn\|FirebaseAuth\|currentUser\|login' app/src/admin admin --include='*.kt' \| grep -v /build/` |
