@@ -31,15 +31,15 @@ with live route guidance. All facts verified 2026-07-06 against branch `claude/d
 |---|---|
 | ViewModel (shared client/admin) | `delivery/presentation/src/main/java/com/mtdevelopment/delivery/presentation/viewmodel/DeliveryViewModel.kt` |
 | Client screen | `delivery/presentation/src/client/java/com/mtdevelopment/delivery/presentation/screen/DeliveryOptionScreen.kt` |
-| Path picker dialog | `delivery/presentation/src/main/java/com/mtdevelopment/delivery/presentation/composable/DeliveryPathPickerComposable.kt` |
-| Date picker + selectable-dates rules | `delivery/presentation/src/main/java/com/mtdevelopment/delivery/presentation/composable/DatePickerComposable.kt`, `.../model/ShippingSelectableDates.kt` |
+| Path picker dialog | `delivery/presentation/src/main/.../composable/DeliveryPathPickerComposable.kt` — **dead code, zero call sites.** The customer picks a tournée by picking a date, not from a list. It also indexes `radioOptions[0]` unguarded. |
+| Date picker | `delivery/presentation/src/main/.../composable/DatePickerComposable.kt` (rendering) + `delivery/domain/.../usecase/BuildSelectableDeliveryDatesUseCase.kt` (the rules). `.../model/ShippingSelectableDates.kt` is **dead code** — see "Selectable delivery dates". |
 | Map | `delivery/presentation/src/main/java/com/mtdevelopment/delivery/presentation/composable/MapBoxComposable.kt` |
 | Localisation-type picker (GPS vs manual) | `delivery/presentation/src/main/java/com/mtdevelopment/delivery/presentation/composable/LocalisationTypePicker.kt` |
 | User info fields + prefill | `delivery/presentation/src/main/java/com/mtdevelopment/delivery/presentation/composable/UserInfoComposable.kt`, `DeliveryViewModel.loadClientData()` |
 | Path fetch/cache use case | `delivery/domain/src/main/java/com/mtdevelopment/delivery/domain/usecase/GetAllDeliveryPathsUseCase.kt` |
 | Firestore path source | `delivery/data/src/main/java/com/mtdevelopment/delivery/data/source/remote/FirestoreDeliveryDataSource.kt` |
 | Path repository (enrichment orchestration) | `delivery/data/src/main/java/com/mtdevelopment/delivery/data/repository/FirestorePathRepositoryImpl.kt` |
-| Address geocoding (gouv) | `delivery/data/src/main/java/com/mtdevelopment/delivery/data/source/remote/AddressApiDataSource.kt`, `AddressApiRepositoryImpl.kt` |
+| Address geocoding + street suggestions (gouv) | `delivery/data/src/main/java/com/mtdevelopment/delivery/data/source/remote/AddressApiDataSource.kt`, `AddressApiRepositoryImpl.kt` |
 | Address autocomplete (geopf) | `core/data/src/main/java/com/mtdevelopment/core/source/AutoCompleteApiDataSource.kt`, `AutocompleteRepositoryImpl.kt` |
 | Road-geometry fetch (OpenRouteService) | `delivery/data/src/main/java/com/mtdevelopment/delivery/data/source/remote/OpenRouteDataSource.kt` |
 | Room cache | `delivery/data/src/main/java/com/mtdevelopment/delivery/data/source/local/DeliveryDatabase.kt`, `dao/DeliveryDao.kt`, `model/entity/PathEntity.kt` |
@@ -99,25 +99,48 @@ Callers do the geocoding, then delegate:
 | Typed / autocompleted address | `CustomerContent.kt` (`delivery/presentation/src/main`) | `Address.thoroughfare` on the manual branch; **null on the autocomplete branch, which never runs the geocoder** — the street has to be recognised inside `addressText` |
 | GPS "locate me" | `PermissionManagerComposable.kt` (same module) | `Address.thoroughfare` from reverse geocoding |
 
-Resolution order:
+Each (path, city) pair whose city matches is binned into a tier; the most specific non-empty
+tier wins, and **everything tied at the top of it is returned**:
 
-1. A path whose matching city **restricts streets and lists the customer's street** — most
-   specific, so it beats an unrestricted match.
-2. A path whose matching city carries **no** street restriction (whole city covered).
-3. City covered, but only by street-restricted entries and none matched →
-   `STREET_NOT_COVERED`.
-4. Otherwise proximity: within `MAX_DISTANCE_FOR_PICKUP_METERS` (5 km, defined in this file) →
-   `ASK_FOR_SUPPORT`, beyond → `NOT_ELIGIBLE`.
+| Situation, for one city across N paths | Result |
+|---|---|
+| The customer's street is listed on exactly one path | that path |
+| Listed on several paths, labels of different length | **longest label wins** (see below) |
+| Listed on several paths, labels equally specific | **all of them** → customer chooses |
+| No street match, ≥1 path covers the city unrestricted | that path; **several → customer chooses** |
+| No street match, **every** path restricts the city (including N=1) | `STREET_NOT_COVERED` |
+| No path covers the city, within `MAX_DISTANCE_FOR_PICKUP_METERS` (5 km, defined in this file) | `ASK_FOR_SUPPORT` |
+| Beyond that | `NOT_ELIGIBLE` |
 
-`DeliveryEligibilityResult` also returns `resolvedCity`/`resolvedLocation`, recovered from the
-matched city when geocoding supplied neither.
+A street match always beats a whole-city match: the shop went to the trouble of naming that
+street, so it is the more deliberate answer.
 
-**`STREET_NOT_COVERED` is a product decision, not a fallback.** The client flavor has **no
-manual path picker**, so a wrong guess in a split city sends the van on a day it does not pass
-that street. The UI therefore says so explicitly (`auto_geoloc_street_not_covered`) and reuses
-the existing support-request email, reworded to ask for the customer's delivery day. The fix
-loop is the admin adding the street to the right city group. Do not replace this with "pick the
-first path" without Tommy's call.
+`DeliveryEligibilityResult.candidatePaths` holds every winner in path order; `matchingPath` is
+just its first entry, kept for callers that only need one. **Nothing resolves a tie by list
+order** — that order comes from Firestore document iteration, so silently taking the first would
+hand the same customer a different tournée from one session to the next. It also returns
+`resolvedCity`/`resolvedLocation`, recovered from the matched city when geocoding supplied
+neither.
+
+**Longest-label-wins exists for one concrete case.** Street labels are matched loosely inside the
+address text, so an address on "Rue du Moulin Neuf" also contains "Rue du Moulin"; if the two
+belong to different paths, both match. The longer label is the street the customer lives on. The
+reverse never collides — the longer label is simply absent from the shorter address — so this
+only fires on the ambiguous direction.
+
+**`STREET_NOT_COVERED` is a product decision, not a fallback**, and it applies even when only one
+path restricts the city. A street list is a deliberate statement that the rest of the commune is
+not served, so there is nothing safe to fall back on. The UI says so explicitly
+(`auto_geoloc_street_not_covered`) and offers a support-request email asking for the street to be
+added. The fix loop is the admin adding the street to the right city group. Do not replace this
+with "pick the first path" without Tommy's call.
+
+⚠️ **The uncovered-street button is not gated on proximity.** `streetNotCovered` is its own
+condition in `CustomerContent.kt`, because it is the one verdict where the city *is* served. It
+used to ride on `userLocationCloseFromPath`, and the typed-address flow set the legacy booleans
+by hand instead of calling `updateEligibility` — so on the commonest flow the flag was never
+raised and the customer saw **no button at all**, neither "Continuer" nor the support request.
+Both flows now go through `DeliveryViewModel.updateEligibility`. Fixed in PR #60.
 
 ⚠️ **This logic used to be a private function duplicated verbatim between the two Composables
 above**, which is why a bug in it survived two months unnoticed: it treated a street list as a
@@ -128,26 +151,90 @@ add a third entry point, call the use case; do not copy the matching loop again.
 
 ### Address APIs — which does what
 
-| API | Base host | Used for | Called from |
-|---|---|---|---|
-| `api-adresse.data.gouv.fr` (French government address API) | `ADDRESS_API_BASE_URL_WITHOUT_HTTPS` (`core/data/.../Constants.kt` and duplicated in `delivery/data/.../Constants.kt`) | Reverse-geocoding a path's cities to lat/lng (`/search/?q=<city>-<zip>&type=municipality`), and geocoding a typed address | `AddressApiDataSource` (delivery module) |
-| `data.geopf.fr/geocodage` (French government geoplatform, IGN) | `AUTOCOMPLETE_API_BASE_URL_WITHOUT_HTTPS` (`core/data/.../Constants.kt`) | Live autocomplete suggestions as the user types an address (`/completion/?text=...&terr=25%2C39&poiType=zone d'habitation&type=StreetAddress&maximumResponses=3`) | `AutoCompleteApiDataSource` (core module, shared by client delivery form **and** admin manual-stop/path-city dialogs) |
+| Endpoint | Used for | Called from |
+|---|---|---|
+| `/search/?q=<city>-<zip>&type=municipality` | Reverse-geocoding a path's cities to lat/lng, and geocoding a typed address | `AddressApiDataSource` (delivery module) |
+| `/search/?q=<query> <city>&type=street&postcode=<zip>&limit=10` | Street-name suggestions while the admin restricts a path to part of a commune | `AddressApiDataSource.getStreetsInCity` |
+| `/completion/?text=...&terr=25%2C39&poiType=zone d'habitation&type=StreetAddress&maximumResponses=3` | Live autocomplete as the user types a city or address | `AutoCompleteApiDataSource` (core module, shared by client delivery form **and** the admin path editor) |
+
+⚠️ **All three go to the same host, `api-adresse.data.gouv.fr`, and that host is retired.** Every
+response carries `x-api-deprecated: true`, `sunset: Sat, 31 Jan 2026 22:59:59 GMT` and
+`x-api-new-host: https://data.geopf.fr/geocodage/`. The sunset date has passed; it still answers
+only by grace. When it stops, customer address matching, path city lookup and street suggestions
+all break at once. See `fromagerie-operations-hardening-frontier`.
+
+Do not trust the constant names here — they do not describe what is used:
+
+- `AUTOCOMPLETE_API_BASE_URL_WITHOUT_HTTPS` (= `data.geopf.fr/geocodage`, the *new* host) is set as
+  the Ktor `DefaultRequest` host in `AppModule.kt:372`…
+- …but `AutoCompleteApiDataSource` imports and sets `host = ADDRESS_API_BASE_URL_WITHOUT_HTTPS`
+  per request, and a per-request host overrides the default. So the correctly-configured constant
+  is inert and every call lands on the deprecated host.
+
+Verify: `grep -n "import.*Constants" core/data/src/main/java/com/mtdevelopment/core/source/AutoCompleteApiDataSource.kt`
 
 Note the hardcoded `terr=25%2C39` in the autocomplete query — this restricts results to French department codes 25 and 39 (Doubs and Jura), matching the shop's real service area. **UNVERIFIED (as of 2026-07-06): whether this hardcoded restriction is intentional business logic or an oversight** — if the shop ever expands its delivery zone, this line silently keeps autocomplete scoped to those two departments regardless of what `delivery_paths` says.
 
-### Selectable delivery dates (`ShippingSelectableDates.kt`)
+**The street lookup puts the commune in `q`, not just in `postcode`.** A postcode covers several
+communes here — 25560 is Frasne, Boujailles *and* Courvière — and the API ranks on query text
+alone, so `q=rue&postcode=25560` returns ten Frasne streets and nothing for Boujailles. The
+repository filters on the commune again afterwards (the search stays fuzzy), which meant the
+postcode-only version returned an empty list every time while looking perfectly correct in unit
+tests. Found by running it on a device, not by reading it.
 
-Two `SelectableDates` implementations gate the Material3 `DatePicker`:
+### Selectable delivery dates (`BuildSelectableDeliveryDatesUseCase`)
 
-- **`ShippingSelectableDatesTest`** (name notwithstanding, this is the live production class — not a test) — used once a path is selected. A date is selectable only if:
-  - its `DayOfWeek` matches `selectedPath.deliveryDay` (the path's assigned weekday), **and**
-  - it is on/after `LocalDate.now().plusDays(2)` (a fixed 2-day lead time, computed once at class-load as a top-level `val limitDate`, not re-evaluated per app-open across a midnight boundary within the same process).
-- **`ShippingDefaultSelectableDates`** — used when no path is selected yet; rejects every date (`isSelectableDate` always `false`), acting as a "pick a path first" gate.
-- `isSelectableYear` in both allows the current year and next year only.
+`delivery/domain/src/main/java/com/mtdevelopment/delivery/domain/usecase/BuildSelectableDeliveryDatesUseCase.kt`
+— takes **every path that serves the customer** plus an injected `now`, and returns the tiles the
+date dialog renders:
 
-`getDatePickerState()` (`DatePickerComposable.kt`) additionally pre-computes the list of valid dates for the rest of the calendar year by brute-force scanning `dayOfYear + 2 .. 365` and checking each against the selectable-dates rule, then seeds `initialSelectedDateMillis` with the first hit. If no path is selected, it falls back to "tomorrow" as the initial (non-selectable) display date. All calendars use `Locale.FRANCE`.
+```kotlin
+data class SelectableDeliveryDate(date, pathId, pathName, isPastDeadline)
+operator fun invoke(paths: List<DeliveryPath>, now: LocalDateTime, limit: Int = 4)
+```
 
-**Gotcha:** the 2-day lead time and the weekday match are the *only* rules — there's no admin-configurable "blackout dates" or max-orders-per-day cap in this picker. UNVERIFIED (2026-07-06): whether such a cap exists anywhere in the order-creation path.
+Per path: the next `limit` occurrences of `deliveryDay`, filtered by `deliveryFrequency`
+(`WEEKLY` / `BIWEEKLY_EVEN` / `BIWEEKLY_ODD`, week parity on `WeekFields.of(Locale.FRANCE)`,
+falling back to `FRIDAY` if the day string does not parse). Then merged across paths, sorted,
+**deduplicated by date**, cut to `limit` distinct dates. Orders close the day before at
+`ORDER_CUTOFF_HOUR` (12:00); past-cutoff dates are still listed but not selectable, because
+hiding them would make the list silently shift.
+
+**This is how the customer picks a tournée.** When `candidatePaths` holds more than one path the
+tiles carry a path-name chip and the chosen date assigns the path — there is no separate picker.
+`DatePickerComposable` takes `paths: List<UiDeliveryPath>` and calls back with
+`(epochMillis, path)`; the client screen applies the path before persisting. With one path the
+chip is hidden and the behaviour is identical to before.
+
+Same-day dedup is deliberate: the order records only the date (see "no path id on the order"
+below), so two tournées delivering the same day are indistinguishable downstream and offering
+the day twice would read as a bug.
+
+**Gotcha:** the weekday, the frequency and the cutoff are the *only* rules — no admin-configurable
+blackout dates, no max-orders-per-day cap. UNVERIFIED (2026-07-06): whether such a cap exists
+anywhere in the order-creation path.
+
+⚠️ `delivery/presentation/.../model/ShippingSelectableDates.kt` is **dead code** as of 2026-07-30:
+`ShippingSelectableDatesTest` (a production class despite the name), `ShippingDefaultSelectableDates`
+and the old `getDatePickerState()` have no callers left — the Material3 `DatePicker` they gated was
+replaced by the custom tile dialog. Their 2-day lead time is **not** the live rule; the live rule is
+the J-1 noon cutoff above. Verify before trusting: `grep -rn --include='*.kt' "ShippingSelectableDates" . | grep -v build`
+
+### The order records the date, not the path
+
+`Order` (`core/domain/.../model/Order.kt`) carries `deliveryDate: String` (`dd/MM/yyyy`) and **no
+path id**. The tournée is a client-side concept only; the closest thing to persistence is
+`lastSelectedPath` (by *name*) in DataStore, which exists to prefill the form, not to drive
+fulfilment.
+
+This was a deliberate call (owner, 2026-07-30) when the multi-path choice was added: adding a
+field to `orders` is a schema change, and the date already identifies the tournée in every real
+configuration. **The contrapositive is the thing to remember:** if two paths ever share the same
+`deliveryDay` + `deliveryFrequency`, a customer served by both produces the same date either way,
+the choice carries no information, and the admin cannot tell which route they belong to. That is
+why the merged date list deduplicates by date rather than showing the day twice. If the shop ever
+wants two same-day tournées, this invariant is what breaks first — revisit it before adding them,
+not after.
 
 ### Mapbox zone display
 
@@ -168,16 +255,50 @@ Two `SelectableDates` implementations gate the Material3 `DatePicker`:
 
 ## Admin side: editing paths
 
-### Path editing (`PathEditDialog.kt`, `delivery/presentation/src/admin/...`)
+### Path editing (`PathEditScreen.kt`, `delivery/presentation/src/admin/...`)
 
-- Edits an `AdminUiDeliveryPath` (id, name, `cities: List<DeliveryCity>`, deliveryDay, deliveryFrequency).
-- New city added via `CityPostalCodeAutocompleteTextField` — backed by the same geopf autocomplete API described above.
-- Cities are manually reorderable (up/down arrows) and swipe-to-delete (`SwipeToDismissBox`, start-to-end only).
-- **The "Rues" field is per city**, rendered inside each city's `CityFields` row (comma-separated, blank = whole city). It moved there from a single path-level field in PR #59 — a path-level list cannot express "Boujailles is restricted on this path but Frasne is not", which is the entire point of the feature. **This is the only UI that writes street restrictions**; a path must be re-saved here for its `city_entries` to exist in Firestore.
+A full-screen destination since PR #61 — it replaced `PathEditDialog.kt` (deleted), which crammed
+identity, schedule, cities and a comma-separated street field into one scrolling card.
+
+- **Route:** `PathEditScreenDestination(pathId: String?)` in `app/src/main/.../navigation/CheeseScreens.kt`,
+  registered **only** in the admin `NavGraph`. `pathId == null` means create; the list screen tells
+  the two apart by checking whether the tapped card's id is in the loaded path list (the carousel
+  prepends a synthetic "Ajouter un parcours" card whose id is not).
+- **No `Scaffold`** — the admin app has exactly one, at the activity level. That top bar's
+  action icon is suppressed on this route (`MainActivity.kt`, prefix match since the route carries
+  an argument): a shortcut elsewhere on a form with unsaved edits only invites losing them.
+- **Draft state** is a `@Serializable PathDraft` in `rememberSaveable` behind a JSON saver — no
+  ViewModel, no Koin definition, and it survives rotation and process death. Every mutation is a
+  pure function in `PathDraft.kt` (`withCityAdded`, `withCityRemovedAt`, `withCityMoved`,
+  `withStreetsAt`, `plusStreet`, `canBeSaved`), which is where the editing rules are unit-tested.
+- **Coverage is a chip per city** — `Toute la ville` / `N rues`. Tapping it opens
+  `CityStreetsBottomSheet`: an explicit "Toute la ville" / "Certaines rues" choice, removable
+  chips, one-street-at-a-time entry with suggestions from the address API, and free text still
+  accepted for a street the database does not know. Choosing "toute la ville" **clears** the list,
+  because an empty list *is* how whole-commune coverage is expressed — letting the two disagree
+  would save a path whose meaning differs from what it reads.
+- **This is still the only UI that writes street restrictions**; a path must be re-saved here for
+  its `city_entries` to exist in Firestore.
+- Cities reorder with up/down arrows (deliberately not drag-and-drop: the order is the order the
+  van drives and `locations` is aligned with it positionally). New city via
+  `CityPostalCodeAutocompleteTextField`.
 - `deliveryDay` is a single `FilterChip` selection over `DayOfWeek.entries` — **only one weekday per path** (matches `DeliveryPath.deliveryDay: String`, a single value not a set).
-- Validate button is only enabled when name is non-blank, cities non-empty, and deliveryDay non-blank.
-- On confirm, `DeliveryOptionScreen` (admin variant) decides add-vs-update by checking whether `newPath.id` already exists in the currently loaded path list, then calls `AdminViewModel.addNewDeliveryPath` / `updateDeliveryPath` / `deleteDeliveryPath`, which go through `FirebaseAdminRepositoryImpl` → `FirestoreAdminDatasource` → the same `delivery_paths` collection (`admin/data/src/main/java/com/mtdevelopment/admin/data/source/FirestoreAdminDatasource.kt`).
-- After any add/update/delete, the screen calls `deliveryViewModel.loadAdminData(forceRefresh = true)` to bypass the Room cache and re-read Firestore immediately — see Data caching below for why `forceRefresh` matters here.
+- Save is enabled only when name is non-blank, cities non-empty, and deliveryDay non-blank. The
+  delete row appears **only when editing**, never while creating.
+- Writes go `AdminViewModel.addNewDeliveryPath` / `updateDeliveryPath` / `deleteDeliveryPath` →
+  `FirebaseAdminRepositoryImpl` → `FirestoreAdminDatasource` → `delivery_paths`
+  (`admin/data/src/main/java/com/mtdevelopment/admin/data/source/FirestoreAdminDatasource.kt`).
+- After a write the editor sets `PATH_LIST_NEEDS_REFRESH` on the **previous** back-stack entry and
+  pops; the list screen sees it and calls `loadAdminData(forceRefresh = true)` once, bypassing the
+  Room cache. The two screens own separate ViewModel instances (one per nav entry), which is why
+  the flag exists at all — see Data caching below for why `forceRefresh` matters here.
+
+**Keyboard layout gotcha, learned twice.** `imePadding()` must sit on the scrolled column and
+**before** `verticalScroll` in the modifier chain: after it, it pads the content instead of
+shrinking the viewport and the focused field stays under the keyboard. And it must not sit on the
+`Box` that also holds the sticky action bar — that lifts the buttons with the IME and parks them
+on top of the field being filled. In `CityStreetsBottomSheet` the street suggestions render
+**above** the input for the same reason: a bottom sheet grows upward when the keyboard opens.
 
 ## Admin side: order preparation (`OrderPreparationScreen.kt`)
 
@@ -288,7 +409,7 @@ supported configuration — but a city is split across *two paths*, never twice 
 does not bite the intended setup. Keep it in mind before "helpfully" allowing duplicate cities on
 a single path.
 
-## The `streets` city-split feature (was broken; FIXED 2026-07-29, PR #59)
+## The `streets` city-split feature (was broken; FIXED 2026-07-29 PR #59, completed PR #60/#61)
 
 **Goal** (owner-stated): let two paths cover the same city and split it by streets. Real example
 — Path A (Tuesday): Boujailles, Frasne, Courvière. Path B (Friday): Boujailles,
@@ -300,6 +421,17 @@ own path.
 "The `delivery_paths` Firestore document", the rules in "Matching an address to a path", the
 admin entry point in "Path editing", the cache in "Room schema". **Read those, not this
 section**, which is kept only so the defect pattern is not re-created.
+
+PR #59 made the data shape right. Two more defects had to go before the feature was usable:
+
+| # | Defect | Fixed in |
+|---|---|---|
+| 5 | The typed-address flow set the legacy booleans by hand instead of calling `updateEligibility`, so `streetNotCovered` was never raised there — on the commonest flow the customer saw **no button at all** | PR #60 |
+| 6 | Two paths covering a commune unrestricted resolved by `firstOrNull()` on Firestore iteration order — arbitrary, and different from one session to the next | PR #60 |
+
+Defect 5 is the instructive one: the rule existed, was unit-tested, and was correct — and was
+invisible to real customers because a Composable posted the verdict into the wrong state fields.
+**Domain tests passing is not evidence the UI shows the verdict.**
 
 It was inert for two months behind four independent defects, each of which alone made it do
 nothing visible — a useful reminder that "the feature does nothing" can be several bugs stacked,
@@ -326,7 +458,7 @@ a third entry point, call the use case — do not copy the loop.** "No test name
 itself a finding.
 
 ⚠️ **Operational note that outlives the fix:** a path only gains `city_entries` when the admin
-**re-saves it**. A path that has never been re-saved since PR #59 still reads through the legacy
+**re-saves it** (now via `PathEditScreen`). A path that has never been re-saved since PR #59 still reads through the legacy
 parallel arrays, i.e. every one of its cities is served in full. That is correct behaviour, not a
 bug — but it is the first thing to check if a configured street split appears to be ignored.
 
@@ -344,19 +476,25 @@ bug — but it is the first thing to check if a configured street split appears 
 ## Provenance and maintenance
 
 All facts verified 2026-07-06 against the working tree (branch `claude/distracted-chaum-0986e4`),
-**except the path/city/street model, the eligibility matcher and the `PathEntity` schema, all
-re-verified 2026-07-29 against PR #59.** Re-verify drift-prone claims:
+**except the path/city/street model, the eligibility matcher and the `PathEntity` schema
+(re-verified 2026-07-29, PR #59) and the resolution table, date building, address APIs and the
+whole "Path editing" section (re-verified 2026-07-30, PR #60/#61).** Re-verify drift-prone claims:
 
 - Firestore field names for `delivery_paths`: `grep -n "path_name\|delivery_day\|city_entries\|postcodes" delivery/data/src/main/java/com/mtdevelopment/delivery/data/source/remote/FirestoreDeliveryDataSource.kt`
 - Streets still scoped per (path, city), not per path: `grep -n "streets" core/domain/src/main/java/com/mtdevelopment/core/model/DeliveryCity.kt` (a `streets` field reappearing on `DeliveryPath` itself is a regression)
 - Eligibility matcher still single-sourced: `grep -rln "DetermineDeliveryEligibilityUseCase" delivery/presentation/src --include='*.kt'` (quote the glob — zsh expands it otherwise; expect exactly `CustomerContent.kt` and `PermissionManagerComposable.kt`, and a third copy of the matching loop is the bug PR #59 removed)
-- Matching rules still hold: `./gradlew :delivery:domain:testDebugUnitTest` (`DetermineDeliveryEligibilityUseCaseTest`, incl. the Frasne non-regression case)
+- Matching rules still hold: `./gradlew :delivery:domain:testDebugUnitTest` (`DetermineDeliveryEligibilityUseCaseTest` — one test per row of the resolution table — and `BuildSelectableDeliveryDatesUseCaseTest`)
+- Ties still surface as a choice rather than a silent first-wins: `grep -n "candidatePaths" delivery/domain/src/main/java/com/mtdevelopment/delivery/domain/usecase/DetermineDeliveryEligibilityUseCase.kt` (a bare `firstOrNull()` deciding the winner is the regression)
+- Path editor still a screen, dialog still gone: `ls delivery/presentation/src/admin/java/com/mtdevelopment/delivery/presentation/screen/PathEditScreen.kt` and `git log --oneline -1 -- delivery/presentation/src/admin/java/com/mtdevelopment/delivery/presentation/composable/PathEditDialog.kt`
+- Path-editor rules still tested: `./gradlew :delivery:presentation:testAdminDebugUnitTest` (`PathDraftTest` — note the **admin** flavor task; `testClientDebugUnitTest` does not compile `src/admin`)
+- Street suggestions still send the commune in the query: `grep -n "encodedPath" delivery/data/src/main/java/com/mtdevelopment/delivery/data/source/remote/AddressApiDataSource.kt` (a `type=street` call without the city in `q` returns a neighbouring commune's streets)
+- Geocoding host still the deprecated one: `curl -s -D- -o /dev/null "https://api-adresse.data.gouv.fr/search/?q=test&limit=1" | grep -i "x-api-deprecated\|sunset"`
 - `PathEntity` columns and Room round-trip: `grep -n "val [a-zA-Z]*:" delivery/data/src/main/java/com/mtdevelopment/delivery/data/model/entity/PathEntity.kt` and `./gradlew :delivery:data:testClientDebugUnitTest` (`PathEntityTest`)
 - `database_update` document ids/fields: `grep -n "products_timestamp\|path_timestamp\|last_update" home/data/src/main/java/com/mtdevelopment/home/data/source/remote/FirestoreDatabase.kt`
 - Admin still writes `database_update` timestamps: `grep -n "path_timestamp\|products_timestamp" admin/data/src/main/java/com/mtdevelopment/admin/data/source/FirestoreAdminDatasource.kt` (expect 2 hits — the `.set(` writers for both documents)
 - Google Routes vs OpenRouteService split still holds: `grep -rn "GOOGLE_ROUTE_BASE_URL\|OPEN_ROUTE_BASE_URL" core/data/src/main/java/com/mtdevelopment/core/data/Constants.kt`
 - MapBox public vs secret token distinction: `grep -n "MAPBOX_PUBLIC_TOKEN" delivery/presentation/src/client/java/com/mtdevelopment/delivery/presentation/screen/DeliveryOptionScreen.kt delivery/presentation/src/admin/java/com/mtdevelopment/delivery/presentation/screen/DeliveryOptionScreen.kt` and `grep -n "MAPBOX_SECRET_TOKEN" settings.gradle.kts`
-- Selectable-dates lead time still 2 days: `grep -n "limitDate\|plusDays" delivery/presentation/src/main/java/com/mtdevelopment/delivery/presentation/model/ShippingSelectableDates.kt`
+- `ShippingSelectableDates.kt` still dead (delete-on-sight candidate): `grep -rn --include='*.kt' "ShippingSelectableDates" . | grep -v build` (expect only the file itself)
 - Stop-tracking still manual (not automatic on foreground): `grep -n "isInTrackingMode\|ON_RESUME\|ON_STOP" admin/presentation/src/main/java/com/mtdevelopment/admin/presentation/screen/DeliveryHelperScreen.kt app/src/admin/java/com/mtdevelopment/lafromagerie/MainActivity.kt`
 - Foreground-service fragility branch still present: `git branch -a | grep admin_delivery_instability`
 - Preparation-status composite id format: `grep -n "statusId =" admin/presentation/src/main/java/com/mtdevelopment/admin/presentation/screen/OrderPreparationScreen.kt`

@@ -103,13 +103,24 @@ in prod. **Do not delete this branch** without confirming no such documents rema
 | `note` | String? | |
 | `is_manually_added` | Boolean? | admin-created manual orders |
 
+**No delivery-path field, deliberately (owner call, 2026-07-30).** An order records
+`delivery_date` and nothing about which tournée serves it; the path is a client-side concept whose
+only trace is `lastSelectedPath` (by name) in DataStore, used to prefill the form. It was
+considered and declined when the multi-path customer choice was added: the date already identifies
+the tournée in every real configuration, and `orders` is the collection old APKs in the field write
+to. **Precondition to keep it true:** no two delivery paths may share the same `delivery_day` +
+`delivery_frequency`. If they ever do, two tournées produce the same date, the customer's choice
+carries no information, and nothing downstream can tell the routes apart — revisit this field
+*before* creating such a pair, not after. See `fromagerie-delivery-logistics-reference`
+§"The order records the date, not the path".
+
 **Mapping asymmetry to know:** the admin reader (`getAllOrders`) maps documents **manually**
 (snake_case + explicit `OrderStatus` conversion, skipping malformed docs) because
 `toObject` cannot convert the string status. The client writer uses `.set(orderData)` via
 the `@Serializable` DTO. Unknown/newer status values from a future app version degrade to
 `PENDING` rather than crashing — a forward-compat safety net; preserve it.
 
-### 2.3 `delivery_paths`  — `city_entries` is canonical (reshaped 2026-07-29, PR #59)
+### 2.3 `delivery_paths`  — `city_entries` is canonical (reshaped 2026-07-29, PR #59; unchanged by PR #60/#61)
 
 A path covers a set of cities, and **each city may carry its own street allow-list** so two
 paths can split one city between them by street. That per-(path, city) scoping is the whole
@@ -352,6 +363,8 @@ data classes; test the `toX()/fromX()` mappers), not a live Firestore write.
 |---|---|
 | Collection names & owners | `grep -rn 'collection(' . \| grep '\.kt:' \| grep -v /build/` |
 | `OrderData` fields | `sed -n '1,30p' core/data/src/main/java/com/mtdevelopment/core/model/OrderData.kt` |
+| Still no path field on orders | `grep -in "path" core/domain/src/main/java/com/mtdevelopment/core/model/Order.kt core/data/src/main/java/com/mtdevelopment/core/model/OrderData.kt` (expect no hits) |
+| No two paths share a day+frequency | read `delivery_paths` in the Firebase console (read-only) and compare `delivery_day` + `delivery_frequency` pairwise |
 | `ProductData` fields + isAvailable/available split | read `core/data/.../model/ProductData.kt` and `home/data/.../FirestoreDatabase.kt` |
 | legacy `b..h` product keys | `grep -n '"b"\|"h"' home/data/src/main/java/com/mtdevelopment/home/data/source/remote/FirestoreDatabase.kt` |
 | delivery_paths document keys actually read | `grep -nE '"[a-z_]+"\]\|get\("' delivery/data/src/main/java/com/mtdevelopment/delivery/data/source/remote/FirestoreDeliveryDataSource.kt` (expect `city_entries` + legacy `cities`/`postcodes`; `streets` should appear **only** nested inside a `city_entries` element, never as a top-level `get("streets")`) |

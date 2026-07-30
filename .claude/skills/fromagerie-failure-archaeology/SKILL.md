@@ -167,6 +167,31 @@ As of 2026-07-06, `./gradlew testClientDebugUnitTest --continue` has **2 real fa
   close enough together to collide in `main`; if you are reading a diff from that day, the
   poisoned-cache fix and the city-split fix are separate changes.
 
+## 15. "The domain test is green" is not evidence the feature works (2026-07-29 → 07-30)
+
+The split-city feature was shipped three times before a customer could have used it, and each
+round the tests were green. Worth internalising as a pattern, not as three anecdotes:
+
+| Round | The rule was… | What the customer got | Why tests missed it |
+|---|---|---|---|
+| PR #59 | correct, unit-tested, per (path, city) | nothing — data never reached Room/Firestore | tests covered the matcher, not the write/read path |
+| PR #60 | correct and reached the UI | **no button at all** on the typed-address flow | `CustomerContent` posted the verdict into two legacy booleans instead of calling `updateEligibility`; no test asserted the mapping |
+| PR #61 | correct | street suggestions always empty | the API query was wrong in a way only live data revealed (below) |
+
+**The street-query trap, concretely.** Asking the government address API for
+`?q=rue&type=street&postcode=25560` looks obviously right and passes every mocked test. In
+reality 25560 covers Frasne, Boujailles *and* Courvière, the API ranks on query text alone, and
+all ten results came back Frasne. The repository's commune filter then correctly discarded all
+ten — a correct filter over a wrong retrieval, which is invisible unless you run it. Fix: put the
+commune in `q` as well. The mocked tests could not have caught this, and a test asserting
+"filters foreign communes" passed happily throughout.
+
+**What to take from it:** when a feature spans a rule, a store, a network call and a screen,
+"the use-case test is green" tells you about one of four. For anything customer-facing, the
+evidence bar is the flow on a device — see `fromagerie-validation-and-qa`'s evidence ladder. The
+cheapest tell in all three rounds would have been the same question: *has anyone seen this
+render?*
+
 ## When NOT to use this skill
 
 - You need current payment mechanics (not history) → **fromagerie-payments-reference**
