@@ -228,18 +228,16 @@ fun PathEditContent(
     var streetsEditIndex by remember { mutableStateOf<Int?>(null) }
 
     Surface(modifier = Modifier.fillMaxSize()) {
-        // `imePadding` sits on the Box, not on the scrolled Column: it has to shrink the viewport
-        // so the text field being filled is scrolled above the keyboard. Applied inside the scroll
-        // it would only pad the content, leaving the field — and its autocomplete dropdown — under
-        // the IME.
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .imePadding()
-        ) {
+        Box(modifier = Modifier.fillMaxSize()) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
+                    // Order matters twice over. `imePadding` must come BEFORE `verticalScroll` so
+                    // it shrinks the viewport — placed after, it only pads the scrolled content and
+                    // the focused field stays under the keyboard. And it must sit here rather than
+                    // on the Box, which also holds the action bar: lifting that with the IME parks
+                    // the buttons right on top of the field being filled.
+                    .imePadding()
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = 20.dp)
                     .padding(top = 8.dp, bottom = 160.dp)
