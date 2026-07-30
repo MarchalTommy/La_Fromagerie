@@ -12,12 +12,15 @@ import com.mtdevelopment.core.usecase.GetIsNetworkConnectedUseCase
 import com.mtdevelopment.core.usecase.SaveToDatastoreUseCase
 import com.mtdevelopment.delivery.domain.usecase.DeliveryEligibility
 import com.mtdevelopment.delivery.domain.usecase.GetAllDeliveryPathsUseCase
+import com.mtdevelopment.delivery.domain.usecase.GetStreetSuggestionsUseCase
 import com.mtdevelopment.delivery.domain.usecase.GetDeliveryPathUseCase
 import com.mtdevelopment.delivery.domain.usecase.GetUserInfoFromDatastoreUseCase
 import com.mtdevelopment.delivery.presentation.model.UiDeliveryPath
 import com.mtdevelopment.delivery.presentation.model.toUiDeliveryPath
 import com.mtdevelopment.delivery.presentation.state.DeliveryUiDataState
 import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -29,6 +32,9 @@ import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import org.koin.core.component.KoinComponent
+
+/** Debounce before firing a street lookup, matching the address autocomplete's own delay. */
+private const val STREET_SEARCH_DEBOUNCE_MS = 300L
 
 @OptIn(FlowPreview::class)
 /**
@@ -47,7 +53,8 @@ class DeliveryViewModel(
     private val saveToDatastoreUseCase: SaveToDatastoreUseCase,
     private val getDeliveryPathsUseCase: GetDeliveryPathUseCase,
     private val getAllDeliveryPathsUseCase: GetAllDeliveryPathsUseCase,
-    private val getAutocompleteSuggestionsUseCase: GetAutocompleteSuggestionsUseCase
+    private val getAutocompleteSuggestionsUseCase: GetAutocompleteSuggestionsUseCase,
+    private val getStreetSuggestionsUseCase: GetStreetSuggestionsUseCase
 ) : ViewModel(), KoinComponent {
 
     /**
@@ -484,6 +491,38 @@ class DeliveryViewModel(
      * [DeliveryEligibility.STREET_NOT_COVERED] shares the "ask for support" affordance with
      * [DeliveryEligibility.ASK_FOR_SUPPORT] but carries its own wording, hence the extra flag.
      */
+    ///////////////////////////////////////////////////////////////////////////
+    // STREET SUGGESTIONS (admin path editor)
+    ///////////////////////////////////////////////////////////////////////////
+
+    private var streetSearchJob: Job? = null
+
+    /**
+     * Looks up street names of one commune for the path editor.
+     *
+     * Debounced and single-flight: the shop types a few characters at a time and each keystroke
+     * would otherwise fire its own request, with the answers landing out of order.
+     */
+    fun searchStreets(query: String, city: String, postcode: Int) {
+        streetSearchJob?.cancel()
+        if (query.isBlank() || city.isBlank()) {
+            deliveryUiDataState = deliveryUiDataState.copy(streetSuggestions = emptyList())
+            return
+        }
+        streetSearchJob = viewModelScope.launch {
+            delay(STREET_SEARCH_DEBOUNCE_MS)
+            val suggestions = runCatching {
+                getStreetSuggestionsUseCase.invoke(query, city, postcode)
+            }.getOrDefault(emptyList())
+            deliveryUiDataState = deliveryUiDataState.copy(streetSuggestions = suggestions)
+        }
+    }
+
+    fun clearStreetSuggestions() {
+        streetSearchJob?.cancel()
+        deliveryUiDataState = deliveryUiDataState.copy(streetSuggestions = emptyList())
+    }
+
     fun updateEligibility(eligibility: DeliveryEligibility) {
         deliveryUiDataState = deliveryUiDataState.copy(
             userLocationOnPath = eligibility == DeliveryEligibility.DELIVERABLE,

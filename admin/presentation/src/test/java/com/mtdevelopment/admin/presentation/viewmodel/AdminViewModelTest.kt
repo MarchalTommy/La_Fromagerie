@@ -16,6 +16,8 @@ import com.mtdevelopment.admin.domain.usecase.UpdatePreparationStatusUseCase
 import com.mtdevelopment.admin.domain.usecase.UpdateProductUseCase
 import com.mtdevelopment.admin.domain.usecase.UpdateShouldShowBatterieOptimizationUseCase
 import com.mtdevelopment.admin.domain.usecase.UploadImageUseCase
+import com.mtdevelopment.core.model.DeliveryCity
+import com.mtdevelopment.core.model.DeliveryPath
 import com.mtdevelopment.core.model.Product
 import com.mtdevelopment.core.model.ProductType
 import com.mtdevelopment.core.presentation.sharedModels.UiProductObject
@@ -231,5 +233,119 @@ class AdminViewModelTest {
 
         assertTrue(success)
         coVerify(exactly = 0) { uploadImageUseCase.invoke(any(), any()) }
+    }
+
+    ///////////////////////////////////////////////////////////////////////////
+    // Delivery path CRUD — the path editor's only route to Firestore.
+    ///////////////////////////////////////////////////////////////////////////
+
+    private fun path() = DeliveryPath(
+        id = "path-a",
+        pathName = "Parcours A",
+        availableCities = listOf(
+            DeliveryCity("Levier", 25270),
+            DeliveryCity("Boujailles", 25560, listOf("Rue du Moulin"))
+        ),
+        deliveryDay = "TUESDAY"
+    )
+
+    @Test
+    fun `addNewDeliveryPath forwards the path and reports success`() = runTest(testDispatcher) {
+        val captured = slot<DeliveryPath>()
+        coEvery {
+            addNewPathUseCase.invoke(capture(captured), any(), any())
+        } answers { arg<() -> Unit>(1).invoke() }
+        val viewModel = buildViewModel()
+        var success = false
+
+        viewModel.addNewDeliveryPath(path(), onSuccess = { success = true }, onFailure = {})
+        testScheduler.advanceUntilIdle()
+
+        assertTrue(success)
+        // The street restriction must reach the repository intact — it is the whole point of the
+        // per-city split.
+        assertEquals(listOf("Rue du Moulin"), captured.captured.availableCities[1].streets)
+        assertEquals(2, captured.captured.availableCities.size)
+    }
+
+    @Test
+    fun `addNewDeliveryPath reports failure instead of a silent success`() =
+        runTest(testDispatcher) {
+            coEvery {
+                addNewPathUseCase.invoke(any(), any(), any())
+            } answers { arg<(Throwable) -> Unit>(2).invoke(RuntimeException("boom")) }
+            val viewModel = buildViewModel()
+            var failed = false
+            var success = false
+
+            viewModel.addNewDeliveryPath(
+                path(),
+                onSuccess = { success = true },
+                onFailure = { failed = true }
+            )
+            testScheduler.advanceUntilIdle()
+
+            assertTrue(failed)
+            assertFalse(success)
+        }
+
+    @Test
+    fun `updateDeliveryPath forwards the path and reports success`() = runTest(testDispatcher) {
+        val captured = slot<DeliveryPath>()
+        coEvery {
+            updateDeliveryPathUseCase.invoke(capture(captured), any(), any())
+        } answers { arg<() -> Unit>(1).invoke() }
+        val viewModel = buildViewModel()
+        var success = false
+
+        viewModel.updateDeliveryPath(path(), onSuccess = { success = true }, onFailure = {})
+        testScheduler.advanceUntilIdle()
+
+        assertTrue(success)
+        assertEquals("path-a", captured.captured.id)
+    }
+
+    @Test
+    fun `updateDeliveryPath reports failure`() = runTest(testDispatcher) {
+        coEvery {
+            updateDeliveryPathUseCase.invoke(any(), any(), any())
+        } answers { arg<(Throwable) -> Unit>(2).invoke(RuntimeException("boom")) }
+        val viewModel = buildViewModel()
+        var failed = false
+
+        viewModel.updateDeliveryPath(path(), onSuccess = {}, onFailure = { failed = true })
+        testScheduler.advanceUntilIdle()
+
+        assertTrue(failed)
+    }
+
+    @Test
+    fun `deleteDeliveryPath forwards the path and reports success`() = runTest(testDispatcher) {
+        val captured = slot<DeliveryPath>()
+        coEvery {
+            deletePathUseCase.invoke(capture(captured), any(), any())
+        } answers { arg<() -> Unit>(1).invoke() }
+        val viewModel = buildViewModel()
+        var success = false
+
+        viewModel.deleteDeliveryPath(path(), onSuccess = { success = true }, onFailure = {})
+        testScheduler.advanceUntilIdle()
+
+        assertTrue(success)
+        assertEquals("path-a", captured.captured.id)
+    }
+
+    @Test
+    fun `deleteDeliveryPath reports failure`() = runTest(testDispatcher) {
+        coEvery {
+            deletePathUseCase.invoke(any(), any(), any())
+        } answers { arg<(Throwable) -> Unit>(2).invoke(RuntimeException("boom")) }
+        val viewModel = buildViewModel()
+        var failed = false
+
+        viewModel.deleteDeliveryPath(path(), onSuccess = {}, onFailure = { failed = true })
+        testScheduler.advanceUntilIdle()
+
+        assertTrue(failed)
     }
 }

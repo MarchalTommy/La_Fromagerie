@@ -24,6 +24,8 @@ import com.mtdevelopment.core.presentation.theme.ui.scaleIntoContainer
 import com.mtdevelopment.core.presentation.theme.ui.scaleOutOfContainer
 import com.mtdevelopment.core.util.koinViewModel
 import com.mtdevelopment.delivery.presentation.screen.DeliveryOptionScreen
+import com.mtdevelopment.delivery.presentation.screen.PATH_LIST_NEEDS_REFRESH
+import com.mtdevelopment.delivery.presentation.screen.PathEditScreen
 import com.mtdevelopment.details.presentation.composable.DetailScreen
 import com.mtdevelopment.home.presentation.composable.HomeScreen
 
@@ -135,22 +137,65 @@ fun NavGraph(
             popExitTransition = {
                 scaleOutOfContainer()
             }
-        ) {
+        ) { backStackEntry ->
             BackHandler {
                 cartViewModel.setCartVisibility(false)
                 navController.navigateUp()
             }
 
+            // Set by the path editor on its way back. The two screens own separate ViewModel
+            // instances, so the list cannot otherwise know a path was written.
+            val pathsChanged = backStackEntry.savedStateHandle
+                .getStateFlow(PATH_LIST_NEEDS_REFRESH, false)
+                .collectAsState()
+
             DeliveryOptionScreen(
+                pathsChanged = pathsChanged.value,
+                onPathsChangeHandled = {
+                    backStackEntry.savedStateHandle[PATH_LIST_NEEDS_REFRESH] = false
+                },
                 navigateToCheckout = {
                     navController.navigate(
                         CheckoutScreenDestination
                     )
                 },
+                navigateToPathEdit = { pathId ->
+                    navController.navigate(PathEditScreenDestination(pathId))
+                },
                 navigateBack = {
                     cartViewModel.setCartVisibility(false)
                     navController.navigateUp()
                 })
+        }
+
+        composable<PathEditScreenDestination>(
+            enterTransition = {
+                scaleIntoContainer()
+            },
+            exitTransition = {
+                scaleOutOfContainer(ScaleTransitionDirection.INWARDS)
+            },
+            popEnterTransition = {
+                scaleIntoContainer(ScaleTransitionDirection.OUTWARDS)
+            },
+            popExitTransition = {
+                scaleOutOfContainer()
+            }
+        ) { backStackEntry ->
+            val args = backStackEntry.toRoute<PathEditScreenDestination>()
+
+            PathEditScreen(
+                pathId = args.pathId,
+                navigateBack = { navController.navigateUp() },
+                onSaved = {
+                    // The list screen owns its own ViewModel, so it cannot see the write happen.
+                    // Flag it on the way back rather than re-fetching on every resume.
+                    navController.previousBackStackEntry
+                        ?.savedStateHandle
+                        ?.set(PATH_LIST_NEEDS_REFRESH, true)
+                    navController.navigateUp()
+                }
+            )
         }
 
         composable<CheckoutScreenDestination>(

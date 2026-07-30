@@ -68,6 +68,7 @@ import com.mtdevelopment.delivery.data.source.remote.AddressApiDataSource
 import com.mtdevelopment.delivery.data.source.remote.FirestoreDeliveryDataSource
 import com.mtdevelopment.delivery.data.source.remote.OpenRouteDataSource
 import com.mtdevelopment.delivery.domain.repository.AddressApiRepository
+import com.mtdevelopment.delivery.domain.usecase.GetStreetSuggestionsUseCase
 import com.mtdevelopment.delivery.domain.repository.FirestorePathRepository
 import com.mtdevelopment.delivery.domain.repository.RoomDeliveryRepository
 import com.mtdevelopment.delivery.domain.usecase.GetAllDeliveryPathsUseCase
@@ -176,6 +177,7 @@ val mainAppModule = module {
 
     factory { GetDeliveryPathUseCase(get()) }
     factory { GetAutocompleteSuggestionsUseCase(get()) }
+    factory { GetStreetSuggestionsUseCase(get()) }
     factory {
         GetAllDeliveryPathsUseCase(
             get(),

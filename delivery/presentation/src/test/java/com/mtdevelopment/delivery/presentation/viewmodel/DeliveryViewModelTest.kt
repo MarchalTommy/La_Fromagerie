@@ -10,6 +10,7 @@ import com.mtdevelopment.delivery.domain.model.DeliveryPath
 import com.mtdevelopment.delivery.domain.usecase.DeliveryEligibility
 import com.mtdevelopment.delivery.domain.usecase.GetAllDeliveryPathsUseCase
 import com.mtdevelopment.delivery.domain.usecase.GetDeliveryPathUseCase
+import com.mtdevelopment.delivery.domain.usecase.GetStreetSuggestionsUseCase
 import com.mtdevelopment.delivery.domain.usecase.GetUserInfoFromDatastoreUseCase
 import com.mtdevelopment.delivery.presentation.model.UiDeliveryPath
 import io.mockk.coEvery
@@ -44,6 +45,7 @@ class DeliveryViewModelTest {
     private val getDeliveryPathUseCase: GetDeliveryPathUseCase = mockk()
     private val getAllDeliveryPathsUseCase: GetAllDeliveryPathsUseCase = mockk()
     private val getAutocompleteSuggestionsUseCase: GetAutocompleteSuggestionsUseCase = mockk()
+    private val getStreetSuggestionsUseCase: GetStreetSuggestionsUseCase = mockk(relaxed = true)
 
     private val uiPath = UiDeliveryPath(
         id = "1",
@@ -71,7 +73,8 @@ class DeliveryViewModelTest {
         saveToDatastoreUseCase,
         getDeliveryPathUseCase,
         getAllDeliveryPathsUseCase,
-        getAutocompleteSuggestionsUseCase
+        getAutocompleteSuggestionsUseCase,
+        getStreetSuggestionsUseCase
     )
 
     @Test
@@ -404,4 +407,78 @@ class DeliveryViewModelTest {
 
         assertTrue(errored)
     }
+
+    ///////////////////////////////////////////////////////////////////////////
+    // Street suggestions (admin path editor)
+    ///////////////////////////////////////////////////////////////////////////
+
+    @Test
+    fun `searching streets exposes what the address database returns`() = runTest(testDispatcher) {
+        coEvery {
+            getStreetSuggestionsUseCase.invoke("moul", "Boujailles", 25560)
+        } returns listOf("Rue du Moulin", "Rue du Moulin Neuf")
+        val viewModel = buildViewModel()
+
+        viewModel.searchStreets("moul", "Boujailles", 25560)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(
+            listOf("Rue du Moulin", "Rue du Moulin Neuf"),
+            viewModel.deliveryUiDataState.streetSuggestions
+        )
+    }
+
+    /** Each keystroke would otherwise fire its own request, with answers landing out of order. */
+    @Test
+    fun `only the last query of a burst reaches the network`() = runTest(testDispatcher) {
+        coEvery { getStreetSuggestionsUseCase.invoke(any(), any(), any()) } returns listOf("Grande Rue")
+        val viewModel = buildViewModel()
+
+        viewModel.searchStreets("g", "Boujailles", 25560)
+        viewModel.searchStreets("gr", "Boujailles", 25560)
+        viewModel.searchStreets("gra", "Boujailles", 25560)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        coVerify(exactly = 1) { getStreetSuggestionsUseCase.invoke(any(), any(), any()) }
+        coVerify(exactly = 1) { getStreetSuggestionsUseCase.invoke("gra", "Boujailles", 25560) }
+    }
+
+    @Test
+    fun `a blank query clears the suggestions without calling out`() = runTest(testDispatcher) {
+        val viewModel = buildViewModel()
+
+        viewModel.searchStreets("", "Boujailles", 25560)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertTrue(viewModel.deliveryUiDataState.streetSuggestions.isEmpty())
+        coVerify(exactly = 0) { getStreetSuggestionsUseCase.invoke(any(), any(), any()) }
+    }
+
+    /** Suggestions from the previous city must not leak into the next one. */
+    @Test
+    fun `clearing drops the current suggestions`() = runTest(testDispatcher) {
+        coEvery { getStreetSuggestionsUseCase.invoke(any(), any(), any()) } returns listOf("Grande Rue")
+        val viewModel = buildViewModel()
+        viewModel.searchStreets("gra", "Boujailles", 25560)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.clearStreetSuggestions()
+
+        assertTrue(viewModel.deliveryUiDataState.streetSuggestions.isEmpty())
+    }
+
+    /** The shop can always type the street by hand, so a lookup failure must stay silent. */
+    @Test
+    fun `a failing lookup leaves the suggestions empty rather than crashing`() =
+        runTest(testDispatcher) {
+            coEvery {
+                getStreetSuggestionsUseCase.invoke(any(), any(), any())
+            } throws RuntimeException("offline")
+            val viewModel = buildViewModel()
+
+            viewModel.searchStreets("gra", "Boujailles", 25560)
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            assertTrue(viewModel.deliveryUiDataState.streetSuggestions.isEmpty())
+        }
 }

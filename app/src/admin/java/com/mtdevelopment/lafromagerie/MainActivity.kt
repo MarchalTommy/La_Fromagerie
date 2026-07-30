@@ -57,6 +57,7 @@ import com.mtdevelopment.lafromagerie.navigation.DeliveryHelperScreenDestination
 import com.mtdevelopment.lafromagerie.navigation.DeliveryOptionScreenDestination
 import com.mtdevelopment.lafromagerie.navigation.HomeScreenDestination
 import com.mtdevelopment.lafromagerie.navigation.NavGraph
+import com.mtdevelopment.lafromagerie.navigation.PathEditScreenDestination
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
@@ -236,7 +237,15 @@ class MainActivity : ComponentActivity() {
                                 }
                             },
                             actions = {
-                                if (currentBackStackEntry.value?.destination?.route != DeliveryHelperScreenDestination::class.java.name) {
+                                val route = currentBackStackEntry.value?.destination?.route
+                                // The path editor is a focused, form-like screen: leaving a
+                                // shortcut to another part of the app in reach would invite
+                                // losing an edit in progress. Its route carries an argument
+                                // suffix, hence the prefix match.
+                                val hidesActions =
+                                    route == DeliveryHelperScreenDestination::class.java.name ||
+                                            route?.startsWith(PathEditScreenDestination::class.java.name) == true
+                                if (!hidesActions) {
                                     IconButton(
                                         modifier = Modifier.size(64.dp),
                                         onClick = {
