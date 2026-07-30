@@ -193,10 +193,13 @@ class DeliveryViewModel(
      */
     fun saveUserInfo(onError: () -> Unit = {}) {
         viewModelScope.launch {
-            // Validation: Ensure mandatory fields are filled
-            if (deliveryUiDataState.selectedPath == null || 
-                deliveryUiDataState.deliveryAddressSearchQuery.isBlank() ||
-                deliveryUiDataState.userNameFieldText.isBlank()
+            // Validation: Ensure mandatory fields are filled.
+            // A null selectedPath is not a failure when several tournées are still in the running:
+            // the customer settles it by picking a date, and this runs again with the winner.
+            if (deliveryUiDataState.deliveryAddressSearchQuery.isBlank() ||
+                deliveryUiDataState.userNameFieldText.isBlank() ||
+                (deliveryUiDataState.selectedPath == null &&
+                        deliveryUiDataState.candidatePaths.isEmpty())
             ) {
                 onError.invoke()
                 return@launch
@@ -208,7 +211,8 @@ class DeliveryViewModel(
                     email = existingUserInfo?.email ?: "",
                     address = deliveryUiDataState.deliveryAddressSearchQuery,
                     billingAddress = deliveryUiDataState.billingAddressSearchQuery,
-                    lastSelectedPath = deliveryUiDataState.selectedPath?.name ?: ""
+                    lastSelectedPath = deliveryUiDataState.selectedPath?.name
+                        ?: existingUserInfo?.lastSelectedPath ?: ""
                 )
             )
         }
@@ -424,6 +428,26 @@ class DeliveryViewModel(
 
     fun updateSelectedPath(path: UiDeliveryPath?) {
         deliveryUiDataState = deliveryUiDataState.copy(selectedPath = path)
+    }
+
+    /**
+     * Records every path that serves the customer's address, and settles on one when it can.
+     *
+     * A single candidate is selected outright. Several means the shop genuinely covers the address
+     * on more than one tournée: we keep the customer's previous pick if it is still on the list —
+     * so re-entering the screen does not silently move them — and otherwise leave [selectedPath]
+     * null so the merged date picker is what assigns the path.
+     */
+    fun updateCandidatePaths(paths: List<UiDeliveryPath>) {
+        val previousId = deliveryUiDataState.selectedPath?.id
+        deliveryUiDataState = deliveryUiDataState.copy(
+            candidatePaths = paths,
+            selectedPath = when {
+                paths.isEmpty() -> null
+                paths.size == 1 -> paths.single()
+                else -> paths.firstOrNull { it.id == previousId }
+            }
+        )
     }
 
     fun setIsBillingDifferent(isDifferent: Boolean) {

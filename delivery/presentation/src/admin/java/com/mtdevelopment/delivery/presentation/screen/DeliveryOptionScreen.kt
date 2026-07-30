@@ -144,15 +144,16 @@ fun DeliveryOptionScreen(
 
         if (state.value.datePickerVisibility) {
             DatePickerComposable(
-                selectedPath = state.value.selectedPath,
+                paths = listOfNotNull(state.value.selectedPath),
                 shouldRemoveDatePicker = {
                     deliveryViewModel.setIsDatePickerShown(false)
                 },
                 newDateFieldText = {
                     deliveryViewModel.setDateFieldText(it)
                 },
-                onDateSelected = {
-                    deliveryViewModel.saveSelectedDate(it)
+                onDateSelected = { date, path ->
+                    deliveryViewModel.updateSelectedPath(path)
+                    deliveryViewModel.saveSelectedDate(date)
                 }
             )
         }

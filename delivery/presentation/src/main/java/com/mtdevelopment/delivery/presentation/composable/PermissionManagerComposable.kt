@@ -37,7 +37,7 @@ import kotlin.coroutines.suspendCoroutine
 @Composable
 fun PermissionManagerComposable(
     allPaths: List<UiDeliveryPath>,
-    onUpdateEligibility: (eligibility: DeliveryEligibility, city: String?, userAddress: String?, selectedPath: UiDeliveryPath?) -> Unit,
+    onUpdateEligibility: (eligibility: DeliveryEligibility, city: String?, userAddress: String?, candidatePaths: List<UiDeliveryPath>) -> Unit,
     onUpdateUserLocation: (Pair<Double, Double>?) -> Unit,
     setIsLoading: (Boolean) -> Unit,
     onUpdateLocalisationState: (Boolean) -> Unit,
@@ -68,8 +68,8 @@ fun PermissionManagerComposable(
                             context = context,
                             userLocation = userLocation,
                             allPaths = allPaths,
-                            onResult = { eligibility, city, userAddress, path ->
-                                onUpdateEligibility(eligibility, city, userAddress, path)
+                            onResult = { eligibility, city, userAddress, candidatePaths ->
+                                onUpdateEligibility(eligibility, city, userAddress, candidatePaths)
                                 setIsLoading(false)
                             }
                         )
@@ -77,7 +77,7 @@ fun PermissionManagerComposable(
                 },
                 onFailure = {
                     onUpdateUserLocation(null)
-                    onUpdateEligibility(DeliveryEligibility.NOT_ELIGIBLE, "Unknown", null, null)
+                    onUpdateEligibility(DeliveryEligibility.NOT_ELIGIBLE, "Unknown", null, emptyList())
                     onUpdateLocalisationState.invoke(false)
                     setIsLoading(false)
                 }
@@ -124,7 +124,7 @@ private suspend fun checkLocationEligibility(
     context: Context,
     userLocation: Pair<Double, Double>,
     allPaths: List<UiDeliveryPath>,
-    onResult: (eligibility: DeliveryEligibility, city: String?, userAddress: String?, selectedPath: UiDeliveryPath?) -> Unit
+    onResult: (eligibility: DeliveryEligibility, city: String?, userAddress: String?, candidatePaths: List<UiDeliveryPath>) -> Unit
 ) {
     withContext(Dispatchers.IO) {
         val geocoder = Geocoder(context)
@@ -172,7 +172,7 @@ private suspend fun checkLocationEligibility(
                 result.eligibility,
                 result.resolvedCity,
                 userAddress,
-                result.matchingPath?.let { matched -> allPaths.find { it.id == matched.id } }
+                result.candidatePaths.mapNotNull { matched -> allPaths.find { it.id == matched.id } }
             )
         }
     }

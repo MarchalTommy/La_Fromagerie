@@ -10,6 +10,7 @@
     <string name="auto_geoloc_not_on_path_at_all_part_3">En attendant, n\'hésitez pas à vous faire livrer chez des proches qui habiteraient sur un parcours !</string>
     <string name="auto_geoloc_not_on_path_but_close">L\'adresse sélectionnée n\'est pas sur un parcours de livraison…\nMais pas loin !\nVous pouvez faire une demande par email pour prendre en charge votre ville en livraison !</string>
     <string name="auto_geoloc_street_not_covered">Nous livrons bien à %1$s, mais cette commune est partagée entre deux tournées et nous n\'avons pas pu déterminer la vôtre à partir de votre rue.\nEnvoyez-nous un email : nous vous répondrons avec votre jour de livraison.</string>
+    <string name="auto_geoloc_multiple_paths">Bonne nouvelle : nous passons plusieurs fois par semaine à %1$s !\nChoisissez simplement la date de livraison qui vous arrange.</string>
     <string name="manual_path_chosen">L\'adresse sélectionnée vous permet d\'être livré le %1s.</string>
     <string name="delivery_date_label">Date de livraison</string>
     <string name="mapbox_style_URL" translatable="false">mapbox://styles/marchaldevelopment/cm1gh7eih002r01pe96i52fga</string>

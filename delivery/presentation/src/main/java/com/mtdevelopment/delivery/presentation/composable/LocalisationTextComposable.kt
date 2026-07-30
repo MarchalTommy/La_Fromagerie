@@ -22,15 +22,22 @@ import com.mtdevelopment.delivery.presentation.model.getFormattedDeliveryDayAndF
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 
+/**
+ * @param multiplePathsAvailable The address is served by several tournées and none has been settled
+ *   on yet. Without this the composable would fall through to the "not on a path" cycling text and
+ *   tell a perfectly deliverable customer we don't come to them.
+ */
 @Composable
 fun LocalisationTextComposable(
     selectedPath: UiDeliveryPath?,
     geolocIsOnPath: Boolean,
     canAskForDelivery: Boolean,
     streetNotCovered: Boolean = false,
+    multiplePathsAvailable: Boolean = false,
     userCity: String
 ) {
-    val isCyclingTextMode = selectedPath == null && !canAskForDelivery
+    val isCyclingTextMode =
+        selectedPath == null && !canAskForDelivery && !streetNotCovered && !multiplePathsAvailable
 
     val cyclingTextResourceIds = remember {
         listOf(
@@ -98,6 +105,12 @@ fun LocalisationTextComposable(
         // which one. Say so explicitly rather than let the near-miss wording imply we don't deliver.
         streetNotCovered -> {
             stringResource(R.string.auto_geoloc_street_not_covered, userCity)
+        }
+
+        // Several tournées serve this commune and nothing in the address picks between them, so
+        // the customer decides — by choosing the date that suits them.
+        multiplePathsAvailable && selectedPath == null -> {
+            stringResource(R.string.auto_geoloc_multiple_paths, userCity)
         }
 
         geolocIsOnPath && selectedPath != null -> {

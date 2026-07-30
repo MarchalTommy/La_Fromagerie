@@ -297,4 +297,200 @@ class DetermineDeliveryEligibilityUseCaseTest {
         assertEquals(DeliveryEligibility.NOT_ELIGIBLE, result.eligibility)
         assertNull(result.matchingPath)
     }
+
+    ///////////////////////////////////////////////////////////////////////////
+    // One test per row of the resolution table.
+    // A path whose entry for Boujailles carries no street list covers the whole commune.
+    ///////////////////////////////////////////////////////////////////////////
+
+    private fun wholeCityPath(id: String, day: String = "MONDAY") = DeliveryPath(
+        id = id,
+        pathName = "Parcours $id",
+        cities = listOf(DeliveryCity("Boujailles", 25560)),
+        locations = listOf(46.85 to 6.15),
+        deliveryDay = day,
+        geoJson = null
+    )
+
+    @Test
+    fun `every path restricting the city and no street match offers nothing to choose from`() {
+        val result = useCase(
+            paths = allPaths,
+            userCity = "Boujailles",
+            userStreet = "Impasse des Lilas",
+            addressText = "2 Impasse des Lilas, 25560 Boujailles",
+            userLocation = 46.85 to 6.15
+        )
+
+        assertEquals(DeliveryEligibility.STREET_NOT_COVERED, result.eligibility)
+        assertEquals(emptyList<DeliveryPath>(), result.candidatePaths)
+    }
+
+    /**
+     * A street list is a deliberate statement that the rest of the commune is not served, so a
+     * single restricting path is no more of a licence to guess than two are.
+     */
+    @Test
+    fun `a lone path restricting the city still routes to the shop`() {
+        val result = useCase(
+            paths = listOf(pathA),
+            userCity = "Boujailles",
+            userStreet = "Impasse des Lilas",
+            addressText = "2 Impasse des Lilas, 25560 Boujailles",
+            userLocation = 46.85 to 6.15
+        )
+
+        assertEquals(DeliveryEligibility.STREET_NOT_COVERED, result.eligibility)
+        assertEquals(emptyList<DeliveryPath>(), result.candidatePaths)
+    }
+
+    @Test
+    fun `an unmatched street restriction hands the city to the path that covers it whole`() {
+        val result = useCase(
+            paths = listOf(pathA, wholeCityPath("open")),
+            userCity = "Boujailles",
+            userStreet = "Impasse des Lilas",
+            addressText = "2 Impasse des Lilas, 25560 Boujailles",
+            userLocation = 46.85 to 6.15
+        )
+
+        assertEquals(DeliveryEligibility.DELIVERABLE, result.eligibility)
+        assertEquals(listOf("open"), result.candidatePaths.map { it.id })
+    }
+
+    @Test
+    fun `a matched street beats the path covering the city whole`() {
+        val result = useCase(
+            paths = listOf(pathA, wholeCityPath("open")),
+            userCity = "Boujailles",
+            userStreet = "Rue du Moulin",
+            addressText = "12 Rue du Moulin, 25560 Boujailles",
+            userLocation = 46.85 to 6.15
+        )
+
+        assertEquals(listOf("path-a"), result.candidatePaths.map { it.id })
+    }
+
+    @Test
+    fun `a city covered whole by two paths lets the customer choose`() {
+        val result = useCase(
+            paths = listOf(wholeCityPath("open-1"), wholeCityPath("open-2", day = "THURSDAY")),
+            userCity = "Boujailles",
+            userStreet = "Impasse des Lilas",
+            addressText = "2 Impasse des Lilas, 25560 Boujailles",
+            userLocation = 46.85 to 6.15
+        )
+
+        assertEquals(DeliveryEligibility.DELIVERABLE, result.eligibility)
+        assertEquals(listOf("open-1", "open-2"), result.candidatePaths.map { it.id })
+        assertEquals("open-1", result.matchingPath?.id)
+    }
+
+    @Test
+    fun `a restricted path that missed does not join the choice between two open paths`() {
+        val result = useCase(
+            paths = listOf(pathA, wholeCityPath("open-1"), wholeCityPath("open-2")),
+            userCity = "Boujailles",
+            userStreet = "Impasse des Lilas",
+            addressText = "2 Impasse des Lilas, 25560 Boujailles",
+            userLocation = 46.85 to 6.15
+        )
+
+        assertEquals(listOf("open-1", "open-2"), result.candidatePaths.map { it.id })
+    }
+
+    @Test
+    fun `the same street listed on two paths lets the customer choose`() {
+        val twin = pathB.copy(
+            id = "path-b2",
+            cities = listOf(DeliveryCity("Boujailles", 25560, listOf("Rue de la Gare")))
+        )
+
+        val result = useCase(
+            paths = listOf(pathB, twin),
+            userCity = "Boujailles",
+            userStreet = "Rue de la Gare",
+            addressText = "1 Rue de la Gare, 25560 Boujailles",
+            userLocation = 46.85 to 6.15
+        )
+
+        assertEquals(DeliveryEligibility.DELIVERABLE, result.eligibility)
+        assertEquals(listOf("path-b", "path-b2"), result.candidatePaths.map { it.id })
+    }
+
+    /**
+     * Street labels are matched loosely inside the address text, so an address on "Rue du Moulin
+     * Neuf" also contains "Rue du Moulin". The longer label is the street the customer lives on.
+     */
+    @Test
+    fun `the longer street label wins when one label is a prefix of the other`() {
+        val neuf = pathB.copy(
+            id = "path-neuf",
+            cities = listOf(DeliveryCity("Boujailles", 25560, listOf("Rue du Moulin Neuf")))
+        )
+
+        val result = useCase(
+            paths = listOf(pathA, neuf),
+            userCity = "Boujailles",
+            userStreet = null,
+            addressText = "8 Rue du Moulin Neuf, 25560 Boujailles",
+            userLocation = 46.85 to 6.15
+        )
+
+        assertEquals(listOf("path-neuf"), result.candidatePaths.map { it.id })
+    }
+
+    /** The reverse never collides: the longer label is simply absent from the shorter address. */
+    @Test
+    fun `the shorter street label still wins on its own address`() {
+        val neuf = pathB.copy(
+            id = "path-neuf",
+            cities = listOf(DeliveryCity("Boujailles", 25560, listOf("Rue du Moulin Neuf")))
+        )
+
+        val result = useCase(
+            paths = listOf(pathA, neuf),
+            userCity = "Boujailles",
+            userStreet = null,
+            addressText = "3 Rue du Moulin, 25560 Boujailles",
+            userLocation = 46.85 to 6.15
+        )
+
+        assertEquals(listOf("path-a"), result.candidatePaths.map { it.id })
+    }
+
+    @Test
+    fun `a city listed twice on one path is not a choice between two tournees`() {
+        val duplicated = wholeCityPath("open").copy(
+            cities = listOf(
+                DeliveryCity("Boujailles", 25560),
+                DeliveryCity("Boujailles", 25560)
+            ),
+            locations = listOf(46.85 to 6.15, 46.85 to 6.15)
+        )
+
+        val result = useCase(
+            paths = listOf(duplicated),
+            userCity = "Boujailles",
+            userStreet = null,
+            addressText = "2 Impasse des Lilas, 25560 Boujailles",
+            userLocation = 46.85 to 6.15
+        )
+
+        assertEquals(listOf("open"), result.candidatePaths.map { it.id })
+    }
+
+    @Test
+    fun `an unambiguous match exposes exactly one candidate`() {
+        val result = useCase(
+            paths = allPaths,
+            userCity = "Frasne",
+            userStreet = null,
+            addressText = "5 Rue de la Gare, 25560 Frasne",
+            userLocation = 46.85 to 6.17
+        )
+
+        assertEquals(listOf("path-a"), result.candidatePaths.map { it.id })
+        assertEquals(result.matchingPath, result.candidatePaths.single())
+    }
 }
