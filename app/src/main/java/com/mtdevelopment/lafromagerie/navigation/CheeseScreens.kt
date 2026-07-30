@@ -37,6 +37,18 @@ object DeliveryHelperScreenDestination
 object OrdersScreenDestination
 
 /**
+ * Navigation destination for the delivery path editor (Admin side).
+ *
+ * Registered only in the admin navigation graph; the client one never reaches it.
+ *
+ * @property pathId Path to edit, or null to create a new one.
+ */
+@Serializable
+data class PathEditScreenDestination(
+    val pathId: String? = null
+)
+
+/**
  * Navigation destination for the Checkout and Payment screen.
  */
 @Serializable
