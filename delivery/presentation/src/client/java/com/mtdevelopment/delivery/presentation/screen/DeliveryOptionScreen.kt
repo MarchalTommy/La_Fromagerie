@@ -143,7 +143,7 @@ fun DeliveryOptionScreen(
         if (state.value.shouldShowLocalisationPermission) {
             PermissionManagerComposable(
                 allPaths = state.value.deliveryPaths,
-                onUpdateEligibility = { eligibility, city, userAddress, path ->
+                onUpdateEligibility = { eligibility, city, userAddress, candidatePaths ->
                     // Logic to handle location-based delivery matching
                     if (city != null) {
                         deliveryViewModel.updateUserCity(city)
@@ -151,7 +151,7 @@ fun DeliveryOptionScreen(
                     if (userAddress != null) {
                         deliveryViewModel.setAddressFieldText(userAddress)
                     }
-                    deliveryViewModel.updateSelectedPath(path)
+                    deliveryViewModel.updateCandidatePaths(candidatePaths)
                     deliveryViewModel.updateEligibility(eligibility)
                 },
                 onUpdateUserLocation = {
@@ -192,15 +192,21 @@ fun DeliveryOptionScreen(
         // Confirming a date persists it and moves on to the pre-payment validation screen.
         if (state.value.datePickerVisibility) {
             DatePickerComposable(
-                selectedPath = state.value.selectedPath,
+                // Every path serving the address, not just one: when a commune is on two tournées
+                // the merged list is what lets the customer pick, and their pick assigns the path.
+                paths = state.value.candidatePaths,
                 shouldRemoveDatePicker = {
                     deliveryViewModel.setIsDatePickerShown(false)
                 },
                 newDateFieldText = {
                     deliveryViewModel.setDateFieldText(it)
                 },
-                onDateSelected = {
-                    deliveryViewModel.saveSelectedDate(it)
+                onDateSelected = { date, path ->
+                    deliveryViewModel.updateSelectedPath(path)
+                    // Re-persist now that the tournée is settled, so `lastSelectedPath` records
+                    // what the customer actually chose.
+                    deliveryViewModel.saveUserInfo()
+                    deliveryViewModel.saveSelectedDate(date)
                     navigateToCheckout.invoke()
                 }
             )

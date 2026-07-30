@@ -7,6 +7,7 @@ import com.mtdevelopment.core.usecase.GetAutocompleteSuggestionsUseCase
 import com.mtdevelopment.core.usecase.GetIsNetworkConnectedUseCase
 import com.mtdevelopment.core.usecase.SaveToDatastoreUseCase
 import com.mtdevelopment.delivery.domain.model.DeliveryPath
+import com.mtdevelopment.delivery.domain.usecase.DeliveryEligibility
 import com.mtdevelopment.delivery.domain.usecase.GetAllDeliveryPathsUseCase
 import com.mtdevelopment.delivery.domain.usecase.GetDeliveryPathUseCase
 import com.mtdevelopment.delivery.domain.usecase.GetUserInfoFromDatastoreUseCase
@@ -27,6 +28,7 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -254,5 +256,152 @@ class DeliveryViewModelTest {
         assertEquals("Pontarlier", state.userCity)
         assertTrue(state.userLocationOnPath)
         assertTrue(state.userLocationCloseFromPath)
+    }
+
+    ///////////////////////////////////////////////////////////////////////////
+    // Eligibility verdicts and multi-tournée candidates
+    ///////////////////////////////////////////////////////////////////////////
+
+    private val otherPath = uiPath.copy(id = "2", name = "Tournée du Jeudi", deliveryDay = "Jeudi")
+
+    @Test
+    fun `a single candidate is selected outright`() = runTest(testDispatcher) {
+        val viewModel = buildViewModel()
+
+        viewModel.updateCandidatePaths(listOf(uiPath))
+
+        assertEquals(listOf(uiPath), viewModel.deliveryUiDataState.candidatePaths)
+        assertEquals(uiPath, viewModel.deliveryUiDataState.selectedPath)
+    }
+
+    /** The date picker is what settles it, so nothing must be preselected on the customer's behalf. */
+    @Test
+    fun `several candidates leave the path unselected`() = runTest(testDispatcher) {
+        val viewModel = buildViewModel()
+
+        viewModel.updateCandidatePaths(listOf(uiPath, otherPath))
+
+        assertEquals(listOf(uiPath, otherPath), viewModel.deliveryUiDataState.candidatePaths)
+        assertNull(viewModel.deliveryUiDataState.selectedPath)
+    }
+
+    @Test
+    fun `several candidates keep a previous pick that is still on offer`() =
+        runTest(testDispatcher) {
+            val viewModel = buildViewModel()
+            viewModel.updateSelectedPath(otherPath)
+
+            viewModel.updateCandidatePaths(listOf(uiPath, otherPath))
+
+            assertEquals(otherPath, viewModel.deliveryUiDataState.selectedPath)
+        }
+
+    @Test
+    fun `a previous pick that no longer serves the address is dropped`() = runTest(testDispatcher) {
+        val viewModel = buildViewModel()
+        viewModel.updateSelectedPath(otherPath)
+
+        viewModel.updateCandidatePaths(listOf(uiPath))
+
+        assertEquals(uiPath, viewModel.deliveryUiDataState.selectedPath)
+    }
+
+    @Test
+    fun `no candidate clears the selection`() = runTest(testDispatcher) {
+        val viewModel = buildViewModel()
+        viewModel.updateSelectedPath(uiPath)
+
+        viewModel.updateCandidatePaths(emptyList())
+
+        assertTrue(viewModel.deliveryUiDataState.candidatePaths.isEmpty())
+        assertNull(viewModel.deliveryUiDataState.selectedPath)
+    }
+
+    @Test
+    fun `a deliverable verdict marks the customer as on a path`() = runTest(testDispatcher) {
+        val viewModel = buildViewModel()
+
+        viewModel.updateEligibility(DeliveryEligibility.DELIVERABLE)
+
+        val state = viewModel.deliveryUiDataState
+        assertTrue(state.userLocationOnPath)
+        assertFalse(state.userLocationCloseFromPath)
+        assertFalse(state.streetNotCovered)
+    }
+
+    /**
+     * The uncovered-street verdict shares the support affordance with a near miss but carries its
+     * own wording, hence both flags.
+     */
+    @Test
+    fun `an uncovered street offers support with its own wording`() = runTest(testDispatcher) {
+        val viewModel = buildViewModel()
+
+        viewModel.updateEligibility(DeliveryEligibility.STREET_NOT_COVERED)
+
+        val state = viewModel.deliveryUiDataState
+        assertFalse(state.userLocationOnPath)
+        assertTrue(state.userLocationCloseFromPath)
+        assertTrue(state.streetNotCovered)
+    }
+
+    /** Regression: the flag used to survive a later, deliverable address. */
+    @Test
+    fun `a deliverable address clears a previous uncovered-street verdict`() =
+        runTest(testDispatcher) {
+            val viewModel = buildViewModel()
+            viewModel.updateEligibility(DeliveryEligibility.STREET_NOT_COVERED)
+
+            viewModel.updateEligibility(DeliveryEligibility.DELIVERABLE)
+
+            assertFalse(viewModel.deliveryUiDataState.streetNotCovered)
+        }
+
+    @Test
+    fun `an out-of-range address is neither on a path nor eligible for support`() =
+        runTest(testDispatcher) {
+            val viewModel = buildViewModel()
+
+            viewModel.updateEligibility(DeliveryEligibility.NOT_ELIGIBLE)
+
+            val state = viewModel.deliveryUiDataState
+            assertFalse(state.userLocationOnPath)
+            assertFalse(state.userLocationCloseFromPath)
+            assertFalse(state.streetNotCovered)
+        }
+
+    /**
+     * A pending multi-tournée choice must not read as a validation failure: the name and address
+     * are complete, only the path is still open, and the date picker closes it.
+     */
+    @Test
+    fun `saveUserInfo persists while several tournees are still in the running`() =
+        runTest(testDispatcher) {
+            coEvery { getUserInfoFromDatastoreUseCase.invoke() } returns flowOf(null)
+            val viewModel = buildViewModel()
+            viewModel.setUserNameFieldText("Jean Test")
+            viewModel.setAddressFieldText("1 rue des Tests, 25300 Pontarlier")
+            viewModel.updateCandidatePaths(listOf(uiPath, otherPath))
+            var errored = false
+
+            viewModel.saveUserInfo(onError = { errored = true })
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            assertFalse(errored)
+            coVerify { saveToDatastoreUseCase.invoke(userInformation = any()) }
+        }
+
+    @Test
+    fun `saveUserInfo still refuses when no path serves the address`() = runTest(testDispatcher) {
+        coEvery { getUserInfoFromDatastoreUseCase.invoke() } returns flowOf(null)
+        val viewModel = buildViewModel()
+        viewModel.setUserNameFieldText("Jean Test")
+        viewModel.setAddressFieldText("1 rue des Tests, 13001 Marseille")
+        var errored = false
+
+        viewModel.saveUserInfo(onError = { errored = true })
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertTrue(errored)
     }
 }

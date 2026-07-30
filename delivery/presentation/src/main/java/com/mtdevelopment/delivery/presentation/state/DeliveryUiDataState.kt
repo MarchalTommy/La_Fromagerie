@@ -30,6 +30,10 @@ import com.mtdevelopment.delivery.presentation.model.UiDeliveryPath
  * @property userCity The name of the city extracted from the user's location or selection.
  * @property userCityLocation The (Lat, Lng) coordinates of the user's city.
  * @property selectedPath The delivery path chosen by the user or matched by the system.
+ * @property candidatePaths Every path that serves the customer's address. Holds one entry in the
+ *   ordinary case and several when the address is genuinely covered by more than one tournée — the
+ *   date picker then merges their dates and the customer's pick decides the path. Empty until an
+ *   address has been matched.
  * @property deliveryPaths List of all available delivery paths.
  * @property isBillingDifferent Flag indicating if the user wants to provide a different billing address.
  */
@@ -61,6 +65,7 @@ data class DeliveryUiDataState(
     val userCity: String = "",
     val userCityLocation: Pair<Double, Double>? = null,
     val selectedPath: UiDeliveryPath? = null,
+    val candidatePaths: List<UiDeliveryPath> = emptyList(),
 
     val deliveryPaths: List<UiDeliveryPath> = emptyList(),
     val isBillingDifferent: Boolean = false

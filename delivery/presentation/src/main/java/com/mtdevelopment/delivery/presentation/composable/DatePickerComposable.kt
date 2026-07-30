@@ -39,7 +39,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import java.time.DayOfWeek
+import com.mtdevelopment.delivery.domain.usecase.BuildSelectableDeliveryDatesUseCase
+import com.mtdevelopment.delivery.presentation.model.toDomainDeliveryPath
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZoneId
@@ -48,46 +49,36 @@ import java.time.format.TextStyle
 import java.time.temporal.ChronoUnit
 import java.util.Locale
 
+/**
+ * Delivery-date calendar.
+ *
+ * Takes every path that serves the customer rather than a single one: a commune covered by two
+ * tournées produces one merged, chronological list, and the date the customer picks is what assigns
+ * them a path. The tournée name is shown on the tiles only when there is actually something to
+ * choose between — labelling a single-path list would just be noise.
+ *
+ * @param paths Paths serving the address. One entry reproduces the previous behaviour exactly.
+ * @param onDateSelected Receives the chosen date and the path it belongs to; the caller must apply
+ *   that path before persisting the order.
+ */
 @Composable
 fun DatePickerComposable(
-    selectedPath: com.mtdevelopment.delivery.presentation.model.UiDeliveryPath?,
+    paths: List<com.mtdevelopment.delivery.presentation.model.UiDeliveryPath>,
     shouldRemoveDatePicker: () -> Unit,
     newDateFieldText: (String) -> Unit,
-    onDateSelected: (Long) -> Unit = {}
+    onDateSelected: (Long, com.mtdevelopment.delivery.presentation.model.UiDeliveryPath) -> Unit = { _, _ -> }
 ) {
-    // Generate the next 4 available delivery dates
-    val availableDates = remember(selectedPath) {
-        if (selectedPath != null) {
-            val targetDay = try {
-                DayOfWeek.valueOf(selectedPath.deliveryDay.uppercase())
-            } catch (e: Exception) {
-                DayOfWeek.FRIDAY
-            }
-            val dates = mutableListOf<LocalDate>()
-            var current = LocalDate.now()
-            val weekFields = java.time.temporal.WeekFields.of(java.util.Locale.FRANCE)
-            while (dates.size < 4) {
-                if (current.dayOfWeek == targetDay) {
-                    val weekNumber = current.get(weekFields.weekOfWeekBasedYear())
-                    val isAvailable = when (selectedPath.deliveryFrequency) {
-                        "BIWEEKLY_EVEN" -> weekNumber % 2 == 0
-                        "BIWEEKLY_ODD" -> weekNumber % 2 != 0
-                        else -> true // "WEEKLY"
-                    }
-                    if (isAvailable) {
-                        dates.add(current)
-                    }
-                }
-                current = current.plusDays(1)
-            }
-            dates
-        } else {
-            emptyList()
-        }
+    val now = remember { LocalDateTime.now(ZoneId.systemDefault()) }
+
+    val availableDates = remember(paths, now) {
+        BuildSelectableDeliveryDatesUseCase().invoke(
+            paths = paths.map { it.toDomainDeliveryPath() },
+            now = now
+        )
     }
+    val showPathLabels = paths.size > 1
 
     var selectedDate by remember { mutableStateOf<LocalDate?>(null) }
-    val now = remember { LocalDateTime.now(ZoneId.systemDefault()) }
 
     Dialog(
         onDismissRequest = { shouldRemoveDatePicker() },
@@ -144,10 +135,9 @@ fun DatePickerComposable(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     } else {
-                        availableDates.forEachIndexed { index, date ->
-                            // Rule: orders allowed up to the day before at 12:00 PM
-                            val limitDateTime = date.minusDays(1).atTime(12, 0)
-                            val isPastDeadline = now.isAfter(limitDateTime)
+                        availableDates.forEachIndexed { index, option ->
+                            val date = option.date
+                            val isPastDeadline = option.isPastDeadline
 
                             val isSelected = selectedDate == date
                             val dayName =
@@ -255,8 +245,33 @@ fun DatePickerComposable(
                                         }
                                     )
                                 }
+                                // Only meaningful when several tournées are on offer — otherwise
+                                // every tile would carry the same name.
+                                if (showPathLabels) {
+                                    Text(
+                                        modifier = Modifier
+                                            .padding(start = 8.dp)
+                                            .clip(RoundedCornerShape(50))
+                                            .background(
+                                                if (isPastDeadline) {
+                                                    MaterialTheme.colorScheme.surfaceContainerHighest
+                                                } else {
+                                                    MaterialTheme.colorScheme.secondaryContainer
+                                                }
+                                            )
+                                            .padding(horizontal = 10.dp, vertical = 4.dp),
+                                        text = option.pathName,
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = if (isPastDeadline) {
+                                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+                                        } else {
+                                            MaterialTheme.colorScheme.onSecondaryContainer
+                                        }
+                                    )
+                                }
                                 if (isSelected && !isPastDeadline) {
                                     Icon(
+                                        modifier = Modifier.padding(start = 8.dp),
                                         imageVector = Icons.Default.CheckCircle,
                                         contentDescription = "Selected",
                                         tint = MaterialTheme.colorScheme.primary
@@ -294,14 +309,20 @@ fun DatePickerComposable(
                     Spacer(modifier = Modifier.width(12.dp))
                     Button(
                         onClick = {
-                            selectedDate?.let { date ->
+                            val chosen = selectedDate?.let { date ->
+                                availableDates.firstOrNull { it.date == date }
+                            }
+                            val chosenPath = chosen?.let { option ->
+                                paths.firstOrNull { it.id == option.pathId }
+                            }
+                            if (chosen != null && chosenPath != null) {
                                 val formattedDate =
-                                    DateTimeFormatter.ofPattern("dd/MM/yyyy").format(date)
+                                    DateTimeFormatter.ofPattern("dd/MM/yyyy").format(chosen.date)
                                 newDateFieldText(formattedDate)
                                 val epochMillis =
-                                    date.atStartOfDay(ZoneId.systemDefault()).toInstant()
+                                    chosen.date.atStartOfDay(ZoneId.systemDefault()).toInstant()
                                         .toEpochMilli()
-                                onDateSelected(epochMillis)
+                                onDateSelected(epochMillis, chosenPath)
                             }
                             shouldRemoveDatePicker()
                         },

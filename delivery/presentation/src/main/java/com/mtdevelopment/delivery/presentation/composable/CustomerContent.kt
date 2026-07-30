@@ -88,14 +88,14 @@ fun CustomerContent(
                 address = state.value.deliveryAddressSearchQuery,
                 location = null,
                 allPaths = state.value.deliveryPaths,
-                onResult = { eligibility, city, userLocation, selectedPath ->
+                onResult = { eligibility, city, userLocation, candidatePaths ->
                     if (city != null) {
                         deliveryViewModel.updateUserCity(city)
                     }
                     if (userLocation != null) {
                         deliveryViewModel.updateUserCityLocation(userLocation)
                     }
-                    deliveryViewModel.updateSelectedPath(selectedPath)
+                    deliveryViewModel.updateCandidatePaths(candidatePaths)
                     deliveryViewModel.updateEligibility(eligibility)
                 }
             )
@@ -209,16 +209,19 @@ fun CustomerContent(
                             address = string,
                             location = suggestion,
                             allPaths = state.value.deliveryPaths,
-                            onResult = { eligibility, city, userLocation, selectedPath ->
+                            // Same path as the GPS flow. Setting the legacy booleans by hand here
+                            // used to leave `streetNotCovered` stale, so a customer on an uncovered
+                            // street of a split city got no button at all — neither "Continuer"
+                            // nor the request-support one.
+                            onResult = { eligibility, city, userLocation, candidatePaths ->
                                 if (city != null) {
                                     deliveryViewModel.updateUserCity(city)
                                 }
                                 if (userLocation != null) {
                                     deliveryViewModel.updateUserCityLocation(userLocation)
                                 }
-                                deliveryViewModel.updateSelectedPath(selectedPath)
-                                deliveryViewModel.updateUserLocationOnPath(eligibility == DeliveryEligibility.DELIVERABLE)
-                                deliveryViewModel.updateUserLocationCloseFromPath(eligibility == DeliveryEligibility.ASK_FOR_SUPPORT)
+                                deliveryViewModel.updateCandidatePaths(candidatePaths)
+                                deliveryViewModel.updateEligibility(eligibility)
                             }
                         )
                     }
@@ -259,12 +262,13 @@ fun CustomerContent(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            if (state.value.localisationSuccess || state.value.selectedPath != null || state.value.userLocationOnPath || state.value.deliveryAddressSearchQuery != "") {
+            if (state.value.localisationSuccess || state.value.selectedPath != null || state.value.candidatePaths.isNotEmpty() || state.value.userLocationOnPath || state.value.deliveryAddressSearchQuery != "") {
                 LocalisationTextComposable(
                     selectedPath = state.value.selectedPath,
                     geolocIsOnPath = state.value.userLocationOnPath && state.value.localisationSuccess,
                     canAskForDelivery = state.value.userLocationCloseFromPath,
                     streetNotCovered = state.value.streetNotCovered,
+                    multiplePathsAvailable = state.value.candidatePaths.size > 1,
                     userCity = state.value.userCity
                 )
             } else {
@@ -286,13 +290,15 @@ fun CustomerContent(
     }
 
     when {
-        state.value.userLocationCloseFromPath -> {
+        // `streetNotCovered` gets its own condition rather than riding on the near-miss flag: it is
+        // the one verdict where the city IS served, so it must not depend on a proximity check.
+        state.value.streetNotCovered || state.value.userLocationCloseFromPath -> {
             PrimaryButton(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 16.dp),
                 text = if (state.value.streetNotCovered) {
-                    "Demander mon jour de livraison"
+                    "Demander l'ajout de ma rue"
                 } else {
                     "Demander une prise en charge"
                 },
@@ -310,7 +316,7 @@ fun CustomerContent(
                             putExtra(
                                 Intent.EXTRA_SUBJECT,
                                 if (state.value.streetNotCovered) {
-                                    "Demande de jour de livraison"
+                                    "Demande d'ajout de ma rue"
                                 } else {
                                     "Demande d'ajout aux livraisons"
                                 }
@@ -320,8 +326,9 @@ fun CustomerContent(
                                 if (state.value.streetNotCovered) {
                                     "Bonjour Mr. Marchal.\n\nJ'habite à ${state.value.userCity}, " +
                                             "à l'adresse suivante :\n${state.value.deliveryAddressSearchQuery}" +
-                                            "\n\nL'application n'a pas réussi à déterminer ma tournée. " +
-                                            "Pourriez-vous me dire quel jour vous passez dans ma rue ?" +
+                                            "\n\nMa rue n'apparaît pas dans l'application. " +
+                                            "Pourriez-vous l'ajouter à la tournée qui la dessert, " +
+                                            "et me dire quel jour vous y passez ?" +
                                             "\n\nMerci d'avance !"
                                 } else {
                                     "Bonjour Mr. Marchal.\n\nJ'habite à une " +
@@ -342,7 +349,9 @@ fun CustomerContent(
         }
 
 
-        state.value.selectedPath != null -> {
+        // Not `selectedPath != null`: when several tournées serve the address none is selected yet,
+        // and it is the date picker that settles it.
+        state.value.candidatePaths.isNotEmpty() -> {
             // Step 1 → Step 2: "Continuer" opens the delivery-date calendar.
             // Persisting the date and navigating to the payment screen happens once
             // the customer confirms a date (handled by the screen's date dialog).
@@ -374,7 +383,7 @@ private suspend fun checkLocationEligibility(
     address: String? = null,
     location: AutoCompleteSuggestion? = null,
     allPaths: List<UiDeliveryPath>,
-    onResult: (eligibility: DeliveryEligibility, city: String?, userLocation: Pair<Double, Double>?, selectedPath: UiDeliveryPath?) -> Unit
+    onResult: (eligibility: DeliveryEligibility, city: String?, userLocation: Pair<Double, Double>?, candidatePaths: List<UiDeliveryPath>) -> Unit
 ) {
     withContext(Dispatchers.IO) {
         val geocoder = Geocoder(context)
@@ -443,7 +452,7 @@ private suspend fun checkLocationEligibility(
                 result.eligibility,
                 result.resolvedCity,
                 result.resolvedLocation,
-                result.matchingPath?.let { matched -> allPaths.find { it.id == matched.id } }
+                result.candidatePaths.mapNotNull { matched -> allPaths.find { it.id == matched.id } }
             )
         }
     }
