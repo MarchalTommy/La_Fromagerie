@@ -153,25 +153,24 @@ add a third entry point, call the use case; do not copy the matching loop again.
 
 | Endpoint | Used for | Called from |
 |---|---|---|
-| `/search/?q=<city>-<zip>&type=municipality` | Reverse-geocoding a path's cities to lat/lng, and geocoding a typed address | `AddressApiDataSource` (delivery module) |
-| `/search/?q=<query> <city>&type=street&postcode=<zip>&limit=10` | Street-name suggestions while the admin restricts a path to part of a commune | `AddressApiDataSource.getStreetsInCity` |
-| `/completion/?text=...&terr=25%2C39&poiType=zone d'habitation&type=StreetAddress&maximumResponses=3` | Live autocomplete as the user types a city or address | `AutoCompleteApiDataSource` (core module, shared by client delivery form **and** the admin path editor) |
+| `/geocodage/search/?q=<city>-<zip>&type=municipality` | Reverse-geocoding a path's cities to lat/lng, and geocoding a typed address | `AddressApiDataSource` (delivery module) |
+| `/geocodage/search/?q=<query> <city>&type=street&postcode=<zip>&limit=10` | Street-name suggestions while the admin restricts a path to part of a commune | `AddressApiDataSource.getStreetsInCity` |
+| `/geocodage/completion/?text=...&terr=25%2C39&poiType=zone d'habitation&type=StreetAddress&maximumResponses=3` | Live autocomplete as the user types a city or address | `AutoCompleteApiDataSource` (core module, shared by client delivery form **and** the admin path editor) |
 
-⚠️ **All three go to the same host, `api-adresse.data.gouv.fr`, and that host is retired.** Every
-response carries `x-api-deprecated: true`, `sunset: Sat, 31 Jan 2026 22:59:59 GMT` and
-`x-api-new-host: https://data.geopf.fr/geocodage/`. The sunset date has passed; it still answers
-only by grace. When it stops, customer address matching, path city lookup and street suggestions
-all break at once. See `fromagerie-operations-hardening-frontier`.
+All three go to `data.geopf.fr`, the Géoplateforme. **Migrated 2026-07-30** (frontier §3b, now
+resolved) — the previous host, `api-adresse.data.gouv.fr`, was sunset on 31/01/2026 and had been
+answering only by proxying. The endpoints are identical apart from the `/geocodage` path prefix;
+the response DTOs (`AddressData`, `AutoCompleteSuggestions`) were unchanged by the move.
 
-Do not trust the constant names here — they do not describe what is used:
+Two things to keep straight when editing these calls:
 
-- `AUTOCOMPLETE_API_BASE_URL_WITHOUT_HTTPS` (= `data.geopf.fr/geocodage`, the *new* host) is set as
-  the Ktor `DefaultRequest` host in `AppModule.kt:372`…
-- …but `AutoCompleteApiDataSource` imports and sets `host = ADDRESS_API_BASE_URL_WITHOUT_HTTPS`
-  per request, and a per-request host overrides the default. So the correctly-configured constant
-  is inert and every call lands on the deprecated host.
-
-Verify: `grep -n "import.*Constants" core/data/src/main/java/com/mtdevelopment/core/source/AutoCompleteApiDataSource.kt`
+- **The host constant is duplicated** — `core/data/.../Constants.kt` (autocomplete) and
+  `delivery/data/.../model/Constants.kt` (address, city, street). Both must change together;
+  `GeocodingHostTest` in `delivery/data` fails if they drift.
+- **The `/geocodage` prefix belongs in `encodedPath`, never in the host.** Ktor's
+  `URLBuilder.host` takes an authority — a slash in it yields a request that never arrives. This
+  is exactly how the old `AUTOCOMPLETE_API_BASE_URL_WITHOUT_HTTPS = "data.geopf.fr/geocodage"`
+  was malformed. Hence the separate `GEOCODAGE_PATH_PREFIX` constant.
 
 Note the hardcoded `terr=25%2C39` in the autocomplete query — this restricts results to French department codes 25 and 39 (Doubs and Jura), matching the shop's real service area. **UNVERIFIED (as of 2026-07-06): whether this hardcoded restriction is intentional business logic or an oversight** — if the shop ever expands its delivery zone, this line silently keeps autocomplete scoped to those two departments regardless of what `delivery_paths` says.
 
@@ -488,7 +487,7 @@ whole "Path editing" section (re-verified 2026-07-30, PR #60/#61).** Re-verify d
 - Path editor still a screen, dialog still gone: `ls delivery/presentation/src/admin/java/com/mtdevelopment/delivery/presentation/screen/PathEditScreen.kt` and `git log --oneline -1 -- delivery/presentation/src/admin/java/com/mtdevelopment/delivery/presentation/composable/PathEditDialog.kt`
 - Path-editor rules still tested: `./gradlew :delivery:presentation:testAdminDebugUnitTest` (`PathDraftTest` — note the **admin** flavor task; `testClientDebugUnitTest` does not compile `src/admin`)
 - Street suggestions still send the commune in the query: `grep -n "encodedPath" delivery/data/src/main/java/com/mtdevelopment/delivery/data/source/remote/AddressApiDataSource.kt` (a `type=street` call without the city in `q` returns a neighbouring commune's streets)
-- Geocoding host still the deprecated one: `curl -s -D- -o /dev/null "https://api-adresse.data.gouv.fr/search/?q=test&limit=1" | grep -i "x-api-deprecated\|sunset"`
+- Geocoding host regressed off the Géoplateforme: `grep -rn "api-adresse" --include='*.kt' . | grep -v /build/`
 - `PathEntity` columns and Room round-trip: `grep -n "val [a-zA-Z]*:" delivery/data/src/main/java/com/mtdevelopment/delivery/data/model/entity/PathEntity.kt` and `./gradlew :delivery:data:testClientDebugUnitTest` (`PathEntityTest`)
 - `database_update` document ids/fields: `grep -n "products_timestamp\|path_timestamp\|last_update" home/data/src/main/java/com/mtdevelopment/home/data/source/remote/FirestoreDatabase.kt`
 - Admin still writes `database_update` timestamps: `grep -n "path_timestamp\|products_timestamp" admin/data/src/main/java/com/mtdevelopment/admin/data/source/FirestoreAdminDatasource.kt` (expect 2 hits — the `.set(` writers for both documents)
