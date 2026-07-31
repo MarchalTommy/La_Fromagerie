@@ -41,7 +41,6 @@ import com.mtdevelopment.checkout.domain.usecase.UpdateOrderStatus
 import com.mtdevelopment.checkout.domain.usecase.VerifyHostedCheckoutStatusUseCase
 import com.mtdevelopment.checkout.presentation.viewmodel.CheckoutViewModel
 import com.mtdevelopment.core.data.Constants.ADDRESS_API_BASE_URL_WITHOUT_HTTPS
-import com.mtdevelopment.core.data.Constants.AUTOCOMPLETE_API_BASE_URL_WITHOUT_HTTPS
 import com.mtdevelopment.core.data.Constants.OPEN_ROUTE_BASE_URL_WITHOUT_HTTPS
 import com.mtdevelopment.core.data.Constants.SUM_UP_BASE_URL_WITHOUT_HTTPS
 import com.mtdevelopment.core.local.SharedDatastoreImpl
@@ -369,7 +368,7 @@ val provideAutoCompleteApiDataSource = module {
         install(DefaultRequest) {
             url {
                 protocol = URLProtocol.HTTPS
-                host = AUTOCOMPLETE_API_BASE_URL_WITHOUT_HTTPS
+                host = ADDRESS_API_BASE_URL_WITHOUT_HTTPS
             }
         }
         install(Logging) {

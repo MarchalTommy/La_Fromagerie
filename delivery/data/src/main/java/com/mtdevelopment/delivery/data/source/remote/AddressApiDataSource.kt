@@ -2,6 +2,7 @@ package com.mtdevelopment.delivery.data.source.remote
 
 import com.mtdevelopment.core.util.NetWorkResult
 import com.mtdevelopment.delivery.data.model.Constants.ADDRESS_API_BASE_URL_WITHOUT_HTTPS
+import com.mtdevelopment.delivery.data.model.Constants.GEOCODAGE_PATH_PREFIX
 import com.mtdevelopment.delivery.data.model.response.addressData.AddressData
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -14,8 +15,10 @@ import io.ktor.http.encodedPath
 import kotlinx.serialization.json.Json
 
 /**
- * Data source for geocoding services, utilizing the French Government's Address API (adresse.data.gouv.fr).
- * It translates physical addresses or city names into geographic coordinates (Latitude, Longitude).
+ * Data source for geocoding services, utilizing the French Government's Address API, served by the
+ * Géoplateforme (data.geopf.fr/geocodage — the api-adresse.data.gouv.fr host was sunset in
+ * January 2026). It translates physical addresses or city names into geographic coordinates
+ * (Latitude, Longitude).
  */
 class AddressApiDataSource(
     private val httpClient: HttpClient,
@@ -40,7 +43,8 @@ class AddressApiDataSource(
                         "application/json, application/geo+json, application/gpx+xml, img/png; charset=utf-8"
                     )
                     // Encoding search query for safer URL handling
-                    encodedPath = "/search/?q=${cityName.encodeURLPathPart()}-${zip}&type=municipality"
+                    encodedPath =
+                        "$GEOCODAGE_PATH_PREFIX/search/?q=${cityName.encodeURLPathPart()}-${zip}&type=municipality"
                 }
             }
             NetWorkResult.Success(
@@ -75,7 +79,7 @@ class AddressApiDataSource(
                         "application/json, application/geo+json, application/gpx+xml, img/png; charset=utf-8"
                     )
                     encodedPath =
-                        "/search/?q=${"$query $city".encodeURLPathPart()}&type=street&postcode=$postcode&limit=$limit"
+                        "$GEOCODAGE_PATH_PREFIX/search/?q=${"$query $city".encodeURLPathPart()}&type=street&postcode=$postcode&limit=$limit"
                 }
             }
             NetWorkResult.Success(
@@ -100,7 +104,8 @@ class AddressApiDataSource(
                         HttpHeaders.Accept,
                         "application/json, application/geo+json, application/gpx+xml, img/png; charset=utf-8"
                     )
-                    encodedPath = "/search/?q=${address.encodeURLPathPart()}&type=municipality"
+                    encodedPath =
+                        "$GEOCODAGE_PATH_PREFIX/search/?q=${address.encodeURLPathPart()}&type=municipality"
                 }
             }
             NetWorkResult.Success(

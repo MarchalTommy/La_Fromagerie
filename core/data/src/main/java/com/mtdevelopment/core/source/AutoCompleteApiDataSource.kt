@@ -1,6 +1,7 @@
 package com.mtdevelopment.core.source
 
 import com.mtdevelopment.core.data.Constants.ADDRESS_API_BASE_URL_WITHOUT_HTTPS
+import com.mtdevelopment.core.data.Constants.GEOCODAGE_PATH_PREFIX
 import com.mtdevelopment.core.model.autocomplete.AutoCompleteSuggestions
 import com.mtdevelopment.core.util.NetWorkResult
 import io.ktor.client.HttpClient
@@ -31,7 +32,7 @@ class AutoCompleteApiDataSource(
                         "application/json, application/geo+json, application/gpx+xml, img/png; charset=utf-8"
                     )
                     encodedPath =
-                        "/completion/?text=${query.encodeURLPathPart()}&terr=25%2C39&poiType=${"zone d'habitation".encodeURLPathPart()}&type=StreetAddress&maximumResponses=3"
+                        "$GEOCODAGE_PATH_PREFIX/completion/?text=${query.encodeURLPathPart()}&terr=25%2C39&poiType=${"zone d'habitation".encodeURLPathPart()}&type=StreetAddress&maximumResponses=3"
                 }
             }
             NetWorkResult.Success(

@@ -7,14 +7,15 @@ object Constants {
     ///////////////////////////////////////////////////////////////////////////
     // GOUV ADRESSE API CONSTANTS
     ///////////////////////////////////////////////////////////////////////////
-    const val ADDRESS_API_BASE_URL = "https://api-adresse.data.gouv.fr"
-    const val ADDRESS_API_BASE_URL_WITHOUT_HTTPS = "api-adresse.data.gouv.fr"
-
-    ///////////////////////////////////////////////////////////////////////////
-    // GOUV AUTOCOMPLETE API CONSTANTS
-    ///////////////////////////////////////////////////////////////////////////
-    const val AUTOCOMPLETE_API_BASE_URL = "https://data.geopf.fr/geocodage"
-    const val AUTOCOMPLETE_API_BASE_URL_WITHOUT_HTTPS = "data.geopf.fr/geocodage"
+    // The old host, api-adresse.data.gouv.fr, was sunset on 31/01/2026 and now only
+    // proxies to the Géoplateforme. Everything geocoding — address matching, city
+    // lookup, street suggestions, autocomplete — goes through data.geopf.fr, where the
+    // same endpoints live one level down, under /geocodage.
+    // The host must stay path-free: Ktor's URLBuilder.host rejects a slash, so the
+    // prefix belongs in encodedPath (see GEOCODAGE_PATH_PREFIX).
+    const val ADDRESS_API_BASE_URL = "https://data.geopf.fr/geocodage"
+    const val ADDRESS_API_BASE_URL_WITHOUT_HTTPS = "data.geopf.fr"
+    const val GEOCODAGE_PATH_PREFIX = "/geocodage"
 
     ///////////////////////////////////////////////////////////////////////////
     // OPEN ROUTE CONSTANTS
