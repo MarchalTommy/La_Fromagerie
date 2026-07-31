@@ -31,8 +31,7 @@ with live route guidance. All facts verified 2026-07-06 against branch `claude/d
 |---|---|
 | ViewModel (shared client/admin) | `delivery/presentation/src/main/java/com/mtdevelopment/delivery/presentation/viewmodel/DeliveryViewModel.kt` |
 | Client screen | `delivery/presentation/src/client/java/com/mtdevelopment/delivery/presentation/screen/DeliveryOptionScreen.kt` |
-| Path picker dialog | `delivery/presentation/src/main/.../composable/DeliveryPathPickerComposable.kt` — **dead code, zero call sites.** The customer picks a tournée by picking a date, not from a list. It also indexes `radioOptions[0]` unguarded. |
-| Date picker | `delivery/presentation/src/main/.../composable/DatePickerComposable.kt` (rendering) + `delivery/domain/.../usecase/BuildSelectableDeliveryDatesUseCase.kt` (the rules). `.../model/ShippingSelectableDates.kt` is **dead code** — see "Selectable delivery dates". |
+| Date picker | `delivery/presentation/src/main/.../composable/DatePickerComposable.kt` (rendering) + `delivery/domain/.../usecase/BuildSelectableDeliveryDatesUseCase.kt` (the rules). There is **no path picker**: the customer picks a tournée by picking a date. |
 | Map | `delivery/presentation/src/main/java/com/mtdevelopment/delivery/presentation/composable/MapBoxComposable.kt` |
 | Localisation-type picker (GPS vs manual) | `delivery/presentation/src/main/java/com/mtdevelopment/delivery/presentation/composable/LocalisationTypePicker.kt` |
 | User info fields + prefill | `delivery/presentation/src/main/java/com/mtdevelopment/delivery/presentation/composable/UserInfoComposable.kt`, `DeliveryViewModel.loadClientData()` |
@@ -214,11 +213,14 @@ the day twice would read as a bug.
 blackout dates, no max-orders-per-day cap. UNVERIFIED (2026-07-06): whether such a cap exists
 anywhere in the order-creation path.
 
-⚠️ `delivery/presentation/.../model/ShippingSelectableDates.kt` is **dead code** as of 2026-07-30:
-`ShippingSelectableDatesTest` (a production class despite the name), `ShippingDefaultSelectableDates`
-and the old `getDatePickerState()` have no callers left — the Material3 `DatePicker` they gated was
-replaced by the custom tile dialog. Their 2-day lead time is **not** the live rule; the live rule is
-the J-1 noon cutoff above. Verify before trusting: `grep -rn --include='*.kt' "ShippingSelectableDates" . | grep -v build`
+**Deleted 2026-07-30 — do not resurrect from git history.**
+`delivery/presentation/.../model/ShippingSelectableDates.kt` (`ShippingSelectableDatesTest`, a
+production class despite the name, plus `ShippingDefaultSelectableDates`) encoded a **2-day lead
+time that was never the live rule**. It gated the Material3 `DatePicker` that the custom tile dialog
+replaced, and had had zero callers since. The live rule is the J-1 noon cutoff above, and it lives in
+`BuildSelectableDeliveryDatesUseCase` — nowhere else. Same commit removed the equally dead
+`DeliveryPathPickerComposable.kt` (`radioOptions[0]` on a possibly-empty list) and the write-only
+`DeliveryUiDataState.dateFieldText` / `.shouldDatePickerBeClickable` fields with their setters.
 
 ### The order records the date, not the path
 
@@ -494,7 +496,7 @@ whole "Path editing" section (re-verified 2026-07-30, PR #60/#61).** Re-verify d
 - Admin still writes `database_update` timestamps: `grep -n "path_timestamp\|products_timestamp" admin/data/src/main/java/com/mtdevelopment/admin/data/source/FirestoreAdminDatasource.kt` (expect 2 hits — the `.set(` writers for both documents)
 - Google Routes vs OpenRouteService split still holds: `grep -rn "GOOGLE_ROUTE_BASE_URL\|OPEN_ROUTE_BASE_URL" core/data/src/main/java/com/mtdevelopment/core/data/Constants.kt`
 - MapBox public vs secret token distinction: `grep -n "MAPBOX_PUBLIC_TOKEN" delivery/presentation/src/client/java/com/mtdevelopment/delivery/presentation/screen/DeliveryOptionScreen.kt delivery/presentation/src/admin/java/com/mtdevelopment/delivery/presentation/screen/DeliveryOptionScreen.kt` and `grep -n "MAPBOX_SECRET_TOKEN" settings.gradle.kts`
-- `ShippingSelectableDates.kt` still dead (delete-on-sight candidate): `grep -rn --include='*.kt' "ShippingSelectableDates" . | grep -v build` (expect only the file itself)
+- The 2026-07-30 dead-code deletions have not crept back: `grep -rn --include='*.kt' "ShippingSelectableDates\|DeliveryPathPickerComposable\|dateFieldText\|shouldDatePickerBeClickable" . | grep -v build` (expect zero hits; a hit on `ShippingSelectableDates` means the wrong 2-day lead time is back in the tree)
 - Stop-tracking still manual (not automatic on foreground): `grep -n "isInTrackingMode\|ON_RESUME\|ON_STOP" admin/presentation/src/main/java/com/mtdevelopment/admin/presentation/screen/DeliveryHelperScreen.kt app/src/admin/java/com/mtdevelopment/lafromagerie/MainActivity.kt`
 - Foreground-service fragility branch still present: `git branch -a | grep admin_delivery_instability`
 - Preparation-status composite id format: `grep -n "statusId =" admin/presentation/src/main/java/com/mtdevelopment/admin/presentation/screen/OrderPreparationScreen.kt`

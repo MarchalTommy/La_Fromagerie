@@ -6,9 +6,7 @@ import com.mtdevelopment.delivery.presentation.model.UiDeliveryPath
 /**
  * UI State for the Delivery module.
  * 
- * @property shouldDatePickerBeClickable Whether the user has progressed far enough to select a date.
  * @property datePickerVisibility Controls the visibility of the date picker dialog.
- * @property dateFieldText The human-readable string for the selected delivery date.
  * @property userNameFieldText The customer's full name.
  * @property deliveryAddressSearchQuery Current text in the delivery address search field.
  * @property deliveryAddressSuggestions List of suggestions for the delivery address.
@@ -40,9 +38,7 @@ import com.mtdevelopment.delivery.presentation.model.UiDeliveryPath
  * @property isBillingDifferent Flag indicating if the user wants to provide a different billing address.
  */
 data class DeliveryUiDataState(
-    val shouldDatePickerBeClickable: Boolean = false,
     val datePickerVisibility: Boolean = false,
-    val dateFieldText: String = "",
     val userNameFieldText: String = "",
 
     val deliveryAddressSearchQuery: String = "",
