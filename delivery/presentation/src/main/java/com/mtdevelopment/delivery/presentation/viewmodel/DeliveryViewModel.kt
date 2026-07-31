@@ -334,17 +334,8 @@ class DeliveryViewModel(
     // UI STATE UPDATERS
     ///////////////////////////////////////////////////////////////////////////
 
-    fun setIsDatePickerClickable(isClickable: Boolean) {
-        deliveryUiDataState =
-            deliveryUiDataState.copy(shouldDatePickerBeClickable = isClickable)
-    }
-
     fun setIsDatePickerShown(isShown: Boolean) {
         deliveryUiDataState = deliveryUiDataState.copy(datePickerVisibility = isShown)
-    }
-
-    fun setDateFieldText(text: String) {
-        deliveryUiDataState = deliveryUiDataState.copy(dateFieldText = text)
     }
 
     fun setUserNameFieldText(name: String) {

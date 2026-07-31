@@ -76,12 +76,6 @@ fun DeliveryOptionScreen(
         deliveryViewModel.loadClientData()
     }
 
-    // Reset date selection if the delivery path changes
-    LaunchedEffect(state.value.selectedPath) {
-        deliveryViewModel.setIsDatePickerClickable(state.value.selectedPath != null)
-        deliveryViewModel.setDateFieldText("")
-    }
-
     Surface(
         modifier = Modifier
             .fillMaxSize()
@@ -197,9 +191,6 @@ fun DeliveryOptionScreen(
                 paths = state.value.candidatePaths,
                 shouldRemoveDatePicker = {
                     deliveryViewModel.setIsDatePickerShown(false)
-                },
-                newDateFieldText = {
-                    deliveryViewModel.setDateFieldText(it)
                 },
                 onDateSelected = { date, path ->
                     deliveryViewModel.updateSelectedPath(path)

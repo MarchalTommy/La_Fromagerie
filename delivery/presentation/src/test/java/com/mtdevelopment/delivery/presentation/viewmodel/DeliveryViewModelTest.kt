@@ -241,9 +241,7 @@ class DeliveryViewModelTest {
     fun `state toggles update the ui state`() = runTest(testDispatcher) {
         val viewModel = buildViewModel()
 
-        viewModel.setIsDatePickerClickable(true)
         viewModel.setIsDatePickerShown(true)
-        viewModel.setDateFieldText("25/12/2025")
         viewModel.setIsBillingDifferent(true)
         viewModel.setColumnScrollingEnabled(false)
         viewModel.updateUserCity("Pontarlier")
@@ -251,9 +249,7 @@ class DeliveryViewModelTest {
         viewModel.updateUserLocationCloseFromPath(true)
 
         val state = viewModel.deliveryUiDataState
-        assertTrue(state.shouldDatePickerBeClickable)
         assertTrue(state.datePickerVisibility)
-        assertEquals("25/12/2025", state.dateFieldText)
         assertTrue(state.isBillingDifferent)
         assertFalse(state.columnScrollingEnabled)
         assertEquals("Pontarlier", state.userCity)

@@ -44,7 +44,6 @@ import com.mtdevelopment.delivery.presentation.model.toDomainDeliveryPath
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZoneId
-import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.time.temporal.ChronoUnit
 import java.util.Locale
@@ -65,7 +64,6 @@ import java.util.Locale
 fun DatePickerComposable(
     paths: List<com.mtdevelopment.delivery.presentation.model.UiDeliveryPath>,
     shouldRemoveDatePicker: () -> Unit,
-    newDateFieldText: (String) -> Unit,
     onDateSelected: (Long, com.mtdevelopment.delivery.presentation.model.UiDeliveryPath) -> Unit = { _, _ -> }
 ) {
     val now = remember { LocalDateTime.now(ZoneId.systemDefault()) }
@@ -316,9 +314,6 @@ fun DatePickerComposable(
                                 paths.firstOrNull { it.id == option.pathId }
                             }
                             if (chosen != null && chosenPath != null) {
-                                val formattedDate =
-                                    DateTimeFormatter.ofPattern("dd/MM/yyyy").format(chosen.date)
-                                newDateFieldText(formattedDate)
                                 val epochMillis =
                                     chosen.date.atStartOfDay(ZoneId.systemDefault()).toInstant()
                                         .toEpochMilli()
