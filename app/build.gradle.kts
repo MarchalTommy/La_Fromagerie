@@ -42,7 +42,7 @@ android {
         applicationId = "com.mtdevelopment.lafromagerie"
         minSdk = 26
         targetSdk = 36
-        versionCode = 21
+        versionCode = 29
         versionName = "1.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
