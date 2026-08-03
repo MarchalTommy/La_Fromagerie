@@ -40,10 +40,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import app.rive.runtime.kotlin.core.Rive
 import com.mtdevelopment.cart.presentation.viewmodel.CartViewModel
 import com.mtdevelopment.core.presentation.MainViewModel
 import com.mtdevelopment.core.presentation.composable.ErrorOverlay
@@ -64,7 +62,6 @@ fun HomeScreen(
     navigateToOrders: () -> Unit = {}
 ) {
     val coroutineScope = rememberCoroutineScope()
-    val context = LocalContext.current
 
     val homeViewModel = koinViewModel<HomeViewModel>()
 
@@ -106,10 +103,6 @@ fun HomeScreen(
         if (hasLoadedFirstPic) {
             mainViewModel.setCanRemoveSplash()
         }
-    }
-
-    LaunchedEffect(Unit) {
-        Rive.init(context)
     }
 
     // React to manual refresh requests
