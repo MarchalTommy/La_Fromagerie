@@ -16,9 +16,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import app.rive.runtime.kotlin.core.Rive
 import com.mapbox.common.MapboxOptions
 import com.mtdevelopment.core.presentation.composable.ErrorOverlay
 import com.mtdevelopment.core.presentation.composable.RiveAnimation
@@ -44,8 +42,6 @@ fun DeliveryOptionScreen(
 
     val deliveryViewModel = koinViewModel<DeliveryViewModel>()
 
-    val context = LocalContext.current
-
     val state = remember(deliveryViewModel.deliveryUiDataState) {
         derivedStateOf {
             deliveryViewModel.deliveryUiDataState
@@ -63,7 +59,6 @@ fun DeliveryOptionScreen(
 
     LaunchedEffect(Unit) {
         deliveryViewModel.loadAdminData()
-        Rive.init(context)
     }
 
     LaunchedEffect(pathsChanged) {

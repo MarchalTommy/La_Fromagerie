@@ -1,5 +1,7 @@
 package com.mtdevelopment.core.presentation.composable
 
+import android.content.Context
+import android.util.Log
 import androidx.annotation.RawRes
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -9,10 +11,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
@@ -29,8 +33,75 @@ import app.rive.runtime.kotlin.core.Alignment
 import app.rive.runtime.kotlin.core.Fit
 import app.rive.runtime.kotlin.core.Loop
 import app.rive.runtime.kotlin.core.PlayableInstance
+import app.rive.runtime.kotlin.core.Rive
 import com.mtdevelopment.core.presentation.R
 import me.rmyhal.contentment.ContentLoadingIndicator
+
+/**
+ * Process-wide, one-shot initialization of the Rive runtime.
+ *
+ * rive-android ships an `androidx.startup` initializer (`RiveInitializer`) but its own AAR
+ * manifest removes the meta-data that registers it (`tools:node="remove"` — verified in
+ * 9.6.5, 10.5.3 and 11.1.2). Nothing therefore auto-loads `librive-android.so`: calling
+ * [Rive.init] is the application's job. Constructing a [RiveAnimationView] beforehand dies
+ * with `UnsatisfiedLinkError: No implementation found for ... FileAssetLoader.constructor()`
+ * the moment the view builds its asset loader.
+ *
+ * That initialization used to live in the home and delivery screens, which made a loaded
+ * native library a property of the *navigation history* rather than of the process. Any
+ * composition that reached a Rive overlay without those screens having run first crashed —
+ * most plausibly after process death, since Compose Navigation restores the back stack and
+ * composes only the destination the user was on, never the start destination. Anchoring the
+ * call to [RiveAnimation] — the only composable in the app that builds a [RiveAnimationView] —
+ * makes the guarantee structural instead of incidental.
+ *
+ * Kept private on purpose: [RiveAnimation] is the only place in the app that instantiates a
+ * Rive view, so there is no legitimate caller that could need to initialize without one.
+ */
+private object RiveRuntime {
+
+    private const val TAG = "RiveRuntime"
+
+    @Volatile
+    private var initialized = false
+
+    @Volatile
+    private var available = false
+
+    /**
+     * Loads the Rive native library once per process and reports whether a
+     * [RiveAnimationView] can now be built. Cheap (a volatile read) on every call after the
+     * first; the lock exists so a second thread cannot start building a view while the
+     * library is still being loaded.
+     *
+     * Uses the application context: [Rive.init] hands it to ReLinker, which may keep it for
+     * the lifetime of the load, and an Activity context has no business being retained there.
+     *
+     * A failure is swallowed on purpose. This animation is decoration on top of a loading
+     * state — a device that cannot load `librive-android.so` (an ABI the store served wrong,
+     * a ReLinker extraction failure on a full disk) must lose the goat, not the checkout.
+     * The attempt is never repeated: a native library that failed to load once will not load
+     * on the next frame either, and retrying would re-throw on every single recomposition.
+     */
+    fun ensureInitialized(context: Context): Boolean {
+        if (initialized) return available
+        return synchronized(this) {
+            if (!initialized) {
+                try {
+                    Rive.init(context.applicationContext)
+                    available = true
+                } catch (throwable: Throwable) {
+                    // Throwable rather than Exception: a missing native symbol arrives as
+                    // UnsatisfiedLinkError, which is an Error.
+                    Log.e(TAG, "Rive runtime unavailable, falling back to a static overlay", throwable)
+                    available = false
+                }
+                initialized = true
+            }
+            available
+        }
+    }
+}
 
 @Suppress("LongMethod")
 @Composable
@@ -115,6 +186,13 @@ fun RiveAnimation(
                         (notifyStop != null)
             }
 
+            // Initialized here rather than in the AndroidView factory: the factory runs
+            // during applyChanges and cannot change what gets composed, so it has no way to
+            // fall back when the native runtime is missing. `remember` pins the verdict for
+            // the lifetime of this overlay; the call itself is idempotent process-wide.
+            val localContext = LocalContext.current
+            val isRiveAvailable = remember { RiveRuntime.ensureInitialized(localContext) }
+
             Box(
                 modifier = Modifier,
                 contentAlignment = androidx.compose.ui.Alignment.Center
@@ -125,32 +203,45 @@ fun RiveAnimation(
                         .background(Color.Black.copy(alpha = 0.8f))
                 )
 
-                AndroidView(
-                    modifier = modifier
-                        .then(semantics)
-                        .clipToBounds(),
-                    factory = { context ->
-                        riveAnimationView = RiveAnimationView(context).apply {
-                            setRiveResource(
-                                resId = resId,
-                                artboardName = artboardName,
-                                animationName = animationName,
-                                stateMachineName = stateMachineName,
-                                autoplay = autoplay,
-                                fit = fit,
-                                loop = loop,
-                                alignment = alignment
-                            )
+                if (isRiveAvailable) {
+                    AndroidView(
+                        modifier = modifier
+                            .then(semantics)
+                            .clipToBounds(),
+                        factory = { context ->
+                            riveAnimationView = RiveAnimationView(context).apply {
+                                setRiveResource(
+                                    resId = resId,
+                                    artboardName = artboardName,
+                                    animationName = animationName,
+                                    stateMachineName = stateMachineName,
+                                    autoplay = autoplay,
+                                    fit = fit,
+                                    loop = loop,
+                                    alignment = alignment
+                                )
+                            }
+                            listener?.let {
+                                riveAnimationView?.registerListener(it)
+                            }
+                            riveAnimationView!!
+                        },
+                        update = {
+                            update.invoke(it)
                         }
-                        listener?.let {
-                            riveAnimationView?.registerListener(it)
-                        }
-                        riveAnimationView!!
-                    },
-                    update = {
-                        update.invoke(it)
-                    }
-                )
+                    )
+                } else {
+                    // Degraded overlay: the scrim above still blocks the screen and reads as
+                    // "busy", which is the part of this component that carries the meaning.
+                    // The animation is the only thing lost.
+                    Image(
+                        modifier = Modifier
+                            .size(100.dp)
+                            .then(semantics),
+                        painter = painterResource(id = R.drawable.placeholder),
+                        contentDescription = contentDescription
+                    )
+                }
             }
 
             DisposableEffect(lifecycleOwner) {

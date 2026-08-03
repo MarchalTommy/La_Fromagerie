@@ -24,9 +24,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import app.rive.runtime.kotlin.core.Rive
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.mtdevelopment.admin.presentation.composable.ProductEditDialog
 import com.mtdevelopment.admin.presentation.viewmodel.AdminViewModel
@@ -53,8 +51,6 @@ fun HomeScreen(
     navigateToDelivery: () -> Unit = {},
     navigateToOrders: () -> Unit = {}
 ) {
-    val context = LocalContext.current
-
     val homeViewModel = koinViewModel<HomeViewModel>()
     val adminViewModel = koinViewModel<AdminViewModel>()
 
@@ -69,10 +65,6 @@ fun HomeScreen(
         if (hasLoadedFirstPic) {
             mainViewModel.setCanRemoveSplash()
         }
-    }
-
-    LaunchedEffect(Unit) {
-        Rive.init(context)
     }
 
     // Manual refresh handling
