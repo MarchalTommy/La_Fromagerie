@@ -17,6 +17,7 @@ import com.mtdevelopment.checkout.data.work.WorkManagerPaymentFinalizationSchedu
 import com.mtdevelopment.checkout.domain.repository.CheckoutDatastorePreference
 import com.mtdevelopment.checkout.domain.repository.PaymentFinalizationScheduler
 import com.mtdevelopment.checkout.domain.repository.PaymentRepository
+import com.mtdevelopment.checkout.domain.usecase.CancelOrderReminderUseCase
 import com.mtdevelopment.checkout.domain.usecase.ClearPendingPaymentFinalizationUseCase
 import com.mtdevelopment.checkout.domain.usecase.CreateNewCheckoutUseCase
 import com.mtdevelopment.checkout.domain.usecase.CreateNewOrderUseCase
@@ -36,6 +37,7 @@ import com.mtdevelopment.checkout.domain.usecase.ResumePendingPaymentFinalizatio
 import com.mtdevelopment.checkout.domain.usecase.SaveCheckoutReferenceUseCase
 import com.mtdevelopment.checkout.domain.usecase.SaveCreatedCheckoutUseCase
 import com.mtdevelopment.checkout.domain.usecase.SavePaymentStateUseCase
+import com.mtdevelopment.checkout.domain.usecase.ScheduleOrderReminderUseCase
 import com.mtdevelopment.checkout.domain.usecase.SchedulePaymentFinalizationUseCase
 import com.mtdevelopment.checkout.domain.usecase.UpdateOrderStatus
 import com.mtdevelopment.checkout.domain.usecase.VerifyHostedCheckoutStatusUseCase
@@ -206,6 +208,11 @@ val mainAppModule = module {
     factory { ResumePendingPaymentFinalizationUseCase(get(), get()) }
     factory { ClearPendingPaymentFinalizationUseCase(get()) }
 
+    // Local order reminders. The OrderReminderScheduler they resolve is flavor-specific
+    // and bound in flavorModules (real one on client, no-op on admin).
+    factory { ScheduleOrderReminderUseCase(get(), get()) }
+    factory { CancelOrderReminderUseCase(get()) }
+
     factory { GetLastFirestoreDatabaseUpdateUseCase(get(), get()) }
 
     factory { GetAllProductsUseCase(get()) }
@@ -244,6 +251,7 @@ val mainAppModule = module {
             getSavedOrderUseCase = get(),
             schedulePaymentFinalizationUseCase = get(),
             clearPendingPaymentFinalizationUseCase = get(),
+            scheduleOrderReminderUseCase = get(),
             getSumUpPaymentLinkUseCase = get(),
             verifyHostedCheckoutStatusUseCase = get()
         )

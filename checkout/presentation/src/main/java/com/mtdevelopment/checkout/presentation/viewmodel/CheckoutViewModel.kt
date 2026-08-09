@@ -31,6 +31,7 @@ import com.mtdevelopment.checkout.domain.usecase.ResetCheckoutStatusUseCase
 import com.mtdevelopment.checkout.domain.usecase.SaveCheckoutReferenceUseCase
 import com.mtdevelopment.checkout.domain.usecase.SaveCreatedCheckoutUseCase
 import com.mtdevelopment.checkout.domain.usecase.SavePaymentStateUseCase
+import com.mtdevelopment.checkout.domain.usecase.ScheduleOrderReminderUseCase
 import com.mtdevelopment.checkout.domain.usecase.SchedulePaymentFinalizationUseCase
 import com.mtdevelopment.checkout.domain.usecase.UpdateOrderStatus
 import com.mtdevelopment.checkout.domain.usecase.VerifyHostedCheckoutStatusUseCase
@@ -99,6 +100,7 @@ class CheckoutViewModel(
     private val getSavedOrderUseCase: GetSavedOrderUseCase,
     private val schedulePaymentFinalizationUseCase: SchedulePaymentFinalizationUseCase,
     private val clearPendingPaymentFinalizationUseCase: ClearPendingPaymentFinalizationUseCase,
+    private val scheduleOrderReminderUseCase: ScheduleOrderReminderUseCase,
     private val getSumUpPaymentLinkUseCase: GetSumUpPaymentLinkUseCase,
     private val verifyHostedCheckoutStatusUseCase: VerifyHostedCheckoutStatusUseCase
 ) : ViewModel(), KoinComponent {
@@ -423,11 +425,16 @@ class CheckoutViewModel(
      */
     fun resetAppStateAfterSuccess() {
         viewModelScope.launch {
+            val orderId = getSavedOrderUseCase.invoke().first().id
             // Update order status to PAID in Firestore
             updateOrderStatus.invoke(
-                orderId = getSavedOrderUseCase.invoke().first().id,
+                orderId = orderId,
                 newStatus = OrderStatus.PAID
             )
+            // The order is paid and will happen: remind the customer on the day.
+            // Idempotent with the same call in FinalizePaymentWorker — whichever path
+            // finalizes first schedules, the other replaces the identical reminder.
+            scheduleOrderReminderUseCase.invoke(orderId)
             // Empty the cart
             clearCartUseCase.invoke()
             // The order reached its terminal state in-app: the background

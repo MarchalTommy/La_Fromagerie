@@ -162,6 +162,9 @@ dependencies {
     implementation(libs.firebase.firestore)
     // Client-only: push notifications (the admin flavor has no FCM consumer).
     "clientImplementation"(libs.firebase.messaging)
+    // Client-only: the order-reminder worker. The admin flavor binds a no-op scheduler and
+    // never touches WorkManager from this module.
+    "clientImplementation"(libs.androidx.work.runtime)
 
     ksp(libs.room.compiler)
     implementation(libs.room.ktx)

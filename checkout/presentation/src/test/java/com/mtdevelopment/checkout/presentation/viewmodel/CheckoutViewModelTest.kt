@@ -23,6 +23,7 @@ import com.mtdevelopment.checkout.domain.usecase.ResetCheckoutStatusUseCase
 import com.mtdevelopment.checkout.domain.usecase.SaveCheckoutReferenceUseCase
 import com.mtdevelopment.checkout.domain.usecase.SaveCreatedCheckoutUseCase
 import com.mtdevelopment.checkout.domain.usecase.SavePaymentStateUseCase
+import com.mtdevelopment.checkout.domain.usecase.ScheduleOrderReminderUseCase
 import com.mtdevelopment.checkout.domain.usecase.SchedulePaymentFinalizationUseCase
 import com.mtdevelopment.checkout.domain.usecase.UpdateOrderStatus
 import com.mtdevelopment.checkout.domain.usecase.VerifyHostedCheckoutStatusUseCase
@@ -88,6 +89,7 @@ class CheckoutViewModelTest {
         mockk(relaxed = true)
     private val clearPendingPaymentFinalizationUseCase: ClearPendingPaymentFinalizationUseCase =
         mockk(relaxed = true)
+    private val scheduleOrderReminderUseCase: ScheduleOrderReminderUseCase = mockk(relaxed = true)
     private val getSumUpPaymentLinkUseCase: GetSumUpPaymentLinkUseCase = mockk()
     private val verifyHostedCheckoutStatusUseCase: VerifyHostedCheckoutStatusUseCase = mockk()
 
@@ -135,6 +137,7 @@ class CheckoutViewModelTest {
         getSavedOrderUseCase,
         schedulePaymentFinalizationUseCase,
         clearPendingPaymentFinalizationUseCase,
+        scheduleOrderReminderUseCase,
         getSumUpPaymentLinkUseCase,
         verifyHostedCheckoutStatusUseCase
     )
@@ -382,10 +385,11 @@ class CheckoutViewModelTest {
             val state = viewModel.paymentScreenState.value
             assertFalse(state.isLoading)
             assertNull(state.error)
-            // The PAID branch ran: order marked PAID and cart cleared.
+            // The PAID branch ran: order marked PAID, reminder scheduled, cart cleared.
             coVerify(exactly = 1) {
                 updateOrderStatus.invoke(orderId = "order-1", newStatus = OrderStatus.PAID)
             }
+            coVerify(exactly = 1) { scheduleOrderReminderUseCase.invoke("order-1") }
             coVerify(exactly = 1) { clearCartUseCase.invoke() }
         }
 
