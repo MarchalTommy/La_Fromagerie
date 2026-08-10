@@ -6,8 +6,10 @@ import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.firestore
 import com.mtdevelopment.admin.data.model.DataDeliveryPath
+import com.mtdevelopment.core.model.FulfillmentType
 import com.mtdevelopment.core.model.OrderData
 import com.mtdevelopment.core.model.OrderStatus
+import com.mtdevelopment.core.model.PaymentMode
 import com.mtdevelopment.core.model.PreparationStatusData
 import com.mtdevelopment.core.model.ProductData
 import kotlinx.coroutines.tasks.await
@@ -201,7 +203,21 @@ class FirestoreAdminDatasource(
                             }.getOrDefault(OrderStatus.PENDING),
                             note = item.data?.get("note") as? String,
                             billing_address = item.data?.get("billing_address").toString(),
-                            is_manually_added = item.data?.get("is_manually_added") as? Boolean
+                            is_manually_added = item.data?.get("is_manually_added") as? Boolean,
+                            // Absent on every order written before these fields existed,
+                            // and on those still written by older app versions: both
+                            // conversions fall back rather than skip the document.
+                            fulfillment_type = FulfillmentType.fromStoredValue(
+                                item.data?.get("fulfillment_type") as? String
+                            ),
+                            payment_mode = PaymentMode.fromStoredValue(
+                                item.data?.get("payment_mode") as? String
+                            ),
+                            customer_phone = item.data?.get("customer_phone") as? String,
+                            pickup_point_id = item.data?.get("pickup_point_id") as? String,
+                            pickup_label = item.data?.get("pickup_label") as? String,
+                            pickup_address = item.data?.get("pickup_address") as? String,
+                            pickup_time_range = item.data?.get("pickup_time_range") as? String
                         )
                     })
                 } catch (e: Exception) {

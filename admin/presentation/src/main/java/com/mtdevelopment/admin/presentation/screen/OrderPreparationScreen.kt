@@ -48,7 +48,9 @@ import com.mtdevelopment.admin.presentation.viewmodel.AdminViewModel
 import com.mtdevelopment.core.domain.toLocalDate
 import com.mtdevelopment.core.domain.toTimeStamp
 import com.mtdevelopment.core.model.Order
+import com.mtdevelopment.core.model.PreparationGroup
 import com.mtdevelopment.core.model.PreparationStatus
+import com.mtdevelopment.core.model.preparationGroup
 import com.mtdevelopment.core.presentation.composable.ErrorOverlay
 import com.mtdevelopment.core.presentation.composable.RiveAnimation
 import com.mtdevelopment.core.util.koinViewModel
@@ -100,10 +102,16 @@ fun OrderPreparationList(
     preparationStatuses: List<PreparationStatus>,
     onUpdateStatus: (PreparationStatus) -> Unit
 ) {
-    // Sort and unique delivery dates, newest first
-    val nextDeliveryDates =
-        orders.map { it.deliveryDate }.sortedByDescending { it.toTimeStamp() }.toSet()
-    val ordersByDeliveryDate = orders.groupBy { it.deliveryDate }
+    // Batches, newest first. Grouping on the date alone would merge a tournée, the shop
+    // pickups and a market of the same day into one aggregate, leaving no way to tell what
+    // goes in the van — hence the group, which also carries the pickup point so two
+    // markets on one day stay apart.
+    val ordersByGroup = orders.groupBy { it.preparationGroup }
+    val groups = ordersByGroup.keys.sortedWith(
+        compareByDescending<PreparationGroup> { it.deliveryDate.toTimeStamp() }
+            .thenBy { it.fulfillmentType }
+            .thenBy { it.pickupLabel.orEmpty() }
+    )
 
     // Captured once so every item of a frame compares against the same day and
     // scrolling does not re-evaluate the clock.
@@ -111,12 +119,13 @@ fun OrderPreparationList(
 
     LazyColumn {
 
-        for (deliveryDate in nextDeliveryDates) {
-            val ordersForDate = ordersByDeliveryDate[deliveryDate] ?: emptyList()
+        for (group in groups) {
+            val deliveryDate = group.deliveryDate
+            val ordersForDate = ordersByGroup[group] ?: emptyList()
             val isPastDate = deliveryDate.toLocalDate()?.isBefore(today) == true
             if (ordersForDate.isNotEmpty()) {
 
-                // Aggregate product quantities for the current delivery date.
+                // Aggregate product quantities for the current batch.
                 // e.g., if Order A has 2 Milk and Order B has 3 Milk, results in {Milk=5}
                 val quantityForProducts: Map<String, Int> =
                     ordersForDate.fold(mutableMapOf()) { accumulator, currentMap ->
@@ -139,18 +148,36 @@ fun OrderPreparationList(
                                 }
                             )
                     ) {
-                        Text(
+                        Column(
                             modifier = Modifier
                                 .padding(horizontal = 32.dp, vertical = 16.dp)
-                                .align(Alignment.CenterStart),
-                            text = deliveryDate,
-                            style = MaterialTheme.typography.titleLarge,
-                            color = if (isPastDate) {
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                            } else {
-                                MaterialTheme.colorScheme.onSecondary
-                            }
-                        )
+                                .align(Alignment.CenterStart)
+                        ) {
+                            Text(
+                                text = deliveryDate,
+                                style = MaterialTheme.typography.titleLarge,
+                                color = if (isPastDate) {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                } else {
+                                    MaterialTheme.colorScheme.onSecondary
+                                }
+                            )
+                            // Deliveries keep a date-only header, exactly as before. Only a
+                            // pickup batch needs naming, because that is the only case where
+                            // one date carries several destinations.
+                            group.pickupLabel?.takeIf { group.fulfillmentType.isPickup }
+                                ?.let { label ->
+                                    Text(
+                                        text = label,
+                                        style = MaterialTheme.typography.titleSmall,
+                                        color = if (isPastDate) {
+                                            MaterialTheme.colorScheme.onSurfaceVariant
+                                        } else {
+                                            MaterialTheme.colorScheme.onSecondary
+                                        }
+                                    )
+                                }
+                        }
                     }
                 }
 
@@ -173,8 +200,8 @@ fun OrderPreparationList(
                         modifier = modifier,
                         product = item.first,
                         quantity = item.second,
-                        itemsPerClients = ordersByDeliveryDate[deliveryDate] ?: listOf(),
-                        deliveryDate = deliveryDate,
+                        itemsPerClients = ordersForDate,
+                        group = group,
                         isPastDate = isPastDate,
                         preparationStatuses = preparationStatuses,
                         onUpdateStatus = onUpdateStatus
@@ -196,7 +223,7 @@ fun OrderPreparationListItem(
     product: String,
     quantity: Int,
     itemsPerClients: List<Order>,
-    deliveryDate: String,
+    group: PreparationGroup,
     isPastDate: Boolean,
     preparationStatuses: List<PreparationStatus>,
     onUpdateStatus: (PreparationStatus) -> Unit
@@ -213,8 +240,9 @@ fun OrderPreparationListItem(
     }
 
     val showDetails = remember { mutableStateOf(false) }
-    // Generate a unique ID for the preparation status of this product on this date
-    val statusId = "${deliveryDate.replace("/", "")}_${product.replace(" ", "")}"
+    // Unique per (batch, product): deliveries keep the historical id so ticks already
+    // stored in Firestore keep matching, pickups get the point appended.
+    val statusId = group.statusIdFor(product)
     val isDone = preparationStatuses.find { it.id == statusId }?.isPrepared ?: false
 
     val rotation = animateFloatAsState(
@@ -263,7 +291,7 @@ fun OrderPreparationListItem(
                         onUpdateStatus(
                             PreparationStatus(
                                 id = statusId,
-                                date = deliveryDate,
+                                date = group.deliveryDate,
                                 productName = product,
                                 isPrepared = isChecked
                             )

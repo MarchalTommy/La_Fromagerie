@@ -19,6 +19,7 @@ import com.mtdevelopment.admin.domain.usecase.SetIsInTrackingModeUseCase
 import com.mtdevelopment.admin.presentation.R.drawable
 import com.mtdevelopment.core.domain.toStringDate
 import com.mtdevelopment.core.model.Order
+import com.mtdevelopment.core.model.deliveriesOnly
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -89,7 +90,10 @@ class DeliveryTrackingService : Service(), KoinComponent {
                         LocalDate.now().atStartOfDay(java.time.ZoneOffset.UTC)
                             .toInstant().toEpochMilli().toStringDate()
 
-                    todaysOrders = allOrders.filter { it.deliveryDate == todayStr }
+                    // Pickup orders are dropped before anything reaches the route: their
+                    // customer address is a billing detail, never a stop to drive to.
+                    todaysOrders = allOrders.deliveriesOnly()
+                        .filter { it.deliveryDate == todayStr }
                     if (todaysOrders.isNotEmpty()) {
                         serviceScope.launch {
                             try {
