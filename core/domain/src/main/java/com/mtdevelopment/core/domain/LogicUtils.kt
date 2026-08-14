@@ -161,6 +161,20 @@ fun <T> reorderList(list: List<T>, indices: List<Int?>): List<T> {
 }
 
 /**
+ * Formats a stored `DayOfWeek` name ("MONDAY") into its French display name ("lundi").
+ * Returns null for anything that is not a day, so callers can drop it rather than render
+ * a placeholder.
+ */
+fun frenchDayName(dayOfWeekName: String): String? {
+    return runCatching {
+        java.time.DayOfWeek.valueOf(dayOfWeekName.uppercase()).getDisplayName(
+            java.time.format.TextStyle.FULL,
+            java.util.Locale.FRENCH
+        )
+    }.getOrNull()
+}
+
+/**
  * Formats the delivery day and frequency into a localized French string.
  * Supporting full or short display formats (short format for admin UI).
  */

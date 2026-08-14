@@ -6,10 +6,12 @@ import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.firestore
 import com.mtdevelopment.admin.data.model.DataDeliveryPath
+import com.mtdevelopment.admin.data.model.DataPickupPoint
 import com.mtdevelopment.core.model.FulfillmentType
 import com.mtdevelopment.core.model.OrderData
 import com.mtdevelopment.core.model.OrderStatus
 import com.mtdevelopment.core.model.PaymentMode
+import com.mtdevelopment.core.model.PickupPointType
 import com.mtdevelopment.core.model.PreparationStatusData
 import com.mtdevelopment.core.model.ProductData
 import kotlinx.coroutines.tasks.await
@@ -144,6 +146,103 @@ class FirestoreAdminDatasource(
         return try {
             firestore.collection("database_update")
                 .document("path_timestamp")
+                .set(mapOf("last_update" to Timestamp(Instant.ofEpochMilli(timestamp))))
+                .await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    ///////////////////////////////////////////////////////////////////////////
+    // Pickup Point Management
+    ///////////////////////////////////////////////////////////////////////////
+
+    /**
+     * Reads every pickup point, mapping documents by hand for the same reason
+     * [getAllOrders] does: the keys are snake_case and the type needs an explicit enum
+     * conversion `toObject` cannot perform.
+     *
+     * An empty list is a legitimate answer here — the shop may simply not have configured
+     * a point yet. That is **not** true of the client-side reader, where an empty read is
+     * indistinguishable from an offline Firestore returning nothing successfully, and must
+     * be treated as a failure instead.
+     */
+    suspend fun getAllPickupPoints(): Result<List<DataPickupPoint>> {
+        return try {
+            val snapshot = firestore.collection("pickup_points").get().await()
+            Result.success(
+                snapshot.documents.map { item ->
+                    DataPickupPoint(
+                        id = item.id,
+                        type = item.data?.get("type") as? String
+                            ?: PickupPointType.SHOP.name,
+                        label = item.data?.get("label") as? String ?: "",
+                        address = item.data?.get("address") as? String ?: "",
+                        // Firestore has no Float/Int: read through Number, never cast
+                        // straight to Double.
+                        latitude = (item.data?.get("latitude") as? Number)?.toDouble(),
+                        longitude = (item.data?.get("longitude") as? Number)?.toDouble(),
+                        time_range = item.data?.get("time_range") as? String ?: "",
+                        opening_days = (item.data?.get("opening_days") as? List<*>)
+                            ?.filterIsInstance<String>() ?: emptyList(),
+                        closed_dates = (item.data?.get("closed_dates") as? List<*>)
+                            ?.filterIsInstance<String>() ?: emptyList(),
+                        date = item.data?.get("date") as? String
+                    )
+                }
+            )
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun addNewPickupPoint(point: DataPickupPoint): Result<Unit> {
+        return try {
+            firestore.collection("pickup_points")
+                .add(point)
+                .await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun updatePickupPoint(point: DataPickupPoint): Result<Unit> {
+        return try {
+            firestore.collection("pickup_points")
+                .document(point.id)
+                .set(point)
+                .await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun deletePickupPoint(point: DataPickupPoint): Result<Unit> {
+        return try {
+            firestore.collection("pickup_points")
+                .document(point.id)
+                .delete()
+                .await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Updates the global timestamp for pickup point changes.
+     *
+     * The third such document, alongside `products_timestamp` and `path_timestamp`. Every
+     * write to `pickup_points` must bump it: the client only knows to refresh when the
+     * timestamp moves, so skipping it leaves customers ordering against a stale cache.
+     */
+    suspend fun saveNewDatabasePickupUpdate(timestamp: Long): Result<Unit> {
+        return try {
+            firestore.collection("database_update")
+                .document("pickup_timestamp")
                 .set(mapOf("last_update" to Timestamp(Instant.ofEpochMilli(timestamp))))
                 .await()
             Result.success(Unit)

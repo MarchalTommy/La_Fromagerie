@@ -49,6 +49,24 @@ data class PathEditScreenDestination(
 )
 
 /**
+ * Navigation destination for the pickup point list (Admin side).
+ *
+ * Registered only in the admin navigation graph; the client one never reaches it.
+ */
+@Serializable
+object PickupPointsScreenDestination
+
+/**
+ * Navigation destination for the pickup point editor (Admin side).
+ *
+ * @property pointId Point to edit, or null to create a new one.
+ */
+@Serializable
+data class PickupPointEditScreenDestination(
+    val pointId: String? = null
+)
+
+/**
  * Navigation destination for the Checkout and Payment screen.
  */
 @Serializable

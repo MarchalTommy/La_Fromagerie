@@ -2,11 +2,14 @@ package com.mtdevelopment.admin.data.repository
 
 import com.mtdevelopment.admin.data.BuildConfig
 import com.mtdevelopment.admin.data.model.toDataDeliveryPath
+import com.mtdevelopment.admin.data.model.toDataPickupPoint
+import com.mtdevelopment.admin.data.model.toPickupPoint
 import com.mtdevelopment.admin.data.source.FirestoreAdminDatasource
 import com.mtdevelopment.admin.domain.repository.FirebaseAdminRepository
 import com.mtdevelopment.core.model.DeliveryPath
 import com.mtdevelopment.core.model.Order
 import com.mtdevelopment.core.model.OrderStatus
+import com.mtdevelopment.core.model.PickupPoint
 import com.mtdevelopment.core.model.PreparationStatus
 import com.mtdevelopment.core.model.toData
 import com.mtdevelopment.core.model.toDomain
@@ -102,6 +105,55 @@ class FirebaseAdminRepositoryImpl(
         }
 
         return finalResult ?: result
+    }
+
+    ///////////////////////////////////////////////////////////////////////////
+    // Pickup Point Management
+    // Each modification triggers a call to saveNewDatabasePickupUpdate, on the same
+    // principle as the delivery paths above: without the bump, clients keep serving a
+    // stale cache and would let customers order on a market date that no longer exists.
+    ///////////////////////////////////////////////////////////////////////////
+    override suspend fun getAllPickupPoints(): Result<List<PickupPoint>> {
+        return firestore.getAllPickupPoints().map { points ->
+            points.map { it.toPickupPoint() }
+        }
+    }
+
+    override suspend fun addNewPickupPoint(point: PickupPoint): Result<Unit> {
+        val result = firestore.addNewPickupPoint(point = point.toDataPickupPoint())
+        var finalResult: Result<Unit>? = null
+
+        result.onSuccess {
+            finalResult = saveNewDatabasePickupUpdate(System.currentTimeMillis())
+        }
+
+        return finalResult ?: result
+    }
+
+    override suspend fun updatePickupPoint(point: PickupPoint): Result<Unit> {
+        val result = firestore.updatePickupPoint(point = point.toDataPickupPoint())
+        var finalResult: Result<Unit>? = null
+
+        result.onSuccess {
+            finalResult = saveNewDatabasePickupUpdate(System.currentTimeMillis())
+        }
+
+        return finalResult ?: result
+    }
+
+    override suspend fun deletePickupPoint(point: PickupPoint): Result<Unit> {
+        val result = firestore.deletePickupPoint(point = point.toDataPickupPoint())
+        var finalResult: Result<Unit>? = null
+
+        result.onSuccess {
+            finalResult = saveNewDatabasePickupUpdate(System.currentTimeMillis())
+        }
+
+        return finalResult ?: result
+    }
+
+    override suspend fun saveNewDatabasePickupUpdate(timestamp: Long): Result<Unit> {
+        return firestore.saveNewDatabasePickupUpdate(timestamp)
     }
 
     ///////////////////////////////////////////////////////////////////////////

@@ -13,7 +13,11 @@ import com.mtdevelopment.admin.domain.usecase.GetAllOrdersUseCase
 import com.mtdevelopment.admin.domain.usecase.GetCurrentLocationOnceUseCase
 import com.mtdevelopment.admin.domain.usecase.GetIsInTrackingModeUseCase
 import com.mtdevelopment.admin.domain.usecase.GetOptimizedDeliveryUseCase
+import com.mtdevelopment.admin.domain.usecase.AddNewPickupPointUseCase
+import com.mtdevelopment.admin.domain.usecase.DeletePickupPointUseCase
+import com.mtdevelopment.admin.domain.usecase.GetAllPickupPointsUseCase
 import com.mtdevelopment.admin.domain.usecase.GetPreparationStatusesUseCase
+import com.mtdevelopment.admin.domain.usecase.UpdatePickupPointUseCase
 import com.mtdevelopment.admin.domain.usecase.GetShouldShowBatterieOptimizationUseCase
 import com.mtdevelopment.admin.domain.usecase.UpdateDeliveryPathUseCase
 import com.mtdevelopment.admin.domain.usecase.UpdatePreparationStatusUseCase
@@ -21,9 +25,11 @@ import com.mtdevelopment.admin.domain.usecase.UpdateProductUseCase
 import com.mtdevelopment.admin.domain.usecase.UpdateShouldShowBatterieOptimizationUseCase
 import com.mtdevelopment.admin.domain.usecase.UploadImageUseCase
 import com.mtdevelopment.admin.presentation.model.OrderScreenState
+import com.mtdevelopment.admin.presentation.model.PickupPointsState
 import com.mtdevelopment.core.domain.toTimeStamp
 import com.mtdevelopment.core.model.AutoCompleteSuggestion
 import com.mtdevelopment.core.model.DeliveryPath
+import com.mtdevelopment.core.model.PickupPoint
 import com.mtdevelopment.core.model.Order
 import com.mtdevelopment.core.model.PreparationStatus
 import com.mtdevelopment.core.presentation.sharedModels.UiProductObject
@@ -65,7 +71,11 @@ class AdminViewModel(
     private val shouldShowBatterieOptimizationUseCase: UpdateShouldShowBatterieOptimizationUseCase,
     private val getShouldShowBatterieOptimizationUseCase: GetShouldShowBatterieOptimizationUseCase,
     private val getPreparationStatusesUseCase: GetPreparationStatusesUseCase,
-    private val updatePreparationStatusUseCase: UpdatePreparationStatusUseCase
+    private val updatePreparationStatusUseCase: UpdatePreparationStatusUseCase,
+    private val getAllPickupPointsUseCase: GetAllPickupPointsUseCase,
+    private val addNewPickupPointUseCase: AddNewPickupPointUseCase,
+    private val updatePickupPointUseCase: UpdatePickupPointUseCase,
+    private val deletePickupPointUseCase: DeletePickupPointUseCase
 ) : ViewModel(), KoinComponent {
 
     ///////////////////////////////////////////////////////////////////////////
@@ -73,6 +83,9 @@ class AdminViewModel(
     ///////////////////////////////////////////////////////////////////////////
     private val _orderScreenState = MutableStateFlow(OrderScreenState())
     val orderScreenState = _orderScreenState.asStateFlow()
+
+    private val _pickupPointsState = MutableStateFlow(PickupPointsState())
+    val pickupPointsState = _pickupPointsState.asStateFlow()
 
     /**
      * Internal state for debouncing address autocomplete queries.
@@ -270,6 +283,85 @@ class AdminViewModel(
                 onFailure.invoke()
             })
         }
+    }
+
+    ///////////////////////////////////////////////////////////////////////////
+    // Pickup Point Operations
+    ///////////////////////////////////////////////////////////////////////////
+
+    /**
+     * Loads every pickup point.
+     *
+     * A read failure sets [PickupPointsState.error] and leaves the previous list alone:
+     * showing an empty screen would tell the shop it has no market dates configured, which
+     * is a very different statement from "we could not read them".
+     */
+    fun getAllPickupPoints() {
+        _pickupPointsState.update { it.copy(isLoading = true, error = null) }
+        viewModelScope.launch {
+            getAllPickupPointsUseCase.invoke()
+                .onSuccess { points ->
+                    _pickupPointsState.update {
+                        it.copy(points = points, isLoading = false)
+                    }
+                }
+                .onFailure {
+                    _pickupPointsState.update { state ->
+                        state.copy(
+                            isLoading = false,
+                            error = "Impossible de charger les points de retrait."
+                        )
+                    }
+                }
+        }
+    }
+
+    /** Creates the point when it has no id yet, updates it otherwise. */
+    fun savePickupPoint(point: PickupPoint, onSuccess: () -> Unit) {
+        _pickupPointsState.update { it.copy(isLoading = true, error = null) }
+        viewModelScope.launch {
+            val result = if (point.id.isBlank()) {
+                addNewPickupPointUseCase.invoke(point)
+            } else {
+                updatePickupPointUseCase.invoke(point)
+            }
+            result
+                .onSuccess {
+                    _pickupPointsState.update { it.copy(isLoading = false) }
+                    onSuccess.invoke()
+                }
+                .onFailure {
+                    _pickupPointsState.update { state ->
+                        state.copy(
+                            isLoading = false,
+                            error = "Impossible d'enregistrer ce point de retrait."
+                        )
+                    }
+                }
+        }
+    }
+
+    fun deletePickupPoint(point: PickupPoint, onSuccess: () -> Unit) {
+        _pickupPointsState.update { it.copy(isLoading = true, error = null) }
+        viewModelScope.launch {
+            deletePickupPointUseCase.invoke(point)
+                .onSuccess {
+                    _pickupPointsState.update { it.copy(isLoading = false) }
+                    onSuccess.invoke()
+                }
+                .onFailure {
+                    _pickupPointsState.update { state ->
+                        state.copy(
+                            isLoading = false,
+                            error = "Impossible de supprimer ce point de retrait."
+                        )
+                    }
+                }
+        }
+    }
+
+    fun clearPickupPointError() {
+        _pickupPointsState.update { it.copy(error = null) }
     }
 
     ///////////////////////////////////////////////////////////////////////////

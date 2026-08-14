@@ -27,6 +27,11 @@ val adminPresentationModule = module {
             get(),
             get(),
             get(),
+            // Pickup points: get all, add, update, delete.
+            get(),
+            get(),
+            get(),
+            get(),
         )
     }
 }

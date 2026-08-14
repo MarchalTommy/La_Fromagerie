@@ -2,6 +2,7 @@ package com.mtdevelopment.admin.domain.repository
 
 import com.mtdevelopment.core.model.DeliveryPath
 import com.mtdevelopment.core.model.Order
+import com.mtdevelopment.core.model.PickupPoint
 import com.mtdevelopment.core.model.PreparationStatus
 import com.mtdevelopment.core.model.Product
 
@@ -66,6 +67,40 @@ interface FirebaseAdminRepository {
      * @return Result indicating success or failure.
      */
     suspend fun deleteDeliveryPath(path: DeliveryPath): Result<Unit>
+
+    /**
+     * Retrieves every configured pickup point (the shop and each market date).
+     * @return Result carrying the points, or the failure that prevented reading them.
+     */
+    suspend fun getAllPickupPoints(): Result<List<PickupPoint>>
+
+    /**
+     * Adds a new pickup point. Also bumps the pickup timestamp.
+     * @param point The pickup point to add.
+     * @return Result indicating success or failure.
+     */
+    suspend fun addNewPickupPoint(point: PickupPoint): Result<Unit>
+
+    /**
+     * Updates an existing pickup point. Also bumps the pickup timestamp.
+     * @param point The pickup point with updated information.
+     * @return Result indicating success or failure.
+     */
+    suspend fun updatePickupPoint(point: PickupPoint): Result<Unit>
+
+    /**
+     * Deletes a pickup point. Also bumps the pickup timestamp.
+     * @param point The pickup point to delete.
+     * @return Result indicating success or failure.
+     */
+    suspend fun deletePickupPoint(point: PickupPoint): Result<Unit>
+
+    /**
+     * Updates the timestamp for the last pickup point database update.
+     * @param timestamp The new timestamp to save.
+     * @return Result indicating success or failure.
+     */
+    suspend fun saveNewDatabasePickupUpdate(timestamp: Long): Result<Unit>
 
     /**
      * Retrieves all orders from the database.
