@@ -40,6 +40,7 @@ import com.mtdevelopment.checkout.presentation.model.PaymentScreenState
 import com.mtdevelopment.core.domain.toPriceDouble
 import com.mtdevelopment.core.domain.toStringDate
 import com.mtdevelopment.core.model.Order
+import com.mtdevelopment.core.model.FulfillmentType
 import com.mtdevelopment.core.model.OrderStatus
 import com.mtdevelopment.core.repository.SharedDatastore
 import com.mtdevelopment.core.usecase.ClearCartUseCase
@@ -163,6 +164,12 @@ class CheckoutViewModel(
                         totalPrice = data.totalPrice,
                         deliveryDate = data.deliveryDate,
                         cartItems = data.cartItems,
+                        buyerPhone = data.buyerPhone,
+                        fulfillmentType = FulfillmentType.fromStoredValue(data.fulfillmentType),
+                        pickupPointId = data.pickupPointId,
+                        pickupLabel = data.pickupLabel,
+                        pickupAddress = data.pickupAddress,
+                        pickupTimeRange = data.pickupTimeRange,
                         isPaymentSuccess = false
                     )
                 }
@@ -481,7 +488,17 @@ class CheckoutViewModel(
                         products = orderProduct,
                         status = OrderStatus.PENDING,
                         note = _paymentScreenState.value.checkoutNote.toString(),
-                        totalPrice = _paymentScreenState.value.totalPrice
+                        totalPrice = _paymentScreenState.value.totalPrice,
+                        // The pickup point is snapshotted onto the order, not referenced:
+                        // editing or deleting that point later must not rewrite this
+                        // purchase. Payment stays ONLINE here — paying on collection is a
+                        // separate chain that does not exist yet.
+                        fulfillmentType = _paymentScreenState.value.fulfillmentType,
+                        customerPhone = _paymentScreenState.value.buyerPhone,
+                        pickupPointId = _paymentScreenState.value.pickupPointId,
+                        pickupLabel = _paymentScreenState.value.pickupLabel,
+                        pickupAddress = _paymentScreenState.value.pickupAddress,
+                        pickupTimeRange = _paymentScreenState.value.pickupTimeRange
                     )
                 )
             )

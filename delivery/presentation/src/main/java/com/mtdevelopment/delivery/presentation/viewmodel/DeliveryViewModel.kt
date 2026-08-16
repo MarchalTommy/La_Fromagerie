@@ -6,7 +6,13 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mtdevelopment.core.model.AutoCompleteSuggestion
+import com.mtdevelopment.core.model.FulfillmentType
+import com.mtdevelopment.core.model.PickupPointType
 import com.mtdevelopment.core.model.UserInformation
+import com.mtdevelopment.delivery.domain.usecase.BuildSelectablePickupDatesUseCase
+import com.mtdevelopment.delivery.domain.usecase.GetPickupPointsUseCase
+import com.mtdevelopment.delivery.domain.usecase.SelectablePickupDate
+import java.time.LocalDateTime
 import com.mtdevelopment.core.usecase.GetAutocompleteSuggestionsUseCase
 import com.mtdevelopment.core.usecase.GetIsNetworkConnectedUseCase
 import com.mtdevelopment.core.usecase.SaveToDatastoreUseCase
@@ -54,7 +60,9 @@ class DeliveryViewModel(
     private val getDeliveryPathsUseCase: GetDeliveryPathUseCase,
     private val getAllDeliveryPathsUseCase: GetAllDeliveryPathsUseCase,
     private val getAutocompleteSuggestionsUseCase: GetAutocompleteSuggestionsUseCase,
-    private val getStreetSuggestionsUseCase: GetStreetSuggestionsUseCase
+    private val getStreetSuggestionsUseCase: GetStreetSuggestionsUseCase,
+    private val getPickupPointsUseCase: GetPickupPointsUseCase,
+    private val buildSelectablePickupDatesUseCase: BuildSelectablePickupDatesUseCase
 ) : ViewModel(), KoinComponent {
 
     /**
@@ -195,6 +203,106 @@ class DeliveryViewModel(
         }
     }
 
+    ///////////////////////////////////////////////////////////////////////////
+    // Pickup (click & collect and markets)
+    ///////////////////////////////////////////////////////////////////////////
+
+    /**
+     * Switches between being delivered and collecting, and loads what the new mode needs.
+     *
+     * Nothing already typed is cleared: a customer who tries "retrait" and comes back to
+     * "livraison" would otherwise have to retype their address.
+     */
+    fun setFulfillmentType(type: FulfillmentType) {
+        deliveryUiDataState = deliveryUiDataState.copy(fulfillmentType = type)
+        if (type.isPickup) loadPickupPoints(type)
+    }
+
+    fun setUserPhoneFieldText(phone: String) {
+        deliveryUiDataState = deliveryUiDataState.copy(userPhoneFieldText = phone)
+    }
+
+    /**
+     * Loads the points matching [type] and the dates they offer.
+     *
+     * A read failure raises [DeliveryUiDataState.pickupPointsUnavailable] rather than leaving
+     * an empty list behind: "we could not check" and "you cannot collect" look identical on
+     * screen and mean opposite things, and only one of them should cost the shop a sale.
+     */
+    fun loadPickupPoints(type: FulfillmentType = deliveryUiDataState.fulfillmentType) {
+        val wanted = when (type) {
+            FulfillmentType.PICKUP_SHOP -> PickupPointType.SHOP
+            FulfillmentType.PICKUP_MARKET -> PickupPointType.MARKET
+            FulfillmentType.DELIVERY -> return
+        }
+
+        deliveryUiDataState = deliveryUiDataState.copy(
+            isLoading = true,
+            pickupPointsUnavailable = false
+        )
+        getPickupPointsUseCase.invoke(
+            onSuccess = { points ->
+                val matching = points.filter { it.type == wanted }
+                deliveryUiDataState = deliveryUiDataState.copy(
+                    isLoading = false,
+                    pickupPoints = matching,
+                    pickupDates = buildSelectablePickupDatesUseCase.invoke(
+                        points = matching,
+                        now = LocalDateTime.now()
+                    )
+                )
+            },
+            onFailure = {
+                deliveryUiDataState = deliveryUiDataState.copy(
+                    isLoading = false,
+                    pickupPoints = emptyList(),
+                    pickupDates = emptyList(),
+                    pickupPointsUnavailable = true
+                )
+            }
+        )
+    }
+
+    /**
+     * Persists the chosen collection date and the point it belongs to.
+     *
+     * The point's label, address and opening window are stored alongside the id so the order
+     * carries a snapshot: a market date edited or deleted afterwards must not rewrite a
+     * purchase already made.
+     */
+    fun savePickupSelection(selection: SelectablePickupDate) {
+        viewModelScope.launch {
+            val existingUserInfo = getUserInfoFromDatastoreUseCase.invoke().firstOrNull()
+            saveToDatastoreUseCase.invoke(
+                userInformation = UserInformation(
+                    name = deliveryUiDataState.userNameFieldText,
+                    email = existingUserInfo?.email ?: "",
+                    // No delivery address in this mode. The billing address Google Pay
+                    // returns is what ends up on the invoice.
+                    address = "",
+                    billingAddress = existingUserInfo?.billingAddress ?: "",
+                    lastSelectedPath = existingUserInfo?.lastSelectedPath ?: "",
+                    phone = deliveryUiDataState.userPhoneFieldText,
+                    fulfillmentType = deliveryUiDataState.fulfillmentType.name,
+                    pickupPointId = selection.pointId,
+                    pickupLabel = selection.pointLabel,
+                    pickupAddress = selection.pointAddress,
+                    pickupTimeRange = selection.timeRange
+                ),
+                deliveryDate = selection.date
+                    .atStartOfDay(java.time.ZoneOffset.UTC)
+                    .toInstant()
+                    .toEpochMilli()
+            )
+        }
+    }
+
+    /** True once a collected order has everything it needs to reach the checkout. */
+    val canContinueWithPickup: Boolean
+        get() = deliveryUiDataState.userNameFieldText.isNotBlank() &&
+                deliveryUiDataState.userPhoneFieldText.isNotBlank() &&
+                deliveryUiDataState.pickupDates.isNotEmpty()
+
     /**
      * Persists the user's name, address, and selected path to the DataStore.
      */
@@ -219,7 +327,15 @@ class DeliveryViewModel(
                     address = deliveryUiDataState.deliveryAddressSearchQuery,
                     billingAddress = deliveryUiDataState.billingAddressSearchQuery,
                     lastSelectedPath = deliveryUiDataState.selectedPath?.name
-                        ?: existingUserInfo?.lastSelectedPath ?: ""
+                        ?: existingUserInfo?.lastSelectedPath ?: "",
+                    phone = deliveryUiDataState.userPhoneFieldText.ifBlank { null },
+                    // Explicitly reset: a customer who tried collecting and went back to
+                    // being delivered must not carry a stale pickup point into checkout.
+                    fulfillmentType = FulfillmentType.DELIVERY.name,
+                    pickupPointId = null,
+                    pickupLabel = null,
+                    pickupAddress = null,
+                    pickupTimeRange = null
                 )
             )
         }

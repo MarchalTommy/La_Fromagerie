@@ -3,6 +3,8 @@ package com.mtdevelopment.delivery.data.source.remote
 import com.google.firebase.firestore.FirebaseFirestore
 import com.mtdevelopment.delivery.data.model.response.firestore.DataDeliveryCityResponse
 import com.mtdevelopment.delivery.data.model.response.firestore.DataDeliveryPathsResponse
+import com.mtdevelopment.delivery.data.model.response.firestore.DataPickupPointResponse
+import com.mtdevelopment.delivery.data.model.response.firestore.toPickupPointResponse
 
 class FirestoreDeliveryDataSource(
     private val firestore: FirebaseFirestore
@@ -20,6 +22,37 @@ class FirestoreDeliveryDataSource(
                 onSuccess.invoke(it.documents.map { item ->
                     item.data.toPathResponse(item.id)
                 })
+            }
+    }
+
+    /**
+     * Reads every pickup point for the customer journey.
+     *
+     * ⚠️ An **empty** result is reported as a failure, not as "there is nowhere to collect".
+     * Firestore serves reads from its own cache when offline and completes them *successfully*
+     * with zero documents, so `addOnFailureListener` never fires. Treating that as an honest
+     * empty list is exactly the bug that once made every address undeliverable on a first
+     * offline launch — the shop always has at least its own counter configured, so zero
+     * documents means the read did not really happen.
+     */
+    fun getAllPickupPoints(
+        onSuccess: (List<DataPickupPointResponse>) -> Unit,
+        onFailure: () -> Unit
+    ) {
+        firestore.collection("pickup_points")
+            .get()
+            .addOnFailureListener {
+                onFailure.invoke()
+            }
+            .addOnSuccessListener { snapshot ->
+                val points = snapshot.documents.map { item ->
+                    item.data.toPickupPointResponse(item.id)
+                }
+                if (points.isEmpty()) {
+                    onFailure.invoke()
+                } else {
+                    onSuccess.invoke(points)
+                }
             }
     }
 

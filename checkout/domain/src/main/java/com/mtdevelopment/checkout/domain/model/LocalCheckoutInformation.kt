@@ -11,5 +11,12 @@ data class LocalCheckoutInformation(
     val cartItems: CartItems? = null,
     val totalPrice: Long? = null,
     val deliveryDate: Long? = null,
-    val billingAddress: String? = null
+    val billingAddress: String? = null,
+    val buyerPhone: String? = null,
+    /** [com.mtdevelopment.core.model.FulfillmentType] name; null reads as DELIVERY. */
+    val fulfillmentType: String? = null,
+    val pickupPointId: String? = null,
+    val pickupLabel: String? = null,
+    val pickupAddress: String? = null,
+    val pickupTimeRange: String? = null
 )

@@ -24,7 +24,13 @@ class GetCheckoutDataUseCase(
                     cartItems = cart,
                     totalPrice = totalPrice ?: 0L,
                     deliveryDate = 0L,
-                    billingAddress = user.billingAddress
+                    billingAddress = user.billingAddress,
+                    buyerPhone = user.phone,
+                    fulfillmentType = user.fulfillmentType,
+                    pickupPointId = user.pickupPointId,
+                    pickupLabel = user.pickupLabel,
+                    pickupAddress = user.pickupAddress,
+                    pickupTimeRange = user.pickupTimeRange
                 )
             } else {
                 null

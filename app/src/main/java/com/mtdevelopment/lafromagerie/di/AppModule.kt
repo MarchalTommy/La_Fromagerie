@@ -72,7 +72,9 @@ import com.mtdevelopment.delivery.domain.repository.AddressApiRepository
 import com.mtdevelopment.delivery.domain.usecase.GetStreetSuggestionsUseCase
 import com.mtdevelopment.delivery.domain.repository.FirestorePathRepository
 import com.mtdevelopment.delivery.domain.repository.RoomDeliveryRepository
+import com.mtdevelopment.delivery.domain.usecase.BuildSelectablePickupDatesUseCase
 import com.mtdevelopment.delivery.domain.usecase.GetAllDeliveryPathsUseCase
+import com.mtdevelopment.delivery.domain.usecase.GetPickupPointsUseCase
 import com.mtdevelopment.delivery.domain.usecase.GetDeliveryPathUseCase
 import com.mtdevelopment.delivery.domain.usecase.GetUserInfoFromDatastoreUseCase
 import com.mtdevelopment.delivery.presentation.viewmodel.DeliveryViewModel
@@ -214,6 +216,11 @@ val mainAppModule = module {
     factory { CancelOrderReminderUseCase(get()) }
 
     factory { GetLastFirestoreDatabaseUpdateUseCase(get(), get()) }
+
+    // Pickup points, client side. Read straight from Firestore on each visit: see
+    // FirestorePathRepository.getAllPickupPoints for why there is no Room cache.
+    factory { GetPickupPointsUseCase(get()) }
+    factory { BuildSelectablePickupDatesUseCase() }
 
     factory { GetAllProductsUseCase(get()) }
     factory { GetAllCheesesUseCase(get()) }

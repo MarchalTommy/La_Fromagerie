@@ -2,13 +2,16 @@ package com.mtdevelopment.delivery.presentation.viewmodel
 
 import com.mtdevelopment.core.model.DeliveryCity
 import com.mtdevelopment.core.model.AutoCompleteSuggestion
+import com.mtdevelopment.core.model.FulfillmentType
 import com.mtdevelopment.core.model.UserInformation
 import com.mtdevelopment.core.usecase.GetAutocompleteSuggestionsUseCase
 import com.mtdevelopment.core.usecase.GetIsNetworkConnectedUseCase
 import com.mtdevelopment.core.usecase.SaveToDatastoreUseCase
 import com.mtdevelopment.delivery.domain.model.DeliveryPath
 import com.mtdevelopment.delivery.domain.usecase.DeliveryEligibility
+import com.mtdevelopment.delivery.domain.usecase.BuildSelectablePickupDatesUseCase
 import com.mtdevelopment.delivery.domain.usecase.GetAllDeliveryPathsUseCase
+import com.mtdevelopment.delivery.domain.usecase.GetPickupPointsUseCase
 import com.mtdevelopment.delivery.domain.usecase.GetDeliveryPathUseCase
 import com.mtdevelopment.delivery.domain.usecase.GetStreetSuggestionsUseCase
 import com.mtdevelopment.delivery.domain.usecase.GetUserInfoFromDatastoreUseCase
@@ -56,6 +59,8 @@ class DeliveryViewModelTest {
         geoJson = null
     )
 
+    private val getPickupPointsUseCase: GetPickupPointsUseCase = mockk(relaxed = true)
+
     @Before
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
@@ -74,7 +79,9 @@ class DeliveryViewModelTest {
         getDeliveryPathUseCase,
         getAllDeliveryPathsUseCase,
         getAutocompleteSuggestionsUseCase,
-        getStreetSuggestionsUseCase
+        getStreetSuggestionsUseCase,
+        getPickupPointsUseCase,
+        BuildSelectablePickupDatesUseCase()
     )
 
     @Test
@@ -162,7 +169,16 @@ class DeliveryViewModelTest {
                         email = "jane@example.com",
                         address = "1 rue du Fromage",
                         billingAddress = "",
-                        lastSelectedPath = "Tournée du Lundi"
+                        lastSelectedPath = "Tournée du Lundi",
+                        // A delivery explicitly clears any pickup point left over from a
+                        // customer who tried collecting and changed their mind, rather than
+                        // carrying a stale one into checkout.
+                        phone = null,
+                        fulfillmentType = FulfillmentType.DELIVERY.name,
+                        pickupPointId = null,
+                        pickupLabel = null,
+                        pickupAddress = null,
+                        pickupTimeRange = null
                     )
                 )
             }

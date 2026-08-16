@@ -1,7 +1,9 @@
 package com.mtdevelopment.delivery.data.repository
 
+import com.mtdevelopment.core.model.PickupPoint
 import com.mtdevelopment.core.util.NetWorkResult
 import com.mtdevelopment.delivery.data.model.response.firestore.toDeliveryCities
+import com.mtdevelopment.delivery.data.model.response.firestore.toPickupPoint
 import com.mtdevelopment.delivery.data.source.remote.FirestoreDeliveryDataSource
 import com.mtdevelopment.delivery.data.source.remote.OpenRouteDataSource
 import com.mtdevelopment.delivery.domain.model.DeliveryPath
@@ -124,6 +126,20 @@ class FirestorePathRepositoryImpl(
                 }
             }
         }, onFailure = onFailure)
+    }
+
+    /**
+     * Fetches the pickup points, with no geographic enrichment to do: the admin already stored
+     * the coordinates the autocomplete returned when the address was entered.
+     */
+    override fun getAllPickupPoints(
+        onSuccess: (List<PickupPoint>) -> Unit,
+        onFailure: () -> Unit
+    ) {
+        firestore.getAllPickupPoints(
+            onSuccess = { points -> onSuccess.invoke(points.map { it.toPickupPoint() }) },
+            onFailure = onFailure
+        )
     }
 
     /**
