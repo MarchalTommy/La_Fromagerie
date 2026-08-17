@@ -32,12 +32,19 @@ data class DataDeliveryPath(
 
 /**
  * One city of a path, with its street restriction. Empty [streets] means the whole city is covered.
+ *
+ * [lat]/[lng] are the commune's center, resolved when the shop saves the path so that reading it
+ * back needs no geocoding at all. They are nullable because a path saved by an older admin build
+ * carries none, and the reader falls back to geocoding for those — that is what makes the field
+ * additive rather than a migration.
  */
 @Keep
 data class DataDeliveryCity(
     val city: String = "",
     val postcode: Int = 0,
-    val streets: List<String> = emptyList()
+    val streets: List<String> = emptyList(),
+    val lat: Double? = null,
+    val lng: Double? = null
 )
 
 /**
@@ -53,7 +60,9 @@ fun DeliveryPath.toDataDeliveryPath() = DataDeliveryPath(
         DataDeliveryCity(
             city = it.name,
             postcode = it.postcode,
-            streets = it.streets
+            streets = it.streets,
+            lat = it.latitude,
+            lng = it.longitude
         )
     },
     cities = availableCities.map { it.name },

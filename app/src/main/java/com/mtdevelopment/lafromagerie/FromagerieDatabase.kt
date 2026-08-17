@@ -31,15 +31,30 @@ val MIGRATION_5_6 = object : Migration(5, 6) {
     }
 }
 
+/**
+ * Adds the per-city commune centers, so a cached path can be read back without geocoding.
+ *
+ * Additive like [MIGRATION_5_6]: existing rows default to `{}`, meaning "no coordinate stored", and
+ * the reader geocodes those cities exactly as it always did. A destructive fallback here would wipe
+ * the path cache — which is the one thing that keeps the app usable when the address API is slow or
+ * unreachable, and the whole point of the change this migration serves.
+ */
+val MIGRATION_6_7 = object : Migration(6, 7) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE paths ADD COLUMN cityCoordinates TEXT NOT NULL DEFAULT '{}'")
+    }
+}
+
 @Database(
     entities = [ProductEntity::class, PathEntity::class],
-    version = 6,
+    version = 7,
 )
 @TypeConverters(
     Converters::class,
     CoordinatesConverter::class,
     MapConverter::class,
-    StreetsMapConverter::class
+    StreetsMapConverter::class,
+    CityCoordinatesConverter::class
 )
 abstract class FromagerieDatabase : RoomDatabase() {
     abstract val homeDao: HomeDao
@@ -72,6 +87,19 @@ class MapConverter {
 
     @TypeConverter
     fun fromStringMap(map: Map<String, Int>): String {
+        return Json.encodeToString(map)
+    }
+}
+
+/** City name → the center of that commune. Absent city = no coordinate stored yet. */
+class CityCoordinatesConverter {
+    @TypeConverter
+    fun toCoordinatesMap(value: String): Map<String, com.mtdevelopment.delivery.data.model.Coordinate> {
+        return Json.decodeFromString(value)
+    }
+
+    @TypeConverter
+    fun fromCoordinatesMap(map: Map<String, com.mtdevelopment.delivery.data.model.Coordinate>): String {
         return Json.encodeToString(map)
     }
 }

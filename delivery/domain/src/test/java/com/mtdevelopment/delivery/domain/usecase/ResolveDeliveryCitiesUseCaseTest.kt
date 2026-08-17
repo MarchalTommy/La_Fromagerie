@@ -54,7 +54,7 @@ class ResolveDeliveryCitiesUseCaseTest {
 
         assertTrue(result.single().isMisspelled)
         assertEquals("Malpas", result.single().canonical?.name)
-        assertEquals(listOf("Malpas"), result.withCanonicalNames().map { it.name })
+        assertEquals(listOf("Malpas"), result.withCanonicalCities().map { it.name })
     }
 
     @Test
@@ -78,7 +78,7 @@ class ResolveDeliveryCitiesUseCaseTest {
         assertEquals(3, result.problems().size)
         assertEquals(
             listOf("Malpas", "Oye-et-Pallet", "Labergement-Sainte-Marie", "Frasne"),
-            result.withCanonicalNames().map { it.name }
+            result.withCanonicalCities().map { it.name }
         )
     }
 
@@ -131,7 +131,7 @@ class ResolveDeliveryCitiesUseCaseTest {
 
         val result = useCase(listOf(DeliveryCity("Malpa", 25160)))
 
-        assertEquals(listOf("Malpa"), result.withCanonicalNames().map { it.name })
+        assertEquals(listOf("Malpa"), result.withCanonicalCities().map { it.name })
     }
 
     /**
@@ -140,7 +140,7 @@ class ResolveDeliveryCitiesUseCaseTest {
      * Street restrictions are equally untouchable — they are the split-city configuration.
      */
     @Test
-    fun `only the name is canonicalized, postcode and streets are preserved`() = runTest {
+    fun `postcode and streets are preserved even when the API disagrees`() = runTest {
         coEvery { addressApiRepository.lookupCommune("Malpa", 25160) } returns found("Malpas", 25999)
 
         val result = useCase(
@@ -151,6 +151,30 @@ class ResolveDeliveryCitiesUseCaseTest {
         assertEquals("Malpas", canonical?.name)
         assertEquals(25160, canonical?.postcode)
         assertEquals(listOf("Rue de Pontarlier"), canonical?.streets)
+    }
+
+    /**
+     * The half of the resolution that serves the reader rather than the shop: storing the center
+     * with the city is what lets a saved path be rebuilt without geocoding anything.
+     */
+    @Test
+    fun `the commune center is carried onto the resolved city`() = runTest {
+        coEvery { addressApiRepository.lookupCommune("Malpas", 25160) } returns found("Malpas", 25160)
+
+        val canonical = useCase(listOf(DeliveryCity("Malpas", 25160))).single().canonical
+
+        assertEquals(46.80, canonical?.latitude)
+        assertEquals(6.29, canonical?.longitude)
+        assertEquals(46.80 to 6.29, canonical?.location)
+    }
+
+    @Test
+    fun `an unchecked city gets no coordinate`() = runTest {
+        coEvery { addressApiRepository.lookupCommune(any(), any()) } returns
+                CommuneLookup.Unreachable
+
+        assertEquals(null, useCase(listOf(DeliveryCity("Malpas", 25160))).withCanonicalCities()
+            .single().location)
     }
 
     @Test
@@ -175,7 +199,10 @@ class ResolveDeliveryCitiesUseCaseTest {
             DeliveryCity("Pontarlier", 25300)
         )
 
-        assertEquals(cities, useCase(cities).withCanonicalNames())
+        assertEquals(
+            cities.map { it.name to it.postcode },
+            useCase(cities).withCanonicalCities().map { it.name to it.postcode }
+        )
     }
 
     @Test

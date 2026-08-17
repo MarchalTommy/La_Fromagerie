@@ -60,7 +60,7 @@ import com.mtdevelopment.core.presentation.composable.RiveAnimation
 import com.mtdevelopment.core.presentation.theme.ui.AppTheme
 import com.mtdevelopment.delivery.domain.usecase.CityResolution
 import com.mtdevelopment.delivery.domain.usecase.problems
-import com.mtdevelopment.delivery.domain.usecase.withCanonicalNames
+import com.mtdevelopment.delivery.domain.usecase.withCanonicalCities
 import com.mtdevelopment.delivery.presentation.composable.CityPostalCodeAutocompleteTextField
 import com.mtdevelopment.delivery.presentation.composable.CityStreetsBottomSheet
 import com.mtdevelopment.delivery.presentation.model.MoveDirection
@@ -233,7 +233,7 @@ fun PathEditScreen(
                     return@resolveCities
                 }
 
-                val canonical = if (report.isEmpty()) draft.cities else report.withCanonicalNames()
+                val canonical = if (report.isEmpty()) draft.cities else report.withCanonicalCities()
                 val domainPath = draft.copy(cities = canonical)
                     .toAdminUiDeliveryPath()
                     .toDomainDeliveryPath()

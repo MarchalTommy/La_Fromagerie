@@ -493,4 +493,55 @@ class DetermineDeliveryEligibilityUseCaseTest {
         assertEquals(listOf("path-a"), result.candidatePaths.map { it.id })
         assertEquals(result.matchingPath, result.candidatePaths.single())
     }
+
+    ///////////////////////////////////////////////////////////////////////////
+    // Where the commune center is read from
+    ///////////////////////////////////////////////////////////////////////////
+
+    /**
+     * A path whose cities carry their own centers needs no `locations` at all. This is the shape
+     * every path takes once the shop has re-saved it, and it is the one that cannot go wrong: the
+     * coordinate travels with the city it describes.
+     */
+    @Test
+    fun `city centers are read from the cities themselves when they carry them`() {
+        val geolocated = pathA.copy(
+            cities = listOf(
+                DeliveryCity("Boujailles", 25560, listOf("Rue du Moulin"), 46.85, 6.15),
+                DeliveryCity("Frasne", 25560, emptyList(), 46.85, 6.17),
+                DeliveryCity("Courvière", 25560, emptyList(), 46.86, 6.16)
+            ),
+            locations = null
+        )
+
+        val result = useCase(
+            paths = listOf(geolocated),
+            userCity = "Bulle",
+            userStreet = "Rue Principale",
+            addressText = "4 Rue Principale, 25560 Bulle",
+            // Same ~2 km from Boujailles as the pickup test above, so the verdict only differs if
+            // the center was not found at all.
+            userLocation = 46.868 to 6.155
+        )
+
+        assertEquals(DeliveryEligibility.ASK_FOR_SUPPORT, result.eligibility)
+    }
+
+    /**
+     * Paths cached before the center travelled with the city still expose it only through the
+     * parallel `locations` list, indexed positionally. That fallback has to keep working — but it
+     * is the fragile half, which is why nothing produces a `locations` shorter than `cities`.
+     */
+    @Test
+    fun `paths cached before the change still resolve through the parallel locations list`() {
+        val result = useCase(
+            paths = listOf(pathA),
+            userCity = "Bulle",
+            userStreet = "Rue Principale",
+            addressText = "4 Rue Principale, 25560 Bulle",
+            userLocation = 46.868 to 6.155
+        )
+
+        assertEquals(DeliveryEligibility.ASK_FOR_SUPPORT, result.eligibility)
+    }
 }

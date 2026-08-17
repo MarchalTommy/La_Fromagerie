@@ -7,6 +7,7 @@ import com.mtdevelopment.delivery.data.source.remote.OpenRouteDataSource
 import com.mtdevelopment.delivery.domain.model.DeliveryPath
 import com.mtdevelopment.delivery.domain.repository.AddressApiRepository
 import com.mtdevelopment.delivery.domain.repository.PathFetchOutcome
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -75,16 +76,20 @@ class FirestorePathRepositoryImpl(
                 val lookupLimiter = Semaphore(MAX_PARALLEL_CITY_LOOKUPS)
 
                 val deferredCityInfoList = pathsWithCities.map { (path, deliveryCities) ->
-                    // Launch async calls for reverse geocoding in parallel for efficiency
+                    // A city whose center is already stored costs nothing to resolve. Once the
+                    // shop has re-saved its paths this list is empty and reading a path makes no
+                    // network call at all — which is the point: geocoding on every read is what
+                    // made a tournée's availability depend on 20 requests succeeding together.
                     val deferredCities = deliveryCities.map { city ->
-                        async {
-                            lookupLimiter.withPermit {
-                                addressApiRepository.reverseGeocodeCity(
-                                    name = city.name,
-                                    zip = city.postcode
-                                )
+                        city.location?.let { stored -> CompletableDeferred(stored) }
+                            ?: async {
+                                lookupLimiter.withPermit {
+                                    addressApiRepository.reverseGeocodeCity(
+                                        name = city.name,
+                                        zip = city.postcode
+                                    )?.let { it.location.latitude to it.location.longitude }
+                                }
                             }
-                        }
                     }
                     // Associate necessary info for final reconstruction
                     Triple(path, deliveryCities, deferredCities)
@@ -101,10 +106,9 @@ class FirestorePathRepositoryImpl(
                             // If info is missing, ignore this specific path by returning null
                             null
                         } else {
-                            // Calculate the list of locations (latitude, longitude)
-                            val locations = cityInfos.mapNotNull { cityInfo ->
-                                cityInfo?.location?.let { Pair(it.latitude, it.longitude) }
-                            }
+                            // Positionally aligned with deliveryCities by construction — every
+                            // entry is non-null here, so the two lists cannot drift.
+                            val locations = cityInfos.filterNotNull()
 
                             // Get GeoJson only if requested and locations are available.
                             // A missing road line is a degraded rendering, not a failed load: the
@@ -119,11 +123,20 @@ class FirestorePathRepositoryImpl(
                                 null // No GeoJson requested or no locations
                             }
 
+                            // Carry each resolved center back onto its own city, so the coordinate
+                            // travels with the thing it describes: that is what the Room cache
+                            // persists and what the eligibility matcher reads, and it is what
+                            // makes the next read of this path need no geocoding.
+                            val citiesWithCenters = deliveryCities.mapIndexed { index, city ->
+                                val (lat, lng) = locations[index]
+                                city.copy(latitude = lat, longitude = lng)
+                            }
+
                             // Build the final DeliveryPath object
                             DeliveryPath(
                                 id = pathData.id,
                                 pathName = pathData.path_name ?: "",
-                                cities = deliveryCities,
+                                cities = citiesWithCenters,
                                 locations = locations,
                                 deliveryDay = pathData.deliveryDay,
                                 deliveryFrequency = pathData.deliveryFrequency,

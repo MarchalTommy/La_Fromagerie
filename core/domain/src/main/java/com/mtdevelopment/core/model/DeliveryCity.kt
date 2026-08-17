@@ -15,14 +15,30 @@ import kotlinx.serialization.Serializable
  * @property postcode French postal code.
  * @property streets Street allow-list for this city **on this path**. Empty means the whole city
  *   is covered — which is the common case and must stay the default.
+ * @property latitude Center of the commune, resolved once when the path is saved. Null on a path
+ *   that has not been saved since this field existed; the reader geocodes those on the fly.
+ * @property longitude See [latitude].
  */
 @Serializable
 data class DeliveryCity(
     val name: String,
     val postcode: Int,
-    val streets: List<String> = emptyList()
+    val streets: List<String> = emptyList(),
+    val latitude: Double? = null,
+    val longitude: Double? = null
 ) {
     /** True when this path covers the entire city, with no street-level restriction. */
     val coversWholeCity: Boolean
         get() = streets.isEmpty()
+
+    /**
+     * The commune's center, or null if it has never been resolved.
+     *
+     * Carrying the coordinate on the city rather than in a parallel list on the path is what removes
+     * the alignment hazard: `DeliveryPath.locations` is a positional mirror of `cities`, and
+     * `DetermineDeliveryEligibilityUseCase` indexes one by the other, so any code path producing a
+     * shorter `locations` attributes the wrong center to every city after the gap.
+     */
+    val location: Pair<Double, Double>?
+        get() = if (latitude != null && longitude != null) latitude to longitude else null
 }

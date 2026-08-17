@@ -9,8 +9,9 @@ import com.mtdevelopment.delivery.domain.repository.AddressApiRepository
  * What the address API says about one city the shop put on a path.
  *
  * @property submitted The city exactly as stored, spelling included.
- * @property canonical The same city under the API's spelling, or null when the API knows no such
- *   commune. Only the **name** is canonicalized — see [ResolveDeliveryCitiesUseCase].
+ * @property canonical The same city under the API's spelling and carrying its center, or null when
+ *   the API knows no such commune. The postcode and the street restriction are never touched — see
+ *   [ResolveDeliveryCitiesUseCase].
  * @property checked False when the API could not be reached for this city, in which case
  *   [canonical] being null means nothing at all.
  */
@@ -46,12 +47,15 @@ data class CityResolution(
  * therefore told their address is not on a delivery path. The failure is silent on the side that
  * would reveal it and invisible on the side that would fix it, which is exactly why it survived.
  *
- * ### Only the name is canonicalized
+ * ### What it takes from the API, and what it leaves alone
+ *
+ * The name — the only field the matcher compares, so the only one that has to be right — and the
+ * commune's center, which the path editor stores so that reading the path back needs no geocoding.
  *
  * The postcode stays as the shop entered it, and so do the street restrictions. A commune can carry
  * several postcodes and the API returns one of them; overwriting a deliberate choice with an
- * arbitrary alternative would be a worse bug than the one being fixed. The name is the only field
- * the matcher compares, so it is the only field that has to be right.
+ * arbitrary alternative would be a worse bug than the one being fixed. The streets are the
+ * split-city configuration and are nobody else's to rewrite.
  *
  * ### Unreachable is not "wrong"
  *
@@ -68,9 +72,13 @@ class ResolveDeliveryCitiesUseCase(
             when (val lookup = addressApiRepository.lookupCommune(city.name, city.postcode)) {
                 is CommuneLookup.Found -> CityResolution(
                     submitted = city,
-                    // Keep postcode and streets; take only the spelling. A blank name from the API
-                    // is not an improvement on what the shop typed.
-                    canonical = city.copy(name = lookup.info.name.ifBlank { city.name }),
+                    // Keep postcode and streets; take the spelling and the center. A blank name
+                    // from the API is not an improvement on what the shop typed.
+                    canonical = city.copy(
+                        name = lookup.info.name.ifBlank { city.name },
+                        latitude = lookup.info.location.latitude,
+                        longitude = lookup.info.location.longitude
+                    ),
                     checked = true
                 )
 
@@ -98,5 +106,5 @@ fun List<CityResolution>.problems(): List<CityResolution> = filterNot { it.isCle
  * Order is preserved because it is the order the van drives, and it is what
  * [com.mtdevelopment.delivery.domain.model.DeliveryPath.locations] is aligned with.
  */
-fun List<CityResolution>.withCanonicalNames(): List<DeliveryCity> =
+fun List<CityResolution>.withCanonicalCities(): List<DeliveryCity> =
     map { it.canonical ?: it.submitted }

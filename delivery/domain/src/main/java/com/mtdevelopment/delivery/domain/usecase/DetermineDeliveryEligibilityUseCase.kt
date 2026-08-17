@@ -134,7 +134,12 @@ class DetermineDeliveryEligibilityUseCase {
 
         for (path in paths) {
             path.cities.forEachIndexed { index, city ->
-                val cityLocation = path.locations?.getOrNull(index)
+                // The city's own coordinate first, and `locations` only as a fallback for paths
+                // cached before the coordinate travelled with the city. Reading the parallel list
+                // by index is the fragile half: it is a positional mirror of `cities`, so anything
+                // producing a shorter one silently attributes the wrong center — and therefore the
+                // wrong pickup distance — to every city after the gap.
+                val cityLocation = city.location ?: path.locations?.getOrNull(index)
 
                 if (userLocation != null && cityLocation != null) {
                     val distance = calculateDistance(
