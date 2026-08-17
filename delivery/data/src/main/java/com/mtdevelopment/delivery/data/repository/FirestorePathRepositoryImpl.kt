@@ -6,6 +6,7 @@ import com.mtdevelopment.delivery.data.source.remote.FirestoreDeliveryDataSource
 import com.mtdevelopment.delivery.data.source.remote.OpenRouteDataSource
 import com.mtdevelopment.delivery.domain.model.DeliveryPath
 import com.mtdevelopment.delivery.domain.repository.AddressApiRepository
+import com.mtdevelopment.delivery.domain.repository.PathFetchOutcome
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -26,21 +27,31 @@ class FirestorePathRepositoryImpl(
 
     /**
      * Fetches all delivery paths and enriches them with geographic data.
-     * 
+     *
      * Orchestration Logic:
      * 1. Fetches raw path data from Firestore.
      * 2. For each path, launches asynchronous geocoding requests for all covered cities.
      * 3. Awaits geocoding results to establish the geographic center of the path.
      * 4. If [withGeoJson] is true, fetches the driving route (geometry) from OpenRouteService.
-     * 5. Filters out any paths where geocoding failed to ensure data integrity.
+     * 5. Drops any path where a city failed to geocode — but reports it, see below.
+     *
+     * A dropped path is **not** the same fact as a deleted path, so the two travel separately in
+     * [PathFetchOutcome]: `remoteIds` carries every document Firestore listed, and `degraded` says
+     * the picture is incomplete. Enrichment is all-or-nothing per path on purpose:
+     * [DeliveryPath.locations] is positionally aligned with `cities` and
+     * `DetermineDeliveryEligibilityUseCase` indexes one by the other, so a path missing one city's
+     * coordinate would silently attribute the wrong center to every city after it.
      */
     override fun getAllDeliveryPaths(
         withGeoJson: Boolean,
-        onSuccess: (List<DeliveryPath?>) -> Unit,
+        onSuccess: (PathFetchOutcome) -> Unit,
         onFailure: () -> Unit
     ) {
         firestore.getAllDeliveryPaths(onSuccess = { pathList ->
             CoroutineScope(Dispatchers.IO).launch {
+                // Captured before any filtering: this is the "does the shop still have this
+                // tournée" answer, and the only thing the cache cleanup may act on.
+                val remoteIds = pathList.map { it.id }.toSet()
                 // Prepare data for reverse geocoding. Cities come from `city_entries` when present,
                 // otherwise from the legacy parallel arrays (see DataDeliveryPathsResponse).
                 val pathsWithCities = pathList.mapNotNull { path ->
@@ -77,17 +88,15 @@ class FirestorePathRepositoryImpl(
                                 cityInfo?.location?.let { Pair(it.latitude, it.longitude) }
                             }
 
-                            // Get GeoJson only if requested and locations are available
+                            // Get GeoJson only if requested and locations are available.
+                            // A missing road line is a degraded rendering, not a failed load: the
+                            // path is perfectly usable without it, only its polyline is absent. It
+                            // used to call onFailure here AND still return the path through
+                            // onSuccess, so both callbacks fired and the caller raced itself into
+                            // showing an error over a correctly loaded list.
                             val geoJsonData = if (withGeoJson && locations.isNotEmpty()) {
                                 val result = openRouteService.getGeoJsonForLngLatList(locations)
-
-                                if (result is NetWorkResult.Error) {
-                                    onFailure.invoke()
-                                    null
-                                } else {
-                                    (result as? NetWorkResult.Success)?.data
-                                }
-
+                                (result as? NetWorkResult.Success)?.data
                             } else {
                                 null // No GeoJson requested or no locations
                             }
@@ -120,7 +129,15 @@ class FirestorePathRepositoryImpl(
                 if (finalPaths.isEmpty()) {
                     onFailure.invoke()
                 } else {
-                    onSuccess.invoke(finalPaths)
+                    onSuccess.invoke(
+                        PathFetchOutcome(
+                            paths = finalPaths,
+                            remoteIds = remoteIds,
+                            // Anything Firestore listed but we could not rebuild — a city that
+                            // failed to geocode, or a document carrying no city at all.
+                            degraded = finalPaths.size < remoteIds.size
+                        )
+                    )
                 }
             }
         }, onFailure = onFailure)
