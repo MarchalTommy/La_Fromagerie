@@ -120,19 +120,26 @@ carries no information, and nothing downstream can tell the routes apart — rev
 the `@Serializable` DTO. Unknown/newer status values from a future app version degrade to
 `PENDING` rather than crashing — a forward-compat safety net; preserve it.
 
-### 2.3 `delivery_paths`  — `city_entries` is canonical (reshaped 2026-07-29, PR #59; unchanged by PR #60/#61)
+### 2.3 `delivery_paths`  — `city_entries` is canonical (reshaped 2026-07-29, PR #59; unchanged by PR #60/#61; gained `lat`/`lng` 2026-08-17, PR #72)
 
 A path covers a set of cities, and **each city may carry its own street allow-list** so two
 paths can split one city between them by street. That per-(path, city) scoping is the whole
 point of the shape — see `fromagerie-delivery-logistics-reference` for the matching rules it
 feeds.
 
+⚠️ **`city` is compared for equality, not searched.** The customer matcher runs `isSameCity`
+(normalize, then `==`), while geocoding runs a *fuzzy* search that will happily rescue a typo. A
+misspelled commune therefore builds a perfectly working path and map while silently excluding
+every one of its residents. Three real cases sat in the Friday document for months — see the
+commune-spelling trap in `fromagerie-delivery-logistics-reference`. Since PR #72 the admin editor
+writes back the spelling the address API returns, so new writes are canonical by construction.
+
 | Field | Type | Notes |
 |---|---|---|
 | `path_name` | String | |
 | `delivery_day` | String | a `DayOfWeek` enum name |
 | `delivery_frequency` | String | `WEEKLY` / `BIWEEKLY_EVEN` / `BIWEEKLY_ODD` |
-| `city_entries` | List&lt;Map&gt; | **canonical.** Each entry: `city` (String), `postcode` (Int), `streets` (List&lt;String&gt;). Empty/absent `streets` = the path serves the whole city. |
+| `city_entries` | List&lt;Map&gt; | **canonical.** Each entry: `city` (String), `postcode` (Int), `streets` (List&lt;String&gt;), and optional `lat`/`lng` (Double). Empty/absent `streets` = the path serves the whole city. Absent `lat`/`lng` = the center was never resolved, and the reader geocodes that city on the fly. |
 | `cities` | List&lt;String&gt; | legacy parallel array, still written — see below |
 | `postcodes` | List&lt;Int&gt; | legacy parallel array, still written — see below |
 
@@ -274,13 +281,13 @@ also bump the timestamp.** (This is why the admin datasource pairs writes with
 
 ## 5. Room caches (the local mirror)
 
-There is **one** Room `@Database`: `FromagerieDatabase` (in `app`, schema **version 6** as of
-2026-07-29), with entities:
+There is **one** Room `@Database`: `FromagerieDatabase` (in `app`, schema **version 7** as of
+2026-08-17), with entities:
 
 | Entity | Table | Columns |
 |---|---|---|
 | `ProductEntity` (`home/data`) | `products` | `id`, `name`, `priceInCents` (Long), `imageUrl`, `type`, `description`, `allergens`, `isAvailable` |
-| `PathEntity` (`delivery/data`) | `paths` | `id`, `name`, `availableCities` (Map&lt;String,Int&gt;), `cityStreets` (Map&lt;String,List&lt;String&gt;&gt;), `locations` (List&lt;Coordinate&gt;), `deliveryDay`, `deliveryFrequency`, `geojson` (String) |
+| `PathEntity` (`delivery/data`) | `paths` | `id`, `name`, `availableCities` (Map&lt;String,Int&gt;), `cityStreets` (Map&lt;String,List&lt;String&gt;&gt;), `cityCoordinates` (Map&lt;String,Coordinate&gt;), `locations` (List&lt;Coordinate&gt;), `deliveryDay`, `deliveryFrequency`, `geojson` (String) |
 
 ⚠️ **Room column names are the Kotlin property names, NOT the `@SerialName` values.**
 `PathEntity` carries both annotations — `@SerialName("cities")` sits on a property called
@@ -297,13 +304,19 @@ actual DB and DAOs come from `FromagerieDatabase` (`db.homeDao`, `db.deliveryDao
 
 ### Migrations — real ones, with the destructive fallback still armed behind them
 
-`AppModule.provideDataBase` registers `.addMigrations(MIGRATION_4_5, MIGRATION_5_6)` **and**
-`.fallbackToDestructiveMigration(true)`. Both live in `FromagerieDatabase.kt`:
+`AppModule.provideDataBase` registers `.addMigrations(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)`
+**and** `.fallbackToDestructiveMigration(true)`. All three live in `FromagerieDatabase.kt`:
 
 | Migration | Does |
 |---|---|
 | `MIGRATION_4_5` | `ALTER TABLE paths ADD COLUMN deliveryFrequency TEXT NOT NULL DEFAULT 'WEEKLY'` |
 | `MIGRATION_5_6` | `ALTER TABLE paths ADD COLUMN cityStreets TEXT NOT NULL DEFAULT '{}'` (2026-07-29, PR #59) |
+| `MIGRATION_6_7` | `ALTER TABLE paths ADD COLUMN cityCoordinates TEXT NOT NULL DEFAULT '{}'` (2026-08-17, PR #72) |
+
+**Why `DEFAULT '{}'` does not trip Room's schema validation**, despite the entity declaring no
+`@ColumnInfo(defaultValue = …)`: Room only compares a column's default when the **entity** side
+declares one. A default that exists solely in the migrated table is not a mismatch. `MIGRATION_5_6`
+has shipped on this exact pattern since 2026-07-29, which is the evidence — not the theory.
 
 The fallback is a **safety net for unhandled version jumps, not the intended path**. Prefer
 writing a real additive migration: the cache being wiped is not harmless in practice — a first
@@ -374,7 +387,8 @@ data classes; test the `toX()/fromX()` mappers), not a live Firestore write.
 | status writers | `grep -rn 'OrderStatus\.' . \| grep '\.kt:' \| grep -v /build/ \| grep -v 'src/test\|enum class'` |
 | PREPARED/IN_DELIVERY unused | `grep -rn 'OrderStatus\.\(PREPARED\|IN_DELIVERY\)' . \| grep '\.kt' \| grep -v /build/ \| grep -v enum` (no writers = still vestigial) |
 | cache-invalidation logic | read `home/domain/.../GetLastFirestoreDatabaseUpdateUseCase.kt` |
-| Room `@Database` version/entities/migrations | `grep -n '@Database\|version =\|^val MIGRATION\|class .*Converter' app/src/main/java/com/mtdevelopment/lafromagerie/FromagerieDatabase.kt; grep -n 'addMigrations\|fallbackToDestructive' app/src/main/java/com/mtdevelopment/lafromagerie/di/AppModule.kt` (expect version 6 + `MIGRATION_4_5`, `MIGRATION_5_6`) |
+| Room `@Database` version/entities/migrations | `grep -n '@Database\|version =\|^val MIGRATION\|class .*Converter' app/src/main/java/com/mtdevelopment/lafromagerie/FromagerieDatabase.kt; grep -n 'addMigrations\|fallbackToDestructive' app/src/main/java/com/mtdevelopment/lafromagerie/di/AppModule.kt` (expect version 7 + `MIGRATION_4_5`, `MIGRATION_5_6`, `MIGRATION_6_7`) |
+| Room agrees with the migration on the column name | `f=$(find app/build/generated -name 'FromagerieDatabase_Impl*' \| head -1); grep -n 'CREATE TABLE.*paths' "$f"` (the generated `CREATE TABLE` is the authority; a column named there but not in the `ALTER TABLE` is a runtime migration crash) |
 | Room columns = Kotlin property names | `grep -n 'val [a-zA-Z]*:' delivery/data/src/main/java/com/mtdevelopment/delivery/data/model/entity/PathEntity.kt` and check the `ALTER TABLE` statements name those, not the `@SerialName`s |
 | Home/Delivery DB are facades | `head -10 home/data/.../source/local/HomeDatabase.kt` (no `@Database` = still a wrapper) |
 

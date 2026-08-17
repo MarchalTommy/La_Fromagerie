@@ -128,6 +128,11 @@ As of 2026-07-06, `./gradlew testClientDebugUnitTest --continue` has **2 real fa
 
 ## 14. The poisoned delivery-path cache (offline first launch)
 
+> **See also §16**, which is the same shape one level down: this entry fixed "the whole list came
+> back empty", §16 fixed "one path came back missing". The fix here did not cover that, because a
+> single survivor makes the list non-empty.
+
+
 - **Symptom:** a valid customer address is rejected with "L'adresse sélectionnée ne semble pas
   sur un parcours de livraison", even though the city IS on a path. Permanent: it survives app
   restarts and does **not** repair itself. No error is ever shown to the customer. Reported
@@ -192,6 +197,62 @@ evidence bar is the flow on a device — see `fromagerie-validation-and-qa`'s ev
 cheapest tell in all three rounds would have been the same question: *has anyone seen this
 render?*
 
+## 16. The Friday path that disappeared from the admin carousel (2026-08-17, PR #72)
+
+Reported as "le parcours du vendredi n'apparaît pas toujours" — the card came and went on its own.
+Two independent things were true at once, and the report did not distinguish them, so **the first
+useful move was asking which one was observed**, not reading code:
+
+- `delivery_frequency` is `BIWEEKLY_EVEN`, so the *date* is legitimately absent one week in two;
+- the *card* really did vanish from the admin path carousel.
+
+It was the second. Do not skip that fork if this is ever reported again.
+
+**The mechanism.** Reading a path takes two steps that fail independently — Firestore lists the
+documents, then each is enriched with the center of every city it covers. The cache cleanup
+deleted any locally cached path absent from the **enriched** list, which answers a different
+question than the one it was asking. So a single geocoding timeout meant: path dropped from the
+enriched list → deleted from Room → refresh flag cleared in the same breath (the list was
+non-empty, so it looked like a success) → nothing ever re-fetched it. Invisible until
+`path_timestamp` moved.
+
+**Why the Friday one and not the other.** Enrichment is all-or-nothing per path, and "Le Haut" has
+**20 cities**. Survival is `(1-p)^20`: at a 3% per-call failure rate it loses about half its loads,
+where a 6-city path loses 17%. Nothing protected those calls — no explicit timeout (CIO defaults to
+a 5s connect), no retry, no bound on the 20 simultaneous connections. The size of the path *was*
+the bug's trigger.
+
+**The measurement that settled it**, and the one to repeat: all 20 cities were replayed against the
+live Géoplateforme. All 20 resolved. That ruled out a broken configuration and left transient
+network as the only explanation — before a line of code was changed.
+
+**The trap inside the fix.** The obvious repair — let a partially-enriched path through instead of
+dropping it — is *wrong* and would have introduced a subtler bug. `DeliveryPath.locations` is a
+positional mirror of `cities`, and `DetermineDeliveryEligibilityUseCase` reads
+`path.locations?.getOrNull(index)`, so a path missing one city's coordinate attributes the wrong
+center, and the wrong pickup distance, to every city after the gap. Enrichment therefore stays
+all-or-nothing; the path is instead **rescued from the cache**, whose rows are internally
+consistent. The parallel array is the hazard, which is why PR #72 moved the coordinate onto
+`DeliveryCity` itself.
+
+**Three ordering defects found in the same file, all timing-dependent:** N independent `launch`es
+racing the flag write; `RoomDeliveryRepository.getPaths` collecting a Room `Flow` that never
+completes, replaying its delete loop against a frozen id set on every write to the table; and an
+OpenRouteService error calling `onFailure` *and* returning the path through `onSuccess`.
+
+**The unrelated bug the investigation surfaced.** Three cities of the same document were stored as
+`Malpa`, `Oye-et-Palets` and `Larbergement-sainte-marie`. Geocoding is *fuzzy* and rescued all
+three, so the path built and the map drew; `isSameCity` compares for **equality** and rejected
+every resident of those communes. Legacy data from the free-text field PR #61 removed. Mechanics in
+`fromagerie-delivery-logistics-reference` (the commune-spelling trap).
+
+**What to take from it:** a cache cleanup is a *deletion*, and deletion must be keyed on the fact
+that actually authorises it. "Absent from the list I just built" and "the shop deleted it" are
+different facts; any code that conflates them will delete real data the first time an upstream call
+is slow. The same shape produced §14 a month earlier at whole-list granularity — this was the
+per-path instance of it, and the §14 fix (empty ⇒ failure) did not cover it because one survivor
+made the list non-empty. **If you are about to write "not in `fetched`, so delete", stop.**
+
 ## When NOT to use this skill
 
 - You need current payment mechanics (not history) → **fromagerie-payments-reference**
@@ -203,9 +264,11 @@ render?*
 
 ## Provenance and maintenance
 
-All hashes and branch counts verified 2026-07-06 (HEAD `b97eb83`). Re-verification one-liners:
+All hashes and branch counts verified 2026-07-06 (HEAD `b97eb83`), **except §16 (2026-08-17,
+PR #72)**. Re-verification one-liners:
 
 - Any entry's commit: `git show <hash> --stat`
+- §16 fix still in place: `grep -n "remoteIds" delivery/domain/src/main/java/com/mtdevelopment/delivery/domain/usecase/GetAllDeliveryPathsUseCase.kt` (deletion keyed on anything else is the regression) and `./gradlew :delivery:domain:testDebugUnitTest` (`GetAllDeliveryPathsUseCaseTest`, the "path still listed by firestore is never deleted" case)
 - Full history sweep: `git log --all --oneline | head -150`
 - Branch graveyard counts: `for b in feature/payment_last_branch refact_to_state; do git rev-list --count origin/main..origin/$b; done` (expect 3 and 2; anything else means the graveyard moved)
 - AGP version of record: `grep '^agp' gradle/libs.versions.toml`
