@@ -91,6 +91,8 @@ import com.mtdevelopment.lafromagerie.MIGRATION_5_6
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.plugins.DefaultRequest
+import io.ktor.client.plugins.HttpRequestRetry
+import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.auth.Auth
 import io.ktor.client.plugins.auth.providers.BearerTokens
 import io.ktor.client.plugins.auth.providers.bearer
@@ -102,6 +104,7 @@ import io.ktor.client.plugins.logging.Logging
 import io.ktor.http.HttpHeaders
 import io.ktor.http.URLProtocol
 import io.ktor.serialization.kotlinx.json.json
+import java.io.IOException
 import kotlinx.serialization.json.Json
 import org.koin.androidx.viewmodel.dsl.viewModel
 import org.koin.androidx.viewmodel.dsl.viewModelOf
@@ -330,6 +333,15 @@ val provideOpenRouteDatasource = module {
 
 /**
  * Ktor client for the French Government Address API.
+ *
+ * The only client that gets retries, and it needs them: reading one delivery path reverse-geocodes
+ * every city it covers, and a path is unusable unless **all** of them answer. On the shop's biggest
+ * tournée that is 20 calls whose results are ANDed together, so a per-call failure rate of 3% loses
+ * the path about half the time — which is exactly how its card used to vanish from the admin
+ * carousel. Three attempts push that back under a tenth of a percent.
+ *
+ * Timeouts are spelled out because CIO's default connect timeout is 5s, and the shop drives this
+ * app through rural Doubs and Jura on mobile data.
  */
 val provideAddressApiDataSource = module {
     val client = HttpClient(CIO) {
@@ -338,6 +350,19 @@ val provideAddressApiDataSource = module {
                 protocol = URLProtocol.HTTPS
                 host = ADDRESS_API_BASE_URL_WITHOUT_HTTPS
             }
+        }
+        install(HttpTimeout) {
+            connectTimeoutMillis = 10_000
+            requestTimeoutMillis = 20_000
+        }
+        install(HttpRequestRetry) {
+            // 429 included on purpose: the burst of parallel city lookups is what would trip
+            // the Géoplateforme's rate limit, and backing off is the correct answer to it.
+            retryIf(maxRetries = 3) { _, response ->
+                response.status.value == 429 || response.status.value >= 500
+            }
+            retryOnExceptionIf(maxRetries = 3) { _, cause -> cause is IOException }
+            exponentialDelay()
         }
         install(Logging) {
             logger = Logger.ANDROID
@@ -362,6 +387,10 @@ val provideAddressApiDataSource = module {
 
 /**
  * Ktor client for Address Autocomplete suggestions.
+ *
+ * Timeouts but deliberately no retries: this one fires while the user types, behind a 300ms
+ * debounce, and a stale suggestion list arriving after two backoffs is worse than none. The next
+ * keystroke is the retry.
  */
 val provideAutoCompleteApiDataSource = module {
     val client = HttpClient(CIO) {
@@ -370,6 +399,10 @@ val provideAutoCompleteApiDataSource = module {
                 protocol = URLProtocol.HTTPS
                 host = ADDRESS_API_BASE_URL_WITHOUT_HTTPS
             }
+        }
+        install(HttpTimeout) {
+            connectTimeoutMillis = 10_000
+            requestTimeoutMillis = 15_000
         }
         install(Logging) {
             logger = Logger.ANDROID

@@ -11,6 +11,19 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
+
+/**
+ * How many city lookups may be in flight at once, across all paths.
+ *
+ * Unbounded parallelism opened one connection per city of every path simultaneously — north of
+ * twenty against a single host — which is both what makes the Géoplateforme answer with 429 and
+ * what makes every one of those calls slow enough to time out together on mobile data. Since a path
+ * needs *all* of its cities to resolve, correlated failures are the expensive kind. Six keeps the
+ * whole fetch well under a couple of seconds while behaving like one client instead of a swarm.
+ */
+private const val MAX_PARALLEL_CITY_LOOKUPS = 6
 
 /**
  * Implementation of [FirestorePathRepository] that reconstructs a full [DeliveryPath]
@@ -58,14 +71,19 @@ class FirestorePathRepositoryImpl(
                     path.toDeliveryCities().takeIf { it.isNotEmpty() }?.let { path to it }
                 }
 
+                // Shared across every path, so the bound is on the host and not on one tournée.
+                val lookupLimiter = Semaphore(MAX_PARALLEL_CITY_LOOKUPS)
+
                 val deferredCityInfoList = pathsWithCities.map { (path, deliveryCities) ->
                     // Launch async calls for reverse geocoding in parallel for efficiency
                     val deferredCities = deliveryCities.map { city ->
                         async {
-                            addressApiRepository.reverseGeocodeCity(
-                                name = city.name,
-                                zip = city.postcode
-                            )
+                            lookupLimiter.withPermit {
+                                addressApiRepository.reverseGeocodeCity(
+                                    name = city.name,
+                                    zip = city.postcode
+                                )
+                            }
                         }
                     }
                     // Associate necessary info for final reconstruction
