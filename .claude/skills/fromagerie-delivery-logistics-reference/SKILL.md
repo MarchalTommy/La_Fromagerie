@@ -53,7 +53,7 @@ with live route guidance. All facts verified 2026-07-06 against branch `claude/d
 | `path_name` | `path_name` | `String` |
 | `delivery_day` | `deliveryDay` | `String` (a `DayOfWeek` enum name, e.g. `"MONDAY"`) |
 | `delivery_frequency` | `deliveryFrequency` | `String`, defaults `"WEEKLY"` |
-| `city_entries` | `cityEntries` | `List<DataDeliveryCityResponse>` — **canonical**; each has `city`, `postcode`, `streets` |
+| `city_entries` | `cityEntries` | `List<DataDeliveryCityResponse>` — **canonical**; each has `city`, `postcode`, `streets`, and optional `lat`/`lng` |
 | `cities` | `cities` | `List<String>` — legacy parallel array |
 | `postcodes` | `postcodes` | `List<Int>` — legacy parallel array |
 | document id | `id` | used as-is |
@@ -71,10 +71,26 @@ must stay the same length and in matching order**, or city↔postcode pairing si
 ### Path enrichment pipeline (`FirestorePathRepositoryImpl.getAllDeliveryPaths`)
 
 1. Read raw path docs from Firestore (above).
-2. For every city in every path, reverse-geocode `(cityName, zip)` → lat/lng via `AddressApiRepository.reverseGeocodeCity()` (gouv address API), in parallel per path (`async`/`await`).
-3. If **any** city in a path fails to geocode, that whole path is dropped from the result (`mapNotNull` returning `null`). A path can silently disappear from the picker if one city's name/zip pair doesn't resolve — check this first if a path is "missing" for a customer.
-4. If `withGeoJson = true` (admin map only, see below), fetch road-line geometry from OpenRouteService using the resolved city coordinates.
-5. **An empty result is always reported as `onFailure`** (changed 2026-07-29). Whether the emptiness comes from Firestore returning no document, from every path being dropped at step 3, or from every document resolving to zero cities (neither `city_entries` nor the legacy arrays), "zero paths" is never a legitimate answer — the shop always has at least one. Reporting success on an empty list used to poison the cache permanently; see fromagerie-failure-archaeology §14 before relaxing this. A **partial** result (some paths dropped, at least one survivor) is still returned via `onSuccess`, unchanged.
+2. For every city **that has no stored `lat`/`lng`**, reverse-geocode `(cityName, zip)` via `AddressApiRepository.reverseGeocodeCity()` (Géoplateforme), in parallel, bounded by a shared `Semaphore(MAX_PARALLEL_CITY_LOOKUPS = 6)`. A city whose center is already in the document resolves through a `CompletableDeferred` and costs nothing. **Once the shop has re-saved its paths, this step makes no network call at all** (PR #72, 2026-08-17).
+3. If **any** city in a path still fails to resolve, that whole path is dropped from the enriched list (`mapNotNull` returning `null`). All-or-nothing per path is deliberate, not laziness: `locations` is a positional mirror of `cities` and `DetermineDeliveryEligibilityUseCase` indexes one by the other, so a path missing one coordinate would attribute the wrong center to every city after the gap.
+4. If `withGeoJson = true` (admin map only, see below), fetch road-line geometry from OpenRouteService using the resolved city coordinates. **An OpenRouteService error does NOT fail the load** — a missing polyline is a degraded rendering. It used to call `onFailure` *and* return the path through `onSuccess`, firing both callbacks (fixed PR #72).
+5. Each resolved center is copied back onto its own `DeliveryCity`, so the coordinate travels with the thing it describes — that is what Room persists and what the matcher reads.
+6. **An empty result is always reported as `onFailure`** (changed 2026-07-29). Whether the emptiness comes from Firestore returning no document, from every path being dropped at step 3, or from every document resolving to zero cities, "zero paths" is never a legitimate answer — the shop always has at least one. See fromagerie-failure-archaeology §14 before relaxing this.
+7. **A partial result reports `onSuccess` with a [`PathFetchOutcome`](#the-two-facts-a-fetch-establishes), not a bare list** (PR #72).
+
+#### The two facts a fetch establishes
+
+`getAllDeliveryPaths` returns `PathFetchOutcome(paths, remoteIds, degraded)` because "Firestore no
+longer lists this tournée" and "we could not rebuild it just now" are different facts with opposite
+consequences, and collapsing them into one list is what made the admin's Friday card disappear:
+
+| Field | Meaning | Who acts on it |
+|---|---|---|
+| `paths` | Fully enriched paths. May be a strict subset of `remoteIds`. | The UI |
+| `remoteIds` | **Every** document id the collection listed, enriched or not. | The cache cleanup — **the only legitimate basis for deleting a row** |
+| `degraded` | At least one listed document could not be rebuilt. | The refresh flag: stays set so the next load retries |
+
+See fromagerie-failure-archaeology §16 for the full story before touching any of this.
 
 > **Firestore offline trap, worth internalizing:** `collection(...).get()` with the default
 > source does **not** fail when the device is offline. It resolves from Firestore's own local
@@ -170,6 +186,33 @@ Two things to keep straight when editing these calls:
   `URLBuilder.host` takes an authority — a slash in it yields a request that never arrives. This
   is exactly how the old `AUTOCOMPLETE_API_BASE_URL_WITHOUT_HTTPS = "data.geopf.fr/geocodage"`
   was malformed. Hence the separate `GEOCODAGE_PATH_PREFIX` constant.
+
+**Client resilience settings (`AppModule.kt`, PR #72), and why they differ:**
+
+| Client | Timeouts | Retries |
+|---|---|---|
+| address (`provideAddressApiDataSource`) | connect 10s, request 20s | **3**, exponential backoff, on `IOException` / 5xx / **429** |
+| autocomplete (`provideAutoCompleteApiDataSource`) | connect 10s, request 15s | **none, deliberately** |
+
+The address client is the one that needs retries: building a path ANDs the results of one call per
+city, so a 3% per-call failure rate loses a 20-city tournée about half the time. The autocomplete
+client fires while the user types behind a 300ms debounce — a suggestion list arriving after two
+backoffs is worse than none, and the next keystroke is the retry. 429 is retried because the burst
+of parallel city lookups is itself what trips the rate limit; the `Semaphore(6)` in
+`FirestorePathRepositoryImpl` exists for the same reason. CIO's *default* connect timeout is 5s,
+which is why these are spelled out — the shop drives this app through rural Doubs and Jura.
+
+⚠️ **A query matching no commune answers 200 with an empty `features` list.** That is not a
+`NetWorkResult.Error`, so it slips past the data source's try/catch — `features.first()` used to
+throw `NoSuchElementException` inside an `async` of a scope with no exception handler, i.e. it
+crashed the app rather than dropping one city. Both `reverseGeocodeCity` and `geocodeAddress` use
+`firstOrNull` (PR #72). Keep it that way.
+
+**`lookupCommune` vs `reverseGeocodeCity`.** Same request, different answer shape.
+`reverseGeocodeCity` returns `CityInformation?` and collapses "no such commune" into "could not
+reach the API" — right for building a path, useless for judging the shop's data.
+`lookupCommune` returns `CommuneLookup.Found` / `NotFound` / `Unreachable`, which is what lets the
+path editor accuse a spelling only when the API actually answered.
 
 Note the hardcoded `terr=25%2C39` in the autocomplete query — this restricts results to French department codes 25 and 39 (Doubs and Jura), matching the shop's real service area. **UNVERIFIED (as of 2026-07-06): whether this hardcoded restriction is intentional business logic or an oversight** — if the shop ever expands its delivery zone, this line silently keeps autocomplete scoped to those two departments regardless of what `delivery_paths` says.
 
@@ -279,13 +322,23 @@ identity, schedule, cities and a comma-separated street field into one scrolling
   because an empty list *is* how whole-commune coverage is expressed — letting the two disagree
   would save a path whose meaning differs from what it reads.
 - **This is still the only UI that writes street restrictions**; a path must be re-saved here for
-  its `city_entries` to exist in Firestore.
+  its `city_entries` to exist in Firestore. Since PR #72 the same is true of the commune centers
+  (`lat`/`lng`) — re-saving a path is what takes it off the geocode-on-every-read path.
 - Cities reorder with up/down arrows (deliberately not drag-and-drop: the order is the order the
   van drives and `locations` is aligned with it positionally). New city via
   `CityPostalCodeAutocompleteTextField`.
 - `deliveryDay` is a single `FilterChip` selection over `DayOfWeek.entries` — **only one weekday per path** (matches `DeliveryPath.deliveryDay: String`, a single value not a set).
 - Save is enabled only when name is non-blank, cities non-empty, and deliveryDay non-blank. The
   delete row appears **only when editing**, never while creating.
+- **Saving resolves every city through the address API first** (`ResolveDeliveryCitiesUseCase`, via
+  `DeliveryViewModel.resolveCities`) and writes back the API's own spelling plus its center. A
+  commune the API answers `NotFound` for **blocks the save**, naming the offender; a commune it
+  could not reach is written as typed, because an unreachable API must not stop the shop editing
+  its tournées. Only the name and the coordinates are taken — the postcode and the street list are
+  the shop's deliberate choices and are never rewritten. See "The commune-spelling trap" below.
+- **A banner at the top of the editor** reports cities whose stored spelling disagrees with the
+  API, with one tap to fix them. Checked once when the path opens, not on every draft change: a
+  city added through the picker already carries the API's spelling.
 - Writes go `AdminViewModel.addNewDeliveryPath` / `updateDeliveryPath` / `deleteDeliveryPath` →
   `FirebaseAdminRepositoryImpl` → `FirestoreAdminDatasource` → `delivery_paths`
   (`admin/data/src/main/java/com/mtdevelopment/admin/data/source/FirestoreAdminDatasource.kt`).
@@ -293,6 +346,42 @@ identity, schedule, cities and a comma-separated street field into one scrolling
   pops; the list screen sees it and calls `loadAdminData(forceRefresh = true)` once, bypassing the
   Room cache. The two screens own separate ViewModel instances (one per nav entry), which is why
   the flag exists at all — see Data caching below for why `forceRefresh` matters here.
+
+### The commune-spelling trap (found 2026-08-17, fixed PR #72)
+
+**Two systems read `DeliveryCity.name` and they disagree about how strict they are.** Geocoding
+searches *fuzzily*, so `Malpa` resolves to Malpas and the path builds, the map draws, everything
+looks right. The customer matcher compares for **equality** after normalization (`isSameCity` →
+`normalizeCityName`), and `"malpa" != "malpas"` — so every resident of that commune is told their
+address is not on a delivery path.
+
+The failure is silent on the side that would reveal it and invisible on the side that would fix it.
+That is why three cities of the real Friday tournée "Le Haut" sat misspelled for months:
+
+| Stored | Actual commune |
+|---|---|
+| `Malpa` | **Malpas** |
+| `Oye-et-Palets` | **Oye-et-Pallet** |
+| `Larbergement-sainte-marie` | **Labergement-Sainte-Marie** |
+
+All three came from the free-text city field of the path *dialog* that PR #61 replaced. The current
+picker never produced them — it only sets `pendingCity` from a chosen suggestion.
+
+⚠️ **The autocomplete returns hamlets, and ranks them first.** It is queried with
+`type=StreetAddress`, so it answers with *places*, and a place carries the commune containing it.
+Typing `Malpa` really returns:
+
+```
+city='Villers-le-Lac'  fulltext='Malpas, 25130 Villers-le-Lac'   <- the hamlet Malpas
+city='Malpas'          fulltext='Malpas, 25160 Malpas'           <- the commune Malpas
+city='Besançon'        fulltext='chemin de malpas, 25000 Besançon'
+```
+
+The dropdown shows `fulltext`, so the first two lines both read "Malpas" while picking the first
+puts a town **30 km off the route** on the tournée. `communesOnly()`
+(`delivery/presentation/src/admin/.../model/CommuneSuggestions.kt`) keeps only suggestions whose
+place *is* its own commune. **Scoped to the admin city picker on purpose** — on the customer side a
+hamlet or a street IS the answer, and filtering there would reject good addresses.
 
 **Keyboard layout gotcha, learned twice.** `imePadding()` must sit on the scrolled column and
 **before** `verticalScroll` in the modifier chain: after it, it pads the content instead of
@@ -366,9 +455,29 @@ Given current GPS location and the cached optimized route, walks the waypoint li
 `GetAllDeliveryPathsUseCase` decides whether to hit Firestore or read the local Room cache:
 
 1. Check `sharedDatastore.shouldRefreshPaths` (a `Boolean` in the `shared_settings` DataStore, key `should_refresh_paths`, **defaults to `true`** if never set).
-2. If `true` (or `forceRefresh` passed by the caller): fetch from Firestore, persist every path to Room (`RoomDeliveryRepository.persistPath`), delete any local Room path whose id no longer appears in the fresh Firestore list (garbage-collect deleted paths), then flip the flag to `false`.
-3. If `false`: read straight from Room (`DeliveryDatabase` → `DeliveryDao`, table `paths`), no network call at all.
+2. If `true` (or `forceRefresh` passed by the caller), **in one coroutine, in this order** (PR #72 — they used to be N+1 independent `launch`es, so leaving the screen mid-flight could cancel a write after the flag had already been cleared):
+   1. persist every enriched path to Room, awaiting the writes;
+   2. delete local paths **whose id is absent from `PathFetchOutcome.remoteIds`** — i.e. only those Firestore genuinely stopped listing;
+   3. set the flag to `outcome.degraded`, so an incomplete fetch is never recorded as a synchronization;
+   4. emit the enriched paths **plus** any still-listed path served from the cache, so a transient failure does not make a tournée blink out of the UI for the rest of the session.
+3. If `false`: read straight from Room via `getPathsOnce()`, no network call at all.
 4. On Firestore failure during step 2: the flag is explicitly **re-set to `true`** so the next attempt retries from network rather than silently falling back to (possibly empty) Room.
+
+⚠️ **Never key the deletion on the enriched list.** Doing so conflates "the shop deleted this
+tournée" with "one of its cities timed out", and it is exactly the bug in archaeology §16. The
+distinction is the whole reason `PathFetchOutcome` exists.
+
+⚠️ **`RoomDeliveryRepository` exposes only `getPathsOnce()`.** The old `getPaths(onSuccess)`
+collected a Room `Flow` that never completes — it re-invoked its callback on every write to the
+table, which made the cleanup replay its delete loop against a frozen id set and could remove a
+path a later fetch had just re-inserted. It was deleted rather than left available (PR #72). If you
+need to observe the table, add a genuinely-streaming method with a name that says so.
+
+⚠️ **While any path fails to enrich, `shouldRefreshPaths` stays `true`**, so every screen open
+retries the network instead of reading the cache. Deliberate — marking the cache synchronized on an
+incomplete view is the bug — and self-clearing once the coordinates are stored (step 2 of the
+enrichment pipeline). Expect a chattier app in the window between a path breaking and the shop
+re-saving it.
 
 `shouldRefreshPaths` itself is flipped back to `true` by a **separate, unrelated mechanism**: `GetLastFirestoreDatabaseUpdateUseCase` (`home/domain/.../GetLastFirestoreDatabaseUpdateUseCase.kt`), which runs at app/home-screen load and compares two server-side timestamps against locally-stored ones:
 
@@ -390,13 +499,23 @@ which is what the `ALTER TABLE` statements in `FromagerieDatabase.kt` actually n
 | `name` | `String` | maps to `DeliveryPath.pathName` |
 | `availableCities` | `Map<String, Int>` | city name → postcode (`@SerialName("cities")`) |
 | `cityStreets` | `Map<String, List<String>>` | city name → its street allow-list; a city **absent from this map is served in full**. Added in schema v6 (`MIGRATION_5_6`, PR #59) |
-| `locations` | `List<Coordinate>` | geocoded lat/lng centers, **aligned positionally** with the city order |
+| `cityCoordinates` | `Map<String, Coordinate>` | city name → commune center; a city **absent from this map has no stored center** and is geocoded on the next refresh. Added in schema v7 (`MIGRATION_6_7`, PR #72) |
+| `locations` | `List<Coordinate>` | the same centers as a **positional mirror** of the city order, kept for `MapBoxComposable` and OpenRouteService |
 | `deliveryDay` | `String` | |
 | `deliveryFrequency` | `String` | added in schema v5 (`MIGRATION_4_5`) |
 | `geojson` | `String` | the whole `GeoJsonFeatureCollection` JSON-encoded as one text blob |
 
-`toPath()` rejoins the two maps into the domain `List<DeliveryCity>`; `toPathEntity()` splits
-them back, writing only the cities that actually have restrictions.
+`toPath()` rejoins the three maps into the domain `List<DeliveryCity>`; `toPathEntity()` splits
+them back, writing only the cities that actually have restrictions or a resolved center.
+
+⚠️ **`locations` is redundant with `cityCoordinates` and is the fragile copy.** It is a parallel
+array indexed by city position, and `DetermineDeliveryEligibilityUseCase` reads
+`path.locations?.getOrNull(index)` as a fallback — so anything producing a `locations` shorter than
+`cities` silently attributes the wrong center, and therefore the wrong pickup distance, to every
+city after the gap. Since PR #72 the matcher prefers `city.location` and only falls back to the
+indexed list for rows cached before v7. **Prefer `DeliveryCity.location` in new code**; retiring
+`locations` entirely is a worthwhile follow-up but belongs to its own change, because the map and
+the route service consume it directly.
 
 **Correction to the previous entry here (2026-07-29):** this skill used to warn that city
 ordering "is not guaranteed to round-trip identically through a Map". In practice it does — the
@@ -478,10 +597,18 @@ bug — but it is the first thing to check if a configured street split appears 
 
 All facts verified 2026-07-06 against the working tree (branch `claude/distracted-chaum-0986e4`),
 **except the path/city/street model, the eligibility matcher and the `PathEntity` schema
-(re-verified 2026-07-29, PR #59) and the resolution table, date building, address APIs and the
-whole "Path editing" section (re-verified 2026-07-30, PR #60/#61).** Re-verify drift-prone claims:
+(re-verified 2026-07-29, PR #59), the resolution table, date building, address APIs and the
+whole "Path editing" section (re-verified 2026-07-30, PR #60/#61), and the enrichment pipeline,
+`PathFetchOutcome`, the caching section, the `PathEntity` schema, the address-client settings and
+the commune-spelling trap (2026-08-17, PR #72).** Re-verify drift-prone claims:
 
-- Firestore field names for `delivery_paths`: `grep -n "path_name\|delivery_day\|city_entries\|postcodes" delivery/data/src/main/java/com/mtdevelopment/delivery/data/source/remote/FirestoreDeliveryDataSource.kt`
+- Firestore field names for `delivery_paths`: `grep -n "path_name\|delivery_day\|city_entries\|postcodes\|\"lat\"\|\"lng\"" delivery/data/src/main/java/com/mtdevelopment/delivery/data/source/remote/FirestoreDeliveryDataSource.kt`
+- Deletion still keyed on what Firestore listed, not on what enriched: `grep -n "remoteIds\|degraded" delivery/domain/src/main/java/com/mtdevelopment/delivery/domain/usecase/GetAllDeliveryPathsUseCase.kt` (a `deletePath` decided by the enriched list is archaeology §16 all over again)
+- The never-completing Room collector has not come back on the list read: `grep -n "getPathsOnce\|getAllPaths()" delivery/data/src/main/java/com/mtdevelopment/delivery/data/repository/RoomDeliveryRepositoryImpl.kt` (expect `getAllPaths().first()`; a `.collect` on `getAllPaths()` is the regression). Note `getPathById` still collects a Flow — pre-existing, same shape, untouched by PR #72 and worth the same treatment if it ever bites.
+- Address client still has timeouts, retries and the concurrency bound: `grep -n "HttpTimeout\|HttpRequestRetry\|MAX_PARALLEL_CITY_LOOKUPS" app/src/main/java/com/mtdevelopment/lafromagerie/di/AppModule.kt delivery/data/src/main/java/com/mtdevelopment/delivery/data/repository/FirestorePathRepositoryImpl.kt`
+- Empty-feature responses still cannot crash: `grep -n "first()\|firstOrNull()" delivery/data/src/main/java/com/mtdevelopment/delivery/data/repository/AddressApiRepositoryImpl.kt` (a bare `first()` is the crash)
+- Spelling gate and hamlet filter still wired: `./gradlew :delivery:domain:testDebugUnitTest :delivery:presentation:testAdminDebugUnitTest` (`ResolveDeliveryCitiesUseCaseTest`, `CommuneSuggestionsTest`)
+- The three real misspellings actually got fixed in prod (read-only, Firebase console): `delivery_paths` doc `gpic5PSDCzfbXmMmp9yJ` should read Malpas / Oye-et-Pallet / Labergement-Sainte-Marie
 - Streets still scoped per (path, city), not per path: `grep -n "streets" core/domain/src/main/java/com/mtdevelopment/core/model/DeliveryCity.kt` (a `streets` field reappearing on `DeliveryPath` itself is a regression)
 - Eligibility matcher still single-sourced: `grep -rln "DetermineDeliveryEligibilityUseCase" delivery/presentation/src --include='*.kt'` (quote the glob — zsh expands it otherwise; expect exactly `CustomerContent.kt` and `PermissionManagerComposable.kt`, and a third copy of the matching loop is the bug PR #59 removed)
 - Matching rules still hold: `./gradlew :delivery:domain:testDebugUnitTest` (`DetermineDeliveryEligibilityUseCaseTest` — one test per row of the resolution table — and `BuildSelectableDeliveryDatesUseCaseTest`)

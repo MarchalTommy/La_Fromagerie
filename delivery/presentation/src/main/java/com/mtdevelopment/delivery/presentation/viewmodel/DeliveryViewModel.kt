@@ -6,12 +6,15 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mtdevelopment.core.model.AutoCompleteSuggestion
+import com.mtdevelopment.core.model.DeliveryCity
 import com.mtdevelopment.core.model.UserInformation
 import com.mtdevelopment.core.usecase.GetAutocompleteSuggestionsUseCase
 import com.mtdevelopment.core.usecase.GetIsNetworkConnectedUseCase
 import com.mtdevelopment.core.usecase.SaveToDatastoreUseCase
+import com.mtdevelopment.delivery.domain.usecase.CityResolution
 import com.mtdevelopment.delivery.domain.usecase.DeliveryEligibility
 import com.mtdevelopment.delivery.domain.usecase.GetAllDeliveryPathsUseCase
+import com.mtdevelopment.delivery.domain.usecase.ResolveDeliveryCitiesUseCase
 import com.mtdevelopment.delivery.domain.usecase.GetStreetSuggestionsUseCase
 import com.mtdevelopment.delivery.domain.usecase.GetDeliveryPathUseCase
 import com.mtdevelopment.delivery.domain.usecase.GetUserInfoFromDatastoreUseCase
@@ -54,7 +57,8 @@ class DeliveryViewModel(
     private val getDeliveryPathsUseCase: GetDeliveryPathUseCase,
     private val getAllDeliveryPathsUseCase: GetAllDeliveryPathsUseCase,
     private val getAutocompleteSuggestionsUseCase: GetAutocompleteSuggestionsUseCase,
-    private val getStreetSuggestionsUseCase: GetStreetSuggestionsUseCase
+    private val getStreetSuggestionsUseCase: GetStreetSuggestionsUseCase,
+    private val resolveDeliveryCitiesUseCase: ResolveDeliveryCitiesUseCase
 ) : ViewModel(), KoinComponent {
 
     /**
@@ -512,6 +516,33 @@ class DeliveryViewModel(
     fun clearStreetSuggestions() {
         streetSearchJob?.cancel()
         deliveryUiDataState = deliveryUiDataState.copy(streetSuggestions = emptyList())
+    }
+
+    /**
+     * Checks a path's cities against the address API and hands back the canonical spelling of each.
+     *
+     * Admin-only, but it lives here alongside [loadAdminData] and [searchStreets] rather than in a
+     * ViewModel of its own: the path editor deliberately has none, and its city field already goes
+     * through this one.
+     *
+     * Never throws and never reports a misspelling it is not sure about — see
+     * [ResolveDeliveryCitiesUseCase]. On an outright failure the report comes back empty, which the
+     * editor reads as "nothing to say".
+     */
+    fun resolveCities(
+        cities: List<DeliveryCity>,
+        onResolved: (List<CityResolution>) -> Unit
+    ) {
+        if (cities.isEmpty()) {
+            onResolved(emptyList())
+            return
+        }
+        viewModelScope.launch {
+            onResolved(
+                runCatching { resolveDeliveryCitiesUseCase.invoke(cities) }
+                    .getOrDefault(emptyList())
+            )
+        }
     }
 
     fun updateEligibility(eligibility: DeliveryEligibility) {

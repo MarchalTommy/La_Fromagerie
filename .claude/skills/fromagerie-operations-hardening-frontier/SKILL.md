@@ -143,7 +143,13 @@ roadmap entry so no session misses them.
 - **Current state (verified, honest):**
   - Delivery **paths** have offline support: `GetAllDeliveryPathsUseCase` fetches from the
     local `RoomDeliveryRepository` (its KDoc says "for faster access and offline support"),
-    and `MapBoxComposable` has an offline fallback for bounds.
+    and `MapBoxComposable` has an offline fallback for bounds. **Materially stronger since
+    PR #72 (2026-08-17):** reading a path used to reverse-geocode every one of its cities on
+    every refresh, so "offline support" only held while the refresh flag stayed false — a
+    single cache invalidation put the whole path list back on the network, and a partial
+    failure then *deleted* paths from the cache (archaeology §16). Commune centers are now
+    stored in `city_entries`, so a re-saved path needs no address-API call at all, and a
+    degraded fetch can no longer remove a cached path.
   - The admin **order list** and **preparation_status** are read **Firestore-direct** via
     `FirebaseAdminRepositoryImpl` → `FirestoreAdminDatasource` — **no Room cache layer** for
     admin orders. (Firestore's SDK has default local persistence, but there is no explicit

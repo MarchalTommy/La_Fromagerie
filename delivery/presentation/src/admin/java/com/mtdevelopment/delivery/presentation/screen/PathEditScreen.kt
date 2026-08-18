@@ -58,9 +58,13 @@ import com.mtdevelopment.core.presentation.composable.ErrorOverlay
 import com.mtdevelopment.core.presentation.composable.PrimaryButton
 import com.mtdevelopment.core.presentation.composable.RiveAnimation
 import com.mtdevelopment.core.presentation.theme.ui.AppTheme
+import com.mtdevelopment.delivery.domain.usecase.CityResolution
+import com.mtdevelopment.delivery.domain.usecase.problems
+import com.mtdevelopment.delivery.domain.usecase.withCanonicalCities
 import com.mtdevelopment.delivery.presentation.composable.CityPostalCodeAutocompleteTextField
 import com.mtdevelopment.delivery.presentation.composable.CityStreetsBottomSheet
 import com.mtdevelopment.delivery.presentation.model.MoveDirection
+import com.mtdevelopment.delivery.presentation.model.communesOnly
 import com.mtdevelopment.delivery.presentation.model.PathDraft
 import com.mtdevelopment.delivery.presentation.model.canBeSaved
 import com.mtdevelopment.delivery.presentation.model.toAdminUiDeliveryPath
@@ -146,13 +150,44 @@ fun PathEditScreen(
         }
     }
 
+    /**
+     * Cities whose stored spelling disagrees with the address API, checked once when the path opens.
+     *
+     * Once, not on every draft change: a city added through the picker already carries the API's own
+     * spelling, so re-checking on each edit would be N network calls to confirm what we just read
+     * from the API. What this is looking for is the legacy data — the three communes stored as
+     * `Malpa`, `Oye-et-Palets` and `Larbergement-sainte-marie` by the free-text field this screen
+     * replaced, which fuzzy geocoding has been quietly rescuing while the customer matcher rejected
+     * them outright.
+     */
+    var cityIssues by remember { mutableStateOf<List<CityResolution>>(emptyList()) }
+    var citiesChecked by remember { mutableStateOf(false) }
+
+    LaunchedEffect(draftInitialised) {
+        if (draftInitialised && !citiesChecked) {
+            citiesChecked = true
+            deliveryViewModel.resolveCities(draft.cities) { report ->
+                cityIssues = report.problems()
+            }
+        }
+    }
+
     PathEditContent(
         draft = draft,
         isReady = draftInitialised,
         isLoading = state.value.isLoading,
         errorMessage = state.value.isError,
+        cityIssues = cityIssues,
+        onFixCityNames = {
+            // Only the resolved ones move; unknown and unchecked cities stay exactly as typed.
+            val corrected = draft.cities.map { city ->
+                cityIssues.firstOrNull { it.submitted == city }?.canonical ?: city
+            }
+            draft = draft.copy(cities = corrected)
+            cityIssues = cityIssues.filter { it.canonical == null }
+        },
         citySearchQuery = state.value.deliveryAddressSearchQuery,
-        citySuggestions = state.value.deliveryAddressSuggestions,
+        citySuggestions = state.value.deliveryAddressSuggestions.communesOnly(),
         showCitySuggestions = state.value.showAddressSuggestions,
         streetSuggestions = state.value.streetSuggestions,
         onStreetQueryChange = { query, city ->
@@ -167,23 +202,55 @@ fun PathEditScreen(
         onCancel = navigateBack,
         onSave = {
             deliveryViewModel.setIsLoading(true)
-            val domainPath = draft.toAdminUiDeliveryPath().toDomainDeliveryPath()
             val onFailure = { message: String ->
                 deliveryViewModel.setIsError(message)
                 deliveryViewModel.setIsLoading(false)
             }
-            if (draft.isNew) {
-                adminViewModel.addNewDeliveryPath(
-                    domainPath,
-                    onSuccess = onSaved,
-                    onFailure = { onFailure("Une erreur est survenue lors de l'ajout du parcours.") }
-                )
-            } else {
-                adminViewModel.updateDeliveryPath(
-                    domainPath,
-                    onSuccess = onSaved,
-                    onFailure = { onFailure("Une erreur est survenue lors de la mise à jour du parcours.") }
-                )
+
+            /**
+             * The write goes through the address API first, and stores the spelling it hands back.
+             *
+             * This is the gate that stops a misspelt commune reaching Firestore at all. It matters
+             * because the two systems reading that name disagree about how strict they are: geocoding
+             * searches fuzzily and would rescue `Malpa` into Malpas, while the customer matcher
+             * compares for equality and would reject a customer living there. Writing the API's own
+             * spelling is what makes the two agree.
+             *
+             * A commune the API does not know blocks the save rather than being written and silently
+             * excluding its residents. A commune we could not check is written as typed — an
+             * unreachable API must not stop the shop editing its tournées.
+             */
+            deliveryViewModel.resolveCities(draft.cities) { report ->
+                val unknown = report.filter { it.isUnknown }
+                if (unknown.isNotEmpty()) {
+                    cityIssues = report.problems()
+                    onFailure(
+                        unknown.joinToString(
+                            prefix = "Ces communes sont introuvables, vérifiez l'orthographe :\n",
+                            separator = "\n"
+                        ) { "• ${it.submitted.name} (${it.submitted.postcode})" }
+                    )
+                    return@resolveCities
+                }
+
+                val canonical = if (report.isEmpty()) draft.cities else report.withCanonicalCities()
+                val domainPath = draft.copy(cities = canonical)
+                    .toAdminUiDeliveryPath()
+                    .toDomainDeliveryPath()
+
+                if (draft.isNew) {
+                    adminViewModel.addNewDeliveryPath(
+                        domainPath,
+                        onSuccess = onSaved,
+                        onFailure = { onFailure("Une erreur est survenue lors de l'ajout du parcours.") }
+                    )
+                } else {
+                    adminViewModel.updateDeliveryPath(
+                        domainPath,
+                        onSuccess = onSaved,
+                        onFailure = { onFailure("Une erreur est survenue lors de la mise à jour du parcours.") }
+                    )
+                }
             }
         },
         onDelete = {
@@ -206,6 +273,8 @@ fun PathEditContent(
     isReady: Boolean = true,
     isLoading: Boolean = false,
     errorMessage: String = "",
+    cityIssues: List<CityResolution> = emptyList(),
+    onFixCityNames: () -> Unit = {},
     citySearchQuery: String = "",
     citySuggestions: List<AutoCompleteSuggestion> = emptyList(),
     showCitySuggestions: Boolean = false,
@@ -313,6 +382,8 @@ fun PathEditContent(
 
                 Spacer(modifier = Modifier.padding(vertical = 8.dp))
 
+                CityIssuesBanner(issues = cityIssues, onFix = onFixCityNames)
+
                 SectionCard(title = "Composition du parcours") {
                     if (draft.cities.isEmpty()) {
                         Text(
@@ -355,7 +426,13 @@ fun PathEditContent(
                                     postcode = suggestion.postCode?.toIntOrNull() ?: 0
                                 )
                             },
-                            onValueChange = onCitySearchQueryChange,
+                            onValueChange = {
+                                // Typing after picking a suggestion invalidates the pick: without
+                                // this, "Ajouter" would still add the previously selected commune,
+                                // which is not what the field now reads.
+                                pendingCity = DeliveryCity(name = "", postcode = 0)
+                                onCitySearchQueryChange(it)
+                            },
                             onFocusChange = {}
                         )
 
@@ -434,6 +511,82 @@ fun PathEditContent(
                 },
                 onDismiss = { streetsEditIndex = null }
             )
+        }
+    }
+}
+
+/**
+ * Warns about cities whose stored spelling the address API does not recognise, and offers to fix
+ * the ones it can.
+ *
+ * Worth a banner rather than a quiet correction on save, because the consequence is invisible from
+ * the admin side and severe on the customer side: a commune stored as `Malpa` geocodes fine — the
+ * search is fuzzy — so the path builds, the map draws, and everything looks right, while every
+ * resident of Malpas is told their address is not on a delivery path. The shop has no way to
+ * discover that on its own, so the app has to say it out loud.
+ */
+@Composable
+private fun CityIssuesBanner(issues: List<CityResolution>, onFix: () -> Unit) {
+    if (issues.isEmpty()) return
+
+    val misspelled = issues.filter { it.isMisspelled }
+    val unknown = issues.filter { it.isUnknown }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 8.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.errorContainer)
+            .padding(16.dp)
+    ) {
+        Text(
+            text = "Orthographe des communes à vérifier",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onErrorContainer
+        )
+        Text(
+            modifier = Modifier.padding(top = 4.dp),
+            text = "Un nom de commune mal orthographié empêche les clients qui y habitent " +
+                    "de commander, sans erreur visible ici.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onErrorContainer
+        )
+
+        misspelled.forEach { issue ->
+            Text(
+                modifier = Modifier.padding(top = 8.dp),
+                text = "• ${issue.submitted.name} → ${issue.canonical?.name}",
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onErrorContainer
+            )
+        }
+
+        unknown.forEach { issue ->
+            Text(
+                modifier = Modifier.padding(top = 8.dp),
+                text = "• ${issue.submitted.name} (${issue.submitted.postcode}) : introuvable, " +
+                        "à corriger à la main",
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onErrorContainer
+            )
+        }
+
+        if (misspelled.isNotEmpty()) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End
+            ) {
+                TextButton(onClick = onFix) {
+                    Text(
+                        text = if (misspelled.size == 1) "CORRIGER" else "TOUT CORRIGER",
+                        fontWeight = FontWeight.Black
+                    )
+                }
+            }
         }
     }
 }

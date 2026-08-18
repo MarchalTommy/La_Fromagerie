@@ -6,36 +6,45 @@ import com.mtdevelopment.core.util.NetWorkResult
 import com.mtdevelopment.delivery.data.model.response.addressData.AddressData
 import com.mtdevelopment.delivery.data.source.remote.AddressApiDataSource
 import com.mtdevelopment.delivery.domain.model.CityInformation
+import com.mtdevelopment.delivery.domain.model.CommuneLookup
 import com.mtdevelopment.delivery.domain.repository.AddressApiRepository
 
 class AddressApiRepositoryImpl(
     private val addressApiDataSource: AddressApiDataSource
 ) : AddressApiRepository {
 
-    override suspend fun reverseGeocodeCity(name: String, zip: Int): CityInformation? {
+    override suspend fun reverseGeocodeCity(name: String, zip: Int): CityInformation? =
+        (lookupCommune(name, zip) as? CommuneLookup.Found)?.info
+
+    /**
+     * `firstOrNull`, not `first`: a query that matches no commune answers **200 with an empty
+     * feature list**, which is not a [NetWorkResult.Error] and so slips past the data source's
+     * try/catch. `first()` then threw NoSuchElementException inside the `async` of an ad-hoc
+     * `CoroutineScope(Dispatchers.IO)` that installs no exception handler — i.e. it crashed the app
+     * rather than dropping one city. A commune the API does not know is a data problem to report,
+     * never a crash.
+     */
+    override suspend fun lookupCommune(name: String, zip: Int): CommuneLookup {
         val result = addressApiDataSource.getLngLatFromCity(name, zip)
 
         if (result is NetWorkResult.Error) {
-            return null
+            return CommuneLookup.Unreachable
         }
 
-        val properties =
-            (result as? NetWorkResult.Success)?.data?.features?.first()?.properties
-        val geometry =
-            (result as? NetWorkResult.Success)?.data?.features?.first()?.geometry
+        val feature = (result as? NetWorkResult.Success)?.data?.features?.firstOrNull()
+            ?: return CommuneLookup.NotFound
 
-        return if (geometry != null) {
+        // GeoJSON promises [lng, lat]; anything shorter is a malformed answer, not a commune.
+        val coordinates = feature.geometry.coordinates
+        if (coordinates.size < 2) return CommuneLookup.NotFound
+
+        return CommuneLookup.Found(
             CityInformation(
-                name = properties?.name ?: "",
-                zip = properties?.postcode?.toInt() ?: 0,
-                location = LatLng(
-                    geometry.coordinates[1],
-                    geometry.coordinates[0],
-                )
+                name = feature.properties.name ?: "",
+                zip = feature.properties.postcode?.toIntOrNull() ?: 0,
+                location = LatLng(coordinates[1], coordinates[0])
             )
-        } else {
-            null
-        }
+        )
     }
 
     override suspend fun getStreetSuggestions(
@@ -59,6 +68,8 @@ class AddressApiRepositoryImpl(
             .distinctBy { it.normalizeCityName() }
     }
 
+    /** Same empty-feature-list trap as [reverseGeocodeCity], reached here by a customer typing an
+     * address that matches nothing. */
     override suspend fun geocodeAddress(address: String): CityInformation? {
         val result = addressApiDataSource.getLngLatFromAddress(address)
 
@@ -66,10 +77,9 @@ class AddressApiRepositoryImpl(
             return null
         }
 
-        val properties =
-            (result as? NetWorkResult.Success)?.data?.features?.first()?.properties
-        val geometry =
-            (result as? NetWorkResult.Success)?.data?.features?.first()?.geometry
+        val feature = (result as? NetWorkResult.Success)?.data?.features?.firstOrNull()
+        val properties = feature?.properties
+        val geometry = feature?.geometry
 
         return if (geometry != null) {
             CityInformation(

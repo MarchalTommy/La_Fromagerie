@@ -5,6 +5,7 @@ import com.mtdevelopment.delivery.data.model.entity.toPathEntity
 import com.mtdevelopment.delivery.data.source.local.DeliveryDatabase
 import com.mtdevelopment.delivery.domain.model.DeliveryPath
 import com.mtdevelopment.delivery.domain.repository.RoomDeliveryRepository
+import kotlinx.coroutines.flow.first
 
 class RoomDeliveryRepositoryImpl(
     private val db: DeliveryDatabase
@@ -30,13 +31,8 @@ class RoomDeliveryRepositoryImpl(
         }
     }
 
-    override suspend fun getPaths(onSuccess: (List<DeliveryPath>) -> Unit) {
-        db.getAllPaths().collect { pathsList ->
-            onSuccess.invoke(pathsList.map { path ->
-                path.toPath()
-            })
-        }
-    }
+    override suspend fun getPathsOnce(): List<DeliveryPath> =
+        db.getAllPaths().first().map { it.toPath() }
 
 
 }
