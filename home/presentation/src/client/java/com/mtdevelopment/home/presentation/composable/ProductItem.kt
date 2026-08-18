@@ -47,6 +47,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.engine.DiskCacheStrategy
@@ -220,13 +221,26 @@ fun ProductItem(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 product?.priceInCents?.toStringPrice()?.let {
-                    Text(
-                        modifier = Modifier
-                            .padding(horizontal = 8.dp),
-                        text = it,
-                        style = MaterialTheme.typography.displaySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Column(modifier = Modifier.padding(horizontal = 8.dp)) {
+                        Text(
+                            text = it,
+                            style = MaterialTheme.typography.displaySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        // Shown only when collecting is cheaper. A saving is a reason to
+                        // come and fetch the cheese, so it is worth the line; the reverse
+                        // never happens, since a shop price above delivery is refused at
+                        // entry.
+                        product.priceInCentsBeforeDiscount?.let { reference ->
+                            Text(
+                                text = reference.toStringPrice(),
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    textDecoration = TextDecoration.LineThrough
+                                ),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
                 }
 
 

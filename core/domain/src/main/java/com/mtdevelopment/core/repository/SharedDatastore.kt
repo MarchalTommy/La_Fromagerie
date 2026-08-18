@@ -109,5 +109,17 @@ interface SharedDatastore {
     /**
      * Completely wipes all data from the shared storage.
      */
+    /**
+     * The fulfillment mode the customer is currently shopping in, as a
+     * [com.mtdevelopment.core.model.FulfillmentType] name.
+     *
+     * Global rather than local to the delivery screen because it decides which price the
+     * catalogue shows: the customer must see what they will actually be charged while they
+     * fill their basket, not discover it at payment.
+     */
+    val fulfillmentTypeFlow: Flow<String?>
+
+    suspend fun setFulfillmentType(type: String)
+
     suspend fun clearAllDatastore()
 }

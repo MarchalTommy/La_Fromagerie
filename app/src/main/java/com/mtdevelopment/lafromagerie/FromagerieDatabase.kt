@@ -31,9 +31,24 @@ val MIGRATION_5_6 = object : Migration(5, 6) {
     }
 }
 
+/**
+ * Adds the optional shop-collection price. Nullable with no default: null means "this product
+ * costs the same wherever it is collected", which is exactly what every row cached before this
+ * column existed should read as.
+ *
+ * Additive rather than a bare version bump, for the same reason as [MIGRATION_5_6]: the
+ * destructive fallback is a safety net for unhandled jumps, not a shortcut — a wiped cache
+ * makes every address undeliverable on a first launch without network.
+ */
+val MIGRATION_6_7 = object : Migration(6, 7) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE products ADD COLUMN priceInCentsPickupShop INTEGER DEFAULT NULL")
+    }
+}
+
 @Database(
     entities = [ProductEntity::class, PathEntity::class],
-    version = 6,
+    version = 7,
 )
 @TypeConverters(
     Converters::class,

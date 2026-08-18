@@ -9,6 +9,7 @@ import com.mtdevelopment.core.model.AutoCompleteSuggestion
 import com.mtdevelopment.core.model.FulfillmentType
 import com.mtdevelopment.core.model.PickupPointType
 import com.mtdevelopment.core.model.UserInformation
+import com.mtdevelopment.core.repository.SharedDatastore
 import com.mtdevelopment.delivery.domain.usecase.BuildSelectablePickupDatesUseCase
 import com.mtdevelopment.delivery.domain.usecase.GetPickupPointsUseCase
 import com.mtdevelopment.delivery.domain.usecase.SelectablePickupDate
@@ -62,7 +63,8 @@ class DeliveryViewModel(
     private val getAutocompleteSuggestionsUseCase: GetAutocompleteSuggestionsUseCase,
     private val getStreetSuggestionsUseCase: GetStreetSuggestionsUseCase,
     private val getPickupPointsUseCase: GetPickupPointsUseCase,
-    private val buildSelectablePickupDatesUseCase: BuildSelectablePickupDatesUseCase
+    private val buildSelectablePickupDatesUseCase: BuildSelectablePickupDatesUseCase,
+    private val sharedDatastore: SharedDatastore
 ) : ViewModel(), KoinComponent {
 
     /**
@@ -215,6 +217,10 @@ class DeliveryViewModel(
      */
     fun setFulfillmentType(type: FulfillmentType) {
         deliveryUiDataState = deliveryUiDataState.copy(fulfillmentType = type)
+        // Persisted globally, not kept on this screen: the catalogue prices itself from it,
+        // so the customer sees what they will be charged while filling their basket rather
+        // than discovering it at payment.
+        viewModelScope.launch { sharedDatastore.setFulfillmentType(type.name) }
         if (type.isPickup) loadPickupPoints(type)
     }
 

@@ -37,7 +37,13 @@ class FirestoreDatabase(
                         type = item.data?.get("type").toString().toProductType(),
                         description = item.data?.get("description").toString(),
                         allergens = item.data?.get("allergens") as? List<String> ?: emptyList(),
-                        isAvailable = item.data?.get("available") as? Boolean != false
+                        isAvailable = item.data?.get("available") as? Boolean != false,
+                        // Firestore hands integers back as Long; absent on every product
+                        // that costs the same wherever it is collected. The legacy
+                        // short-key branch above has no equivalent and falls back to the
+                        // delivery price, which is the right reading of those documents.
+                        priceCentsPickupShop =
+                            (item.data?.get("priceCentsPickupShop") as? Number)?.toLong()
                     )
                 }
             }

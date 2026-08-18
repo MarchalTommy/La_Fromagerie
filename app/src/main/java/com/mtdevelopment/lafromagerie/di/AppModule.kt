@@ -92,6 +92,7 @@ import com.mtdevelopment.home.presentation.viewmodel.HomeViewModel
 import com.mtdevelopment.lafromagerie.FromagerieDatabase
 import com.mtdevelopment.lafromagerie.MIGRATION_4_5
 import com.mtdevelopment.lafromagerie.MIGRATION_5_6
+import com.mtdevelopment.lafromagerie.MIGRATION_6_7
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.plugins.DefaultRequest
@@ -230,7 +231,7 @@ val mainAppModule = module {
     factory { DeliveryDatabase(get()) }
 
     // ViewModels
-    viewModelOf(::HomeViewModel)
+    viewModel { HomeViewModel(get(), get(), get(), get(), get()) }
     viewModelOf(::MainViewModel)
     viewModelOf(::DeliveryViewModel)
     viewModelOf(::CartViewModel)
@@ -476,6 +477,6 @@ fun provideDataBase(application: Application): FromagerieDatabase =
         application,
         FromagerieDatabase::class.java,
         "lafromagerie_database"
-    ).addMigrations(MIGRATION_4_5, MIGRATION_5_6)
+    ).addMigrations(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
         .fallbackToDestructiveMigration(true)
         .build()

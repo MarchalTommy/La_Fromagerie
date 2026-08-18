@@ -4,6 +4,7 @@ import com.mtdevelopment.core.model.DeliveryCity
 import com.mtdevelopment.core.model.AutoCompleteSuggestion
 import com.mtdevelopment.core.model.FulfillmentType
 import com.mtdevelopment.core.model.UserInformation
+import com.mtdevelopment.core.repository.SharedDatastore
 import com.mtdevelopment.core.usecase.GetAutocompleteSuggestionsUseCase
 import com.mtdevelopment.core.usecase.GetIsNetworkConnectedUseCase
 import com.mtdevelopment.core.usecase.SaveToDatastoreUseCase
@@ -60,6 +61,7 @@ class DeliveryViewModelTest {
     )
 
     private val getPickupPointsUseCase: GetPickupPointsUseCase = mockk(relaxed = true)
+    private val sharedDatastore: SharedDatastore = mockk(relaxed = true)
 
     @Before
     fun setUp() {
@@ -81,7 +83,8 @@ class DeliveryViewModelTest {
         getAutocompleteSuggestionsUseCase,
         getStreetSuggestionsUseCase,
         getPickupPointsUseCase,
-        BuildSelectablePickupDatesUseCase()
+        BuildSelectablePickupDatesUseCase(),
+        sharedDatastore
     )
 
     @Test

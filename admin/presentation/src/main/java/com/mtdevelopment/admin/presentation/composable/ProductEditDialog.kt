@@ -79,6 +79,7 @@ fun ProductEditDialog(
                 id = product?.id ?: "",
                 name = product?.name ?: "",
                 priceInCents = product?.priceInCents ?: 0L,
+                priceInCentsPickupShop = product?.priceInCentsPickupShop,
                 imageUrl = product?.imageUrl ?: "",
                 description = product?.description ?: "",
                 allergens = product?.allergens ?: listOf(),
@@ -86,6 +87,11 @@ fun ProductEditDialog(
             )
         )
     }
+    // A shop price above the delivery one is the only way the invariant could break, so it
+    // is blocked at the source rather than corrected downstream.
+    val isShopPriceInvalid = tempProduct.value.priceInCentsPickupShop
+        ?.let { it > tempProduct.value.priceInCents } == true
+
     var allergensInputText by remember(tempProduct.value.allergens) {
         mutableStateOf(tempProduct.value.allergens?.joinToString(", ") ?: "")
     }
@@ -171,7 +177,7 @@ fun ProductEditDialog(
                 )
                 ProductEditField(
                     modifier = Modifier,
-                    title = "Prix",
+                    title = "Prix (livraison et marché)",
                     value = if (tempProduct.value.priceInCents != 0L) {
                         tempProduct.value.priceInCents.toStringPrice()
                     } else {
@@ -198,6 +204,46 @@ fun ProductEditDialog(
                         Text("€")
                     }
                 )
+
+                // Optional, and only ever downwards. Refusing a higher shop price here is what
+                // makes "the customer's total can only go down when they switch mode" true by
+                // construction, instead of something the client has to guard against at runtime.
+                ProductEditField(
+                    modifier = Modifier,
+                    title = "Prix en retrait boutique (optionnel)",
+                    value = tempProduct.value.priceInCentsPickupShop?.toStringPrice() ?: "",
+                    onValueChange = { input ->
+                        try {
+                            tempProduct.value = tempProduct.value.copy(
+                                priceInCentsPickupShop = input
+                                    .takeIf { it.isNotBlank() }
+                                    ?.toLongPrice()
+                                    ?.takeIf { it < 10000 }
+                            )
+                        } catch (e: NumberFormatException) {
+                            focusManager.clearFocus()
+                            onError.invoke("Vous ne pouvez pas mettre plusieurs virgules / points")
+                        }
+                    },
+                    isError = isShopPriceInvalid,
+                    isNumberOnly = true,
+                    imeAction = ImeAction.Next,
+                    focusRequester = focusRequester,
+                    focusManager = focusManager,
+                    placeholder = "Laisser vide si identique",
+                    prefix = {
+                        Text("€")
+                    }
+                )
+
+                if (isShopPriceInvalid) {
+                    Text(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        text = "Le prix boutique doit rester inférieur ou égal au prix livraison.",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
                 ProductEditField(
                     modifier = Modifier,
                     title = "Description",
@@ -234,7 +280,9 @@ fun ProductEditDialog(
                         TextButton(
                             modifier = Modifier
                                 .padding(top = 8.dp, end = 8.dp, start = 8.dp),
-                            enabled = (tempProduct.value.name.isNotBlank() && tempProduct.value.priceInCents in 50..3000),
+                            enabled = tempProduct.value.name.isNotBlank() &&
+                                    tempProduct.value.priceInCents in 50..3000 &&
+                                    !isShopPriceInvalid,
                             shape = MaterialTheme.shapes.large,
                             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 16.dp),
                             onClick = {
