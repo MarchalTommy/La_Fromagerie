@@ -32,6 +32,9 @@ val adminPresentationModule = module {
             get(),
             get(),
             get(),
+            // On-site payment: mark paid, sweep stale unpaid orders.
+            get(),
+            get(),
         )
     }
 }

@@ -14,6 +14,8 @@ import com.mtdevelopment.admin.domain.usecase.GetCurrentLocationOnceUseCase
 import com.mtdevelopment.admin.domain.usecase.GetIsInTrackingModeUseCase
 import com.mtdevelopment.admin.domain.usecase.GetOptimizedDeliveryUseCase
 import com.mtdevelopment.admin.domain.usecase.AddNewPickupPointUseCase
+import com.mtdevelopment.admin.domain.usecase.CancelStaleOnSiteOrdersUseCase
+import com.mtdevelopment.admin.domain.usecase.MarkOrderPaidOnSiteUseCase
 import com.mtdevelopment.admin.domain.usecase.DeletePickupPointUseCase
 import com.mtdevelopment.admin.domain.usecase.GetAllPickupPointsUseCase
 import com.mtdevelopment.admin.domain.usecase.GetPreparationStatusesUseCase
@@ -31,6 +33,7 @@ import com.mtdevelopment.core.model.AutoCompleteSuggestion
 import com.mtdevelopment.core.model.DeliveryPath
 import com.mtdevelopment.core.model.PickupPoint
 import com.mtdevelopment.core.model.Order
+import com.mtdevelopment.core.model.OrderStatus
 import com.mtdevelopment.core.model.PreparationStatus
 import com.mtdevelopment.core.presentation.sharedModels.UiProductObject
 import com.mtdevelopment.core.presentation.sharedModels.toDomainProduct
@@ -75,7 +78,9 @@ class AdminViewModel(
     private val getAllPickupPointsUseCase: GetAllPickupPointsUseCase,
     private val addNewPickupPointUseCase: AddNewPickupPointUseCase,
     private val updatePickupPointUseCase: UpdatePickupPointUseCase,
-    private val deletePickupPointUseCase: DeletePickupPointUseCase
+    private val deletePickupPointUseCase: DeletePickupPointUseCase,
+    private val markOrderPaidOnSiteUseCase: MarkOrderPaidOnSiteUseCase,
+    private val cancelStaleOnSiteOrdersUseCase: CancelStaleOnSiteOrdersUseCase
 ) : ViewModel(), KoinComponent {
 
     ///////////////////////////////////////////////////////////////////////////
@@ -384,6 +389,18 @@ class AdminViewModel(
                         isLoading = false
                     )
                 }
+                // Write off orders that were to be paid on collection and never were. Done
+                // here because there is no scheduled backend job: the sweep runs whenever
+                // the shop opens its order list, which is enough for a write-off that has
+                // no deadline of its own.
+                viewModelScope.launch {
+                    val cancelled = cancelStaleOnSiteOrdersUseCase.invoke(ordersList.orEmpty())
+                    if (cancelled.isNotEmpty()) {
+                        _orderScreenState.update { state ->
+                            state.copy(orders = state.orders.filterNot { it.id in cancelled })
+                        }
+                    }
+                }
             })
             getPreparationStatusesUseCase.invoke(onSuccess = { statusesList ->
                 _orderScreenState.update { state ->
@@ -400,6 +417,33 @@ class AdminViewModel(
         viewModelScope.launch {
             _orderScreenState.update { state ->
                 state.copy(orders = state.orders + order)
+            }
+        }
+    }
+
+    /**
+     * Records that an order to be paid on collection has been paid.
+     *
+     * Optimistic, like the preparation ticks: the shop is standing in front of the customer
+     * and should not wait on a round-trip. A failed write is surfaced and the row reverts.
+     */
+    fun markOrderPaidOnSite(order: Order) {
+        val previous = _orderScreenState.value.orders
+        _orderScreenState.update { state ->
+            state.copy(
+                orders = state.orders.map {
+                    if (it.id == order.id) it.copy(status = OrderStatus.PAID) else it
+                }
+            )
+        }
+        viewModelScope.launch {
+            markOrderPaidOnSiteUseCase.invoke(order).onFailure {
+                _orderScreenState.update { state ->
+                    state.copy(
+                        orders = previous,
+                        error = "L'encaissement n'a pas pu être enregistré."
+                    )
+                }
             }
         }
     }

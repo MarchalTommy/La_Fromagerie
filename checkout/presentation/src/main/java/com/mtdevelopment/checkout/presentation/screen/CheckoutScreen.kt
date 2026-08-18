@@ -448,6 +448,26 @@ fun CheckoutScreen(
                 }
             )
 
+            /**
+             * Pay on collection. Offered only for a collected order: there is nobody to hand
+             * cash to on a delivery round, and offering it there would create orders the shop
+             * can never settle.
+             */
+            if (uiData.value.fulfillmentType.isPickup) {
+                PrimaryButton(
+                    modifier = Modifier
+                        .testTag("payOnSiteButton")
+                        .fillMaxWidth()
+                        .padding(start = 32.dp, end = 32.dp, bottom = 16.dp),
+                    text = "Payer sur place au retrait",
+                    trailingIcon = null,
+                    enabled = isEmailValid,
+                    // Navigation is already driven by isPaymentSuccess above, which the
+                    // ViewModel raises once the order is written.
+                    onClick = { checkoutViewModel.placeOrderToPayOnSite { } }
+                )
+            }
+
             // Debug tool
             if (BuildConfig.DEBUG) {
                 Button(

@@ -10,7 +10,9 @@ import com.mtdevelopment.admin.domain.usecase.GetCurrentLocationOnceUseCase
 import com.mtdevelopment.admin.domain.usecase.GetIsInTrackingModeUseCase
 import com.mtdevelopment.admin.domain.usecase.GetOptimizedDeliveryUseCase
 import com.mtdevelopment.admin.domain.usecase.AddNewPickupPointUseCase
+import com.mtdevelopment.admin.domain.usecase.CancelStaleOnSiteOrdersUseCase
 import com.mtdevelopment.admin.domain.usecase.DeletePickupPointUseCase
+import com.mtdevelopment.admin.domain.usecase.MarkOrderPaidOnSiteUseCase
 import com.mtdevelopment.admin.domain.usecase.GetAllPickupPointsUseCase
 import com.mtdevelopment.admin.domain.usecase.GetPreparationStatusesUseCase
 import com.mtdevelopment.admin.domain.usecase.UpdatePickupPointUseCase
@@ -78,6 +80,9 @@ class AdminViewModelTest {
     private val addNewPickupPointUseCase: AddNewPickupPointUseCase = mockk(relaxed = true)
     private val updatePickupPointUseCase: UpdatePickupPointUseCase = mockk(relaxed = true)
     private val deletePickupPointUseCase: DeletePickupPointUseCase = mockk(relaxed = true)
+    private val markOrderPaidOnSiteUseCase: MarkOrderPaidOnSiteUseCase = mockk(relaxed = true)
+    private val cancelStaleOnSiteOrdersUseCase: CancelStaleOnSiteOrdersUseCase =
+        mockk(relaxed = true)
 
     @Before
     fun setUp() {
@@ -113,7 +118,9 @@ class AdminViewModelTest {
         getAllPickupPointsUseCase,
         addNewPickupPointUseCase,
         updatePickupPointUseCase,
-        deletePickupPointUseCase
+        deletePickupPointUseCase,
+        markOrderPaidOnSiteUseCase,
+        cancelStaleOnSiteOrdersUseCase
     )
 
     private fun product(imageUrl: String?) = UiProductObject(

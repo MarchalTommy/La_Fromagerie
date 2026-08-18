@@ -42,6 +42,7 @@ import com.mtdevelopment.core.domain.toStringDate
 import com.mtdevelopment.core.model.Order
 import com.mtdevelopment.core.model.FulfillmentType
 import com.mtdevelopment.core.model.OrderStatus
+import com.mtdevelopment.core.model.PaymentMode
 import com.mtdevelopment.core.repository.SharedDatastore
 import com.mtdevelopment.core.usecase.ClearCartUseCase
 import com.mtdevelopment.core.usecase.GetIsNetworkConnectedUseCase
@@ -456,7 +457,10 @@ class CheckoutViewModel(
      * This is done BEFORE payment to ensure the order intent is captured.
      * Status is 'PENDING' until payment succeeds.
      */
-    fun createOrder(isSuccess: (Boolean) -> Unit) {
+    fun createOrder(
+        paymentMode: PaymentMode = PaymentMode.ONLINE,
+        isSuccess: (Boolean) -> Unit
+    ) {
         val cleanName =
             _paymentScreenState.value.buyerName?.trim()?.replace(" ", "_")
                 ?.lowercase(Locale.getDefault())
@@ -494,6 +498,7 @@ class CheckoutViewModel(
                         // purchase. Payment stays ONLINE here — paying on collection is a
                         // separate chain that does not exist yet.
                         fulfillmentType = _paymentScreenState.value.fulfillmentType,
+                        paymentMode = paymentMode,
                         customerPhone = _paymentScreenState.value.buyerPhone,
                         pickupPointId = _paymentScreenState.value.pickupPointId,
                         pickupLabel = _paymentScreenState.value.pickupLabel,
@@ -502,6 +507,36 @@ class CheckoutViewModel(
                     )
                 )
             )
+        }
+    }
+
+    /**
+     * Places an order the customer will pay for when they collect it.
+     *
+     * Deliberately short: no SumUp session, no Google Pay sheet, and no finalization worker,
+     * because there is no payment in flight to reconcile. The order stays PENDING — which is
+     * unambiguous only because [PaymentMode.ON_SITE] rides alongside it; a PENDING online
+     * order means something very different and must never be confused with this one.
+     *
+     * The cart is cleared and the day-of reminder scheduled exactly as a paid order would,
+     * since from the customer's point of view the order is placed either way.
+     */
+    fun placeOrderToPayOnSite(onResult: (Boolean) -> Unit) {
+        createOrder(paymentMode = PaymentMode.ON_SITE) { created ->
+            if (!created) {
+                setPaymentError(
+                    "Une erreur est survenue lors de la création de la commande.\n" +
+                            "Merci de réessayer ultérieurement."
+                )
+                onResult.invoke(false)
+                return@createOrder
+            }
+            viewModelScope.launch {
+                _paymentScreenState.value.orderId?.let { scheduleOrderReminderUseCase.invoke(it) }
+                clearCartUseCase.invoke()
+                _paymentScreenState.update { it.copy(isPaymentSuccess = true) }
+                onResult.invoke(true)
+            }
         }
     }
 

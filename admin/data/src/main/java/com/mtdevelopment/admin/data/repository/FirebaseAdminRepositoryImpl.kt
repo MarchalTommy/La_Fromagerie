@@ -332,6 +332,10 @@ class FirebaseAdminRepositoryImpl(
     /**
      * Updates a preparation status in the database.
      */
+    override suspend fun updateOrderStatus(orderId: String, status: OrderStatus): Result<Unit> {
+        return firestore.updateOrderStatus(orderId, status)
+    }
+
     override suspend fun updatePreparationStatus(status: PreparationStatus): Result<Unit> {
         return firestore.updatePreparationStatus(status.toData())
     }

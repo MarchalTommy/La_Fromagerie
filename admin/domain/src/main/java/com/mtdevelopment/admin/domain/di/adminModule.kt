@@ -6,7 +6,9 @@ import com.mtdevelopment.admin.domain.usecase.AddNewProductUseCase
 import com.mtdevelopment.admin.domain.usecase.DeletePathUseCase
 import com.mtdevelopment.admin.domain.usecase.DeletePickupPointUseCase
 import com.mtdevelopment.admin.domain.usecase.DeleteProductUseCase
+import com.mtdevelopment.admin.domain.usecase.CancelStaleOnSiteOrdersUseCase
 import com.mtdevelopment.admin.domain.usecase.GetAllPickupPointsUseCase
+import com.mtdevelopment.admin.domain.usecase.MarkOrderPaidOnSiteUseCase
 import com.mtdevelopment.admin.domain.usecase.UpdatePickupPointUseCase
 import com.mtdevelopment.admin.domain.usecase.DetermineNextDeliveryStopUseCase
 import com.mtdevelopment.admin.domain.usecase.GetAllOrdersUseCase
@@ -42,6 +44,8 @@ val adminDomainModule = module {
     factory { DeletePickupPointUseCase(get()) }
 
     factory { GetAllOrdersUseCase(get()) }
+    factory { MarkOrderPaidOnSiteUseCase(get()) }
+    factory { CancelStaleOnSiteOrdersUseCase(get()) }
 
     factory { UpdateShouldShowBatterieOptimizationUseCase(get()) }
     factory { GetOptimizedDeliveryUseCase(get(), get()) }

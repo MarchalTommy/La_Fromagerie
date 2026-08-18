@@ -325,6 +325,25 @@ class FirestoreAdminDatasource(
             }
     }
 
+    /**
+     * Moves one order to [status].
+     *
+     * Only the status field is written. The rest of the document belongs to the customer's
+     * app, and a full `set` from here would overwrite fields this build may not even know
+     * about — the same reason the client uses a targeted update.
+     */
+    suspend fun updateOrderStatus(orderId: String, status: OrderStatus): Result<Unit> {
+        return try {
+            firestore.collection("orders")
+                .document(orderId)
+                .update("status", status.name)
+                .await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     ///////////////////////////////////////////////////////////////////////////
     // Preparation Status Management
     ///////////////////////////////////////////////////////////////////////////

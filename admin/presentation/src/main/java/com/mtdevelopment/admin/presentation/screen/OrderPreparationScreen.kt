@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -31,6 +32,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -48,6 +50,8 @@ import com.mtdevelopment.admin.presentation.viewmodel.AdminViewModel
 import com.mtdevelopment.core.domain.toLocalDate
 import com.mtdevelopment.core.domain.toTimeStamp
 import com.mtdevelopment.core.model.Order
+import com.mtdevelopment.core.model.OrderStatus
+import com.mtdevelopment.core.model.PaymentMode
 import com.mtdevelopment.core.model.PreparationGroup
 import com.mtdevelopment.core.model.PreparationStatus
 import com.mtdevelopment.core.model.preparationGroup
@@ -75,7 +79,8 @@ fun OrderPreparationScreen() {
     OrderPreparationList(
         orders = state.value.orders,
         preparationStatuses = state.value.preparationStatuses,
-        onUpdateStatus = { viewModel.updatePreparationStatus(it) }
+        onUpdateStatus = { viewModel.updatePreparationStatus(it) },
+        onMarkPaidOnSite = { viewModel.markOrderPaidOnSite(it) }
     )
 
     // Loading and Error overlays
@@ -100,7 +105,8 @@ fun OrderPreparationScreen() {
 fun OrderPreparationList(
     orders: List<Order>,
     preparationStatuses: List<PreparationStatus>,
-    onUpdateStatus: (PreparationStatus) -> Unit
+    onUpdateStatus: (PreparationStatus) -> Unit,
+    onMarkPaidOnSite: (Order) -> Unit = {}
 ) {
     // Batches, newest first. Grouping on the date alone would merge a tournée, the shop
     // pickups and a market of the same day into one aggregate, leaving no way to tell what
@@ -204,7 +210,8 @@ fun OrderPreparationList(
                         group = group,
                         isPastDate = isPastDate,
                         preparationStatuses = preparationStatuses,
-                        onUpdateStatus = onUpdateStatus
+                        onUpdateStatus = onUpdateStatus,
+                        onMarkPaidOnSite = onMarkPaidOnSite
                     )
                 }
             }
@@ -226,7 +233,8 @@ fun OrderPreparationListItem(
     group: PreparationGroup,
     isPastDate: Boolean,
     preparationStatuses: List<PreparationStatus>,
-    onUpdateStatus: (PreparationStatus) -> Unit
+    onUpdateStatus: (PreparationStatus) -> Unit,
+    onMarkPaidOnSite: (Order) -> Unit = {}
 ) {
 
     // Map each order to its products for this delivery date
@@ -383,6 +391,30 @@ fun OrderPreparationListItem(
                                                 ),
                                                 color = MaterialTheme.colorScheme.secondary
                                             )
+                                        }
+
+                                        // Money owed at the counter. Shown only for the
+                                        // orders that carry it, so a delivery round is never
+                                        // cluttered with a button that cannot apply.
+                                        if (order.paymentMode == PaymentMode.ON_SITE) {
+                                            Spacer(modifier = Modifier.height(4.dp))
+                                            if (order.status == OrderStatus.PAID) {
+                                                Text(
+                                                    text = "Encaissé",
+                                                    style = MaterialTheme.typography.labelMedium,
+                                                    color = MaterialTheme.colorScheme.primary
+                                                )
+                                            } else {
+                                                TextButton(
+                                                    contentPadding = PaddingValues(0.dp),
+                                                    onClick = { onMarkPaidOnSite(order) }
+                                                ) {
+                                                    Text(
+                                                        text = "À encaisser • marquer payé",
+                                                        style = MaterialTheme.typography.labelMedium
+                                                    )
+                                                }
+                                            }
                                         }
 
                                         // Highlighted handwritten-style custom instruction/comment note

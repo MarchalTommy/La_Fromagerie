@@ -2,6 +2,7 @@ package com.mtdevelopment.admin.domain.repository
 
 import com.mtdevelopment.core.model.DeliveryPath
 import com.mtdevelopment.core.model.Order
+import com.mtdevelopment.core.model.OrderStatus
 import com.mtdevelopment.core.model.PickupPoint
 import com.mtdevelopment.core.model.PreparationStatus
 import com.mtdevelopment.core.model.Product
@@ -107,6 +108,12 @@ interface FirebaseAdminRepository {
      * @param onSuccess Callback invoked with the list of orders, or null if an error occurs.
      */
     suspend fun getAllOrders(onSuccess: (List<Order>?) -> Unit)
+
+    /**
+     * Moves one order to a new status.
+     * @return Result indicating success or failure.
+     */
+    suspend fun updateOrderStatus(orderId: String, status: OrderStatus): Result<Unit>
 
     /**
      * Retrieves all possible preparation statuses from the database.
