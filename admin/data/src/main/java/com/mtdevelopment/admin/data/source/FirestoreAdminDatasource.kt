@@ -235,9 +235,19 @@ class FirestoreAdminDatasource(
     /**
      * Updates the global timestamp for pickup point changes.
      *
-     * The third such document, alongside `products_timestamp` and `path_timestamp`. Every
-     * write to `pickup_points` must bump it: the client only knows to refresh when the
-     * timestamp moves, so skipping it leaves customers ordering against a stale cache.
+     * ⚠️ **Nothing reads this document today.** It was written to serve a client-side Room
+     * cache of `pickup_points` that was then deliberately not built — the customer journey
+     * reads the points straight from Firestore — and `FirestoreUpdateData` only knows
+     * `products_timestamp` and `path_timestamp`. So the invariant this once claimed, that
+     * skipping the bump leaves customers ordering against a stale cache, is currently false:
+     * there is no cache to go stale.
+     *
+     * The write is kept anyway, and every mutation of `pickup_points` should keep calling it.
+     * It costs one document per admin edit, and it means the cache can be added later against
+     * a timestamp that has always been correct rather than one that starts out lying about
+     * every point written before it existed. Whether that cache is ever built is the open
+     * decision this documents; until it is, treat this as write-only by design, not by
+     * oversight.
      */
     suspend fun saveNewDatabasePickupUpdate(timestamp: Long): Result<Unit> {
         return try {
