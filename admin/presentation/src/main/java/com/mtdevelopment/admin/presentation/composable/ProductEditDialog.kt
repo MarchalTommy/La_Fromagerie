@@ -53,6 +53,28 @@ import com.mtdevelopment.core.presentation.theme.ui.black70
 //  just picture or just data". Likely root cause fixed in AdminViewModel.uploadLocalImageIfAny:
 //  the previous flow re-uploaded hosted images and proceeded with a device-local URI when the
 //  upload failed. Verify on a device, then remove this note.
+/**
+ * What a cheese may cost, in cents: 0,50 € to 30,00 €.
+ *
+ * One range for both the delivery price and the shop price. They were bounded differently --
+ * 50..3000 on one, `< 10000` on the other -- which is how a 0 € shop price became storable,
+ * and [com.mtdevelopment.core.model.Product.priceFor] would have charged it.
+ */
+private val ACCEPTED_PRICE_RANGE = 50L..3000L
+
+/**
+ * Ceiling on what a keystroke may push into the field at all. Above it the keystroke is
+ * ignored, which is how the delivery price has always behaved: it keeps a fat-fingered extra
+ * digit from replacing the field's contents while it is still being typed. It is deliberately
+ * looser than [ACCEPTED_PRICE_RANGE] -- typing is not saving.
+ */
+private const val PRICE_TYPING_CEILING = 10000L
+
+private const val OUT_OF_RANGE_PRICE_ERROR =
+    "Le prix doit être compris entre 0,50 € et 30,00 €."
+private const val SHOP_PRICE_ABOVE_DELIVERY_ERROR =
+    "Le prix boutique doit rester inférieur ou égal au prix livraison."
+
 @Preview(showBackground = true)
 @Composable
 fun ProductEditDialog(
@@ -87,10 +109,18 @@ fun ProductEditDialog(
             )
         )
     }
-    // A shop price above the delivery one is the only way the invariant could break, so it
-    // is blocked at the source rather than corrected downstream.
-    val isShopPriceInvalid = tempProduct.value.priceInCentsPickupShop
-        ?.let { it > tempProduct.value.priceInCents } == true
+    // Both prices are validated against the same range. The shop price used only to be
+    // checked against the delivery one, which let 0 € through -- and priceFor() would then
+    // hand the customer a free product, with nothing downstream to catch it because the
+    // whole design says prices are validated where they are typed.
+    val shopPriceError: String? = tempProduct.value.priceInCentsPickupShop?.let { shopPrice ->
+        when {
+            shopPrice !in ACCEPTED_PRICE_RANGE -> OUT_OF_RANGE_PRICE_ERROR
+            shopPrice > tempProduct.value.priceInCents -> SHOP_PRICE_ABOVE_DELIVERY_ERROR
+            else -> null
+        }
+    }
+    val isShopPriceInvalid = shopPriceError != null
 
     var allergensInputText by remember(tempProduct.value.allergens) {
         mutableStateOf(tempProduct.value.allergens?.joinToString(", ") ?: "")
@@ -185,7 +215,7 @@ fun ProductEditDialog(
                     },
                     onValueChange = {
                         try {
-                            if (it.toLongPrice() < 10000) {
+                            if (it.toLongPrice() < PRICE_TYPING_CEILING) {
                                 tempProduct.value =
                                     tempProduct.value.copy(priceInCents = it.toLongPrice())
                             }
@@ -214,12 +244,16 @@ fun ProductEditDialog(
                     value = tempProduct.value.priceInCentsPickupShop?.toStringPrice() ?: "",
                     onValueChange = { input ->
                         try {
-                            tempProduct.value = tempProduct.value.copy(
-                                priceInCentsPickupShop = input
-                                    .takeIf { it.isNotBlank() }
-                                    ?.toLongPrice()
-                                    ?.takeIf { it < 10000 }
-                            )
+                            val typed = input.takeIf { it.isNotBlank() }?.toLongPrice()
+                            // Ignore the keystroke past the ceiling, exactly as the delivery
+                            // price does. Dropping the value to null instead -- which is what
+                            // this did -- reads as the field clearing itself, and null means
+                            // "same price as delivery", which is not what was asked for.
+                            if (typed == null || typed < PRICE_TYPING_CEILING) {
+                                tempProduct.value = tempProduct.value.copy(
+                                    priceInCentsPickupShop = typed
+                                )
+                            }
                         } catch (e: NumberFormatException) {
                             focusManager.clearFocus()
                             onError.invoke("Vous ne pouvez pas mettre plusieurs virgules / points")
@@ -236,10 +270,10 @@ fun ProductEditDialog(
                     }
                 )
 
-                if (isShopPriceInvalid) {
+                shopPriceError?.let { message ->
                     Text(
                         modifier = Modifier.padding(horizontal = 16.dp),
-                        text = "Le prix boutique doit rester inférieur ou égal au prix livraison.",
+                        text = message,
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.error
                     )
@@ -281,7 +315,7 @@ fun ProductEditDialog(
                             modifier = Modifier
                                 .padding(top = 8.dp, end = 8.dp, start = 8.dp),
                             enabled = tempProduct.value.name.isNotBlank() &&
-                                    tempProduct.value.priceInCents in 50..3000 &&
+                                    tempProduct.value.priceInCents in ACCEPTED_PRICE_RANGE &&
                                     !isShopPriceInvalid,
                             shape = MaterialTheme.shapes.large,
                             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 16.dp),

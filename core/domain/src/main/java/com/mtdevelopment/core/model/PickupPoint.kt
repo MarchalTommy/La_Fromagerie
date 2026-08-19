@@ -1,6 +1,7 @@
 package com.mtdevelopment.core.model
 
 import com.mtdevelopment.core.domain.toLocalDate
+import kotlinx.serialization.Serializable
 
 /**
  * What kind of place an order can be collected at.
@@ -45,7 +46,7 @@ enum class PickupPointType {
  *   these, a recurring shop could not be closed at all.
  * @property date [PickupPointType.MARKET] only: the single `dd/MM/yyyy` date it happens on.
  */
-@kotlinx.serialization.Serializable
+@Serializable
 data class PickupPoint(
     val id: String = "",
     val type: PickupPointType = PickupPointType.SHOP,

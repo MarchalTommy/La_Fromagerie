@@ -2,9 +2,9 @@ package com.mtdevelopment.home.presentation.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.mtdevelopment.core.presentation.R
 import com.mtdevelopment.core.model.FulfillmentType
 import com.mtdevelopment.core.model.Product
+import com.mtdevelopment.core.presentation.R
 import com.mtdevelopment.core.presentation.sharedModels.toUiProductObject
 import com.mtdevelopment.core.repository.SharedDatastore
 import com.mtdevelopment.core.usecase.GetIsNetworkConnectedUseCase

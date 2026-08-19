@@ -21,14 +21,14 @@ import app.rive.runtime.kotlin.core.Rive
 import com.mapbox.common.MapboxOptions
 import com.mtdevelopment.core.presentation.composable.ErrorOverlay
 import com.mtdevelopment.core.presentation.composable.RiveAnimation
+import com.mtdevelopment.delivery.domain.usecase.DeliveryEligibility
 import com.mtdevelopment.delivery.presentation.BuildConfig.MAPBOX_PUBLIC_TOKEN
 import com.mtdevelopment.delivery.presentation.composable.CustomerContent
-import com.mtdevelopment.delivery.presentation.composable.FulfillmentTypeSelector
-import com.mtdevelopment.delivery.presentation.composable.PickupContent
 import com.mtdevelopment.delivery.presentation.composable.DatePickerComposable
-import com.mtdevelopment.delivery.domain.usecase.DeliveryEligibility
+import com.mtdevelopment.delivery.presentation.composable.FulfillmentTypeSelector
 import com.mtdevelopment.delivery.presentation.composable.MapBoxComposable
 import com.mtdevelopment.delivery.presentation.composable.PermissionManagerComposable
+import com.mtdevelopment.delivery.presentation.composable.PickupContent
 import com.mtdevelopment.delivery.presentation.viewmodel.DeliveryViewModel
 import org.koin.androidx.compose.koinViewModel
 

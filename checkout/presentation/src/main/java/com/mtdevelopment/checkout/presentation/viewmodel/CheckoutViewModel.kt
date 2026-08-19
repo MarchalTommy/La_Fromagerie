@@ -39,8 +39,8 @@ import com.mtdevelopment.checkout.presentation.ThreeDSecureActivity
 import com.mtdevelopment.checkout.presentation.model.PaymentScreenState
 import com.mtdevelopment.core.domain.toPriceDouble
 import com.mtdevelopment.core.domain.toStringDate
-import com.mtdevelopment.core.model.Order
 import com.mtdevelopment.core.model.FulfillmentType
+import com.mtdevelopment.core.model.Order
 import com.mtdevelopment.core.model.OrderStatus
 import com.mtdevelopment.core.model.PaymentMode
 import com.mtdevelopment.core.repository.SharedDatastore

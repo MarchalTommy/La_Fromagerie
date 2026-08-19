@@ -3,6 +3,8 @@ package com.mtdevelopment.core.domain
 import android.location.Location
 import android.util.Log
 import java.text.NumberFormat
+import java.time.DayOfWeek
+import java.time.format.TextStyle
 import java.util.Locale
 import kotlin.math.roundToLong
 
@@ -201,9 +203,9 @@ fun <T> reorderList(list: List<T>, indices: List<Int?>): List<T> {
  */
 fun frenchDayName(dayOfWeekName: String): String? {
     return runCatching {
-        java.time.DayOfWeek.valueOf(dayOfWeekName.uppercase()).getDisplayName(
-            java.time.format.TextStyle.FULL,
-            java.util.Locale.FRENCH
+        DayOfWeek.valueOf(dayOfWeekName.uppercase()).getDisplayName(
+            TextStyle.FULL,
+            Locale.FRENCH
         )
     }.getOrNull()
 }
@@ -218,9 +220,9 @@ fun getFormattedDeliveryDayAndFrequency(
     shortFormat: Boolean = false
 ): String {
     val dayName = try {
-        java.time.DayOfWeek.valueOf(deliveryDay.uppercase()).getDisplayName(
-            java.time.format.TextStyle.FULL,
-            java.util.Locale.FRENCH
+        DayOfWeek.valueOf(deliveryDay.uppercase()).getDisplayName(
+            TextStyle.FULL,
+            Locale.FRENCH
         )
     } catch (e: Exception) {
         ""

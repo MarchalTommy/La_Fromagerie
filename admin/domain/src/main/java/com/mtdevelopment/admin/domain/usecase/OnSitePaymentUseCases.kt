@@ -56,17 +56,23 @@ class CancelStaleOnSiteOrdersUseCase(
     ): List<String> {
         val cutoff = today.minusDays(ON_SITE_ORDER_GRACE_DAYS)
 
-        return orders
+        val stale = orders
             .filter { it.paymentMode == PaymentMode.ON_SITE && it.status == OrderStatus.PENDING }
             // An unparseable date is left alone rather than guessed at: cancelling an order
             // because its date could not be read would be the worst possible reading of it.
             .filter { order -> order.deliveryDate.toLocalDate()?.isBefore(cutoff) == true }
-            .mapNotNull { order ->
-                order.id.takeIf {
-                    firebaseAdminRepository
-                        .updateOrderStatus(order.id, OrderStatus.CANCELED)
-                        .isSuccess
-                }
+
+        // Written as a loop rather than folded into the filter chain: every line above decides
+        // what to cancel, this one does the cancelling. A predicate that writes to Firestore
+        // reads as a predicate right up until someone reorders the chain around it.
+        val writtenOff = mutableListOf<String>()
+        stale.forEach { order ->
+            if (firebaseAdminRepository.updateOrderStatus(order.id, OrderStatus.CANCELED)
+                    .isSuccess
+            ) {
+                writtenOff.add(order.id)
             }
+        }
+        return writtenOff
     }
 }

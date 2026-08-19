@@ -49,9 +49,9 @@ import com.mtdevelopment.core.local.SharedDatastoreImpl
 import com.mtdevelopment.core.presentation.MainViewModel
 import com.mtdevelopment.core.repository.AutocompleteRepository
 import com.mtdevelopment.core.repository.AutocompleteRepositoryImpl
+import com.mtdevelopment.core.repository.CatalogPriceSource
 import com.mtdevelopment.core.repository.NetworkRepository
 import com.mtdevelopment.core.repository.NetworkRepositoryImpl
-import com.mtdevelopment.core.repository.CatalogPriceSource
 import com.mtdevelopment.core.repository.SharedDatastore
 import com.mtdevelopment.core.source.AutoCompleteApiDataSource
 import com.mtdevelopment.core.usecase.ClearCartUseCase
@@ -70,13 +70,13 @@ import com.mtdevelopment.delivery.data.source.remote.AddressApiDataSource
 import com.mtdevelopment.delivery.data.source.remote.FirestoreDeliveryDataSource
 import com.mtdevelopment.delivery.data.source.remote.OpenRouteDataSource
 import com.mtdevelopment.delivery.domain.repository.AddressApiRepository
-import com.mtdevelopment.delivery.domain.usecase.GetStreetSuggestionsUseCase
 import com.mtdevelopment.delivery.domain.repository.FirestorePathRepository
 import com.mtdevelopment.delivery.domain.repository.RoomDeliveryRepository
 import com.mtdevelopment.delivery.domain.usecase.BuildSelectablePickupDatesUseCase
 import com.mtdevelopment.delivery.domain.usecase.GetAllDeliveryPathsUseCase
-import com.mtdevelopment.delivery.domain.usecase.GetPickupPointsUseCase
 import com.mtdevelopment.delivery.domain.usecase.GetDeliveryPathUseCase
+import com.mtdevelopment.delivery.domain.usecase.GetPickupPointsUseCase
+import com.mtdevelopment.delivery.domain.usecase.GetStreetSuggestionsUseCase
 import com.mtdevelopment.delivery.domain.usecase.GetUserInfoFromDatastoreUseCase
 import com.mtdevelopment.delivery.presentation.viewmodel.DeliveryViewModel
 import com.mtdevelopment.home.data.repository.FirebaseHomeRepositoryImpl
@@ -237,7 +237,7 @@ val mainAppModule = module {
     factory { DeliveryDatabase(get()) }
 
     // ViewModels
-    viewModel { HomeViewModel(get(), get(), get(), get(), get()) }
+    viewModelOf(::HomeViewModel)
     viewModelOf(::MainViewModel)
     viewModelOf(::DeliveryViewModel)
     viewModelOf(::CartViewModel)
