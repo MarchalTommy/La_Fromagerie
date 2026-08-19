@@ -35,6 +35,7 @@ import com.mtdevelopment.core.model.PickupPoint
 import com.mtdevelopment.core.model.Order
 import com.mtdevelopment.core.model.OrderStatus
 import com.mtdevelopment.core.model.PreparationStatus
+import com.mtdevelopment.core.model.deliveriesOnly
 import com.mtdevelopment.core.presentation.sharedModels.UiProductObject
 import com.mtdevelopment.core.presentation.sharedModels.toDomainProduct
 import com.mtdevelopment.core.usecase.GetAutocompleteSuggestionsUseCase
@@ -474,13 +475,20 @@ class AdminViewModel(
 
     /**
      * Calculates an optimized path for today's orders.
+     *
+     * [addresses] arrives already stripped of the orders the customer collects, so the
+     * order list rebuilt here has to be stripped the same way: the optimizer pairs the two
+     * by position, and a size mismatch makes it silently fall back to the unoptimised
+     * order. It also keys its route cache on the set of order ids, so a set that differs
+     * from the tracking service's would make the two invalidate each other's cache and pay
+     * for the same route twice.
      */
     fun getOptimisedPath(addresses: List<String>, onSuccess: (OptimizedRouteWithOrders) -> Unit) {
         viewModelScope.launch {
             val todayStart =
                 java.time.LocalDate.now().atStartOfDay(java.time.ZoneOffset.UTC).toInstant()
                     .toEpochMilli()
-            val dailyOrders = _orderScreenState.value.orders.filter {
+            val dailyOrders = _orderScreenState.value.orders.deliveriesOnly().filter {
                 it.deliveryDate.toTimeStamp() == todayStart
             }
             val result = getOptimizedDeliveryUseCase.invoke(addresses, dailyOrders)
