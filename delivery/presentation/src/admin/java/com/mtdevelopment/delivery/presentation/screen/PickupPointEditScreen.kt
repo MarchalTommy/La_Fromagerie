@@ -264,10 +264,12 @@ fun PickupPointEditScreen(
                                 )
                             }
                         }
+                        // The one line explaining what a closure does. Secondary in the
+                        // hierarchy, but it has to be readable to be worth printing.
                         Text(
                             text = "Congés, jours fériés : ces dates disparaissent des " +
                                     "retraits proposés même si elles tombent un jour d'ouverture.",
-                            style = MaterialTheme.typography.bodySmall,
+                            style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
 

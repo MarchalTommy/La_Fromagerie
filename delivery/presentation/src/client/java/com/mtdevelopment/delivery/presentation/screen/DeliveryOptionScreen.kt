@@ -27,6 +27,7 @@ import com.mtdevelopment.delivery.presentation.composable.FulfillmentTypeSelecto
 import com.mtdevelopment.delivery.presentation.composable.MapBoxComposable
 import com.mtdevelopment.delivery.presentation.composable.PermissionManagerComposable
 import com.mtdevelopment.delivery.presentation.composable.PickupContent
+import com.mtdevelopment.delivery.presentation.composable.ShopPickupSavingNotice
 import com.mtdevelopment.delivery.presentation.viewmodel.DeliveryViewModel
 import org.koin.androidx.compose.koinViewModel
 
@@ -112,6 +113,15 @@ fun DeliveryOptionScreen(
                 modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp),
                 selected = state.value.fulfillmentType,
                 onSelect = { deliveryViewModel.setFulfillmentType(it) }
+            )
+
+            // Directly under the control it is about. The shop price is only visible today on
+            // the product tiles, one screen back and one product at a time, so the customer
+            // reaches the mode selector with no idea what the choice is worth on their basket.
+            ShopPickupSavingNotice(
+                modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp),
+                savingInCents = state.value.shopPickupSavingInCents,
+                fulfillmentType = state.value.fulfillmentType
             )
 
             // FORM SECTION: Collects user data and selections.

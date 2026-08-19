@@ -58,6 +58,7 @@ import com.mtdevelopment.core.usecase.ClearCartUseCase
 import com.mtdevelopment.core.usecase.ClearDatastoreUseCase
 import com.mtdevelopment.core.usecase.ClearOrderUseCase
 import com.mtdevelopment.core.usecase.GetAutocompleteSuggestionsUseCase
+import com.mtdevelopment.core.usecase.GetShopPickupSavingUseCase
 import com.mtdevelopment.core.usecase.GetIsNetworkConnectedUseCase
 import com.mtdevelopment.core.usecase.SaveToDatastoreUseCase
 import com.mtdevelopment.delivery.data.BuildConfig.OPEN_ROUTE_TOKEN
@@ -192,6 +193,7 @@ val mainAppModule = module {
 
     factory { GetDeliveryPathUseCase(get()) }
     factory { GetAutocompleteSuggestionsUseCase(get()) }
+    factory { GetShopPickupSavingUseCase(get(), get()) }
     factory { GetStreetSuggestionsUseCase(get()) }
     factory { ResolveDeliveryCitiesUseCase(get()) }
     factory {

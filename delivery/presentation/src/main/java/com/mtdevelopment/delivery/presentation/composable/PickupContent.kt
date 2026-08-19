@@ -8,9 +8,11 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Phone
+import androidx.compose.material.icons.rounded.Storefront
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -21,6 +23,7 @@ import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.platform.LocalFocusManager
@@ -30,6 +33,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.mtdevelopment.core.domain.isValidFrenchPhoneNumber
+import com.mtdevelopment.core.domain.toStringPrice
 import com.mtdevelopment.core.model.FulfillmentType
 import com.mtdevelopment.core.presentation.composable.PrimaryButton
 import com.mtdevelopment.delivery.domain.usecase.SelectablePickupDate
@@ -71,6 +75,53 @@ fun FulfillmentTypeSelector(
             ) {
                 Text(label)
             }
+        }
+    }
+}
+
+/**
+ * Tells the customer, in money, what collecting at the shop is worth on the basket they are
+ * holding right now.
+ *
+ * Sits directly under [FulfillmentTypeSelector] because that is the control it is arguing
+ * about: the saving exists in the catalogue and in the total, and nowhere the customer looks
+ * while deciding. Silent when [savingInCents] is zero — no basket, or nothing priced
+ * differently — since "économisez 0,00 €" is worse than saying nothing.
+ *
+ * The wording changes once the customer has taken the offer: it stops being an argument and
+ * becomes a confirmation of what they already chose.
+ */
+@Composable
+fun ShopPickupSavingNotice(
+    savingInCents: Long,
+    fulfillmentType: FulfillmentType,
+    modifier: Modifier = Modifier
+) {
+    if (savingInCents <= 0L) return
+
+    val amount = savingInCents.toStringPrice()
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+            contentColor = MaterialTheme.colorScheme.onTertiaryContainer
+        )
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(Icons.Rounded.Storefront, contentDescription = null)
+            Spacer(modifier = Modifier.width(12.dp))
+            Text(
+                text = if (fulfillmentType == FulfillmentType.PICKUP_SHOP) {
+                    "Retrait en boutique : vous économisez $amount sur cette commande."
+                } else {
+                    "En venant chercher votre commande à la boutique, vous payez " +
+                            "$amount de moins."
+                },
+                style = MaterialTheme.typography.bodyMedium
+            )
         }
     }
 }
@@ -233,9 +284,9 @@ private fun PickupDateCard(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 4.dp)
-            // Past the cut-off the tile stays listed but inert, exactly as the delivery
-            // picker does: removing it would make the list shift and read as a bug.
-            .clickable(enabled = !pickupDate.isPastDeadline, onClick = onClick),
+            // Every card here is orderable: BuildSelectablePickupDatesUseCase starts the list
+            // at the next date still inside its window, so there is no closed state to render.
+            .clickable(onClick = onClick),
         colors = CardDefaults.cardColors(
             containerColor = if (isSelected) {
                 MaterialTheme.colorScheme.primaryContainer
@@ -271,18 +322,14 @@ private fun PickupDateCard(
                 text = pickupDate.pointLabel,
                 style = MaterialTheme.typography.bodyMedium
             )
+            // Full body weight and full contrast: this is the address the customer has to
+            // find on the day, not a caption. It was set in the muted secondary style, which
+            // read as decoration next to the label above it.
             Text(
                 text = pickupDate.pointAddress,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface
             )
-            if (pickupDate.isPastDeadline) {
-                Text(
-                    text = "Commandes closes pour cette date",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.error
-                )
-            }
         }
     }
 }

@@ -16,6 +16,7 @@ import com.mtdevelopment.delivery.domain.usecase.GetPickupPointsUseCase
 import com.mtdevelopment.delivery.domain.usecase.SelectablePickupDate
 import java.time.LocalDateTime
 import com.mtdevelopment.core.usecase.GetAutocompleteSuggestionsUseCase
+import com.mtdevelopment.core.usecase.GetShopPickupSavingUseCase
 import com.mtdevelopment.core.usecase.GetIsNetworkConnectedUseCase
 import com.mtdevelopment.core.usecase.SaveToDatastoreUseCase
 import com.mtdevelopment.delivery.domain.usecase.CityResolution
@@ -68,6 +69,7 @@ class DeliveryViewModel(
     private val resolveDeliveryCitiesUseCase: ResolveDeliveryCitiesUseCase,
     private val getPickupPointsUseCase: GetPickupPointsUseCase,
     private val buildSelectablePickupDatesUseCase: BuildSelectablePickupDatesUseCase,
+    private val getShopPickupSavingUseCase: GetShopPickupSavingUseCase,
     private val sharedDatastore: SharedDatastore
 ) : ViewModel(), KoinComponent {
 
@@ -95,6 +97,7 @@ class DeliveryViewModel(
     private var deliveryAutocompleteJob: kotlinx.coroutines.Job? = null
     private var billingAutocompleteJob: kotlinx.coroutines.Job? = null
     private var reconnectRetryJob: kotlinx.coroutines.Job? = null
+    private var shopPickupSavingJob: kotlinx.coroutines.Job? = null
 
     init {
         viewModelScope.launch {
@@ -153,6 +156,20 @@ class DeliveryViewModel(
     fun loadClientData() {
         viewModelScope.launch {
             getAllDeliveryPaths()
+        }
+
+        // Collected for as long as the screen lives rather than read once: the customer can
+        // still change the basket from here, and a saving quoted against the basket they used
+        // to have is worse than none. Job-guarded like reconnectRetryJob above -- a rotation
+        // re-runs loadClientData(), and stacked collectors on one viewModelScope never stop.
+        if (shopPickupSavingJob == null) {
+            shopPickupSavingJob = viewModelScope.launch {
+                getShopPickupSavingUseCase.invoke().collect { saving ->
+                    deliveryUiDataState = deliveryUiDataState.copy(
+                        shopPickupSavingInCents = saving
+                    )
+                }
+            }
         }
 
         // Recovery from a failed first load. A launch with no network leaves the customer

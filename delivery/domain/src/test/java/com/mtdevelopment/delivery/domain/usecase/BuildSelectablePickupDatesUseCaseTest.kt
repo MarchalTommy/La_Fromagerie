@@ -3,7 +3,6 @@ package com.mtdevelopment.delivery.domain.usecase
 import com.mtdevelopment.core.model.PickupPoint
 import com.mtdevelopment.core.model.PickupPointType
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.LocalDate
@@ -123,19 +122,42 @@ class BuildSelectablePickupDatesUseCaseTest {
             LocalDateTime.of(2026, 8, 14, 12, 1)
         )
 
-        assertFalse(justBefore.single().isPastDeadline)
-        assertTrue(justAfter.single().isPastDeadline)
+        assertEquals(listOf(LocalDate.of(2026, 8, 15)), justBefore.map { it.date })
+        assertTrue(justAfter.isEmpty())
     }
 
     @Test
-    fun `a date past the cut-off is still listed, not removed`() {
+    fun `a date past the cut-off is not offered at all`() {
+        // Unlike the delivery calendar, which greys the day in place: this is a short list of
+        // cards, and a dead card at the top of it is the first thing the customer reads.
         val dates = useCase.invoke(
             listOf(market("m1", "15/08/2026")),
             LocalDateTime.of(2026, 8, 14, 18, 0)
         )
 
-        assertEquals(1, dates.size)
-        assertTrue(dates.single().isPastDeadline)
+        assertTrue(dates.isEmpty())
+    }
+
+    @Test
+    fun `the list starts at the next orderable day, and limit counts real options`() {
+        // Friday 18:00: Saturday's window shut at Friday noon, so the next collectable day is
+        // the Tuesday after. Before this, the Saturday was offered as an inert first card and
+        // ate one of the four slots.
+        val dates = useCase.invoke(
+            listOf(shop()),
+            LocalDateTime.of(2026, 8, 14, 18, 0),
+            limit = 4
+        )
+
+        assertEquals(
+            listOf(
+                LocalDate.of(2026, 8, 18), // Tuesday
+                LocalDate.of(2026, 8, 22), // Saturday
+                LocalDate.of(2026, 8, 25),
+                LocalDate.of(2026, 8, 29)
+            ),
+            dates.map { it.date }
+        )
     }
 
     @Test

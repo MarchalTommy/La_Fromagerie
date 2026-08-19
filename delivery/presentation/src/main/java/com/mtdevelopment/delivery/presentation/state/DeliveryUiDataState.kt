@@ -47,6 +47,9 @@ import com.mtdevelopment.delivery.presentation.model.UiDeliveryPath
  * @property pickupDates Dates offered for those points, cut-off already applied.
  * @property pickupPointsUnavailable True when the points could not be read. Distinct from an
  *   empty list on purpose: "we could not check" must never be shown as "you cannot collect".
+ * @property shopPickupSavingInCents What this basket would cost less if collected at the shop
+ *   rather than delivered. Zero when there is nothing to say — an empty basket, or products
+ *   priced the same either way — and the banner is hidden rather than showing "0,00 €".
  * @property selectedPickupDate The date the customer picked, and the point it belongs to. Held
  *   here rather than in the composable because it is what the order is built from: kept in the
  *   view it survived a change of mode — the list redrew, nothing looked selected, and the
@@ -89,5 +92,6 @@ data class DeliveryUiDataState(
     val pickupPoints: List<PickupPoint> = emptyList(),
     val pickupDates: List<SelectablePickupDate> = emptyList(),
     val pickupPointsUnavailable: Boolean = false,
-    val selectedPickupDate: SelectablePickupDate? = null
+    val selectedPickupDate: SelectablePickupDate? = null,
+    val shopPickupSavingInCents: Long = 0L
 )

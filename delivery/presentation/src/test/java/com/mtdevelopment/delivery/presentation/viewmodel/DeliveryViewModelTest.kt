@@ -8,6 +8,7 @@ import com.mtdevelopment.core.model.PickupPointType
 import com.mtdevelopment.core.model.UserInformation
 import com.mtdevelopment.core.repository.SharedDatastore
 import com.mtdevelopment.core.usecase.GetAutocompleteSuggestionsUseCase
+import com.mtdevelopment.core.usecase.GetShopPickupSavingUseCase
 import com.mtdevelopment.core.usecase.GetIsNetworkConnectedUseCase
 import com.mtdevelopment.core.usecase.SaveToDatastoreUseCase
 import com.mtdevelopment.delivery.domain.model.DeliveryPath
@@ -69,12 +70,14 @@ class DeliveryViewModelTest {
     )
 
     private val getPickupPointsUseCase: GetPickupPointsUseCase = mockk(relaxed = true)
+    private val getShopPickupSavingUseCase: GetShopPickupSavingUseCase = mockk()
     private val sharedDatastore: SharedDatastore = mockk(relaxed = true)
 
     @Before
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
         every { getIsConnectedUseCase.invoke() } returns flowOf(true)
+        every { getShopPickupSavingUseCase.invoke() } returns flowOf(0L)
     }
 
     @After
@@ -82,18 +85,22 @@ class DeliveryViewModelTest {
         Dispatchers.resetMain()
     }
 
+    // Named, not positional: eleven dependencies of which several are single-argument use
+    // cases, so a reordering compiles and lies. Same reason adminPresentationModule wires
+    // AdminViewModel by name.
     private fun buildViewModel() = DeliveryViewModel(
-        getIsConnectedUseCase,
-        getUserInfoFromDatastoreUseCase,
-        saveToDatastoreUseCase,
-        getDeliveryPathUseCase,
-        getAllDeliveryPathsUseCase,
-        getAutocompleteSuggestionsUseCase,
-        getStreetSuggestionsUseCase,
-        resolveDeliveryCitiesUseCase,
-        getPickupPointsUseCase,
-        BuildSelectablePickupDatesUseCase(),
-        sharedDatastore
+        getIsConnectedUseCase = getIsConnectedUseCase,
+        getUserInfoFromDatastoreUseCase = getUserInfoFromDatastoreUseCase,
+        saveToDatastoreUseCase = saveToDatastoreUseCase,
+        getDeliveryPathsUseCase = getDeliveryPathUseCase,
+        getAllDeliveryPathsUseCase = getAllDeliveryPathsUseCase,
+        getAutocompleteSuggestionsUseCase = getAutocompleteSuggestionsUseCase,
+        getStreetSuggestionsUseCase = getStreetSuggestionsUseCase,
+        resolveDeliveryCitiesUseCase = resolveDeliveryCitiesUseCase,
+        getPickupPointsUseCase = getPickupPointsUseCase,
+        buildSelectablePickupDatesUseCase = BuildSelectablePickupDatesUseCase(),
+        getShopPickupSavingUseCase = getShopPickupSavingUseCase,
+        sharedDatastore = sharedDatastore
     )
 
     @Test
@@ -133,6 +140,29 @@ class DeliveryViewModelTest {
             assertEquals("1 rue du Fromage", state.deliveryAddressSearchQuery)
             assertEquals("Tournée du Lundi", state.selectedPath?.name)
             assertFalse(state.isLoading)
+        }
+
+    /**
+     * The saving is what the customer is deciding on, so it has to reach the screen that holds
+     * the mode selector. Nothing else in the journey states it: the shop price is only visible
+     * on the product tiles, one at a time and a screen back.
+     */
+    @Test
+    fun `loadClientData surfaces what collecting at the shop would save`() =
+        runTest(testDispatcher) {
+            coEvery {
+                getAllDeliveryPathsUseCase.invoke(any(), any(), any(), any(), any())
+            } answers {
+                arg<(List<DeliveryPath?>) -> Unit>(3).invoke(emptyList())
+            }
+            every { getUserInfoFromDatastoreUseCase.invoke() } returns flowOf(null)
+            every { getShopPickupSavingUseCase.invoke() } returns flowOf(240L)
+
+            val viewModel = buildViewModel()
+            viewModel.loadClientData()
+            testScheduler.advanceUntilIdle()
+
+            assertEquals(240L, viewModel.deliveryUiDataState.shopPickupSavingInCents)
         }
 
     @Test
@@ -521,8 +551,7 @@ class DeliveryViewModelTest {
                     pointId = "shop",
                     pointLabel = "La Fromagerie",
                     pointAddress = "1 place du Marché, 25270 Levier",
-                    timeRange = "9h-12h",
-                    isPastDeadline = false
+                    timeRange = "9h-12h"
                 )
             )
             testScheduler.advanceUntilIdle()
@@ -567,8 +596,7 @@ class DeliveryViewModelTest {
                     pointId = "shop",
                     pointLabel = "La Fromagerie",
                     pointAddress = "1 place du Marché, 25270 Levier",
-                    timeRange = "9h-12h",
-                    isPastDeadline = false
+                    timeRange = "9h-12h"
                 )
             )
             testScheduler.advanceUntilIdle()

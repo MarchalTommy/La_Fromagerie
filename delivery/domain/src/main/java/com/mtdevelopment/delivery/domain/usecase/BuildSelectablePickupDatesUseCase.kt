@@ -13,17 +13,16 @@ import java.time.LocalDateTime
  *
  * @property pointId Which pickup point serves this date. Two markets on the same day are two
  *   separate entries: unlike delivery tournées, the point is what the customer is choosing.
- * @property isPastDeadline The order window closed (see [ORDER_CUTOFF_HOUR]). Listed but not
- *   selectable, matching the delivery picker — hiding it would make the list shift silently
- *   and read as a bug.
+ *
+ * There is no `isPastDeadline` here, unlike [SelectableDeliveryDate]. Every date this use case
+ * returns can be ordered on; see the class KDoc for why the two pickers differ.
  */
 data class SelectablePickupDate(
     val date: LocalDate,
     val pointId: String,
     val pointLabel: String,
     val pointAddress: String,
-    val timeRange: String,
-    val isPastDeadline: Boolean
+    val timeRange: String
 )
 
 /**
@@ -49,6 +48,13 @@ private const val MAX_DAYS_SCANNED = 365
  * Unlike the delivery picker, dates are **not** deduplicated. Two markets on the same Saturday
  * are two genuinely different places to go, and collapsing them would hide one.
  *
+ * Also unlike the delivery picker, a date whose window has closed is **not returned at all**.
+ * The delivery picker greys such a date inside a calendar grid, where a missing day would
+ * leave a hole; this one renders a short vertical list of cards, and a dead card at the top of
+ * it is simply the first thing the customer reads. The list starts at the next date that can
+ * actually be ordered, and [limit] then counts real options rather than being spent on
+ * closed ones.
+ *
  * @param points Points to offer. Empty yields an empty list.
  * @param now Injected rather than read from the system clock so the cut-off is testable.
  * @param limit How many dates to return.
@@ -62,11 +68,29 @@ class BuildSelectablePickupDatesUseCase {
     ): List<SelectablePickupDate> {
         if (points.isEmpty() || limit <= 0) return emptyList()
 
+        val from = firstOrderableDate(now)
         return points
-            .flatMap { point -> datesFor(point, now.toLocalDate(), limit) }
+            .flatMap { point -> datesFor(point, from, limit) }
             .sortedBy { it.date }
             .take(limit)
-            .map { it.copy(isPastDeadline = isPastDeadline(it.date, now)) }
+    }
+
+    /**
+     * The earliest date still inside its order window.
+     *
+     * Walks forward from today using [isPastDeadline] itself rather than re-deriving the
+     * cut-off arithmetic, so the two can never disagree about where the boundary is. It
+     * terminates after at most two steps -- the predicate is monotonic in the date -- and the
+     * bound is there only to make that impossible to get wrong later.
+     */
+    private fun firstOrderableDate(now: LocalDateTime): LocalDate {
+        var candidate = now.toLocalDate()
+        var steps = 0
+        while (isPastDeadline(candidate, now) && steps < MAX_DAYS_SCANNED) {
+            candidate = candidate.plusDays(1)
+            steps++
+        }
+        return candidate
     }
 
     private fun datesFor(
@@ -75,8 +99,8 @@ class BuildSelectablePickupDatesUseCase {
         limit: Int
     ): List<SelectablePickupDate> = when (point.type) {
         PickupPointType.MARKET -> {
-            // A market that has already happened is simply gone; there is no next occurrence
-            // to fall back on.
+            // A market whose window has closed is simply gone -- [from] is already the first
+            // orderable day -- and there is no next occurrence to fall back on.
             point.date?.toLocalDate()
                 ?.takeIf { !it.isBefore(from) }
                 ?.let { listOf(point.toSelectable(it)) }
@@ -115,8 +139,7 @@ class BuildSelectablePickupDatesUseCase {
         pointId = id,
         pointLabel = label,
         pointAddress = address,
-        timeRange = timeRange,
-        isPastDeadline = false
+        timeRange = timeRange
     )
 
     /** Same rule as delivery: orders close the day before, at noon. */
