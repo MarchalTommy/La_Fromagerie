@@ -75,6 +75,16 @@ fun String.toTimeStamp(): Long {
 }
 
 /**
+ * Formats a [java.time.LocalDate] the way dates are stored, so a stored value can be compared
+ * as a string.
+ *
+ * Shares [DATE_FORMATTER_DDMMYYYY] with the parsing side rather than calling `String.format`:
+ * that one uses the device locale, so on a locale with non-Latin digits it produces a string
+ * no stored date can ever equal, and the comparison fails silently.
+ */
+fun java.time.LocalDate.toStoredDate(): String = DATE_FORMATTER_DDMMYYYY.format(this)
+
+/**
  * Formats a Unix timestamp (milliseconds) into a "dd/MM/yyyy" date string.
  * Uses UTC to ensure stable formatting.
  */

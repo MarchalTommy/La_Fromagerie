@@ -1,6 +1,7 @@
 package com.mtdevelopment.delivery.domain.usecase
 
 import com.mtdevelopment.core.domain.toLocalDate
+import com.mtdevelopment.core.domain.toStoredDate
 import com.mtdevelopment.core.model.PickupPoint
 import com.mtdevelopment.core.model.PickupPointType
 import java.time.DayOfWeek
@@ -122,7 +123,4 @@ class BuildSelectablePickupDatesUseCase {
     private fun isPastDeadline(date: LocalDate, now: LocalDateTime): Boolean =
         now.isAfter(date.minusDays(1).atTime(ORDER_CUTOFF_HOUR, 0))
 
-    /** Formats a date the way closures are stored, so the comparison is string-to-string. */
-    private fun LocalDate.toStoredDate(): String =
-        "%02d/%02d/%04d".format(dayOfMonth, monthValue, year)
 }

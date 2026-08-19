@@ -8,6 +8,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.LocalDate
 import java.time.LocalDateTime
+import java.util.Locale
 
 class BuildSelectablePickupDatesUseCaseTest {
 
@@ -151,5 +152,32 @@ class BuildSelectablePickupDatesUseCaseTest {
     @Test
     fun `no points yields no dates`() {
         assertTrue(useCase.invoke(emptyList(), now).isEmpty())
+    }
+
+    /**
+     * The shop writes closures with an ASCII dd/MM/yyyy formatter, so the comparison side has
+     * to produce ASCII too. Reformatting on the device locale turned every closure into a
+     * string no stored date could match, and the shop appeared open on days it had declared
+     * shut — silently, and only for some customers.
+     */
+    @Test
+    fun `a closure is respected on a locale that does not write latin digits`() {
+        val previous = Locale.getDefault()
+        try {
+            Locale.setDefault(Locale.forLanguageTag("ar-EG-u-nu-arab"))
+
+            val dates = useCase.invoke(
+                listOf(shop(closedDates = listOf("15/08/2026"))),
+                now,
+                limit = 2
+            )
+
+            assertEquals(
+                listOf(LocalDate.of(2026, 8, 18), LocalDate.of(2026, 8, 22)),
+                dates.map { it.date }
+            )
+        } finally {
+            Locale.setDefault(previous)
+        }
     }
 }

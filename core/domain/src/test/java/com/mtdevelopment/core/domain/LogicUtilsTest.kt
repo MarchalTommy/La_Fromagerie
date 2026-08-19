@@ -77,6 +77,22 @@ class LogicUtilsTest {
     }
 
     @Test
+    fun `toStoredDate writes ascii digits whatever the device locale`() {
+        val previous = java.util.Locale.getDefault()
+        try {
+            java.util.Locale.setDefault(java.util.Locale.forLanguageTag("ar-EG-u-nu-arab"))
+
+            val stored = java.time.LocalDate.of(2026, 8, 15).toStoredDate()
+
+            // Anything else and the value can never equal a date already stored by the shop.
+            assertEquals("15/08/2026", stored)
+            assertEquals(java.time.LocalDate.of(2026, 8, 15), stored.toLocalDate())
+        } finally {
+            java.util.Locale.setDefault(previous)
+        }
+    }
+
+    @Test
     fun `toLocalDate parses valid date`() {
         val parsed = "01/02/2024".toLocalDate()
         assertEquals(2024, parsed?.year)
