@@ -520,10 +520,20 @@ class CheckoutViewModel(
      *
      * The cart is cleared and the day-of reminder scheduled exactly as a paid order would,
      * since from the customer's point of view the order is placed either way.
+     *
+     * Unlike the two online buttons, this one leaves the customer sitting on the checkout
+     * screen while Firestore is written, so it needs its own guard: a second tap on a slow
+     * connection would mint a fresh order id and place a second ON_SITE order that no
+     * reconciliation chain would ever catch. The loading flag is both that guard and the
+     * customer's feedback, so it has to be released on every way out.
      */
     fun placeOrderToPayOnSite(onResult: (Boolean) -> Unit) {
+        if (_paymentScreenState.value.isLoading) return
+        _paymentScreenState.update { it.copy(isLoading = true) }
+
         createOrder(paymentMode = PaymentMode.ON_SITE) { created ->
             if (!created) {
+                _paymentScreenState.update { it.copy(isLoading = false) }
                 setPaymentError(
                     "Une erreur est survenue lors de la création de la commande.\n" +
                             "Merci de réessayer ultérieurement."
@@ -532,9 +542,19 @@ class CheckoutViewModel(
                 return@createOrder
             }
             viewModelScope.launch {
-                _paymentScreenState.value.orderId?.let { scheduleOrderReminderUseCase.invoke(it) }
-                clearCartUseCase.invoke()
-                _paymentScreenState.update { it.copy(isPaymentSuccess = true) }
+                try {
+                    _paymentScreenState.value.orderId?.let {
+                        scheduleOrderReminderUseCase.invoke(it)
+                    }
+                    clearCartUseCase.invoke()
+                } catch (e: Exception) {
+                    // The order is already in Firestore. Reporting an error here would
+                    // invite the customer to order again, so a missed reminder or an
+                    // uncleared cart is the cheaper failure to absorb.
+                    FirebaseCrashlytics.getInstance()
+                        .recordException(Throwable("On-site order housekeeping failed: ${e.message}"))
+                }
+                _paymentScreenState.update { it.copy(isLoading = false, isPaymentSuccess = true) }
                 onResult.invoke(true)
             }
         }

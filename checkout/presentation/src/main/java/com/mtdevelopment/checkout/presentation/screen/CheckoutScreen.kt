@@ -461,7 +461,10 @@ fun CheckoutScreen(
                         .padding(start = 32.dp, end = 32.dp, bottom = 16.dp),
                     text = "Payer sur place au retrait",
                     trailingIcon = null,
-                    enabled = isEmailValid,
+                    // The two online buttons above hand over to an external surface, which
+                    // rules out a second tap on its own. This one keeps the customer here
+                    // while the order is written, so the loading flag has to disable it.
+                    enabled = isEmailValid && !uiData.value.isLoading,
                     // Navigation is already driven by isPaymentSuccess above, which the
                     // ViewModel raises once the order is written.
                     onClick = { checkoutViewModel.placeOrderToPayOnSite { } }
