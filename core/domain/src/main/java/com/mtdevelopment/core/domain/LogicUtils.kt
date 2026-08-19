@@ -48,6 +48,39 @@ fun String.toLongPrice(): Long {
 }
 
 /**
+ * [toLongPrice] for text that is still being typed, where "not a price yet" is normal rather
+ * than exceptional. Returns null instead of throwing [NumberFormatException].
+ */
+fun String.toLongPriceOrNull(): Long? = runCatching { toLongPrice() }.getOrNull()
+
+/**
+ * Formats cents as the bare decimal a price *field* holds while it is being edited -- "3,70",
+ * never "3,70 EUR".
+ *
+ * [toStringPrice] is the display format and bakes in the currency symbol plus a non-breaking
+ * space. Feeding that back into an editable field is what made the admin price fields
+ * unusable: the symbol sits exactly where the next keystroke lands, so typing a "," after it
+ * produced a second separator and [toLongPrice] threw on the result.
+ *
+ * Only for seeding a field from a stored value -- a field must never be re-rendered from the
+ * model on every keystroke, or the cursor moves under the typist's fingers.
+ */
+fun Long.toEditablePrice(): String = "${this / 100},${(this % 100).toString().padStart(2, '0')}"
+
+/**
+ * Whether raw field text is still on its way to being a price: digits, then at most one
+ * separator, then at most two decimals. Empty is allowed -- a field has to be clearable.
+ *
+ * A separator with no digit in front ("," alone) is refused deliberately: it parses to 0,50 EUR
+ * once a digit follows, which is a price the typist did not mean to be halfway through.
+ *
+ * Callers drop the keystroke when this is false. That is what the price fields always intended
+ * -- they just did it by throwing and dismissing the keyboard mid-word.
+ */
+fun String.isEditablePriceInput(): Boolean =
+    isEmpty() || matches("^\\d+([.,]\\d{0,2})?$".toRegex())
+
+/**
  * Formatter for dates in "dd/MM/yyyy" format using the system timezone.
  * Pinned to [Locale.ROOT]: stored dates use ASCII digits, and a formatter built on the
  * device default locale fails to parse them on locales with non-Latin digits, silently

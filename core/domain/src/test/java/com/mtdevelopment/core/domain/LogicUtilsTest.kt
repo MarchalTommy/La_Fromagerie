@@ -227,4 +227,58 @@ class LogicUtilsTest {
     }
 
     // endregion
+
+    // region Editable price fields
+
+    @Test
+    fun `an editable price is the bare decimal, never the display format`() {
+        // toStringPrice would give "3,70 €" -- putting the currency symbol exactly where the
+        // next keystroke lands, which is what made the admin price fields unusable.
+        assertEquals("3,70", 370L.toEditablePrice())
+        assertEquals("0,50", 50L.toEditablePrice())
+        assertEquals("30,00", 3000L.toEditablePrice())
+        assertEquals("0,05", 5L.toEditablePrice())
+    }
+
+    @Test
+    fun `what toEditablePrice writes, toLongPrice reads back`() {
+        listOf(50L, 370L, 999L, 3000L).forEach { cents ->
+            assertEquals(cents, cents.toEditablePrice().toLongPrice())
+        }
+    }
+
+    @Test
+    fun `a price on its way to being typed is accepted`() {
+        assertTrue("".isEditablePriceInput())
+        assertTrue("3".isEditablePriceInput())
+        assertTrue("3,".isEditablePriceInput())
+        assertTrue("3,5".isEditablePriceInput())
+        assertTrue("3,50".isEditablePriceInput())
+        assertTrue("3.50".isEditablePriceInput())
+        assertTrue("12".isEditablePriceInput())
+    }
+
+    @Test
+    fun `what cannot become a price is refused so the keystroke can be dropped`() {
+        assertFalse("3,,".isEditablePriceInput())
+        assertFalse("3,505".isEditablePriceInput())
+        assertFalse("3.5,0".isEditablePriceInput())
+        assertFalse("3,70 €".isEditablePriceInput())
+        // A separator with nothing in front: "0,50" has to be typed in full.
+        assertFalse(",".isEditablePriceInput())
+        assertFalse(",5".isEditablePriceInput())
+        assertFalse("abc".isEditablePriceInput())
+        assertFalse("-3".isEditablePriceInput())
+    }
+
+    @Test
+    fun `a half-typed price parses to what has been typed so far`() {
+        assertEquals(300L, "3".toLongPriceOrNull())
+        assertEquals(300L, "3,".toLongPriceOrNull())
+        assertEquals(350L, "3,5".toLongPriceOrNull())
+        assertEquals(350L, "3,50".toLongPriceOrNull())
+        assertNull("".toLongPriceOrNull())
+    }
+
+    // endregion
 }

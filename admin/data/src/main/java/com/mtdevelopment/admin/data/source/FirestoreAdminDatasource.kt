@@ -18,6 +18,16 @@ import kotlinx.coroutines.tasks.await
 import java.time.Instant
 
 /**
+ * Logcat tag for the pickup-point reads and writes.
+ *
+ * They are the only Firestore calls here that carry one, because they are the ones that
+ * proved un-diagnosable without it: a `PERMISSION_DENIED` on `pickup_points` surfaced to the
+ * shop as "Impossible de charger les points de retrait." and to logcat as nothing at all --
+ * the exception went straight into a Result nobody unwrapped.
+ */
+private const val PICKUP_LOG_TAG = "FirestorePickupPoints"
+
+/**
  * Data source for administrative Firestore operations.
  * It provides methods for managing products, delivery paths, orders, and preparation statuses.
  * Most methods are [suspend] and use [await] for better coroutine integration.
@@ -193,6 +203,7 @@ class FirestoreAdminDatasource(
                 }
             )
         } catch (e: Exception) {
+            Log.e(PICKUP_LOG_TAG, "reading pickup_points failed", e)
             Result.failure(e)
         }
     }
@@ -204,6 +215,7 @@ class FirestoreAdminDatasource(
                 .await()
             Result.success(Unit)
         } catch (e: Exception) {
+            Log.e(PICKUP_LOG_TAG, "adding a pickup point failed", e)
             Result.failure(e)
         }
     }
@@ -216,6 +228,7 @@ class FirestoreAdminDatasource(
                 .await()
             Result.success(Unit)
         } catch (e: Exception) {
+            Log.e(PICKUP_LOG_TAG, "updating a pickup point failed", e)
             Result.failure(e)
         }
     }
@@ -228,6 +241,7 @@ class FirestoreAdminDatasource(
                 .await()
             Result.success(Unit)
         } catch (e: Exception) {
+            Log.e(PICKUP_LOG_TAG, "deleting a pickup point failed", e)
             Result.failure(e)
         }
     }
@@ -257,6 +271,7 @@ class FirestoreAdminDatasource(
                 .await()
             Result.success(Unit)
         } catch (e: Exception) {
+            Log.e(PICKUP_LOG_TAG, "bumping pickup_timestamp failed", e)
             Result.failure(e)
         }
     }

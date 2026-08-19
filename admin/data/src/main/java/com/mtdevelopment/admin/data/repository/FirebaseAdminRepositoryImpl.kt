@@ -1,5 +1,6 @@
 package com.mtdevelopment.admin.data.repository
 
+import android.util.Log
 import com.mtdevelopment.admin.data.BuildConfig
 import com.mtdevelopment.admin.data.model.toDataDeliveryPath
 import com.mtdevelopment.admin.data.model.toDataPickupPoint
@@ -109,9 +110,9 @@ class FirebaseAdminRepositoryImpl(
 
     ///////////////////////////////////////////////////////////////////////////
     // Pickup Point Management
-    // Each modification triggers a call to saveNewDatabasePickupUpdate, on the same
-    // principle as the delivery paths above: without the bump, clients keep serving a
-    // stale cache and would let customers order on a market date that no longer exists.
+    // Each modification bumps saveNewDatabasePickupUpdate, on the same principle as the
+    // delivery paths above -- but unlike them, the bump is NOT allowed to fail the write it
+    // follows. See bumpPickupTimestamp.
     ///////////////////////////////////////////////////////////////////////////
     override suspend fun getAllPickupPoints(): Result<List<PickupPoint>> {
         return firestore.getAllPickupPoints().map { points ->
@@ -121,39 +122,50 @@ class FirebaseAdminRepositoryImpl(
 
     override suspend fun addNewPickupPoint(point: PickupPoint): Result<Unit> {
         val result = firestore.addNewPickupPoint(point = point.toDataPickupPoint())
-        var finalResult: Result<Unit>? = null
-
-        result.onSuccess {
-            finalResult = saveNewDatabasePickupUpdate(System.currentTimeMillis())
-        }
-
-        return finalResult ?: result
+        result.onSuccess { bumpPickupTimestamp() }
+        return result
     }
 
     override suspend fun updatePickupPoint(point: PickupPoint): Result<Unit> {
         val result = firestore.updatePickupPoint(point = point.toDataPickupPoint())
-        var finalResult: Result<Unit>? = null
-
-        result.onSuccess {
-            finalResult = saveNewDatabasePickupUpdate(System.currentTimeMillis())
-        }
-
-        return finalResult ?: result
+        result.onSuccess { bumpPickupTimestamp() }
+        return result
     }
 
     override suspend fun deletePickupPoint(point: PickupPoint): Result<Unit> {
         val result = firestore.deletePickupPoint(point = point.toDataPickupPoint())
-        var finalResult: Result<Unit>? = null
-
-        result.onSuccess {
-            finalResult = saveNewDatabasePickupUpdate(System.currentTimeMillis())
-        }
-
-        return finalResult ?: result
+        result.onSuccess { bumpPickupTimestamp() }
+        return result
     }
 
     override suspend fun saveNewDatabasePickupUpdate(timestamp: Long): Result<Unit> {
         return firestore.saveNewDatabasePickupUpdate(timestamp)
+    }
+
+    /**
+     * Bumps the pickup timestamp, and reports a refusal without failing the write that earned
+     * it.
+     *
+     * The products and paths bumps deliberately DO fail their caller: those timestamps drive
+     * a Room cache, so a missed bump leaves customers ordering against stale data and the
+     * write is genuinely not finished. `pickup_timestamp` has no reader at all today (see
+     * FirestoreAdminDatasource.saveNewDatabasePickupUpdate) -- so folding its failure into the
+     * result meant a pickup point that WAS written to Firestore came back as
+     * "Impossible d'enregistrer ce point de retrait", and the shop retried a save that had
+     * already happened.
+     *
+     * Logged rather than swallowed: the day that timestamp gets a reader, a silent refusal
+     * here would be the thing nobody can see.
+     */
+    private suspend fun bumpPickupTimestamp() {
+        saveNewDatabasePickupUpdate(System.currentTimeMillis())
+            .onFailure {
+                Log.e(
+                    "FirebaseAdminRepository",
+                    "pickup_timestamp bump refused; the point itself was written",
+                    it
+                )
+            }
     }
 
     ///////////////////////////////////////////////////////////////////////////
