@@ -14,6 +14,7 @@ import com.mtdevelopment.delivery.domain.model.DeliveryPath
 import com.mtdevelopment.delivery.domain.usecase.BuildSelectablePickupDatesUseCase
 import com.mtdevelopment.delivery.domain.usecase.DeliveryEligibility
 import com.mtdevelopment.delivery.domain.usecase.GetAllDeliveryPathsUseCase
+import com.mtdevelopment.delivery.domain.usecase.ResolveDeliveryCitiesUseCase
 import com.mtdevelopment.delivery.domain.usecase.GetDeliveryPathUseCase
 import com.mtdevelopment.delivery.domain.usecase.GetPickupPointsUseCase
 import com.mtdevelopment.delivery.domain.usecase.GetStreetSuggestionsUseCase
@@ -56,6 +57,7 @@ class DeliveryViewModelTest {
     private val getAllDeliveryPathsUseCase: GetAllDeliveryPathsUseCase = mockk()
     private val getAutocompleteSuggestionsUseCase: GetAutocompleteSuggestionsUseCase = mockk()
     private val getStreetSuggestionsUseCase: GetStreetSuggestionsUseCase = mockk(relaxed = true)
+    private val resolveDeliveryCitiesUseCase: ResolveDeliveryCitiesUseCase = mockk(relaxed = true)
 
     private val uiPath = UiDeliveryPath(
         id = "1",
@@ -88,6 +90,7 @@ class DeliveryViewModelTest {
         getAllDeliveryPathsUseCase,
         getAutocompleteSuggestionsUseCase,
         getStreetSuggestionsUseCase,
+        resolveDeliveryCitiesUseCase,
         getPickupPointsUseCase,
         BuildSelectablePickupDatesUseCase(),
         sharedDatastore

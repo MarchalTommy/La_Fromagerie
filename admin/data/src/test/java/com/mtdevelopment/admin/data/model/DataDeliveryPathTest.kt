@@ -24,6 +24,30 @@ class DataDeliveryPathTest {
         deliveryDay = "TUESDAY"
     )
 
+    /**
+     * The write side of the "reading a path needs no network" change: if the center does not reach
+     * the document, every reader goes back to geocoding all of its cities on every load.
+     */
+    @Test
+    fun `commune centers reach the Firestore DTO`() {
+        val dto = DeliveryPath(
+            id = "path-b",
+            pathName = "Le Haut",
+            availableCities = listOf(
+                DeliveryCity("Malpas", 25160, emptyList(), 46.80, 6.29),
+                DeliveryCity("Frasne", 25560)
+            ),
+            deliveryDay = "FRIDAY"
+        ).toDataDeliveryPath()
+
+        assertEquals(46.80, dto.city_entries?.get(0)?.lat)
+        assertEquals(6.29, dto.city_entries?.get(0)?.lng)
+        // A city that was never resolved is written without coordinates rather than with zeroes,
+        // so the reader can tell "not resolved" from "resolved to the Gulf of Guinea".
+        assertNull(dto.city_entries?.get(1)?.lat)
+        assertNull(dto.city_entries?.get(1)?.lng)
+    }
+
     @Test
     fun `street restrictions reach the Firestore DTO`() {
         val dto = splitPath.toDataDeliveryPath()

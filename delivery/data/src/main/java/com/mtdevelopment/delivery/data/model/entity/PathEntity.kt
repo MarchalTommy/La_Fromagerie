@@ -17,6 +17,15 @@ import kotlinx.serialization.json.Json
  * and rows cached by an older build survive the upgrade. A city absent from [cityStreets] is
  * covered in full, which is both the common case and the safe default for those older rows: they
  * behave exactly as before until the next Firestore refresh repopulates the restrictions.
+ *
+ * [cityCoordinates] follows the same sidecar pattern (`MIGRATION_6_7`) and holds city → commune
+ * center. It is what lets a cached path be read back without geocoding anything. A city absent from
+ * it simply has no stored coordinate and gets looked up on the next refresh, so older rows keep
+ * working unchanged.
+ *
+ * [locations] stays as the positional mirror the map and the route service consume. It is derived
+ * from the same coordinates — keeping both is redundant, but `DeliveryPath.locations` is public API
+ * for those two consumers and dropping it belongs to its own change.
  */
 @Serializable
 @Entity(tableName = "paths", primaryKeys = ["id"])
@@ -29,6 +38,8 @@ data class PathEntity(
     val availableCities: Map<String, Int> = emptyMap(),
     @SerialName("city_streets")
     val cityStreets: Map<String, List<String>> = emptyMap(),
+    @SerialName("city_coordinates")
+    val cityCoordinates: Map<String, Coordinate> = emptyMap(),
     @SerialName("locations")
     val locations: List<Coordinate>,
     @SerialName("delivery_day")
@@ -47,7 +58,9 @@ fun PathEntity.toPath(): DeliveryPath {
             DeliveryCity(
                 name = name,
                 postcode = postcode,
-                streets = this.cityStreets[name] ?: emptyList()
+                streets = this.cityStreets[name] ?: emptyList(),
+                latitude = this.cityCoordinates[name]?.latitude,
+                longitude = this.cityCoordinates[name]?.longitude
             )
         },
         locations = locations.map {
@@ -73,6 +86,11 @@ fun DeliveryPath.toPathEntity(): PathEntity {
         cityStreets = this.cities
             .filter { it.streets.isNotEmpty() }
             .associate { it.name to it.streets },
+        cityCoordinates = this.cities
+            .mapNotNull { city ->
+                city.location?.let { (lat, lng) -> city.name to Coordinate(lat, lng) }
+            }
+            .toMap(),
         locations = locations.orEmpty().map {
             Coordinate(
                 latitude = it.first,

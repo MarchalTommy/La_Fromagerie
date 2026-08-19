@@ -11,6 +11,29 @@ import org.junit.Test
  */
 class DataDeliveryPathsResponseTest {
 
+    /**
+     * The stored center is what lets a path be rebuilt without geocoding. It is nullable because
+     * documents last written by an older admin build carry none, and those cities are looked up on
+     * the fly — which is what makes the field additive rather than a migration.
+     */
+    @Test
+    fun `city_entries carries the commune centers when the document has them`() {
+        val response = DataDeliveryPathsResponse(
+            id = "path-a",
+            path_name = "Parcours A",
+            deliveryDay = "FRIDAY",
+            cityEntries = listOf(
+                DataDeliveryCityResponse("Malpas", 25160, emptyList(), lat = 46.80, lng = 6.29),
+                DataDeliveryCityResponse("Frasne", 25560)
+            )
+        )
+
+        val cities = response.toDeliveryCities()
+
+        assertEquals(46.80 to 6.29, cities[0].location)
+        assertEquals(null, cities[1].location)
+    }
+
     @Test
     fun `city_entries carries the per-city street restrictions`() {
         val response = DataDeliveryPathsResponse(

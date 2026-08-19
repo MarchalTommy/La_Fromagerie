@@ -106,7 +106,11 @@ private fun Map<String, Any?>?.toPathResponse(documentId: String): DataDeliveryP
                 city = city,
                 postcode = (fields["postcode"] as? Number)?.toInt() ?: 0,
                 streets = (fields["streets"] as? List<*>)?.mapNotNull { it?.toString() }
-                    ?: emptyList()
+                    ?: emptyList(),
+                // Absent on documents written before the coordinate was stored; the reader
+                // geocodes those cities instead.
+                lat = (fields["lat"] as? Number)?.toDouble(),
+                lng = (fields["lng"] as? Number)?.toDouble()
             )
         }
     )

@@ -1,6 +1,7 @@
 package com.mtdevelopment.delivery.domain.repository
 
 import com.mtdevelopment.delivery.domain.model.CityInformation
+import com.mtdevelopment.delivery.domain.model.CommuneLookup
 
 interface AddressApiRepository {
 
@@ -8,6 +9,17 @@ interface AddressApiRepository {
         name: String,
         zip: Int
     ): CityInformation?
+
+    /**
+     * Same lookup as [reverseGeocodeCity], but says **why** it failed — see [CommuneLookup].
+     *
+     * Used when the answer is about the data rather than about building a path: validating what the
+     * shop typed needs to tell an unknown commune from an unreachable API.
+     */
+    suspend fun lookupCommune(
+        name: String,
+        zip: Int
+    ): CommuneLookup
 
     suspend fun geocodeAddress(
         address: String

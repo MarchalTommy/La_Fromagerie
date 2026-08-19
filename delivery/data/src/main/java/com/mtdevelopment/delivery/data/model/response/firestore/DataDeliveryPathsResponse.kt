@@ -39,6 +39,12 @@ data class DataDeliveryPathsResponse(
     val cityEntries: List<DataDeliveryCityResponse>? = null
 )
 
+/**
+ * @property lat Center of the commune, written by the admin app when the path is saved. Absent on
+ *   documents last written before this field existed — the reader geocodes those on the fly, so the
+ *   addition is purely additive and needs no migration.
+ * @property lng See [lat].
+ */
 @Keep
 @Serializable
 data class DataDeliveryCityResponse(
@@ -47,7 +53,11 @@ data class DataDeliveryCityResponse(
     @SerialName("postcode")
     val postcode: Int = 0,
     @SerialName("streets")
-    val streets: List<String> = emptyList()
+    val streets: List<String> = emptyList(),
+    @SerialName("lat")
+    val lat: Double? = null,
+    @SerialName("lng")
+    val lng: Double? = null
 )
 
 /**
@@ -61,7 +71,9 @@ fun DataDeliveryPathsResponse.toDeliveryCities(): List<DeliveryCity> {
             DeliveryCity(
                 name = entry.city,
                 postcode = entry.postcode,
-                streets = entry.streets
+                streets = entry.streets,
+                latitude = entry.lat,
+                longitude = entry.lng
             )
         }
     }

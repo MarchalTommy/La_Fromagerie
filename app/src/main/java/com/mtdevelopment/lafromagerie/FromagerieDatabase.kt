@@ -32,15 +32,35 @@ val MIGRATION_5_6 = object : Migration(5, 6) {
 }
 
 /**
+ * Adds the per-city commune centers, so a cached path can be read back without geocoding.
+ *
+ * Additive like [MIGRATION_5_6]: existing rows default to `{}`, meaning "no coordinate stored", and
+ * the reader geocodes those cities exactly as it always did. A destructive fallback here would wipe
+ * the path cache — which is the one thing that keeps the app usable when the address API is slow or
+ * unreachable, and the whole point of the change this migration serves.
+ */
+val MIGRATION_6_7 = object : Migration(6, 7) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE paths ADD COLUMN cityCoordinates TEXT NOT NULL DEFAULT '{}'")
+    }
+}
+
+/**
  * Adds the optional shop-collection price. Nullable with no default: null means "this product
  * costs the same wherever it is collected", which is exactly what every row cached before this
  * column existed should read as.
+ *
+ * Numbered 7 → 8, not 6 → 7: version 7 already exists in the field as the cityCoordinates
+ * schema of [MIGRATION_6_7], shipped in 1.0.1, and this column was written on a branch that
+ * forked before it. Two schemas under one version number is precisely what Room's identity
+ * hash catches, at startup, with a crash — and `fallbackToDestructiveMigration` does not
+ * cover it, since it only fires when the version number itself changes.
  *
  * Additive rather than a bare version bump, for the same reason as [MIGRATION_5_6]: the
  * destructive fallback is a safety net for unhandled jumps, not a shortcut — a wiped cache
  * makes every address undeliverable on a first launch without network.
  */
-val MIGRATION_6_7 = object : Migration(6, 7) {
+val MIGRATION_7_8 = object : Migration(7, 8) {
     override fun migrate(db: SupportSQLiteDatabase) {
         db.execSQL("ALTER TABLE products ADD COLUMN priceInCentsPickupShop INTEGER DEFAULT NULL")
     }
@@ -48,13 +68,14 @@ val MIGRATION_6_7 = object : Migration(6, 7) {
 
 @Database(
     entities = [ProductEntity::class, PathEntity::class],
-    version = 7,
+    version = 8,
 )
 @TypeConverters(
     Converters::class,
     CoordinatesConverter::class,
     MapConverter::class,
-    StreetsMapConverter::class
+    StreetsMapConverter::class,
+    CityCoordinatesConverter::class
 )
 abstract class FromagerieDatabase : RoomDatabase() {
     abstract val homeDao: HomeDao
@@ -87,6 +108,19 @@ class MapConverter {
 
     @TypeConverter
     fun fromStringMap(map: Map<String, Int>): String {
+        return Json.encodeToString(map)
+    }
+}
+
+/** City name → the center of that commune. Absent city = no coordinate stored yet. */
+class CityCoordinatesConverter {
+    @TypeConverter
+    fun toCoordinatesMap(value: String): Map<String, com.mtdevelopment.delivery.data.model.Coordinate> {
+        return Json.decodeFromString(value)
+    }
+
+    @TypeConverter
+    fun fromCoordinatesMap(map: Map<String, com.mtdevelopment.delivery.data.model.Coordinate>): String {
         return Json.encodeToString(map)
     }
 }
