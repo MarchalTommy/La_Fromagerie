@@ -4,12 +4,15 @@ import { InvoiceLine, InvoiceNinjaClient, describeError } from "./invoiceNinja.j
 /**
  * Logique de facturation partagée entre les deux déclencheurs :
  *  - handleSumUpWebhook (chemin hosted-checkout, vérifié côté SumUp) ;
- *  - onOrderPaidCreateInvoice (trigger Firestore, couvre TOUS les chemins de
- *    paiement dès que la commande passe à PAID).
+ *  - onOrderPaidCreateInvoice (trigger Firestore, sur toute transition vers
+ *    PAID, quel que soit le chemin de paiement).
  *
  * Idempotent : chaque commande est facturée une seule fois, via une
  * réclamation transactionnelle dans la collection `invoices`. Les deux
  * déclencheurs peuvent donc coexister sans risque de double facture.
+ *
+ * Une seule exception, décidée par la boutique le 2026-08-19 : une commande
+ * réglée hors application n'est pas facturée du tout (voir ON_SITE plus bas).
  */
 
 export type InvoiceResult =
@@ -30,6 +33,12 @@ export interface InvoiceOptions {
  *
  * En cas de panne transitoire (Invoice Ninja injoignable…), la réclamation est
  * relâchée et le statut `failed` est renvoyé pour que l'appelant relance.
+ *
+ * Le garde-fou ON_SITE vit ICI et pas dans les déclencheurs : les deux passent
+ * par cette fonction, donc une règle unique les couvre tous les deux et il n'y
+ * a pas de version divergente à maintenir. Il renvoie `skipped` et jamais
+ * `failed` — le trigger Firestore tourne en `retry: true` et rejouerait
+ * indéfiniment une décision qui ne changera pas.
  */
 export async function createAndSendInvoice(
     orderId: string,
@@ -46,6 +55,24 @@ export async function createAndSendInvoice(
         if (!orderSnap.exists) {
             await releaseClaim(orderId);
             return { status: "skipped", reason: "commande introuvable" };
+        }
+
+        // Paiement hors application : la boutique encaisse au comptoir et ne veut
+        // aucune facture émise. Testé AVANT les validations de montant et d'email
+        // parce que la décision n'en dépend pas : une commande ON_SITE sans email
+        // serait autrement classée « email client manquant », ce qui décrirait un
+        // incident là où il n'y en a pas.
+        //
+        // Le critère est le mode de PAIEMENT, pas le mode de retrait : un client
+        // qui réserve en click & collect mais règle dans l'application reçoit sa
+        // facture comme n'importe quelle commande en ligne.
+        //
+        // La commande passe quand même à PAID — c'est ce que fait
+        // MarkOrderPaidOnSiteUseCase quand la boutique encaisse — donc ce
+        // déclenchement-ci est normal et attendu, pas une anomalie.
+        if (orderSnap.get("payment_mode") === "ON_SITE") {
+            await releaseClaim(orderId);
+            return { status: "skipped", reason: "réglée hors application (ON_SITE)" };
         }
 
         const orderTotalCents = orderSnap.get("total_price");

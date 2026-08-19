@@ -35,6 +35,14 @@ const val ON_SITE_ORDER_GRACE_DAYS = 3L
  *
  * Resolving it means a payment state of its own (a `paid_at`, or a status on [PaymentMode]),
  * which changes the Firestore schema and is a decision for the shop, not for this use case.
+ *
+ * **This write is watched by the backend.** `onOrderPaidCreateInvoice` fires on every
+ * transition to [OrderStatus.PAID] and used to email an Invoice Ninja invoice — so pressing
+ * "encaissé" at the counter sent the customer a bill for money they had just handed over in
+ * person. Since 2026-08-19 `createAndSendInvoice` skips anything whose `payment_mode` is
+ * [PaymentMode.ON_SITE], by the shop's decision: no invoice at all for money taken outside
+ * the app. Nothing to do here, but anyone changing which status this writes, or introducing
+ * the dedicated payment state described above, has to look at that function too.
  */
 class MarkOrderPaidOnSiteUseCase(
     private val firebaseAdminRepository: FirebaseAdminRepository
