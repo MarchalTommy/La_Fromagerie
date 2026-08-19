@@ -28,12 +28,18 @@ class FirestoreDeliveryDataSource(
     /**
      * Reads every pickup point for the customer journey.
      *
-     * ⚠️ An **empty** result is reported as a failure, not as "there is nowhere to collect".
-     * Firestore serves reads from its own cache when offline and completes them *successfully*
-     * with zero documents, so `addOnFailureListener` never fires. Treating that as an honest
-     * empty list is exactly the bug that once made every address undeliverable on a first
-     * offline launch — the shop always has at least its own counter configured, so zero
-     * documents means the read did not really happen.
+     * ⚠️ Zero documents means two opposite things, and [QuerySnapshot.getMetadata] is what
+     * tells them apart. Firestore serves reads from its own cache when offline and completes
+     * them *successfully* with zero documents, so `addOnFailureListener` never fires — taking
+     * that at face value is the bug that once made every address undeliverable on a first
+     * offline launch. Served from cache and empty is therefore a failed read.
+     *
+     * Served by the **server** and empty is the truth: nothing is configured. That is not a
+     * hypothetical — it is the state of the collection until the shop's own counter is created
+     * in the admin, so on the day this ships the first customer to tap "Boutique" would
+     * otherwise be told to check their connection. This used to assume the shop always has at
+     * least its counter configured; it does not, and the assumption belonged to no one but
+     * this comment.
      */
     fun getAllPickupPoints(
         onSuccess: (List<DataPickupPointResponse>) -> Unit,
@@ -48,7 +54,7 @@ class FirestoreDeliveryDataSource(
                 val points = snapshot.documents.map { item ->
                     item.data.toPickupPointResponse(item.id)
                 }
-                if (points.isEmpty()) {
+                if (points.isEmpty() && snapshot.metadata.isFromCache) {
                     onFailure.invoke()
                 } else {
                     onSuccess.invoke(points)

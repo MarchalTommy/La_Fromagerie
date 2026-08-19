@@ -8,6 +8,7 @@ import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.QuerySnapshot
+import com.google.firebase.firestore.SnapshotMetadata
 import com.mtdevelopment.core.model.DeliveryCity
 import com.mtdevelopment.delivery.data.model.response.firestore.DataDeliveryPathsResponse
 import com.mtdevelopment.delivery.data.model.response.firestore.toDeliveryCities
@@ -16,6 +17,7 @@ import io.mockk.mockk
 import io.mockk.slot
 import io.mockk.verify
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class FirestoreDeliveryDataSourceTest {
@@ -148,5 +150,53 @@ class FirestoreDeliveryDataSourceTest {
         successSlot.captured.onSuccess(snapshot)
 
         assertEquals(true, failed)
+    }
+
+    /**
+     * Zero pickup points means two opposite things depending on who answered, and only the
+     * snapshot metadata knows which.
+     */
+    private fun readPickupPoints(isFromCache: Boolean): Pair<List<*>?, Boolean> {
+        every { firestore.collection("pickup_points") } returns collection
+        every { collection.get() } returns task
+
+        val successSlot = slot<OnSuccessListener<QuerySnapshot>>()
+        every { task.addOnFailureListener(any()) } returns task
+        every { task.addOnSuccessListener(capture(successSlot)) } returns task
+
+        val metadata: SnapshotMetadata = mockk()
+        every { metadata.isFromCache } returns isFromCache
+        val snapshot: QuerySnapshot = mockk()
+        every { snapshot.documents } returns emptyList()
+        every { snapshot.metadata } returns metadata
+
+        var points: List<*>? = null
+        var failed = false
+        dataSource.getAllPickupPoints(
+            onSuccess = { points = it },
+            onFailure = { failed = true }
+        )
+        successSlot.captured.onSuccess(snapshot)
+        return points to failed
+    }
+
+    @Test
+    fun `an empty read served from cache is a failed read`() {
+        // Offline, Firestore completes successfully with zero documents and never fires the
+        // failure listener. Believing it is how every address became undeliverable once.
+        val (points, failed) = readPickupPoints(isFromCache = true)
+
+        assertTrue(failed)
+        assertEquals(null, points)
+    }
+
+    @Test
+    fun `an empty read served by the server means nothing is configured`() {
+        // The state of the collection until the shop's own counter is created in the admin.
+        // Reporting it as a failure would tell the first customer to check their connection.
+        val (points, failed) = readPickupPoints(isFromCache = false)
+
+        assertEquals(emptyList<Any>(), points)
+        assertEquals(false, failed)
     }
 }
