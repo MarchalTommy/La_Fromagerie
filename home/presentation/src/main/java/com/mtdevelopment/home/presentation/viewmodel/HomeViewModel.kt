@@ -2,8 +2,11 @@ package com.mtdevelopment.home.presentation.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.mtdevelopment.core.model.FulfillmentType
+import com.mtdevelopment.core.model.Product
 import com.mtdevelopment.core.presentation.R
 import com.mtdevelopment.core.presentation.sharedModels.toUiProductObject
+import com.mtdevelopment.core.repository.SharedDatastore
 import com.mtdevelopment.core.usecase.GetIsNetworkConnectedUseCase
 import com.mtdevelopment.core.util.DataResult
 import com.mtdevelopment.core.util.UiText
@@ -14,6 +17,8 @@ import com.mtdevelopment.home.presentation.state.HomeUiState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.koin.core.component.KoinComponent
@@ -27,7 +32,8 @@ class HomeViewModel(
     private val getAllProductsUseCase: GetAllProductsUseCase,
     private val getAllCheesesUseCase: GetAllCheesesUseCase,
     private val getLastFirestoreDatabaseUpdateUseCase: GetLastFirestoreDatabaseUpdateUseCase,
-    getIsNetworkConnectedUseCase: GetIsNetworkConnectedUseCase
+    getIsNetworkConnectedUseCase: GetIsNetworkConnectedUseCase,
+    private val sharedDatastore: SharedDatastore
 ) : ViewModel(), KoinComponent {
 
     /**
@@ -38,9 +44,32 @@ class HomeViewModel(
     private val _homeUiState = MutableStateFlow(HomeUiState())
     val homeUiState: StateFlow<HomeUiState> = _homeUiState.asStateFlow()
 
+    /**
+     * The catalogue as loaded, still carrying every mode's price.
+     *
+     * Display-only. The basket used to be re-priced from here whenever the mode changed, which
+     * made the amount charged depend on this ViewModel being alive and loaded; the basket now
+     * resolves its own prices on read, so nothing outside this screen depends on this list.
+     */
+    private val loadedProducts = MutableStateFlow<List<Product>>(emptyList())
+
     init {
         // Initialization: start the sync check and initial load
         checkAndUpdateDatabase()
+
+        // The catalogue shows the price of the mode in force, so the customer never fills a
+        // basket against prices they will not be charged. Derived straight from the two inputs
+        // rather than repaired on change: there is no third copy of the prices to go stale.
+        viewModelScope.launch {
+            combine(
+                loadedProducts,
+                sharedDatastore.fulfillmentTypeFlow.map { FulfillmentType.fromStoredValue(it) }
+            ) { products, mode ->
+                products.map { it.toUiProductObject(mode) }
+            }.collect { products ->
+                _homeUiState.update { it.copy(products = products) }
+            }
+        }
     }
 
     /**
@@ -76,13 +105,8 @@ class HomeViewModel(
         viewModelScope.launch {
             when (val result = getAllProductsUseCase(forceRefresh)) {
                 is DataResult.Success -> {
-                    _homeUiState.update {
-                        it.copy(
-                            products = result.data.map { p -> p.toUiProductObject() },
-                            isLoading = false,
-                            isError = null
-                        )
-                    }
+                    loadedProducts.value = result.data
+                    _homeUiState.update { it.copy(isLoading = false, isError = null) }
                 }
 
                 is DataResult.Error -> {

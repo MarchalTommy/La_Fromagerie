@@ -169,6 +169,18 @@ class SharedDatastoreImpl(private val context: Context) : SharedDatastore {
         }
     }
 
+    private val FULFILLMENT_TYPE = stringPreferencesKey("fulfillment_type")
+    override val fulfillmentTypeFlow: Flow<String?>
+        get() = context.dataStore.data.map {
+            it[FULFILLMENT_TYPE]
+        }
+
+    override suspend fun setFulfillmentType(type: String) {
+        context.dataStore.edit {
+            it[FULFILLMENT_TYPE] = type
+        }
+    }
+
     override suspend fun clearAllDatastore() {
         context.dataStore.edit {
             it.clear()

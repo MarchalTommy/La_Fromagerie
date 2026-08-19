@@ -7,16 +7,24 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mtdevelopment.core.model.AutoCompleteSuggestion
 import com.mtdevelopment.core.model.DeliveryCity
+import com.mtdevelopment.core.model.FulfillmentType
+import com.mtdevelopment.core.model.PickupPointType
 import com.mtdevelopment.core.model.UserInformation
+import com.mtdevelopment.core.repository.SharedDatastore
+import com.mtdevelopment.delivery.domain.usecase.BuildSelectablePickupDatesUseCase
+import com.mtdevelopment.delivery.domain.usecase.GetPickupPointsUseCase
+import com.mtdevelopment.delivery.domain.usecase.SelectablePickupDate
+import java.time.LocalDateTime
 import com.mtdevelopment.core.usecase.GetAutocompleteSuggestionsUseCase
+import com.mtdevelopment.core.usecase.GetShopPickupSavingUseCase
 import com.mtdevelopment.core.usecase.GetIsNetworkConnectedUseCase
 import com.mtdevelopment.core.usecase.SaveToDatastoreUseCase
 import com.mtdevelopment.delivery.domain.usecase.CityResolution
 import com.mtdevelopment.delivery.domain.usecase.DeliveryEligibility
 import com.mtdevelopment.delivery.domain.usecase.GetAllDeliveryPathsUseCase
 import com.mtdevelopment.delivery.domain.usecase.ResolveDeliveryCitiesUseCase
-import com.mtdevelopment.delivery.domain.usecase.GetStreetSuggestionsUseCase
 import com.mtdevelopment.delivery.domain.usecase.GetDeliveryPathUseCase
+import com.mtdevelopment.delivery.domain.usecase.GetStreetSuggestionsUseCase
 import com.mtdevelopment.delivery.domain.usecase.GetUserInfoFromDatastoreUseCase
 import com.mtdevelopment.delivery.presentation.model.UiDeliveryPath
 import com.mtdevelopment.delivery.presentation.model.toUiDeliveryPath
@@ -58,7 +66,11 @@ class DeliveryViewModel(
     private val getAllDeliveryPathsUseCase: GetAllDeliveryPathsUseCase,
     private val getAutocompleteSuggestionsUseCase: GetAutocompleteSuggestionsUseCase,
     private val getStreetSuggestionsUseCase: GetStreetSuggestionsUseCase,
-    private val resolveDeliveryCitiesUseCase: ResolveDeliveryCitiesUseCase
+    private val resolveDeliveryCitiesUseCase: ResolveDeliveryCitiesUseCase,
+    private val getPickupPointsUseCase: GetPickupPointsUseCase,
+    private val buildSelectablePickupDatesUseCase: BuildSelectablePickupDatesUseCase,
+    private val getShopPickupSavingUseCase: GetShopPickupSavingUseCase,
+    private val sharedDatastore: SharedDatastore
 ) : ViewModel(), KoinComponent {
 
     /**
@@ -85,6 +97,7 @@ class DeliveryViewModel(
     private var deliveryAutocompleteJob: kotlinx.coroutines.Job? = null
     private var billingAutocompleteJob: kotlinx.coroutines.Job? = null
     private var reconnectRetryJob: kotlinx.coroutines.Job? = null
+    private var shopPickupSavingJob: kotlinx.coroutines.Job? = null
 
     init {
         viewModelScope.launch {
@@ -145,6 +158,20 @@ class DeliveryViewModel(
             getAllDeliveryPaths()
         }
 
+        // Collected for as long as the screen lives rather than read once: the customer can
+        // still change the basket from here, and a saving quoted against the basket they used
+        // to have is worse than none. Job-guarded like reconnectRetryJob above -- a rotation
+        // re-runs loadClientData(), and stacked collectors on one viewModelScope never stop.
+        if (shopPickupSavingJob == null) {
+            shopPickupSavingJob = viewModelScope.launch {
+                getShopPickupSavingUseCase.invoke().collect { saving ->
+                    deliveryUiDataState = deliveryUiDataState.copy(
+                        shopPickupSavingInCents = saving
+                    )
+                }
+            }
+        }
+
         // Recovery from a failed first load. A launch with no network leaves the customer
         // with zero paths, and simply re-entering the screen does not help: the cache flag
         // decides whether to hit the network, not the screen lifecycle. Re-fetch, bypassing
@@ -199,6 +226,128 @@ class DeliveryViewModel(
         }
     }
 
+    ///////////////////////////////////////////////////////////////////////////
+    // Pickup (click & collect and markets)
+    ///////////////////////////////////////////////////////////////////////////
+
+    /**
+     * Switches between being delivered and collecting, and loads what the new mode needs.
+     *
+     * Nothing already typed is cleared: a customer who tries "retrait" and comes back to
+     * "livraison" would otherwise have to retype their address.
+     */
+    fun setFulfillmentType(type: FulfillmentType) {
+        // The chosen date belongs to the mode it was picked in. Carrying it across would let
+        // the customer confirm a shop date while the state says market.
+        deliveryUiDataState = deliveryUiDataState.copy(
+            fulfillmentType = type,
+            selectedPickupDate = null
+        )
+        // Persisted globally, not kept on this screen: the catalogue prices itself from it,
+        // so the customer sees what they will be charged while filling their basket rather
+        // than discovering it at payment.
+        viewModelScope.launch { sharedDatastore.setFulfillmentType(type.name) }
+        if (type.isPickup) loadPickupPoints(type)
+    }
+
+    fun setUserPhoneFieldText(phone: String) {
+        deliveryUiDataState = deliveryUiDataState.copy(userPhoneFieldText = phone)
+    }
+
+    /** Records which collection date the customer tapped, before they confirm it. */
+    fun setSelectedPickupDate(selection: SelectablePickupDate?) {
+        deliveryUiDataState = deliveryUiDataState.copy(selectedPickupDate = selection)
+    }
+
+    /**
+     * Loads the points matching [type] and the dates they offer.
+     *
+     * A read failure raises [DeliveryUiDataState.pickupPointsUnavailable] rather than leaving
+     * an empty list behind: "we could not check" and "you cannot collect" look identical on
+     * screen and mean opposite things, and only one of them should cost the shop a sale.
+     *
+     * Both callbacks drop their answer when the customer has switched mode since the read
+     * started. Switching Boutique → Marché quickly leaves two reads in flight and the last
+     * one to *arrive* wins, which is how the state ends up claiming PICKUP_MARKET while
+     * offering the shop's dates — and an order snapshotted onto the wrong pickup point.
+     */
+    fun loadPickupPoints(type: FulfillmentType = deliveryUiDataState.fulfillmentType) {
+        val wanted = when (type) {
+            FulfillmentType.PICKUP_SHOP -> PickupPointType.SHOP
+            FulfillmentType.PICKUP_MARKET -> PickupPointType.MARKET
+            FulfillmentType.DELIVERY -> return
+        }
+
+        deliveryUiDataState = deliveryUiDataState.copy(
+            isLoading = true,
+            pickupPointsUnavailable = false
+        )
+        getPickupPointsUseCase.invoke(
+            onSuccess = { points ->
+                if (deliveryUiDataState.fulfillmentType != type) return@invoke
+                val matching = points.filter { it.type == wanted }
+                deliveryUiDataState = deliveryUiDataState.copy(
+                    isLoading = false,
+                    pickupPoints = matching,
+                    pickupDates = buildSelectablePickupDatesUseCase.invoke(
+                        points = matching,
+                        now = LocalDateTime.now()
+                    )
+                )
+            },
+            onFailure = {
+                if (deliveryUiDataState.fulfillmentType != type) return@invoke
+                deliveryUiDataState = deliveryUiDataState.copy(
+                    isLoading = false,
+                    pickupPoints = emptyList(),
+                    pickupDates = emptyList(),
+                    pickupPointsUnavailable = true
+                )
+            }
+        )
+    }
+
+    /**
+     * Persists the chosen collection date and the point it belongs to.
+     *
+     * The point's label, address and opening window are stored alongside the id so the order
+     * carries a snapshot: a market date edited or deleted afterwards must not rewrite a
+     * purchase already made.
+     *
+     * Everything the customer is not choosing here survives untouched, the home address
+     * included: the datastore holds who the customer is, not what this order is. The two were
+     * the same object while delivery was the only mode, and separating them is what lets
+     * [setFulfillmentType] keep its promise that trying collection clears nothing.
+     */
+    fun savePickupSelection(selection: SelectablePickupDate) {
+        viewModelScope.launch {
+            val existingUserInfo = getUserInfoFromDatastoreUseCase.invoke().firstOrNull()
+            saveToDatastoreUseCase.invoke(
+                userInformation = UserInformation(
+                    name = deliveryUiDataState.userNameFieldText,
+                    email = existingUserInfo?.email ?: "",
+                    // The remembered home address, kept. It is not this order's delivery
+                    // address — a collected order carries none, and CheckoutViewModel blanks
+                    // it there. Clearing it here instead would cost a returning customer the
+                    // address they typed once, permanently, for having tried collection.
+                    address = existingUserInfo?.address ?: "",
+                    billingAddress = existingUserInfo?.billingAddress ?: "",
+                    lastSelectedPath = existingUserInfo?.lastSelectedPath ?: "",
+                    phone = deliveryUiDataState.userPhoneFieldText,
+                    fulfillmentType = deliveryUiDataState.fulfillmentType.name,
+                    pickupPointId = selection.pointId,
+                    pickupLabel = selection.pointLabel,
+                    pickupAddress = selection.pointAddress,
+                    pickupTimeRange = selection.timeRange
+                ),
+                deliveryDate = selection.date
+                    .atStartOfDay(java.time.ZoneOffset.UTC)
+                    .toInstant()
+                    .toEpochMilli()
+            )
+        }
+    }
+
     /**
      * Persists the user's name, address, and selected path to the DataStore.
      */
@@ -223,7 +372,15 @@ class DeliveryViewModel(
                     address = deliveryUiDataState.deliveryAddressSearchQuery,
                     billingAddress = deliveryUiDataState.billingAddressSearchQuery,
                     lastSelectedPath = deliveryUiDataState.selectedPath?.name
-                        ?: existingUserInfo?.lastSelectedPath ?: ""
+                        ?: existingUserInfo?.lastSelectedPath ?: "",
+                    phone = deliveryUiDataState.userPhoneFieldText.ifBlank { null },
+                    // Explicitly reset: a customer who tried collecting and went back to
+                    // being delivered must not carry a stale pickup point into checkout.
+                    fulfillmentType = FulfillmentType.DELIVERY.name,
+                    pickupPointId = null,
+                    pickupLabel = null,
+                    pickupAddress = null,
+                    pickupTimeRange = null
                 )
             )
         }

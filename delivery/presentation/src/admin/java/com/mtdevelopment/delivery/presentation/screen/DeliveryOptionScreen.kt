@@ -4,11 +4,18 @@ import android.annotation.SuppressLint
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Storefront
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -37,6 +44,7 @@ fun DeliveryOptionScreen(
     onPathsChangeHandled: () -> Unit = {},
     navigateToCheckout: () -> Unit = {},
     navigateToPathEdit: (String?) -> Unit = {},
+    navigateToPickupPoints: () -> Unit = {},
     navigateBack: () -> Unit = {}
 ) {
 
@@ -113,6 +121,20 @@ fun DeliveryOptionScreen(
                     }
                 }
             )
+
+            // Pickup points live here rather than on the admin home: this screen is already
+            // the "where and when do I sell" configuration, and the home screen keeps the
+            // three buttons it has.
+            TextButton(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                onClick = navigateToPickupPoints
+            ) {
+                Icon(Icons.Rounded.Storefront, contentDescription = null)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Points de retrait (boutique et marchés)")
+            }
 
             Spacer(modifier = Modifier.imePadding())
         }

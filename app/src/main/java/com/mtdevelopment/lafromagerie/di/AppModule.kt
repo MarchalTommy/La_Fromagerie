@@ -17,6 +17,7 @@ import com.mtdevelopment.checkout.data.work.WorkManagerPaymentFinalizationSchedu
 import com.mtdevelopment.checkout.domain.repository.CheckoutDatastorePreference
 import com.mtdevelopment.checkout.domain.repository.PaymentFinalizationScheduler
 import com.mtdevelopment.checkout.domain.repository.PaymentRepository
+import com.mtdevelopment.checkout.domain.usecase.CancelOrderReminderUseCase
 import com.mtdevelopment.checkout.domain.usecase.ClearPendingPaymentFinalizationUseCase
 import com.mtdevelopment.checkout.domain.usecase.CreateNewCheckoutUseCase
 import com.mtdevelopment.checkout.domain.usecase.CreateNewOrderUseCase
@@ -36,6 +37,7 @@ import com.mtdevelopment.checkout.domain.usecase.ResumePendingPaymentFinalizatio
 import com.mtdevelopment.checkout.domain.usecase.SaveCheckoutReferenceUseCase
 import com.mtdevelopment.checkout.domain.usecase.SaveCreatedCheckoutUseCase
 import com.mtdevelopment.checkout.domain.usecase.SavePaymentStateUseCase
+import com.mtdevelopment.checkout.domain.usecase.ScheduleOrderReminderUseCase
 import com.mtdevelopment.checkout.domain.usecase.SchedulePaymentFinalizationUseCase
 import com.mtdevelopment.checkout.domain.usecase.UpdateOrderStatus
 import com.mtdevelopment.checkout.domain.usecase.VerifyHostedCheckoutStatusUseCase
@@ -47,6 +49,7 @@ import com.mtdevelopment.core.local.SharedDatastoreImpl
 import com.mtdevelopment.core.presentation.MainViewModel
 import com.mtdevelopment.core.repository.AutocompleteRepository
 import com.mtdevelopment.core.repository.AutocompleteRepositoryImpl
+import com.mtdevelopment.core.repository.CatalogPriceSource
 import com.mtdevelopment.core.repository.NetworkRepository
 import com.mtdevelopment.core.repository.NetworkRepositoryImpl
 import com.mtdevelopment.core.repository.SharedDatastore
@@ -55,6 +58,7 @@ import com.mtdevelopment.core.usecase.ClearCartUseCase
 import com.mtdevelopment.core.usecase.ClearDatastoreUseCase
 import com.mtdevelopment.core.usecase.ClearOrderUseCase
 import com.mtdevelopment.core.usecase.GetAutocompleteSuggestionsUseCase
+import com.mtdevelopment.core.usecase.GetShopPickupSavingUseCase
 import com.mtdevelopment.core.usecase.GetIsNetworkConnectedUseCase
 import com.mtdevelopment.core.usecase.SaveToDatastoreUseCase
 import com.mtdevelopment.delivery.data.BuildConfig.OPEN_ROUTE_TOKEN
@@ -67,12 +71,14 @@ import com.mtdevelopment.delivery.data.source.remote.AddressApiDataSource
 import com.mtdevelopment.delivery.data.source.remote.FirestoreDeliveryDataSource
 import com.mtdevelopment.delivery.data.source.remote.OpenRouteDataSource
 import com.mtdevelopment.delivery.domain.repository.AddressApiRepository
-import com.mtdevelopment.delivery.domain.usecase.GetStreetSuggestionsUseCase
 import com.mtdevelopment.delivery.domain.repository.FirestorePathRepository
 import com.mtdevelopment.delivery.domain.repository.RoomDeliveryRepository
+import com.mtdevelopment.delivery.domain.usecase.BuildSelectablePickupDatesUseCase
 import com.mtdevelopment.delivery.domain.usecase.GetAllDeliveryPathsUseCase
 import com.mtdevelopment.delivery.domain.usecase.ResolveDeliveryCitiesUseCase
 import com.mtdevelopment.delivery.domain.usecase.GetDeliveryPathUseCase
+import com.mtdevelopment.delivery.domain.usecase.GetPickupPointsUseCase
+import com.mtdevelopment.delivery.domain.usecase.GetStreetSuggestionsUseCase
 import com.mtdevelopment.delivery.domain.usecase.GetUserInfoFromDatastoreUseCase
 import com.mtdevelopment.delivery.presentation.viewmodel.DeliveryViewModel
 import com.mtdevelopment.home.data.repository.FirebaseHomeRepositoryImpl
@@ -90,6 +96,7 @@ import com.mtdevelopment.lafromagerie.FromagerieDatabase
 import com.mtdevelopment.lafromagerie.MIGRATION_4_5
 import com.mtdevelopment.lafromagerie.MIGRATION_5_6
 import com.mtdevelopment.lafromagerie.MIGRATION_6_7
+import com.mtdevelopment.lafromagerie.MIGRATION_7_8
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.plugins.DefaultRequest
@@ -149,6 +156,11 @@ val mainAppModule = module {
     single<com.mtdevelopment.home.domain.repository.ProductRepository> {
         com.mtdevelopment.home.data.repository.ProductRepositoryImpl(get(), get(), get())
     }
+    // Lets the basket and the checkout price themselves from the catalogue without either
+    // module depending on it: the port they see lives in core:domain.
+    single<CatalogPriceSource> {
+        com.mtdevelopment.home.data.repository.CatalogPriceSourceImpl(get())
+    }
     single<RoomDeliveryRepository> {
         RoomDeliveryRepositoryImpl(
             get()
@@ -164,9 +176,9 @@ val mainAppModule = module {
     }
 
     // Use Cases (Factories)
-    factory { GetCheckoutDataUseCase(get()) }
+    factory { GetCheckoutDataUseCase(get(), get()) }
     factory { SaveToDatastoreUseCase(get()) }
-    factory { GetCartDataUseCase(get()) }
+    factory { GetCartDataUseCase(get(), get()) }
     factory { ClearCartUseCase(get()) }
     factory { GetUserInfoFromDatastoreUseCase(get()) }
     factory { ClearDatastoreUseCase(get()) }
@@ -181,6 +193,7 @@ val mainAppModule = module {
 
     factory { GetDeliveryPathUseCase(get()) }
     factory { GetAutocompleteSuggestionsUseCase(get()) }
+    factory { GetShopPickupSavingUseCase(get(), get()) }
     factory { GetStreetSuggestionsUseCase(get()) }
     factory { ResolveDeliveryCitiesUseCase(get()) }
     factory {
@@ -212,7 +225,17 @@ val mainAppModule = module {
     factory { ResumePendingPaymentFinalizationUseCase(get(), get()) }
     factory { ClearPendingPaymentFinalizationUseCase(get()) }
 
+    // Local order reminders. The OrderReminderScheduler they resolve is flavor-specific
+    // and bound in flavorModules (real one on client, no-op on admin).
+    factory { ScheduleOrderReminderUseCase(get(), get()) }
+    factory { CancelOrderReminderUseCase(get()) }
+
     factory { GetLastFirestoreDatabaseUpdateUseCase(get(), get()) }
+
+    // Pickup points, client side. Read straight from Firestore on each visit: see
+    // FirestorePathRepository.getAllPickupPoints for why there is no Room cache.
+    factory { GetPickupPointsUseCase(get()) }
+    factory { BuildSelectablePickupDatesUseCase() }
 
     factory { GetAllProductsUseCase(get()) }
     factory { GetAllCheesesUseCase(get()) }
@@ -250,6 +273,7 @@ val mainAppModule = module {
             getSavedOrderUseCase = get(),
             schedulePaymentFinalizationUseCase = get(),
             clearPendingPaymentFinalizationUseCase = get(),
+            scheduleOrderReminderUseCase = get(),
             getSumUpPaymentLinkUseCase = get(),
             verifyHostedCheckoutStatusUseCase = get()
         )
@@ -497,6 +521,6 @@ fun provideDataBase(application: Application): FromagerieDatabase =
         application,
         FromagerieDatabase::class.java,
         "lafromagerie_database"
-    ).addMigrations(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
+    ).addMigrations(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
         .fallbackToDestructiveMigration(true)
         .build()

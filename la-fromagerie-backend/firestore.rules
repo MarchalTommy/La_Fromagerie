@@ -1,22 +1,95 @@
-// LIVE RULES — exported verbatim from the Firebase console (project
-// la-fromagerie-25560) on 2026-07-08 via `firebase init firestore`.
-// Keep this file identical to what is deployed: it exists so the repo reflects
-// production. A hardened replacement is drafted in firestore.rules.hardened-proposal
-// (NOT deployed — needs Tommy's sign-off, see FIRESTORE_RULES_AUDIT.md).
+// LIVE RULES — re-exported verbatim from the Firebase console (project
+// la-fromagerie-25560) on 2026-08-19 via `firebase init firestore`, then extended
+// with the `pickup_points` block below.
 //
-// ⚠️ AUDIT FINDING 2026-07-08: despite the comment below claiming admin-only
-// writes, `allow write: if true` makes EVERY collection world-writable with
-// nothing but the API key embedded in any APK.
+// Keep this file identical to what is deployed. It was NOT, between 2026-07-08 and
+// 2026-08-19: it still carried the pre-hardening `allow write: if true` catch-all
+// while the console had moved to the per-collection rules of
+// `firestore.rules.hardened-proposal` (which is therefore no longer a proposal).
+// That gap is what made the click & collect failure unreadable — the repo said every
+// collection was world-readable, so nobody looked at the rules.
+//
+// ⚠️ A collection with no `match` block here is DENIED, not open. Adding a collection
+// to the app means adding it here in the same change, or the feature ships dead.
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-		match /{document=**} {
-      // Autoriser la lecture à tous les utilisateurs
-   	 	allow read: if true;
 
-    	// Autoriser l'écriture uniquement à l'utilisateur "admin"
-    	allow write: if true;
-  	}
+    // Client + admin read the catalog; only the admin app writes it.
+    match /products/{productId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    match /delivery_paths/{pathId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // Where an order can be collected: the shop, and one document per market date.
+    // Read by everyone — the customer needs the list before they have any identity —
+    // and written only by the signed-in admin app, exactly like the catalog above.
+    match /pickup_points/{pointId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    match /database_update/{docId} {
+      allow read: if true;
+      // Only the known timestamp documents, only their known shape. `pickup_timestamp`
+      // has no reader yet (the customer journey reads pickup_points straight from
+      // Firestore); it is written so the cache can be added later against a timestamp
+      // that has always been correct.
+      allow write: if docId in ['products_timestamp', 'path_timestamp', 'pickup_timestamp']
+        && request.resource.data.keys().hasOnly(['last_update'])
+        && request.resource.data.last_update is timestamp;
+    }
+
+    match /preparation_status/{statusId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // The money-side record. Client creates PENDING orders and flips status to
+    // PAID/CANCELED (FinalizePaymentWorker / CheckoutViewModel); the admin app
+    // lists all orders, creates manual IN_PREPARATION orders (DeliveryAddDialog)
+    // and flips status to IN_PREPARATION/DELIVERED.
+    match /orders/{orderId} {
+      allow read: if request.auth != null;
+
+      // Client checkout order: PENDING with a positive cent total (the Cloud
+      // Function derives the charged amount from total_price — a fake total here
+      // only makes the customer pay that fake total, it cannot underpay a real one
+      // since verification compares the paid amount to this same field). An order to
+      // be paid on collection is also PENDING with a real total; PaymentMode.ON_SITE
+      // rides alongside the status and needs no separate rule.
+      // Admin manual order: IN_PREPARATION, no total_price (verified in
+      // DeliveryAddDialog as of 2026-07-08).
+      allow create: if request.resource.data.id == orderId
+        && (
+          (request.resource.data.status == 'PENDING'
+            && request.resource.data.total_price is int
+            && request.resource.data.total_price > 0)
+          || (request.resource.data.status == 'IN_PREPARATION'
+            && request.resource.data.is_manually_added == true)
+        );
+
+      // Both apps only ever update the status field; everything else (amount,
+      // products, addresses) is immutable once written. That covers the admin
+      // "encaissé sur place" action too — MarkOrderPaidOnSiteUseCase writes status
+      // and nothing else.
+      allow update: if request.resource.data.diff(resource.data)
+          .affectedKeys().hasOnly(['status'])
+        && request.resource.data.status in
+          ['PENDING', 'PAID', 'CANCELED', 'IN_PREPARATION', 'PREPARED',
+           'IN_DELIVERY', 'DELIVERED'];
+
+      // Nobody deletes orders today (verified: no .delete() on orders in either
+      // flavor). An attacker must not be able to erase a paid order.
+      allow delete: if false;
+    }
+
+    // Anything not matched above is denied.
   }
 }

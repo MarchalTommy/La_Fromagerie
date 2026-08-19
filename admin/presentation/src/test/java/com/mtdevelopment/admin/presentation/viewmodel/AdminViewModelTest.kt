@@ -1,23 +1,33 @@
 package com.mtdevelopment.admin.presentation.viewmodel
 
 import android.net.Uri
+import com.mtdevelopment.admin.domain.model.OptimizedRouteWithOrders
 import com.mtdevelopment.admin.domain.usecase.AddNewPathUseCase
+import com.mtdevelopment.admin.domain.usecase.AddNewPickupPointUseCase
 import com.mtdevelopment.admin.domain.usecase.AddNewProductUseCase
+import com.mtdevelopment.admin.domain.usecase.CancelStaleOnSiteOrdersUseCase
 import com.mtdevelopment.admin.domain.usecase.DeletePathUseCase
+import com.mtdevelopment.admin.domain.usecase.DeletePickupPointUseCase
 import com.mtdevelopment.admin.domain.usecase.DeleteProductUseCase
 import com.mtdevelopment.admin.domain.usecase.GetAllOrdersUseCase
+import com.mtdevelopment.admin.domain.usecase.GetAllPickupPointsUseCase
 import com.mtdevelopment.admin.domain.usecase.GetCurrentLocationOnceUseCase
 import com.mtdevelopment.admin.domain.usecase.GetIsInTrackingModeUseCase
 import com.mtdevelopment.admin.domain.usecase.GetOptimizedDeliveryUseCase
 import com.mtdevelopment.admin.domain.usecase.GetPreparationStatusesUseCase
 import com.mtdevelopment.admin.domain.usecase.GetShouldShowBatterieOptimizationUseCase
+import com.mtdevelopment.admin.domain.usecase.MarkOrderPaidOnSiteUseCase
 import com.mtdevelopment.admin.domain.usecase.UpdateDeliveryPathUseCase
+import com.mtdevelopment.admin.domain.usecase.UpdatePickupPointUseCase
 import com.mtdevelopment.admin.domain.usecase.UpdatePreparationStatusUseCase
 import com.mtdevelopment.admin.domain.usecase.UpdateProductUseCase
 import com.mtdevelopment.admin.domain.usecase.UpdateShouldShowBatterieOptimizationUseCase
 import com.mtdevelopment.admin.domain.usecase.UploadImageUseCase
 import com.mtdevelopment.core.model.DeliveryCity
 import com.mtdevelopment.core.model.DeliveryPath
+import com.mtdevelopment.core.model.FulfillmentType
+import com.mtdevelopment.core.model.Order
+import com.mtdevelopment.core.model.OrderStatus
 import com.mtdevelopment.core.model.Product
 import com.mtdevelopment.core.model.ProductType
 import com.mtdevelopment.core.presentation.sharedModels.UiProductObject
@@ -43,6 +53,9 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class AdminViewModelTest {
@@ -69,6 +82,13 @@ class AdminViewModelTest {
     private val getPreparationStatusesUseCase: GetPreparationStatusesUseCase =
         mockk(relaxed = true)
     private val updatePreparationStatusUseCase: UpdatePreparationStatusUseCase =
+        mockk(relaxed = true)
+    private val getAllPickupPointsUseCase: GetAllPickupPointsUseCase = mockk(relaxed = true)
+    private val addNewPickupPointUseCase: AddNewPickupPointUseCase = mockk(relaxed = true)
+    private val updatePickupPointUseCase: UpdatePickupPointUseCase = mockk(relaxed = true)
+    private val deletePickupPointUseCase: DeletePickupPointUseCase = mockk(relaxed = true)
+    private val markOrderPaidOnSiteUseCase: MarkOrderPaidOnSiteUseCase = mockk(relaxed = true)
+    private val cancelStaleOnSiteOrdersUseCase: CancelStaleOnSiteOrdersUseCase =
         mockk(relaxed = true)
 
     @Before
@@ -101,7 +121,13 @@ class AdminViewModelTest {
         updateShouldShowBatterieOptimizationUseCase,
         getShouldShowBatterieOptimizationUseCase,
         getPreparationStatusesUseCase,
-        updatePreparationStatusUseCase
+        updatePreparationStatusUseCase,
+        getAllPickupPointsUseCase,
+        addNewPickupPointUseCase,
+        updatePickupPointUseCase,
+        deletePickupPointUseCase,
+        markOrderPaidOnSiteUseCase,
+        cancelStaleOnSiteOrdersUseCase
     )
 
     private fun product(imageUrl: String?) = UiProductObject(
@@ -348,4 +374,75 @@ class AdminViewModelTest {
 
         assertTrue(failed)
     }
+
+    ///////////////////////////////////////////////////////////////////////////
+    // Delivery day route optimisation — pickups must never become a van stop.
+    ///////////////////////////////////////////////////////////////////////////
+
+    private fun today() =
+        LocalDate.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy", Locale.ROOT))
+
+    private fun order(
+        id: String,
+        fulfillmentType: FulfillmentType,
+        deliveryDate: String = today()
+    ) = Order(
+        id = id,
+        customerName = "Client $id",
+        customerAddress = "1 rue du Test, 25270 Levier",
+        customerBillingAddress = "1 rue du Test, 25270 Levier",
+        deliveryDate = deliveryDate,
+        orderDate = deliveryDate,
+        products = mapOf("Comté" to 1),
+        status = OrderStatus.PAID,
+        note = null,
+        fulfillmentType = fulfillmentType
+    )
+
+    private fun seedOrders(orders: List<Order>) {
+        coEvery { getAllOrdersUseCase.invoke(any()) } answers {
+            firstArg<(List<Order>?) -> Unit>().invoke(orders)
+        }
+    }
+
+    @Test
+    fun `getOptimisedPath leaves today's pickup orders out of the route`() =
+        runTest(testDispatcher) {
+            val delivery = order("delivery-1", FulfillmentType.DELIVERY)
+            val pickup = order("pickup-1", FulfillmentType.PICKUP_MARKET)
+            seedOrders(listOf(delivery, pickup))
+            val routedOrders = slot<List<Order>>()
+            coEvery {
+                getOptimizedDeliveryUseCase.invoke(any(), capture(routedOrders), any())
+            } returns OptimizedRouteWithOrders(emptyList(), listOf(delivery))
+
+            val viewModel = buildViewModel()
+            viewModel.getAllOrders()
+            testScheduler.advanceUntilIdle()
+            viewModel.getOptimisedPath(listOf(delivery.customerAddress)) {}
+            testScheduler.advanceUntilIdle()
+
+            // The addresses the screen passes are already stripped of pickups; the order list
+            // must match them one for one or the optimiser silently drops the optimisation.
+            assertEquals(listOf("delivery-1"), routedOrders.captured.map { it.id })
+        }
+
+    @Test
+    fun `getOptimisedPath keeps the pickup orders on the preparation screen`() =
+        runTest(testDispatcher) {
+            val delivery = order("delivery-1", FulfillmentType.DELIVERY)
+            val pickup = order("pickup-1", FulfillmentType.PICKUP_SHOP)
+            seedOrders(listOf(delivery, pickup))
+
+            val viewModel = buildViewModel()
+            viewModel.getAllOrders()
+            testScheduler.advanceUntilIdle()
+
+            // Filtering happens at the optimiser call, not at the source: the shop still has
+            // to prepare the pickups.
+            assertEquals(
+                listOf("delivery-1", "pickup-1"),
+                viewModel.orderScreenState.value.orders.map { it.id }
+            )
+        }
 }

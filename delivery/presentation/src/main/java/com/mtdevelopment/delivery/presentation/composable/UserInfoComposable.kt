@@ -16,8 +16,17 @@ import androidx.compose.ui.focus.FocusManager
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 
+/**
+ * One line of the customer form.
+ *
+ * @param isError Marks the field as rejected. Paired with [supportingText] rather than shown on
+ *   its own: a red border that does not say what is wrong leaves the customer guessing.
+ * @param supportingText Reason shown under the field. Null keeps the field's height unchanged,
+ *   so a form only grows once something is actually wrong with it.
+ */
 @Composable
 fun UserInfoComposable(
     fieldText: String,
@@ -27,6 +36,9 @@ fun UserInfoComposable(
     imeAction: ImeAction,
     focusRequester: FocusRequester,
     focusManager: FocusManager,
+    keyboardType: KeyboardType = KeyboardType.Text,
+    isError: Boolean = false,
+    supportingText: String? = null,
 ) {
     OutlinedTextField(
         modifier = Modifier
@@ -49,7 +61,10 @@ fun UserInfoComposable(
         maxLines = 1,
         singleLine = true,
         leadingIcon = leadingIcon,
+        isError = isError,
+        supportingText = supportingText?.let { { Text(it) } },
         keyboardOptions = KeyboardOptions(
+            keyboardType = keyboardType,
             imeAction = imeAction
         ),
         keyboardActions = KeyboardActions(

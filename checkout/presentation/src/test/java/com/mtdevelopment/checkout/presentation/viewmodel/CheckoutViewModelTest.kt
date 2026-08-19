@@ -23,13 +23,16 @@ import com.mtdevelopment.checkout.domain.usecase.ResetCheckoutStatusUseCase
 import com.mtdevelopment.checkout.domain.usecase.SaveCheckoutReferenceUseCase
 import com.mtdevelopment.checkout.domain.usecase.SaveCreatedCheckoutUseCase
 import com.mtdevelopment.checkout.domain.usecase.SavePaymentStateUseCase
+import com.mtdevelopment.checkout.domain.usecase.ScheduleOrderReminderUseCase
 import com.mtdevelopment.checkout.domain.usecase.SchedulePaymentFinalizationUseCase
 import com.mtdevelopment.checkout.domain.usecase.UpdateOrderStatus
 import com.mtdevelopment.checkout.domain.usecase.VerifyHostedCheckoutStatusUseCase
 import com.mtdevelopment.core.model.CartItem
 import com.mtdevelopment.core.model.CartItems
+import com.mtdevelopment.core.model.FulfillmentType
 import com.mtdevelopment.core.model.Order
 import com.mtdevelopment.core.model.OrderStatus
+import com.mtdevelopment.core.model.PaymentMode
 import com.mtdevelopment.core.model.UserInformation
 import com.mtdevelopment.core.repository.SharedDatastore
 import com.mtdevelopment.core.usecase.ClearCartUseCase
@@ -39,6 +42,7 @@ import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkStatic
+import io.mockk.slot
 import io.mockk.unmockkAll
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -88,6 +92,7 @@ class CheckoutViewModelTest {
         mockk(relaxed = true)
     private val clearPendingPaymentFinalizationUseCase: ClearPendingPaymentFinalizationUseCase =
         mockk(relaxed = true)
+    private val scheduleOrderReminderUseCase: ScheduleOrderReminderUseCase = mockk(relaxed = true)
     private val getSumUpPaymentLinkUseCase: GetSumUpPaymentLinkUseCase = mockk()
     private val verifyHostedCheckoutStatusUseCase: VerifyHostedCheckoutStatusUseCase = mockk()
 
@@ -135,6 +140,7 @@ class CheckoutViewModelTest {
         getSavedOrderUseCase,
         schedulePaymentFinalizationUseCase,
         clearPendingPaymentFinalizationUseCase,
+        scheduleOrderReminderUseCase,
         getSumUpPaymentLinkUseCase,
         verifyHostedCheckoutStatusUseCase
     )
@@ -382,10 +388,11 @@ class CheckoutViewModelTest {
             val state = viewModel.paymentScreenState.value
             assertFalse(state.isLoading)
             assertNull(state.error)
-            // The PAID branch ran: order marked PAID and cart cleared.
+            // The PAID branch ran: order marked PAID, reminder scheduled, cart cleared.
             coVerify(exactly = 1) {
                 updateOrderStatus.invoke(orderId = "order-1", newStatus = OrderStatus.PAID)
             }
+            coVerify(exactly = 1) { scheduleOrderReminderUseCase.invoke("order-1") }
             coVerify(exactly = 1) { clearCartUseCase.invoke() }
         }
 
@@ -522,6 +529,142 @@ class CheckoutViewModelTest {
             testScheduler.advanceUntilIdle()
 
             coVerify(exactly = 1) { verifyHostedCheckoutStatusUseCase.invoke("order-1", 2000L) }
+        }
+
+    ///////////////////////////////////////////////////////////////////////////
+    // Pay on collection — the one button that keeps the customer on the screen.
+    ///////////////////////////////////////////////////////////////////////////
+
+    private fun seedCheckoutData(fulfillmentType: FulfillmentType = FulfillmentType.DELIVERY) {
+        val cart = CartItems(
+            cartItems = listOf(CartItem(name = "Comté", price = 1000L, quantity = 2)),
+            totalPrice = 2000L
+        )
+        every { getCheckoutDataUseCase.invoke() } returns flowOf(
+            LocalCheckoutInformation(
+                buyerName = "Jane",
+                buyerAddress = "1 rue du Fromage",
+                buyerEmail = "jane@example.com",
+                cartItems = cart,
+                totalPrice = 2000L,
+                deliveryDate = 42L,
+                billingAddress = "2 rue de la Facture",
+                fulfillmentType = fulfillmentType.name,
+                pickupPointId = "shop",
+                pickupLabel = "La Fromagerie",
+                pickupAddress = "1 place du Marché, 25270 Levier",
+                pickupTimeRange = "9h-12h"
+            )
+        )
+    }
+
+    /**
+     * The datastore keeps the customer's home address so a later delivery can reuse it, which
+     * is exactly why a collected order must state its own answer instead of inheriting it:
+     * otherwise the home address rides along on an order nobody is driving anywhere.
+     */
+    @Test
+    fun `a collected order carries no customer address`() = runTest(testDispatcher) {
+        seedCheckoutData(FulfillmentType.PICKUP_SHOP)
+        val placedOrder = slot<Order>()
+        coEvery { createNewOrderUseCase.invoke(capture(placedOrder)) } returns true
+
+        val viewModel = buildViewModel()
+        testScheduler.advanceUntilIdle()
+        viewModel.updateUiState()
+        testScheduler.advanceUntilIdle()
+
+        viewModel.placeOrderToPayOnSite { }
+        testScheduler.advanceUntilIdle()
+
+        assertEquals("", placedOrder.captured.customerAddress)
+        // The point stays snapshotted: the customer still knows where to come.
+        assertEquals("La Fromagerie", placedOrder.captured.pickupLabel)
+    }
+
+    /** Delivery is untouched: the address it was given is the address it carries. */
+    @Test
+    fun `a delivered order still carries the customer address`() = runTest(testDispatcher) {
+        seedCheckoutData(FulfillmentType.DELIVERY)
+        val placedOrder = slot<Order>()
+        coEvery { createNewOrderUseCase.invoke(capture(placedOrder)) } returns true
+
+        val viewModel = buildViewModel()
+        testScheduler.advanceUntilIdle()
+        viewModel.updateUiState()
+        testScheduler.advanceUntilIdle()
+
+        viewModel.placeOrderToPayOnSite { }
+        testScheduler.advanceUntilIdle()
+
+        assertEquals("1 rue du Fromage", placedOrder.captured.customerAddress)
+    }
+
+    @Test
+    fun `placeOrderToPayOnSite creates a single order when tapped twice in a row`() =
+        runTest(testDispatcher) {
+            seedCheckoutData()
+            val placedOrder = slot<Order>()
+            coEvery { createNewOrderUseCase.invoke(capture(placedOrder)) } returns true
+
+            val viewModel = buildViewModel()
+            testScheduler.advanceUntilIdle()
+            viewModel.updateUiState()
+            testScheduler.advanceUntilIdle()
+
+            // Impatient tap on a slow connection: the second one must find the door shut.
+            viewModel.placeOrderToPayOnSite { }
+            viewModel.placeOrderToPayOnSite { }
+            testScheduler.advanceUntilIdle()
+
+            coVerify(exactly = 1) { createNewOrderUseCase.invoke(any()) }
+            assertEquals(PaymentMode.ON_SITE, placedOrder.captured.paymentMode)
+            assertTrue(viewModel.paymentScreenState.value.isPaymentSuccess)
+            assertFalse(viewModel.paymentScreenState.value.isLoading)
+            coVerify(exactly = 1) { clearCartUseCase.invoke() }
+        }
+
+    @Test
+    fun `placeOrderToPayOnSite releases the loading flag when the order cannot be created`() =
+        runTest(testDispatcher) {
+            seedCheckoutData()
+            coEvery { createNewOrderUseCase.invoke(any()) } returns false
+
+            val viewModel = buildViewModel()
+            testScheduler.advanceUntilIdle()
+            viewModel.updateUiState()
+            testScheduler.advanceUntilIdle()
+
+            var result: Boolean? = null
+            viewModel.placeOrderToPayOnSite { result = it }
+            testScheduler.advanceUntilIdle()
+
+            // A stuck flag would leave the button dead behind a loading overlay forever.
+            assertEquals(false, result)
+            assertFalse(viewModel.paymentScreenState.value.isLoading)
+            assertFalse(viewModel.paymentScreenState.value.isPaymentSuccess)
+            assertNotNull(viewModel.paymentScreenState.value.error)
+        }
+
+    @Test
+    fun `placeOrderToPayOnSite still confirms the order when the reminder cannot be scheduled`() =
+        runTest(testDispatcher) {
+            seedCheckoutData()
+            coEvery { createNewOrderUseCase.invoke(any()) } returns true
+            coEvery { scheduleOrderReminderUseCase.invoke(any()) } throws
+                    IllegalStateException("WorkManager unavailable")
+
+            val viewModel = buildViewModel()
+            testScheduler.advanceUntilIdle()
+            viewModel.updateUiState()
+            testScheduler.advanceUntilIdle()
+
+            viewModel.placeOrderToPayOnSite { }
+            testScheduler.advanceUntilIdle()
+
+            // The order exists: reporting an error here would only invite a duplicate.
+            assertTrue(viewModel.paymentScreenState.value.isPaymentSuccess)
+            assertFalse(viewModel.paymentScreenState.value.isLoading)
         }
 
     private fun savedOrder(totalPrice: Long?) = Order(

@@ -25,7 +25,10 @@ import com.mtdevelopment.core.presentation.theme.ui.scaleOutOfContainer
 import com.mtdevelopment.core.util.koinViewModel
 import com.mtdevelopment.delivery.presentation.screen.DeliveryOptionScreen
 import com.mtdevelopment.delivery.presentation.screen.PATH_LIST_NEEDS_REFRESH
+import com.mtdevelopment.delivery.presentation.screen.PICKUP_LIST_NEEDS_REFRESH
 import com.mtdevelopment.delivery.presentation.screen.PathEditScreen
+import com.mtdevelopment.delivery.presentation.screen.PickupPointEditScreen
+import com.mtdevelopment.delivery.presentation.screen.PickupPointsScreen
 import com.mtdevelopment.details.presentation.composable.DetailScreen
 import com.mtdevelopment.home.presentation.composable.HomeScreen
 
@@ -162,10 +165,56 @@ fun NavGraph(
                 navigateToPathEdit = { pathId ->
                     navController.navigate(PathEditScreenDestination(pathId))
                 },
+                navigateToPickupPoints = {
+                    navController.navigate(PickupPointsScreenDestination)
+                },
                 navigateBack = {
                     cartViewModel.setCartVisibility(false)
                     navController.navigateUp()
                 })
+        }
+
+        composable<PickupPointsScreenDestination>(
+            enterTransition = { scaleIntoContainer() },
+            exitTransition = { scaleOutOfContainer(ScaleTransitionDirection.INWARDS) },
+            popEnterTransition = { scaleIntoContainer(ScaleTransitionDirection.OUTWARDS) },
+            popExitTransition = { scaleOutOfContainer() }
+        ) { backStackEntry ->
+            // Set by the editor on its way back, same handshake as the path list: the two
+            // screens own separate ViewModel instances, so the list cannot otherwise know a
+            // point was written.
+            val pointsChanged = backStackEntry.savedStateHandle
+                .getStateFlow(PICKUP_LIST_NEEDS_REFRESH, false)
+                .collectAsState()
+
+            PickupPointsScreen(
+                pointsChanged = pointsChanged.value,
+                onPointsChangeHandled = {
+                    backStackEntry.savedStateHandle[PICKUP_LIST_NEEDS_REFRESH] = false
+                },
+                navigateToPointEdit = { pointId ->
+                    navController.navigate(PickupPointEditScreenDestination(pointId))
+                }
+            )
+        }
+
+        composable<PickupPointEditScreenDestination>(
+            enterTransition = { scaleIntoContainer() },
+            exitTransition = { scaleOutOfContainer(ScaleTransitionDirection.INWARDS) },
+            popEnterTransition = { scaleIntoContainer(ScaleTransitionDirection.OUTWARDS) },
+            popExitTransition = { scaleOutOfContainer() }
+        ) { backStackEntry ->
+            val args = backStackEntry.toRoute<PickupPointEditScreenDestination>()
+
+            PickupPointEditScreen(
+                pointId = args.pointId,
+                onSaved = {
+                    navController.previousBackStackEntry
+                        ?.savedStateHandle
+                        ?.set(PICKUP_LIST_NEEDS_REFRESH, true)
+                    navController.navigateUp()
+                }
+            )
         }
 
         composable<PathEditScreenDestination>(

@@ -6,12 +6,26 @@ import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.firestore
 import com.mtdevelopment.admin.data.model.DataDeliveryPath
+import com.mtdevelopment.admin.data.model.DataPickupPoint
+import com.mtdevelopment.core.model.FulfillmentType
 import com.mtdevelopment.core.model.OrderData
 import com.mtdevelopment.core.model.OrderStatus
+import com.mtdevelopment.core.model.PaymentMode
+import com.mtdevelopment.core.model.PickupPointType
 import com.mtdevelopment.core.model.PreparationStatusData
 import com.mtdevelopment.core.model.ProductData
 import kotlinx.coroutines.tasks.await
 import java.time.Instant
+
+/**
+ * Logcat tag for the pickup-point reads and writes.
+ *
+ * They are the only Firestore calls here that carry one, because they are the ones that
+ * proved un-diagnosable without it: a `PERMISSION_DENIED` on `pickup_points` surfaced to the
+ * shop as "Impossible de charger les points de retrait." and to logcat as nothing at all --
+ * the exception went straight into a Result nobody unwrapped.
+ */
+private const val PICKUP_LOG_TAG = "FirestorePickupPoints"
 
 /**
  * Data source for administrative Firestore operations.
@@ -151,6 +165,118 @@ class FirestoreAdminDatasource(
     }
 
     ///////////////////////////////////////////////////////////////////////////
+    // Pickup Point Management
+    ///////////////////////////////////////////////////////////////////////////
+
+    /**
+     * Reads every pickup point, mapping documents by hand for the same reason
+     * [getAllOrders] does: the keys are snake_case and the type needs an explicit enum
+     * conversion `toObject` cannot perform.
+     *
+     * An empty list is a legitimate answer here — the shop may simply not have configured
+     * a point yet. That is **not** true of the client-side reader, where an empty read is
+     * indistinguishable from an offline Firestore returning nothing successfully, and must
+     * be treated as a failure instead.
+     */
+    suspend fun getAllPickupPoints(): Result<List<DataPickupPoint>> {
+        return try {
+            val snapshot = firestore.collection("pickup_points").get().await()
+            Result.success(
+                snapshot.documents.map { item ->
+                    DataPickupPoint(
+                        id = item.id,
+                        type = item.data?.get("type") as? String
+                            ?: PickupPointType.SHOP.name,
+                        label = item.data?.get("label") as? String ?: "",
+                        address = item.data?.get("address") as? String ?: "",
+                        // Firestore has no Float/Int: read through Number, never cast
+                        // straight to Double.
+                        latitude = (item.data?.get("latitude") as? Number)?.toDouble(),
+                        longitude = (item.data?.get("longitude") as? Number)?.toDouble(),
+                        time_range = item.data?.get("time_range") as? String ?: "",
+                        opening_days = (item.data?.get("opening_days") as? List<*>)
+                            ?.filterIsInstance<String>() ?: emptyList(),
+                        closed_dates = (item.data?.get("closed_dates") as? List<*>)
+                            ?.filterIsInstance<String>() ?: emptyList(),
+                        date = item.data?.get("date") as? String
+                    )
+                }
+            )
+        } catch (e: Exception) {
+            Log.e(PICKUP_LOG_TAG, "reading pickup_points failed", e)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun addNewPickupPoint(point: DataPickupPoint): Result<Unit> {
+        return try {
+            firestore.collection("pickup_points")
+                .add(point)
+                .await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e(PICKUP_LOG_TAG, "adding a pickup point failed", e)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun updatePickupPoint(point: DataPickupPoint): Result<Unit> {
+        return try {
+            firestore.collection("pickup_points")
+                .document(point.id)
+                .set(point)
+                .await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e(PICKUP_LOG_TAG, "updating a pickup point failed", e)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun deletePickupPoint(point: DataPickupPoint): Result<Unit> {
+        return try {
+            firestore.collection("pickup_points")
+                .document(point.id)
+                .delete()
+                .await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e(PICKUP_LOG_TAG, "deleting a pickup point failed", e)
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Updates the global timestamp for pickup point changes.
+     *
+     * ⚠️ **Nothing reads this document today.** It was written to serve a client-side Room
+     * cache of `pickup_points` that was then deliberately not built — the customer journey
+     * reads the points straight from Firestore — and `FirestoreUpdateData` only knows
+     * `products_timestamp` and `path_timestamp`. So the invariant this once claimed, that
+     * skipping the bump leaves customers ordering against a stale cache, is currently false:
+     * there is no cache to go stale.
+     *
+     * The write is kept anyway, and every mutation of `pickup_points` should keep calling it.
+     * It costs one document per admin edit, and it means the cache can be added later against
+     * a timestamp that has always been correct rather than one that starts out lying about
+     * every point written before it existed. Whether that cache is ever built is the open
+     * decision this documents; until it is, treat this as write-only by design, not by
+     * oversight.
+     */
+    suspend fun saveNewDatabasePickupUpdate(timestamp: Long): Result<Unit> {
+        return try {
+            firestore.collection("database_update")
+                .document("pickup_timestamp")
+                .set(mapOf("last_update" to Timestamp(Instant.ofEpochMilli(timestamp))))
+                .await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e(PICKUP_LOG_TAG, "bumping pickup_timestamp failed", e)
+            Result.failure(e)
+        }
+    }
+
+    ///////////////////////////////////////////////////////////////////////////
     // Order Management
     ///////////////////////////////////////////////////////////////////////////
 
@@ -201,13 +327,46 @@ class FirestoreAdminDatasource(
                             }.getOrDefault(OrderStatus.PENDING),
                             note = item.data?.get("note") as? String,
                             billing_address = item.data?.get("billing_address").toString(),
-                            is_manually_added = item.data?.get("is_manually_added") as? Boolean
+                            is_manually_added = item.data?.get("is_manually_added") as? Boolean,
+                            // Absent on every order written before these fields existed,
+                            // and on those still written by older app versions: both
+                            // conversions fall back rather than skip the document.
+                            fulfillment_type = FulfillmentType.fromStoredValue(
+                                item.data?.get("fulfillment_type") as? String
+                            ),
+                            payment_mode = PaymentMode.fromStoredValue(
+                                item.data?.get("payment_mode") as? String
+                            ),
+                            customer_phone = item.data?.get("customer_phone") as? String,
+                            pickup_point_id = item.data?.get("pickup_point_id") as? String,
+                            pickup_label = item.data?.get("pickup_label") as? String,
+                            pickup_address = item.data?.get("pickup_address") as? String,
+                            pickup_time_range = item.data?.get("pickup_time_range") as? String
                         )
                     })
                 } catch (e: Exception) {
                     onFailure.invoke()
                 }
             }
+    }
+
+    /**
+     * Moves one order to [status].
+     *
+     * Only the status field is written. The rest of the document belongs to the customer's
+     * app, and a full `set` from here would overwrite fields this build may not even know
+     * about — the same reason the client uses a targeted update.
+     */
+    suspend fun updateOrderStatus(orderId: String, status: OrderStatus): Result<Unit> {
+        return try {
+            firestore.collection("orders")
+                .document(orderId)
+                .update("status", status.name)
+                .await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
     }
 
     ///////////////////////////////////////////////////////////////////////////

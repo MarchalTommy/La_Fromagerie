@@ -63,6 +63,7 @@ import com.mtdevelopment.core.domain.toStringDate
 import com.mtdevelopment.core.domain.toTimeStamp
 import com.mtdevelopment.core.model.Order
 import com.mtdevelopment.core.model.OrderStatus
+import com.mtdevelopment.core.model.deliveriesOnly
 import com.mtdevelopment.core.presentation.composable.ErrorOverlay
 import com.mtdevelopment.core.presentation.composable.RiveAnimation
 import com.mtdevelopment.core.util.koinViewModel
@@ -146,9 +147,15 @@ fun DeliveryHelperScreen(
     // State derivation: Filtering orders for today
     val todayDate = LocalDate.now().atStartOfDay(java.time.ZoneOffset.UTC)
 
-    val dailyOrders = remember(state.value) {
+    // Everything on this screen — the route optimizer, the maps link, the markers, the
+    // tracking service — reasons about stops the van has to drive to. Orders the customer
+    // collects have an address that must never become one, so they are dropped here, once,
+    // rather than at each of those consumers.
+    val routableOrders = remember(state.value.orders) { state.value.orders.deliveriesOnly() }
+
+    val dailyOrders = remember(routableOrders) {
         mutableStateOf(
-            state.value.orders.filter {
+            routableOrders.filter {
                 it.deliveryDate.toTimeStamp() == todayDate.toInstant().toEpochMilli()
             }
         )
@@ -163,9 +170,9 @@ fun DeliveryHelperScreen(
     }
 
     // Find the next upcoming delivery date if today is empty
-    val nextOrderDate = remember(state.value.orders) {
-        if (state.value.orders.isNotEmpty()) {
-            val filteredValue = state.value.orders.filter {
+    val nextOrderDate = remember(routableOrders) {
+        if (routableOrders.isNotEmpty()) {
+            val filteredValue = routableOrders.filter {
                 it.deliveryDate.toTimeStamp() > todayDate.toInstant().toEpochMilli()
             }
             if (filteredValue.isNotEmpty()) {
@@ -178,9 +185,9 @@ fun DeliveryHelperScreen(
         }
     }
 
-    val subtitleText = remember(dailyOrders.value, state.value.orders) {
+    val subtitleText = remember(dailyOrders.value, routableOrders) {
         if (dailyOrders.value.isEmpty()) {
-            if (state.value.orders.isNotEmpty() && nextOrderDate != null
+            if (routableOrders.isNotEmpty() && nextOrderDate != null
             ) {
                 "Prochaine livraison le ${
                     nextOrderDate.deliveryDate

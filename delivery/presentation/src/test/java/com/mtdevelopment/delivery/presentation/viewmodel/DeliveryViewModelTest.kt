@@ -1,18 +1,26 @@
 package com.mtdevelopment.delivery.presentation.viewmodel
 
-import com.mtdevelopment.core.model.DeliveryCity
 import com.mtdevelopment.core.model.AutoCompleteSuggestion
+import com.mtdevelopment.core.model.DeliveryCity
+import com.mtdevelopment.core.model.FulfillmentType
+import com.mtdevelopment.core.model.PickupPoint
+import com.mtdevelopment.core.model.PickupPointType
 import com.mtdevelopment.core.model.UserInformation
+import com.mtdevelopment.core.repository.SharedDatastore
 import com.mtdevelopment.core.usecase.GetAutocompleteSuggestionsUseCase
+import com.mtdevelopment.core.usecase.GetShopPickupSavingUseCase
 import com.mtdevelopment.core.usecase.GetIsNetworkConnectedUseCase
 import com.mtdevelopment.core.usecase.SaveToDatastoreUseCase
 import com.mtdevelopment.delivery.domain.model.DeliveryPath
+import com.mtdevelopment.delivery.domain.usecase.BuildSelectablePickupDatesUseCase
 import com.mtdevelopment.delivery.domain.usecase.DeliveryEligibility
 import com.mtdevelopment.delivery.domain.usecase.GetAllDeliveryPathsUseCase
 import com.mtdevelopment.delivery.domain.usecase.ResolveDeliveryCitiesUseCase
 import com.mtdevelopment.delivery.domain.usecase.GetDeliveryPathUseCase
+import com.mtdevelopment.delivery.domain.usecase.GetPickupPointsUseCase
 import com.mtdevelopment.delivery.domain.usecase.GetStreetSuggestionsUseCase
 import com.mtdevelopment.delivery.domain.usecase.GetUserInfoFromDatastoreUseCase
+import com.mtdevelopment.delivery.domain.usecase.SelectablePickupDate
 import com.mtdevelopment.delivery.presentation.model.UiDeliveryPath
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -34,6 +42,9 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class DeliveryViewModelTest {
@@ -58,10 +69,15 @@ class DeliveryViewModelTest {
         geoJson = null
     )
 
+    private val getPickupPointsUseCase: GetPickupPointsUseCase = mockk(relaxed = true)
+    private val getShopPickupSavingUseCase: GetShopPickupSavingUseCase = mockk()
+    private val sharedDatastore: SharedDatastore = mockk(relaxed = true)
+
     @Before
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
         every { getIsConnectedUseCase.invoke() } returns flowOf(true)
+        every { getShopPickupSavingUseCase.invoke() } returns flowOf(0L)
     }
 
     @After
@@ -69,15 +85,22 @@ class DeliveryViewModelTest {
         Dispatchers.resetMain()
     }
 
+    // Named, not positional: eleven dependencies of which several are single-argument use
+    // cases, so a reordering compiles and lies. Same reason adminPresentationModule wires
+    // AdminViewModel by name.
     private fun buildViewModel() = DeliveryViewModel(
-        getIsConnectedUseCase,
-        getUserInfoFromDatastoreUseCase,
-        saveToDatastoreUseCase,
-        getDeliveryPathUseCase,
-        getAllDeliveryPathsUseCase,
-        getAutocompleteSuggestionsUseCase,
-        getStreetSuggestionsUseCase,
-        resolveDeliveryCitiesUseCase
+        getIsConnectedUseCase = getIsConnectedUseCase,
+        getUserInfoFromDatastoreUseCase = getUserInfoFromDatastoreUseCase,
+        saveToDatastoreUseCase = saveToDatastoreUseCase,
+        getDeliveryPathsUseCase = getDeliveryPathUseCase,
+        getAllDeliveryPathsUseCase = getAllDeliveryPathsUseCase,
+        getAutocompleteSuggestionsUseCase = getAutocompleteSuggestionsUseCase,
+        getStreetSuggestionsUseCase = getStreetSuggestionsUseCase,
+        resolveDeliveryCitiesUseCase = resolveDeliveryCitiesUseCase,
+        getPickupPointsUseCase = getPickupPointsUseCase,
+        buildSelectablePickupDatesUseCase = BuildSelectablePickupDatesUseCase(),
+        getShopPickupSavingUseCase = getShopPickupSavingUseCase,
+        sharedDatastore = sharedDatastore
     )
 
     @Test
@@ -117,6 +140,29 @@ class DeliveryViewModelTest {
             assertEquals("1 rue du Fromage", state.deliveryAddressSearchQuery)
             assertEquals("Tournée du Lundi", state.selectedPath?.name)
             assertFalse(state.isLoading)
+        }
+
+    /**
+     * The saving is what the customer is deciding on, so it has to reach the screen that holds
+     * the mode selector. Nothing else in the journey states it: the shop price is only visible
+     * on the product tiles, one at a time and a screen back.
+     */
+    @Test
+    fun `loadClientData surfaces what collecting at the shop would save`() =
+        runTest(testDispatcher) {
+            coEvery {
+                getAllDeliveryPathsUseCase.invoke(any(), any(), any(), any(), any())
+            } answers {
+                arg<(List<DeliveryPath?>) -> Unit>(3).invoke(emptyList())
+            }
+            every { getUserInfoFromDatastoreUseCase.invoke() } returns flowOf(null)
+            every { getShopPickupSavingUseCase.invoke() } returns flowOf(240L)
+
+            val viewModel = buildViewModel()
+            viewModel.loadClientData()
+            testScheduler.advanceUntilIdle()
+
+            assertEquals(240L, viewModel.deliveryUiDataState.shopPickupSavingInCents)
         }
 
     @Test
@@ -165,7 +211,16 @@ class DeliveryViewModelTest {
                         email = "jane@example.com",
                         address = "1 rue du Fromage",
                         billingAddress = "",
-                        lastSelectedPath = "Tournée du Lundi"
+                        lastSelectedPath = "Tournée du Lundi",
+                        // A delivery explicitly clears any pickup point left over from a
+                        // customer who tried collecting and changed their mind, rather than
+                        // carrying a stale one into checkout.
+                        phone = null,
+                        fulfillmentType = FulfillmentType.DELIVERY.name,
+                        pickupPointId = null,
+                        pickupLabel = null,
+                        pickupAddress = null,
+                        pickupTimeRange = null
                     )
                 )
             }
@@ -406,6 +461,149 @@ class DeliveryViewModelTest {
 
         assertTrue(errored)
     }
+
+    ///////////////////////////////////////////////////////////////////////////
+    // Pickup points — two reads can be in flight at once.
+    ///////////////////////////////////////////////////////////////////////////
+
+    private val shopPoint = PickupPoint(
+        id = "shop",
+        type = PickupPointType.SHOP,
+        label = "La Fromagerie",
+        address = "1 place du Marché, 25270 Levier",
+        timeRange = "9h-12h",
+        openingDays = listOf("MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY")
+    )
+
+    private val marketPoint = PickupPoint(
+        id = "market",
+        type = PickupPointType.MARKET,
+        label = "Marché de Pontarlier",
+        address = "Place d'Arçon, 25300 Pontarlier",
+        timeRange = "8h-13h",
+        date = LocalDate.now().plusDays(3)
+            .format(DateTimeFormatter.ofPattern("dd/MM/yyyy", Locale.ROOT))
+    )
+
+    /**
+     * Switching Boutique → Marché faster than Firestore answers leaves two reads in flight.
+     * The stale one must not repaint the screen it no longer describes.
+     */
+    @Test
+    fun `a late shop response is dropped once the customer has switched to market`() =
+        runTest(testDispatcher) {
+            val successCallbacks = mutableListOf<(List<PickupPoint>) -> Unit>()
+            every { getPickupPointsUseCase.invoke(any(), any()) } answers {
+                successCallbacks.add(firstArg())
+            }
+            val viewModel = buildViewModel()
+
+            viewModel.setFulfillmentType(FulfillmentType.PICKUP_SHOP)
+            viewModel.setFulfillmentType(FulfillmentType.PICKUP_MARKET)
+            testScheduler.advanceUntilIdle()
+            assertEquals(2, successCallbacks.size)
+
+            // The market read lands first, then the shop read the customer already left.
+            successCallbacks[1].invoke(listOf(shopPoint, marketPoint))
+            successCallbacks[0].invoke(listOf(shopPoint, marketPoint))
+
+            val state = viewModel.deliveryUiDataState
+            assertEquals(FulfillmentType.PICKUP_MARKET, state.fulfillmentType)
+            assertEquals(listOf("market"), state.pickupPoints.map { it.id })
+            assertTrue(state.pickupDates.all { it.pointId == "market" })
+        }
+
+    /** Same reasoning on the failure path: a stale error must not blank a loaded screen. */
+    @Test
+    fun `a late shop failure does not blank the market dates`() = runTest(testDispatcher) {
+        val successCallbacks = mutableListOf<(List<PickupPoint>) -> Unit>()
+        val failureCallbacks = mutableListOf<() -> Unit>()
+        every { getPickupPointsUseCase.invoke(any(), any()) } answers {
+            successCallbacks.add(firstArg())
+            failureCallbacks.add(secondArg())
+        }
+        val viewModel = buildViewModel()
+
+        viewModel.setFulfillmentType(FulfillmentType.PICKUP_SHOP)
+        viewModel.setFulfillmentType(FulfillmentType.PICKUP_MARKET)
+        testScheduler.advanceUntilIdle()
+
+        successCallbacks[1].invoke(listOf(marketPoint))
+        failureCallbacks[0].invoke()
+
+        val state = viewModel.deliveryUiDataState
+        assertFalse(state.pickupPointsUnavailable)
+        assertEquals(listOf("market"), state.pickupPoints.map { it.id })
+    }
+
+    /**
+     * The selection used to live in the composable, so it survived a change of mode: the list
+     * redrew, nothing looked selected, yet Continue was still armed with the old mode's date.
+     */
+    @Test
+    fun `changing fulfillment type clears the chosen collection date`() =
+        runTest(testDispatcher) {
+            val viewModel = buildViewModel()
+            viewModel.setFulfillmentType(FulfillmentType.PICKUP_SHOP)
+            viewModel.setSelectedPickupDate(
+                SelectablePickupDate(
+                    date = LocalDate.now().plusDays(1),
+                    pointId = "shop",
+                    pointLabel = "La Fromagerie",
+                    pointAddress = "1 place du Marché, 25270 Levier",
+                    timeRange = "9h-12h"
+                )
+            )
+            testScheduler.advanceUntilIdle()
+            assertNotNull(viewModel.deliveryUiDataState.selectedPickupDate)
+
+            viewModel.setFulfillmentType(FulfillmentType.PICKUP_MARKET)
+            testScheduler.advanceUntilIdle()
+
+            assertNull(viewModel.deliveryUiDataState.selectedPickupDate)
+        }
+
+    /**
+     * setFulfillmentType promises that trying collection clears nothing already typed. That
+     * was true in memory and false in the datastore: saving a collection selection rewrote
+     * the whole UserInformation with a hardcoded empty address, so a returning customer who
+     * tried collection once lost their home address for good.
+     */
+    @Test
+    fun `the home address survives a pickup then delivery round trip`() =
+        runTest(testDispatcher) {
+            val saved = mutableListOf<UserInformation>()
+            coEvery {
+                saveToDatastoreUseCase.invoke(any(), capture(saved), any())
+            } returns Unit
+            coEvery { getUserInfoFromDatastoreUseCase.invoke() } returns flowOf(
+                UserInformation(
+                    name = "Jane",
+                    email = "jane@example.com",
+                    address = "1 rue du Fromage, 25270 Levier",
+                    billingAddress = "1 rue du Fromage, 25270 Levier",
+                    lastSelectedPath = "Tournée du Lundi"
+                )
+            )
+
+            val viewModel = buildViewModel()
+            viewModel.setFulfillmentType(FulfillmentType.PICKUP_SHOP)
+            viewModel.setUserNameFieldText("Jane")
+            viewModel.setUserPhoneFieldText("0600000000")
+            viewModel.savePickupSelection(
+                SelectablePickupDate(
+                    date = LocalDate.now().plusDays(1),
+                    pointId = "shop",
+                    pointLabel = "La Fromagerie",
+                    pointAddress = "1 place du Marché, 25270 Levier",
+                    timeRange = "9h-12h"
+                )
+            )
+            testScheduler.advanceUntilIdle()
+
+            assertEquals(1, saved.size)
+            assertEquals("1 rue du Fromage, 25270 Levier", saved.first().address)
+        }
 
     ///////////////////////////////////////////////////////////////////////////
     // Street suggestions (admin path editor)

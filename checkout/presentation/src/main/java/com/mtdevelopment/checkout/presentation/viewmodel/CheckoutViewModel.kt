@@ -31,6 +31,7 @@ import com.mtdevelopment.checkout.domain.usecase.ResetCheckoutStatusUseCase
 import com.mtdevelopment.checkout.domain.usecase.SaveCheckoutReferenceUseCase
 import com.mtdevelopment.checkout.domain.usecase.SaveCreatedCheckoutUseCase
 import com.mtdevelopment.checkout.domain.usecase.SavePaymentStateUseCase
+import com.mtdevelopment.checkout.domain.usecase.ScheduleOrderReminderUseCase
 import com.mtdevelopment.checkout.domain.usecase.SchedulePaymentFinalizationUseCase
 import com.mtdevelopment.checkout.domain.usecase.UpdateOrderStatus
 import com.mtdevelopment.checkout.domain.usecase.VerifyHostedCheckoutStatusUseCase
@@ -38,8 +39,10 @@ import com.mtdevelopment.checkout.presentation.ThreeDSecureActivity
 import com.mtdevelopment.checkout.presentation.model.PaymentScreenState
 import com.mtdevelopment.core.domain.toPriceDouble
 import com.mtdevelopment.core.domain.toStringDate
+import com.mtdevelopment.core.model.FulfillmentType
 import com.mtdevelopment.core.model.Order
 import com.mtdevelopment.core.model.OrderStatus
+import com.mtdevelopment.core.model.PaymentMode
 import com.mtdevelopment.core.repository.SharedDatastore
 import com.mtdevelopment.core.usecase.ClearCartUseCase
 import com.mtdevelopment.core.usecase.GetIsNetworkConnectedUseCase
@@ -99,6 +102,7 @@ class CheckoutViewModel(
     private val getSavedOrderUseCase: GetSavedOrderUseCase,
     private val schedulePaymentFinalizationUseCase: SchedulePaymentFinalizationUseCase,
     private val clearPendingPaymentFinalizationUseCase: ClearPendingPaymentFinalizationUseCase,
+    private val scheduleOrderReminderUseCase: ScheduleOrderReminderUseCase,
     private val getSumUpPaymentLinkUseCase: GetSumUpPaymentLinkUseCase,
     private val verifyHostedCheckoutStatusUseCase: VerifyHostedCheckoutStatusUseCase
 ) : ViewModel(), KoinComponent {
@@ -161,6 +165,12 @@ class CheckoutViewModel(
                         totalPrice = data.totalPrice,
                         deliveryDate = data.deliveryDate,
                         cartItems = data.cartItems,
+                        buyerPhone = data.buyerPhone,
+                        fulfillmentType = FulfillmentType.fromStoredValue(data.fulfillmentType),
+                        pickupPointId = data.pickupPointId,
+                        pickupLabel = data.pickupLabel,
+                        pickupAddress = data.pickupAddress,
+                        pickupTimeRange = data.pickupTimeRange,
                         isPaymentSuccess = false
                     )
                 }
@@ -423,11 +433,16 @@ class CheckoutViewModel(
      */
     fun resetAppStateAfterSuccess() {
         viewModelScope.launch {
+            val orderId = getSavedOrderUseCase.invoke().first().id
             // Update order status to PAID in Firestore
             updateOrderStatus.invoke(
-                orderId = getSavedOrderUseCase.invoke().first().id,
+                orderId = orderId,
                 newStatus = OrderStatus.PAID
             )
+            // The order is paid and will happen: remind the customer on the day.
+            // Idempotent with the same call in FinalizePaymentWorker — whichever path
+            // finalizes first schedules, the other replaces the identical reminder.
+            scheduleOrderReminderUseCase.invoke(orderId)
             // Empty the cart
             clearCartUseCase.invoke()
             // The order reached its terminal state in-app: the background
@@ -442,7 +457,10 @@ class CheckoutViewModel(
      * This is done BEFORE payment to ensure the order intent is captured.
      * Status is 'PENDING' until payment succeeds.
      */
-    fun createOrder(isSuccess: (Boolean) -> Unit) {
+    fun createOrder(
+        paymentMode: PaymentMode = PaymentMode.ONLINE,
+        isSuccess: (Boolean) -> Unit
+    ) {
         val cleanName =
             _paymentScreenState.value.buyerName?.trim()?.replace(" ", "_")
                 ?.lowercase(Locale.getDefault())
@@ -467,17 +485,86 @@ class CheckoutViewModel(
                         id = orderId,
                         customerName = _paymentScreenState.value.buyerName.toString(),
                         customerEmail = _paymentScreenState.value.buyerEmail,
-                        customerAddress = _paymentScreenState.value.buyerAddress.toString(),
+                        // A collected order has no delivery address, and the customer's
+                        // remembered home address must not leak onto it: the datastore keeps
+                        // it so a later delivery can reuse it, which is exactly why this
+                        // order has to state its own answer rather than inherit that one.
+                        customerAddress = if (_paymentScreenState.value.fulfillmentType.isPickup) {
+                            ""
+                        } else {
+                            _paymentScreenState.value.buyerAddress.toString()
+                        },
                         customerBillingAddress = _paymentScreenState.value.buyerBillingAddress.toString(),
                         deliveryDate = _paymentScreenState.value.deliveryDate?.toStringDate() ?: "",
                         orderDate = Timestamp.now().toDate().time.toStringDate(),
                         products = orderProduct,
                         status = OrderStatus.PENDING,
                         note = _paymentScreenState.value.checkoutNote.toString(),
-                        totalPrice = _paymentScreenState.value.totalPrice
+                        totalPrice = _paymentScreenState.value.totalPrice,
+                        // The pickup point is snapshotted onto the order, not referenced:
+                        // editing or deleting that point later must not rewrite this
+                        // purchase. Payment stays ONLINE here — paying on collection is a
+                        // separate chain that does not exist yet.
+                        fulfillmentType = _paymentScreenState.value.fulfillmentType,
+                        paymentMode = paymentMode,
+                        customerPhone = _paymentScreenState.value.buyerPhone,
+                        pickupPointId = _paymentScreenState.value.pickupPointId,
+                        pickupLabel = _paymentScreenState.value.pickupLabel,
+                        pickupAddress = _paymentScreenState.value.pickupAddress,
+                        pickupTimeRange = _paymentScreenState.value.pickupTimeRange
                     )
                 )
             )
+        }
+    }
+
+    /**
+     * Places an order the customer will pay for when they collect it.
+     *
+     * Deliberately short: no SumUp session, no Google Pay sheet, and no finalization worker,
+     * because there is no payment in flight to reconcile. The order stays PENDING — which is
+     * unambiguous only because [PaymentMode.ON_SITE] rides alongside it; a PENDING online
+     * order means something very different and must never be confused with this one.
+     *
+     * The cart is cleared and the day-of reminder scheduled exactly as a paid order would,
+     * since from the customer's point of view the order is placed either way.
+     *
+     * Unlike the two online buttons, this one leaves the customer sitting on the checkout
+     * screen while Firestore is written, so it needs its own guard: a second tap on a slow
+     * connection would mint a fresh order id and place a second ON_SITE order that no
+     * reconciliation chain would ever catch. The loading flag is both that guard and the
+     * customer's feedback, so it has to be released on every way out.
+     */
+    fun placeOrderToPayOnSite(onResult: (Boolean) -> Unit) {
+        if (_paymentScreenState.value.isLoading) return
+        _paymentScreenState.update { it.copy(isLoading = true) }
+
+        createOrder(paymentMode = PaymentMode.ON_SITE) { created ->
+            if (!created) {
+                _paymentScreenState.update { it.copy(isLoading = false) }
+                setPaymentError(
+                    "Une erreur est survenue lors de la création de la commande.\n" +
+                            "Merci de réessayer ultérieurement."
+                )
+                onResult.invoke(false)
+                return@createOrder
+            }
+            viewModelScope.launch {
+                try {
+                    _paymentScreenState.value.orderId?.let {
+                        scheduleOrderReminderUseCase.invoke(it)
+                    }
+                    clearCartUseCase.invoke()
+                } catch (e: Exception) {
+                    // The order is already in Firestore. Reporting an error here would
+                    // invite the customer to order again, so a missed reminder or an
+                    // uncleared cart is the cheaper failure to absorb.
+                    FirebaseCrashlytics.getInstance()
+                        .recordException(Throwable("On-site order housekeeping failed: ${e.message}"))
+                }
+                _paymentScreenState.update { it.copy(isLoading = false, isPaymentSuccess = true) }
+                onResult.invoke(true)
+            }
         }
     }
 

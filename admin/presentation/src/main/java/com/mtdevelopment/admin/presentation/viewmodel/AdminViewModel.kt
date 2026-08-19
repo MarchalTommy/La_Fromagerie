@@ -6,26 +6,36 @@ import androidx.lifecycle.viewModelScope
 import com.mtdevelopment.admin.domain.model.OptimizedRouteWithOrders
 import com.mtdevelopment.admin.domain.repository.CurrentLocation
 import com.mtdevelopment.admin.domain.usecase.AddNewPathUseCase
+import com.mtdevelopment.admin.domain.usecase.AddNewPickupPointUseCase
 import com.mtdevelopment.admin.domain.usecase.AddNewProductUseCase
+import com.mtdevelopment.admin.domain.usecase.CancelStaleOnSiteOrdersUseCase
 import com.mtdevelopment.admin.domain.usecase.DeletePathUseCase
+import com.mtdevelopment.admin.domain.usecase.DeletePickupPointUseCase
 import com.mtdevelopment.admin.domain.usecase.DeleteProductUseCase
 import com.mtdevelopment.admin.domain.usecase.GetAllOrdersUseCase
+import com.mtdevelopment.admin.domain.usecase.GetAllPickupPointsUseCase
 import com.mtdevelopment.admin.domain.usecase.GetCurrentLocationOnceUseCase
 import com.mtdevelopment.admin.domain.usecase.GetIsInTrackingModeUseCase
 import com.mtdevelopment.admin.domain.usecase.GetOptimizedDeliveryUseCase
 import com.mtdevelopment.admin.domain.usecase.GetPreparationStatusesUseCase
 import com.mtdevelopment.admin.domain.usecase.GetShouldShowBatterieOptimizationUseCase
+import com.mtdevelopment.admin.domain.usecase.MarkOrderPaidOnSiteUseCase
 import com.mtdevelopment.admin.domain.usecase.UpdateDeliveryPathUseCase
+import com.mtdevelopment.admin.domain.usecase.UpdatePickupPointUseCase
 import com.mtdevelopment.admin.domain.usecase.UpdatePreparationStatusUseCase
 import com.mtdevelopment.admin.domain.usecase.UpdateProductUseCase
 import com.mtdevelopment.admin.domain.usecase.UpdateShouldShowBatterieOptimizationUseCase
 import com.mtdevelopment.admin.domain.usecase.UploadImageUseCase
 import com.mtdevelopment.admin.presentation.model.OrderScreenState
+import com.mtdevelopment.admin.presentation.model.PickupPointsState
 import com.mtdevelopment.core.domain.toTimeStamp
 import com.mtdevelopment.core.model.AutoCompleteSuggestion
 import com.mtdevelopment.core.model.DeliveryPath
 import com.mtdevelopment.core.model.Order
+import com.mtdevelopment.core.model.OrderStatus
+import com.mtdevelopment.core.model.PickupPoint
 import com.mtdevelopment.core.model.PreparationStatus
+import com.mtdevelopment.core.model.deliveriesOnly
 import com.mtdevelopment.core.presentation.sharedModels.UiProductObject
 import com.mtdevelopment.core.presentation.sharedModels.toDomainProduct
 import com.mtdevelopment.core.usecase.GetAutocompleteSuggestionsUseCase
@@ -65,7 +75,13 @@ class AdminViewModel(
     private val shouldShowBatterieOptimizationUseCase: UpdateShouldShowBatterieOptimizationUseCase,
     private val getShouldShowBatterieOptimizationUseCase: GetShouldShowBatterieOptimizationUseCase,
     private val getPreparationStatusesUseCase: GetPreparationStatusesUseCase,
-    private val updatePreparationStatusUseCase: UpdatePreparationStatusUseCase
+    private val updatePreparationStatusUseCase: UpdatePreparationStatusUseCase,
+    private val getAllPickupPointsUseCase: GetAllPickupPointsUseCase,
+    private val addNewPickupPointUseCase: AddNewPickupPointUseCase,
+    private val updatePickupPointUseCase: UpdatePickupPointUseCase,
+    private val deletePickupPointUseCase: DeletePickupPointUseCase,
+    private val markOrderPaidOnSiteUseCase: MarkOrderPaidOnSiteUseCase,
+    private val cancelStaleOnSiteOrdersUseCase: CancelStaleOnSiteOrdersUseCase
 ) : ViewModel(), KoinComponent {
 
     ///////////////////////////////////////////////////////////////////////////
@@ -73,6 +89,9 @@ class AdminViewModel(
     ///////////////////////////////////////////////////////////////////////////
     private val _orderScreenState = MutableStateFlow(OrderScreenState())
     val orderScreenState = _orderScreenState.asStateFlow()
+
+    private val _pickupPointsState = MutableStateFlow(PickupPointsState())
+    val pickupPointsState = _pickupPointsState.asStateFlow()
 
     /**
      * Internal state for debouncing address autocomplete queries.
@@ -156,6 +175,24 @@ class AdminViewModel(
     fun setAddressText(address: String) {
         _orderScreenState.value = _orderScreenState.value.copy(searchQuery = address)
         _searchQuery.value = address
+    }
+
+    /**
+     * Puts an already-settled address in the field without treating it as something the user
+     * just typed.
+     *
+     * [setAddressText] feeds [_searchQuery], which is what fires the Géoplateforme lookup and
+     * opens the suggestions dropdown. That is right for a keystroke and wrong for a value read
+     * back from Firestore: opening an existing record would cost a network call and drop a
+     * dropdown over the form every single time, offering the user alternatives to an address
+     * they already chose.
+     */
+    fun prefillAddressText(address: String) {
+        _orderScreenState.value = _orderScreenState.value.copy(
+            searchQuery = address,
+            suggestions = emptyList(),
+            showSuggestions = false
+        )
     }
 
     ///////////////////////////////////////////////////////////////////////////
@@ -273,6 +310,85 @@ class AdminViewModel(
     }
 
     ///////////////////////////////////////////////////////////////////////////
+    // Pickup Point Operations
+    ///////////////////////////////////////////////////////////////////////////
+
+    /**
+     * Loads every pickup point.
+     *
+     * A read failure sets [PickupPointsState.error] and leaves the previous list alone:
+     * showing an empty screen would tell the shop it has no market dates configured, which
+     * is a very different statement from "we could not read them".
+     */
+    fun getAllPickupPoints() {
+        _pickupPointsState.update { it.copy(isLoading = true, error = null) }
+        viewModelScope.launch {
+            getAllPickupPointsUseCase.invoke()
+                .onSuccess { points ->
+                    _pickupPointsState.update {
+                        it.copy(points = points, isLoading = false)
+                    }
+                }
+                .onFailure {
+                    _pickupPointsState.update { state ->
+                        state.copy(
+                            isLoading = false,
+                            error = "Impossible de charger les points de retrait."
+                        )
+                    }
+                }
+        }
+    }
+
+    /** Creates the point when it has no id yet, updates it otherwise. */
+    fun savePickupPoint(point: PickupPoint, onSuccess: () -> Unit) {
+        _pickupPointsState.update { it.copy(isLoading = true, error = null) }
+        viewModelScope.launch {
+            val result = if (point.id.isBlank()) {
+                addNewPickupPointUseCase.invoke(point)
+            } else {
+                updatePickupPointUseCase.invoke(point)
+            }
+            result
+                .onSuccess {
+                    _pickupPointsState.update { it.copy(isLoading = false) }
+                    onSuccess.invoke()
+                }
+                .onFailure {
+                    _pickupPointsState.update { state ->
+                        state.copy(
+                            isLoading = false,
+                            error = "Impossible d'enregistrer ce point de retrait."
+                        )
+                    }
+                }
+        }
+    }
+
+    fun deletePickupPoint(point: PickupPoint, onSuccess: () -> Unit) {
+        _pickupPointsState.update { it.copy(isLoading = true, error = null) }
+        viewModelScope.launch {
+            deletePickupPointUseCase.invoke(point)
+                .onSuccess {
+                    _pickupPointsState.update { it.copy(isLoading = false) }
+                    onSuccess.invoke()
+                }
+                .onFailure {
+                    _pickupPointsState.update { state ->
+                        state.copy(
+                            isLoading = false,
+                            error = "Impossible de supprimer ce point de retrait."
+                        )
+                    }
+                }
+        }
+    }
+
+    fun clearPickupPointError() {
+        _pickupPointsState.update { it.copy(error = null) }
+    }
+
+    ///////////////////////////////////////////////////////////////////////////
     // Order and Status Operations
     ///////////////////////////////////////////////////////////////////////////
 
@@ -292,6 +408,18 @@ class AdminViewModel(
                         isLoading = false
                     )
                 }
+                // Write off orders that were to be paid on collection and never were. Done
+                // here because there is no scheduled backend job: the sweep runs whenever
+                // the shop opens its order list, which is enough for a write-off that has
+                // no deadline of its own.
+                viewModelScope.launch {
+                    val cancelled = cancelStaleOnSiteOrdersUseCase.invoke(ordersList.orEmpty())
+                    if (cancelled.isNotEmpty()) {
+                        _orderScreenState.update { state ->
+                            state.copy(orders = state.orders.filterNot { it.id in cancelled })
+                        }
+                    }
+                }
             })
             getPreparationStatusesUseCase.invoke(onSuccess = { statusesList ->
                 _orderScreenState.update { state ->
@@ -308,6 +436,33 @@ class AdminViewModel(
         viewModelScope.launch {
             _orderScreenState.update { state ->
                 state.copy(orders = state.orders + order)
+            }
+        }
+    }
+
+    /**
+     * Records that an order to be paid on collection has been paid.
+     *
+     * Optimistic, like the preparation ticks: the shop is standing in front of the customer
+     * and should not wait on a round-trip. A failed write is surfaced and the row reverts.
+     */
+    fun markOrderPaidOnSite(order: Order) {
+        val previous = _orderScreenState.value.orders
+        _orderScreenState.update { state ->
+            state.copy(
+                orders = state.orders.map {
+                    if (it.id == order.id) it.copy(status = OrderStatus.PAID) else it
+                }
+            )
+        }
+        viewModelScope.launch {
+            markOrderPaidOnSiteUseCase.invoke(order).onFailure {
+                _orderScreenState.update { state ->
+                    state.copy(
+                        orders = previous,
+                        error = "L'encaissement n'a pas pu être enregistré."
+                    )
+                }
             }
         }
     }
@@ -338,13 +493,20 @@ class AdminViewModel(
 
     /**
      * Calculates an optimized path for today's orders.
+     *
+     * [addresses] arrives already stripped of the orders the customer collects, so the
+     * order list rebuilt here has to be stripped the same way: the optimizer pairs the two
+     * by position, and a size mismatch makes it silently fall back to the unoptimised
+     * order. It also keys its route cache on the set of order ids, so a set that differs
+     * from the tracking service's would make the two invalidate each other's cache and pay
+     * for the same route twice.
      */
     fun getOptimisedPath(addresses: List<String>, onSuccess: (OptimizedRouteWithOrders) -> Unit) {
         viewModelScope.launch {
             val todayStart =
                 java.time.LocalDate.now().atStartOfDay(java.time.ZoneOffset.UTC).toInstant()
                     .toEpochMilli()
-            val dailyOrders = _orderScreenState.value.orders.filter {
+            val dailyOrders = _orderScreenState.value.orders.deliveriesOnly().filter {
                 it.deliveryDate.toTimeStamp() == todayStart
             }
             val result = getOptimizedDeliveryUseCase.invoke(addresses, dailyOrders)

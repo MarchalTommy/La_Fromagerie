@@ -2,6 +2,7 @@ package com.mtdevelopment.checkout.presentation.model
 
 import com.mtdevelopment.checkout.domain.model.NewCheckoutResult
 import com.mtdevelopment.core.model.CartItems
+import com.mtdevelopment.core.model.FulfillmentType
 
 /**
  * UI State for the checkout and payment process.
@@ -25,6 +26,11 @@ import com.mtdevelopment.core.model.CartItems
  *   auto-redirects (it only shows a "return to merchant" button), so this flag lets the
  *   checkout screen trigger verification when the app regains focus — not only when the
  *   deep-link callback fires. Reset as soon as verification is triggered.
+ * @property buyerPhone Contact number, collected only for a collected order.
+ * @property fulfillmentType How the order reaches the customer. Drives what the recap shows
+ *   and what the created order records.
+ * @property pickupLabel Name of the pickup point, snapshotted onto the order so a later edit
+ *   of that point cannot rewrite this purchase.
  */
 data class PaymentScreenState(
     val isLoading: Boolean = false,
@@ -41,5 +47,11 @@ data class PaymentScreenState(
     val checkoutResult: NewCheckoutResult? = null,
     var orderId: String? = null,
     var checkoutNote: String? = null,
-    val isAwaitingHostedCheckoutReturn: Boolean = false
+    val isAwaitingHostedCheckoutReturn: Boolean = false,
+    val buyerPhone: String? = null,
+    val fulfillmentType: FulfillmentType = FulfillmentType.DELIVERY,
+    val pickupPointId: String? = null,
+    val pickupLabel: String? = null,
+    val pickupAddress: String? = null,
+    val pickupTimeRange: String? = null
 )

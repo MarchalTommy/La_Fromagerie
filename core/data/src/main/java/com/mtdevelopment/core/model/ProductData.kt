@@ -22,7 +22,12 @@ data class ProductData(
     @SerializedName("allergens")
     val allergens: List<String>? = null,
     @SerializedName("isAvailable")
-    val isAvailable: Boolean = true
+    val isAvailable: Boolean = true,
+    // Additive and nullable: a product with no specific shop price costs the same
+    // everywhere, which is what every document written before this field reads as.
+    // Note this collection uses camelCase keys, unlike `orders` — respect each.
+    @SerializedName("priceCentsPickupShop")
+    val priceCentsPickupShop: Long? = null
 )
 
 fun String.toProductType(): ProductType {
@@ -38,7 +43,8 @@ fun ProductData.toProduct(): Product {
         type = this.type.name,
         description = this.description.replace("\\n", "\n"),
         allergens = this.allergens,
-        isAvailable = this.isAvailable
+        isAvailable = this.isAvailable,
+        priceInCentsPickupShop = this.priceCentsPickupShop
     )
 }
 
@@ -51,6 +57,7 @@ fun Product.toProductData(): ProductData {
         type = ProductType.valueOf(this.type),
         description = this.description.replace("\n", "\\n"),
         allergens = this.allergens,
-        isAvailable = this.isAvailable
+        isAvailable = this.isAvailable,
+        priceCentsPickupShop = this.priceInCentsPickupShop
     )
 }

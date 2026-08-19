@@ -43,8 +43,9 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
-import com.mtdevelopment.core.domain.toLongPrice
-import com.mtdevelopment.core.domain.toStringPrice
+import com.mtdevelopment.core.domain.isEditablePriceInput
+import com.mtdevelopment.core.domain.toEditablePrice
+import com.mtdevelopment.core.domain.toLongPriceOrNull
 import com.mtdevelopment.core.model.ProductType
 import com.mtdevelopment.core.presentation.sharedModels.UiProductObject
 import com.mtdevelopment.core.presentation.theme.ui.black70
@@ -53,6 +54,28 @@ import com.mtdevelopment.core.presentation.theme.ui.black70
 //  just picture or just data". Likely root cause fixed in AdminViewModel.uploadLocalImageIfAny:
 //  the previous flow re-uploaded hosted images and proceeded with a device-local URI when the
 //  upload failed. Verify on a device, then remove this note.
+/**
+ * What a cheese may cost, in cents: 0,50 € to 30,00 €.
+ *
+ * One range for both the delivery price and the shop price. They were bounded differently --
+ * 50..3000 on one, `< 10000` on the other -- which is how a 0 € shop price became storable,
+ * and [com.mtdevelopment.core.model.Product.priceFor] would have charged it.
+ */
+private val ACCEPTED_PRICE_RANGE = 50L..3000L
+
+/**
+ * Ceiling on what a keystroke may push into the field at all. Above it the keystroke is
+ * ignored, which is how the delivery price has always behaved: it keeps a fat-fingered extra
+ * digit from replacing the field's contents while it is still being typed. It is deliberately
+ * looser than [ACCEPTED_PRICE_RANGE] -- typing is not saving.
+ */
+private const val PRICE_TYPING_CEILING = 10000L
+
+private const val OUT_OF_RANGE_PRICE_ERROR =
+    "Le prix doit être compris entre 0,50 € et 30,00 €."
+private const val SHOP_PRICE_ABOVE_DELIVERY_ERROR =
+    "Le prix boutique doit rester inférieur ou égal au prix livraison."
+
 @Preview(showBackground = true)
 @Composable
 fun ProductEditDialog(
@@ -79,6 +102,7 @@ fun ProductEditDialog(
                 id = product?.id ?: "",
                 name = product?.name ?: "",
                 priceInCents = product?.priceInCents ?: 0L,
+                priceInCentsPickupShop = product?.priceInCentsPickupShop,
                 imageUrl = product?.imageUrl ?: "",
                 description = product?.description ?: "",
                 allergens = product?.allergens ?: listOf(),
@@ -86,6 +110,32 @@ fun ProductEditDialog(
             )
         )
     }
+    // The two price fields keep their own raw text, and the model is derived from it -- never
+    // the other way round. Re-rendering the field from the cents on every keystroke is what
+    // made them unusable: "3" came back as "3,00 €" with the cursor parked before a comma
+    // that already existed, so typing "3,50" was impossible and the "," raised
+    // "plusieurs virgules / points" instead. Seeded once, then left alone.
+    var deliveryPriceInput by remember {
+        mutableStateOf(product?.priceInCents?.takeIf { it != 0L }?.toEditablePrice() ?: "")
+    }
+    var shopPriceInput by remember {
+        mutableStateOf(product?.priceInCentsPickupShop?.toEditablePrice() ?: "")
+    }
+
+    // Both prices are validated against the same range. The shop price used only to be
+    // checked against the delivery one, which let 0 € through -- and priceFor() would then
+    // hand the customer a free product, with nothing downstream to catch it because the
+    // whole design says prices are validated where they are typed.
+    val isDeliveryPriceInvalid = tempProduct.value.priceInCents !in ACCEPTED_PRICE_RANGE
+    val shopPriceError: String? = tempProduct.value.priceInCentsPickupShop?.let { shopPrice ->
+        when {
+            shopPrice !in ACCEPTED_PRICE_RANGE -> OUT_OF_RANGE_PRICE_ERROR
+            shopPrice > tempProduct.value.priceInCents -> SHOP_PRICE_ABOVE_DELIVERY_ERROR
+            else -> null
+        }
+    }
+    val isShopPriceInvalid = shopPriceError != null
+
     var allergensInputText by remember(tempProduct.value.allergens) {
         mutableStateOf(tempProduct.value.allergens?.joinToString(", ") ?: "")
     }
@@ -171,33 +221,82 @@ fun ProductEditDialog(
                 )
                 ProductEditField(
                     modifier = Modifier,
-                    title = "Prix",
-                    value = if (tempProduct.value.priceInCents != 0L) {
-                        tempProduct.value.priceInCents.toStringPrice()
-                    } else {
-                        ""
-                    },
-                    onValueChange = {
-                        try {
-                            if (it.toLongPrice() < 10000) {
-                                tempProduct.value =
-                                    tempProduct.value.copy(priceInCents = it.toLongPrice())
-                            }
-                        } catch (e: NumberFormatException) {
-                            focusManager.clearFocus()
-                            onError.invoke("Vous ne pouvez pas mettre plusieurs virgules / points")
+                    title = "Prix (livraison et marché)",
+                    value = deliveryPriceInput,
+                    onValueChange = { input ->
+                        if (!input.isEditablePriceInput()) return@ProductEditField
+                        val cents = input.toLongPriceOrNull() ?: 0L
+                        // Past the ceiling the keystroke is dropped, which is how this field
+                        // has always behaved: a fat-fingered extra digit must not silently
+                        // replace what is being typed.
+                        if (cents < PRICE_TYPING_CEILING) {
+                            deliveryPriceInput = input
+                            tempProduct.value = tempProduct.value.copy(priceInCents = cents)
                         }
-
                     },
-                    isError = tempProduct.value.priceInCents == 0L,
+                    isError = isDeliveryPriceInvalid,
                     isNumberOnly = true,
                     imeAction = ImeAction.Next,
                     focusRequester = focusRequester,
                     focusManager = focusManager,
+                    placeholder = "3,70",
                     prefix = {
                         Text("€")
                     }
                 )
+
+                // Nothing typed yet is flagged (the field is required) but not explained:
+                // "entre 0,50 EUR et 30,00 EUR" answers a question an empty field has not asked.
+                if (isDeliveryPriceInvalid && deliveryPriceInput.isNotEmpty()) {
+                    Text(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        text = OUT_OF_RANGE_PRICE_ERROR,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+
+                // Optional, and only ever downwards. Refusing a higher shop price here is what
+                // makes "the customer's total can only go down when they switch mode" true by
+                // construction, instead of something the client has to guard against at runtime.
+                ProductEditField(
+                    modifier = Modifier,
+                    title = "Prix en retrait boutique (optionnel)",
+                    value = shopPriceInput,
+                    onValueChange = { input ->
+                        if (!input.isEditablePriceInput()) return@ProductEditField
+                        // Empty stays null, and null means "same price as delivery" -- the one
+                        // reading an empty optional field can have.
+                        val typed = input.toLongPriceOrNull()
+                        // Ignore the keystroke past the ceiling, exactly as the delivery
+                        // price does. Dropping the value to null instead -- which is what
+                        // this did -- reads as the field clearing itself.
+                        if (typed == null || typed < PRICE_TYPING_CEILING) {
+                            shopPriceInput = input
+                            tempProduct.value = tempProduct.value.copy(
+                                priceInCentsPickupShop = typed
+                            )
+                        }
+                    },
+                    isError = isShopPriceInvalid,
+                    isNumberOnly = true,
+                    imeAction = ImeAction.Next,
+                    focusRequester = focusRequester,
+                    focusManager = focusManager,
+                    placeholder = "Laisser vide si identique",
+                    prefix = {
+                        Text("€")
+                    }
+                )
+
+                shopPriceError?.let { message ->
+                    Text(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        text = message,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
                 ProductEditField(
                     modifier = Modifier,
                     title = "Description",
@@ -234,7 +333,9 @@ fun ProductEditDialog(
                         TextButton(
                             modifier = Modifier
                                 .padding(top = 8.dp, end = 8.dp, start = 8.dp),
-                            enabled = (tempProduct.value.name.isNotBlank() && tempProduct.value.priceInCents in 50..3000),
+                            enabled = tempProduct.value.name.isNotBlank() &&
+                                    tempProduct.value.priceInCents in ACCEPTED_PRICE_RANGE &&
+                                    !isShopPriceInvalid,
                             shape = MaterialTheme.shapes.large,
                             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 16.dp),
                             onClick = {
@@ -316,7 +417,9 @@ fun ProductEditField(
         keyboardOptions = KeyboardOptions(
             imeAction = imeAction,
             keyboardType = if (isNumberOnly) {
-                KeyboardType.Number
+                // Decimal, not Number: the only two fields that set this are prices, and a
+                // plain number pad offers no decimal separator on some IMEs.
+                KeyboardType.Decimal
             } else {
                 KeyboardType.Text
             },

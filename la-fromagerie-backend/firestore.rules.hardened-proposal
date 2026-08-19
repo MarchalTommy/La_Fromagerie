@@ -1,3 +1,8 @@
+// ⚠️ SUPERSEDED 2026-08-19 — this proposal WAS deployed (with `request.auth != null`
+// where the TODO(admin-auth) blocks below still say `if true`, the PIN gate having
+// landed). What is live now is `firestore.rules`; read that one, not this. Kept only
+// as the record of how the hardening was argued.
+//
 // PROPOSAL — NOT DEPLOYED. Drafted 2026-07-08 from the audit of the exported
 // live rules (see FIRESTORE_RULES_AUDIT.md). Deploying rules changes payment-live
 // behaviour and needs Tommy's explicit sign-off.

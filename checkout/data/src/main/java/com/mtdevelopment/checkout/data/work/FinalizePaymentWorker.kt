@@ -10,6 +10,8 @@ import com.mtdevelopment.checkout.data.remote.source.SumUpDataSource
 import com.mtdevelopment.checkout.data.work.FinalizePaymentWorker.Companion.MAX_RUN_ATTEMPTS
 import com.mtdevelopment.checkout.domain.model.PendingPaymentFinalization
 import com.mtdevelopment.checkout.domain.repository.CheckoutDatastorePreference
+import com.mtdevelopment.checkout.domain.usecase.CancelOrderReminderUseCase
+import com.mtdevelopment.checkout.domain.usecase.ScheduleOrderReminderUseCase
 import com.mtdevelopment.core.model.OrderStatus
 import com.mtdevelopment.core.repository.SharedDatastore
 import com.mtdevelopment.core.util.NetWorkResult
@@ -29,9 +31,10 @@ import org.koin.core.component.inject
  * submitted (Google Pay path) or right before the hosted-checkout page is opened
  * (hosted path, where the customer may pay in the browser and never return to the
  * app). It polls SumUp for the terminal status and:
- * - on PAID: marks the Firestore order as PAID and clears the local cart,
- * - on FAILED: marks the Firestore order as CANCELED (the cart is kept so the
- *   customer can retry),
+ * - on PAID: marks the Firestore order as PAID, clears the local cart and schedules the
+ *   delivery-day reminder,
+ * - on FAILED: marks the Firestore order as CANCELED and drops any reminder (the cart is
+ *   kept so the customer can retry),
  * then clears the pending-finalization marker.
  *
  * Every step is idempotent, so it can safely race with the in-app flow: whichever
@@ -46,6 +49,8 @@ class FinalizePaymentWorker(
     private val sumUpDataSource: SumUpDataSource by inject()
     private val firestoreOrderDataSource: FirestoreOrderDataSource by inject()
     private val sharedDatastore: SharedDatastore by inject()
+    private val scheduleOrderReminderUseCase: ScheduleOrderReminderUseCase by inject()
+    private val cancelOrderReminderUseCase: CancelOrderReminderUseCase by inject()
 
     override suspend fun doWork(): Result {
         val pending = checkoutDatastorePreference.pendingFinalizationFlow.first()
@@ -100,8 +105,14 @@ class FinalizePaymentWorker(
             )
         }
 
+        // The reminder follows the order's fate: raised once the delivery is certain,
+        // dropped when the payment failed. Doing it here as well as in the in-app flow is
+        // what makes a payment completed while the app was dead still produce a reminder.
         if (status == OrderStatus.PAID) {
             sharedDatastore.clearCartItems()
+            scheduleOrderReminderUseCase.invoke(pending.orderId)
+        } else {
+            cancelOrderReminderUseCase.invoke(pending.orderId)
         }
         checkoutDatastorePreference.clearPendingFinalization()
         Log.i(TAG, "Order ${pending.orderId} finalized as $status")

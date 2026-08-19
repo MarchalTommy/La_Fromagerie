@@ -1,6 +1,9 @@
 package com.mtdevelopment.delivery.presentation.state
 
 import com.mtdevelopment.core.model.AutoCompleteSuggestion
+import com.mtdevelopment.core.model.FulfillmentType
+import com.mtdevelopment.core.model.PickupPoint
+import com.mtdevelopment.delivery.domain.usecase.SelectablePickupDate
 import com.mtdevelopment.delivery.presentation.model.UiDeliveryPath
 
 /**
@@ -36,6 +39,21 @@ import com.mtdevelopment.delivery.presentation.model.UiDeliveryPath
  *   commune (admin path editor only). Empty when nothing is being looked up.
  * @property deliveryPaths List of all available delivery paths.
  * @property isBillingDifferent Flag indicating if the user wants to provide a different billing address.
+ * @property fulfillmentType How the customer wants the order: delivered, or collected at the
+ *   shop or on a market. Everything below only applies to the two collected modes.
+ * @property userPhoneFieldText Contact number, asked only for a collected order: there is no
+ *   address to fall back on when the customer does not turn up.
+ * @property pickupPoints Points matching the selected mode, loaded from Firestore.
+ * @property pickupDates Dates offered for those points, cut-off already applied.
+ * @property pickupPointsUnavailable True when the points could not be read. Distinct from an
+ *   empty list on purpose: "we could not check" must never be shown as "you cannot collect".
+ * @property shopPickupSavingInCents What this basket would cost less if collected at the shop
+ *   rather than delivered. Zero when there is nothing to say — an empty basket, or products
+ *   priced the same either way — and the banner is hidden rather than showing "0,00 €".
+ * @property selectedPickupDate The date the customer picked, and the point it belongs to. Held
+ *   here rather than in the composable because it is what the order is built from: kept in the
+ *   view it survived a change of mode — the list redrew, nothing looked selected, and the
+ *   Continue button still carried the previous mode's date — and it was lost on rotation.
  */
 data class DeliveryUiDataState(
     val datePickerVisibility: Boolean = false,
@@ -67,5 +85,13 @@ data class DeliveryUiDataState(
     val streetSuggestions: List<String> = emptyList(),
 
     val deliveryPaths: List<UiDeliveryPath> = emptyList(),
-    val isBillingDifferent: Boolean = false
+    val isBillingDifferent: Boolean = false,
+
+    val fulfillmentType: FulfillmentType = FulfillmentType.DELIVERY,
+    val userPhoneFieldText: String = "",
+    val pickupPoints: List<PickupPoint> = emptyList(),
+    val pickupDates: List<SelectablePickupDate> = emptyList(),
+    val pickupPointsUnavailable: Boolean = false,
+    val selectedPickupDate: SelectablePickupDate? = null,
+    val shopPickupSavingInCents: Long = 0L
 )

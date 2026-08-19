@@ -77,6 +77,22 @@ class LogicUtilsTest {
     }
 
     @Test
+    fun `toStoredDate writes ascii digits whatever the device locale`() {
+        val previous = java.util.Locale.getDefault()
+        try {
+            java.util.Locale.setDefault(java.util.Locale.forLanguageTag("ar-EG-u-nu-arab"))
+
+            val stored = java.time.LocalDate.of(2026, 8, 15).toStoredDate()
+
+            // Anything else and the value can never equal a date already stored by the shop.
+            assertEquals("15/08/2026", stored)
+            assertEquals(java.time.LocalDate.of(2026, 8, 15), stored.toLocalDate())
+        } finally {
+            java.util.Locale.setDefault(previous)
+        }
+    }
+
+    @Test
     fun `toLocalDate parses valid date`() {
         val parsed = "01/02/2024".toLocalDate()
         assertEquals(2024, parsed?.year)
@@ -177,6 +193,91 @@ class LogicUtilsTest {
     @Test
     fun `reorderList handles empty list`() {
         assertEquals(emptyList<String>(), reorderList(emptyList<String>(), emptyList()))
+    }
+
+    // endregion
+
+    // region French phone numbers
+
+    @Test
+    fun `a French number is accepted however the customer spaces it out`() {
+        assertTrue("0612345678".isValidFrenchPhoneNumber())
+        assertTrue("06 12 34 56 78".isValidFrenchPhoneNumber())
+        assertTrue("06.12.34.56.78".isValidFrenchPhoneNumber())
+        assertTrue("06-12-34-56-78".isValidFrenchPhoneNumber())
+        assertTrue("03 81 39 00 00".isValidFrenchPhoneNumber())
+    }
+
+    @Test
+    fun `both spellings of the country code are accepted`() {
+        assertTrue("+33 6 12 34 56 78".isValidFrenchPhoneNumber())
+        assertTrue("0033 6 12 34 56 78".isValidFrenchPhoneNumber())
+    }
+
+    @Test
+    fun `a field that could not be called is refused`() {
+        // The whole point of asking for a number on a collected order: this is what the shop
+        // rings when the customer does not turn up.
+        assertFalse("a".isValidFrenchPhoneNumber())
+        assertFalse("".isValidFrenchPhoneNumber())
+        assertFalse("   ".isValidFrenchPhoneNumber())
+        assertFalse("06 12 34".isValidFrenchPhoneNumber())
+        assertFalse("06 12 34 56 78 90".isValidFrenchPhoneNumber())
+        assertFalse("1612345678".isValidFrenchPhoneNumber())
+    }
+
+    // endregion
+
+    // region Editable price fields
+
+    @Test
+    fun `an editable price is the bare decimal, never the display format`() {
+        // toStringPrice would give "3,70 €" -- putting the currency symbol exactly where the
+        // next keystroke lands, which is what made the admin price fields unusable.
+        assertEquals("3,70", 370L.toEditablePrice())
+        assertEquals("0,50", 50L.toEditablePrice())
+        assertEquals("30,00", 3000L.toEditablePrice())
+        assertEquals("0,05", 5L.toEditablePrice())
+    }
+
+    @Test
+    fun `what toEditablePrice writes, toLongPrice reads back`() {
+        listOf(50L, 370L, 999L, 3000L).forEach { cents ->
+            assertEquals(cents, cents.toEditablePrice().toLongPrice())
+        }
+    }
+
+    @Test
+    fun `a price on its way to being typed is accepted`() {
+        assertTrue("".isEditablePriceInput())
+        assertTrue("3".isEditablePriceInput())
+        assertTrue("3,".isEditablePriceInput())
+        assertTrue("3,5".isEditablePriceInput())
+        assertTrue("3,50".isEditablePriceInput())
+        assertTrue("3.50".isEditablePriceInput())
+        assertTrue("12".isEditablePriceInput())
+    }
+
+    @Test
+    fun `what cannot become a price is refused so the keystroke can be dropped`() {
+        assertFalse("3,,".isEditablePriceInput())
+        assertFalse("3,505".isEditablePriceInput())
+        assertFalse("3.5,0".isEditablePriceInput())
+        assertFalse("3,70 €".isEditablePriceInput())
+        // A separator with nothing in front: "0,50" has to be typed in full.
+        assertFalse(",".isEditablePriceInput())
+        assertFalse(",5".isEditablePriceInput())
+        assertFalse("abc".isEditablePriceInput())
+        assertFalse("-3".isEditablePriceInput())
+    }
+
+    @Test
+    fun `a half-typed price parses to what has been typed so far`() {
+        assertEquals(300L, "3".toLongPriceOrNull())
+        assertEquals(300L, "3,".toLongPriceOrNull())
+        assertEquals(350L, "3,5".toLongPriceOrNull())
+        assertEquals(350L, "3,50".toLongPriceOrNull())
+        assertNull("".toLongPriceOrNull())
     }
 
     // endregion

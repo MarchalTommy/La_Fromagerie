@@ -21,9 +21,12 @@ val Typography = Typography(
         lineHeight = 24.sp,
         letterSpacing = 0.5.sp
     ),
+    // Same size as the other two body styles on purpose: what makes this one "small" is the
+    // muted colour its callers give it, not a smaller glyph. It asked for FontWeight.Thin
+    // until 2026-08-19, which is a hairline at 16sp and was unreadable in the pickup screens.
     bodySmall = TextStyle(
         fontFamily = bodyLightFontFamily,
-        fontWeight = FontWeight.Thin,
+        fontWeight = FontWeight.Light,
         fontSize = 16.sp,
         lineHeight = 24.sp,
         letterSpacing = 0.5.sp

@@ -19,12 +19,15 @@ import androidx.compose.ui.unit.dp
 import com.mapbox.common.MapboxOptions
 import com.mtdevelopment.core.presentation.composable.ErrorOverlay
 import com.mtdevelopment.core.presentation.composable.RiveAnimation
+import com.mtdevelopment.delivery.domain.usecase.DeliveryEligibility
 import com.mtdevelopment.delivery.presentation.BuildConfig.MAPBOX_PUBLIC_TOKEN
 import com.mtdevelopment.delivery.presentation.composable.CustomerContent
 import com.mtdevelopment.delivery.presentation.composable.DatePickerComposable
-import com.mtdevelopment.delivery.domain.usecase.DeliveryEligibility
+import com.mtdevelopment.delivery.presentation.composable.FulfillmentTypeSelector
 import com.mtdevelopment.delivery.presentation.composable.MapBoxComposable
 import com.mtdevelopment.delivery.presentation.composable.PermissionManagerComposable
+import com.mtdevelopment.delivery.presentation.composable.PickupContent
+import com.mtdevelopment.delivery.presentation.composable.ShopPickupSavingNotice
 import com.mtdevelopment.delivery.presentation.viewmodel.DeliveryViewModel
 import org.koin.androidx.compose.koinViewModel
 
@@ -104,24 +107,56 @@ fun DeliveryOptionScreen(
                 }
             )
 
+            // Mode selection sits above the form so collecting is a first-class choice, not
+            // something the customer only discovers after an address has been rejected.
+            FulfillmentTypeSelector(
+                modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp),
+                selected = state.value.fulfillmentType,
+                onSelect = { deliveryViewModel.setFulfillmentType(it) }
+            )
+
+            // Directly under the control it is about. The shop price is only visible today on
+            // the product tiles, one screen back and one product at a time, so the customer
+            // reaches the mode selector with no idea what the choice is worth on their basket.
+            ShopPickupSavingNotice(
+                modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp),
+                savingInCents = state.value.shopPickupSavingInCents,
+                fulfillmentType = state.value.fulfillmentType
+            )
+
             // FORM SECTION: Collects user data and selections.
             // Step 1 of the assisted journey: "Continuer" persists the info and opens the
             // delivery-date calendar; the actual navigation to checkout happens once a date
             // is confirmed (see the DatePicker dialog below).
-            CustomerContent(
-                deliveryViewModel = deliveryViewModel,
-                onContinue = {
-                    deliveryViewModel.saveUserInfo(onError = {
+            if (state.value.fulfillmentType.isPickup) {
+                // Collected orders skip the address, the eligibility check and the tournée
+                // entirely: none of it has a meaning when the customer comes to the cheese.
+                PickupContent(
+                    state = state.value,
+                    onNameChange = { deliveryViewModel.setUserNameFieldText(it) },
+                    onPhoneChange = { deliveryViewModel.setUserPhoneFieldText(it) },
+                    onDateChosen = { deliveryViewModel.setSelectedPickupDate(it) },
+                    onDateSelected = { selection ->
+                        deliveryViewModel.savePickupSelection(selection)
+                        navigateToCheckout.invoke()
+                    }
+                )
+            } else {
+                CustomerContent(
+                    deliveryViewModel = deliveryViewModel,
+                    onContinue = {
+                        deliveryViewModel.saveUserInfo(onError = {
+                            deliveryViewModel.setIsError("Erreur lors de la sauvegarde de vos informations")
+                        })
+                        deliveryViewModel.setIsDatePickerShown(true)
+                    },
+                    state = state,
+                    scrollState = scrollState,
+                    onError = {
                         deliveryViewModel.setIsError("Erreur lors de la sauvegarde de vos informations")
-                    })
-                    deliveryViewModel.setIsDatePickerShown(true)
-                },
-                state = state,
-                scrollState = scrollState,
-                onError = {
-                    deliveryViewModel.setIsError("Erreur lors de la sauvegarde de vos informations")
-                }
-            )
+                    }
+                )
+            }
         }
 
         /**
@@ -129,7 +164,7 @@ fun DeliveryOptionScreen(
          * This non-visual component handles the logic for requesting GPS permissions
          * and determining the user's delivery eligibility based on their coordinates.
          */
-        if (state.value.shouldShowLocalisationPermission) {
+        if (state.value.shouldShowLocalisationPermission && !state.value.fulfillmentType.isPickup) {
             PermissionManagerComposable(
                 allPaths = state.value.deliveryPaths,
                 onUpdateEligibility = { eligibility, city, userAddress, candidatePaths ->

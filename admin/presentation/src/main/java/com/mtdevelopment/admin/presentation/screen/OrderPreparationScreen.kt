@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -31,6 +32,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -48,7 +50,11 @@ import com.mtdevelopment.admin.presentation.viewmodel.AdminViewModel
 import com.mtdevelopment.core.domain.toLocalDate
 import com.mtdevelopment.core.domain.toTimeStamp
 import com.mtdevelopment.core.model.Order
+import com.mtdevelopment.core.model.OrderStatus
+import com.mtdevelopment.core.model.PaymentMode
+import com.mtdevelopment.core.model.PreparationGroup
 import com.mtdevelopment.core.model.PreparationStatus
+import com.mtdevelopment.core.model.preparationGroup
 import com.mtdevelopment.core.presentation.composable.ErrorOverlay
 import com.mtdevelopment.core.presentation.composable.RiveAnimation
 import com.mtdevelopment.core.util.koinViewModel
@@ -73,7 +79,8 @@ fun OrderPreparationScreen() {
     OrderPreparationList(
         orders = state.value.orders,
         preparationStatuses = state.value.preparationStatuses,
-        onUpdateStatus = { viewModel.updatePreparationStatus(it) }
+        onUpdateStatus = { viewModel.updatePreparationStatus(it) },
+        onMarkPaidOnSite = { viewModel.markOrderPaidOnSite(it) }
     )
 
     // Loading and Error overlays
@@ -91,6 +98,17 @@ fun OrderPreparationScreen() {
 }
 
 /**
+ * One preparation batch as the list needs it: the group it is keyed by, the orders that fall in
+ * it, and the product totals they add up to. Built once per change of [Order] list rather than
+ * per frame — see [OrderPreparationList].
+ */
+private data class PreparationBatch(
+    val group: PreparationGroup,
+    val orders: List<Order>,
+    val products: List<Pair<String, Int>>
+)
+
+/**
  * Displays the list of delivery dates as sticky headers, with aggregated products under each date.
  */
 @OptIn(ExperimentalFoundationApi::class)
@@ -98,12 +116,44 @@ fun OrderPreparationScreen() {
 fun OrderPreparationList(
     orders: List<Order>,
     preparationStatuses: List<PreparationStatus>,
-    onUpdateStatus: (PreparationStatus) -> Unit
+    onUpdateStatus: (PreparationStatus) -> Unit,
+    onMarkPaidOnSite: (Order) -> Unit = {}
 ) {
-    // Sort and unique delivery dates, newest first
-    val nextDeliveryDates =
-        orders.map { it.deliveryDate }.sortedByDescending { it.toTimeStamp() }.toSet()
-    val ordersByDeliveryDate = orders.groupBy { it.deliveryDate }
+    // Batches, newest first. Grouping on the date alone would merge a tournée, the shop
+    // pickups and a market of the same day into one aggregate, leaving no way to tell what
+    // goes in the van — hence the group, which also carries the pickup point so two
+    // markets on one day stay apart.
+    //
+    // Keyed on the orders because this screen recomposes on every preparation tick: unkeyed,
+    // one tap on one checkbox regrouped, re-sorted and re-aggregated the shop's entire order
+    // book before anything was drawn.
+    val batches = remember(orders) {
+        val ordersByGroup = orders.groupBy { it.preparationGroup }
+        ordersByGroup.keys
+            .sortedWith(
+                compareByDescending<PreparationGroup> { it.deliveryDate.toTimeStamp() }
+                    .thenBy { it.fulfillmentType }
+                    .thenBy { ordersByGroup[it]?.firstOrNull()?.pickupLabel.orEmpty() }
+            )
+            .mapNotNull { group ->
+                val groupOrders = ordersByGroup[group]?.takeIf { it.isNotEmpty() }
+                    ?: return@mapNotNull null
+                PreparationBatch(
+                    group = group,
+                    orders = groupOrders,
+                    // Aggregate product quantities for the batch.
+                    // e.g., if Order A has 2 Milk and Order B has 3 Milk, results in {Milk=5}
+                    products = groupOrders
+                        .fold(mutableMapOf<String, Int>()) { accumulator, currentMap ->
+                            currentMap.products.forEach { (product, quantity) ->
+                                accumulator.merge(product, quantity, Int::plus)
+                            }
+                            accumulator
+                        }
+                        .toList()
+                )
+            }
+    }
 
     // Captured once so every item of a frame compares against the same day and
     // scrolling does not re-evaluate the clock.
@@ -111,38 +161,32 @@ fun OrderPreparationList(
 
     LazyColumn {
 
-        for (deliveryDate in nextDeliveryDates) {
-            val ordersForDate = ordersByDeliveryDate[deliveryDate] ?: emptyList()
+        for (batch in batches) {
+            val group = batch.group
+            val deliveryDate = group.deliveryDate
+            val ordersForDate = batch.orders
+            val quantityForProducts = batch.products
             val isPastDate = deliveryDate.toLocalDate()?.isBefore(today) == true
-            if (ordersForDate.isNotEmpty()) {
 
-                // Aggregate product quantities for the current delivery date.
-                // e.g., if Order A has 2 Milk and Order B has 3 Milk, results in {Milk=5}
-                val quantityForProducts: Map<String, Int> =
-                    ordersForDate.fold(mutableMapOf()) { accumulator, currentMap ->
-                        currentMap.products.forEach { (product, quantity) ->
-                            accumulator.merge(product, quantity, Int::plus)
-                        }
-                        accumulator
-                    }
-
-                stickyHeader {
-                    // Past dates get a muted header so expired deliveries read as history
-                    Box(
+            stickyHeader {
+                // Past dates get a muted header so expired deliveries read as history
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            color = if (isPastDate) {
+                                MaterialTheme.colorScheme.surfaceVariant
+                            } else {
+                                MaterialTheme.colorScheme.secondary
+                            }
+                        )
+                ) {
+                    Column(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .background(
-                                color = if (isPastDate) {
-                                    MaterialTheme.colorScheme.surfaceVariant
-                                } else {
-                                    MaterialTheme.colorScheme.secondary
-                                }
-                            )
+                            .padding(horizontal = 32.dp, vertical = 16.dp)
+                            .align(Alignment.CenterStart)
                     ) {
                         Text(
-                            modifier = Modifier
-                                .padding(horizontal = 32.dp, vertical = 16.dp)
-                                .align(Alignment.CenterStart),
                             text = deliveryDate,
                             style = MaterialTheme.typography.titleLarge,
                             color = if (isPastDate) {
@@ -151,35 +195,56 @@ fun OrderPreparationList(
                                 MaterialTheme.colorScheme.onSecondary
                             }
                         )
+                        // Deliveries keep a date-only header, exactly as before. Only a
+                        // pickup batch needs naming, because that is the only case where
+                        // one date carries several destinations.
+                        //
+                        // Read off the batch's first order rather than carried on the
+                        // group: the label is a per-order snapshot, so a renamed market
+                        // would otherwise split one point into two batches sharing the
+                        // same preparation ticks.
+                        ordersForDate.firstOrNull()?.pickupLabel
+                            ?.takeIf { group.fulfillmentType.isPickup }
+                            ?.let { label ->
+                                Text(
+                                    text = label,
+                                    style = MaterialTheme.typography.titleSmall,
+                                    color = if (isPastDate) {
+                                        MaterialTheme.colorScheme.onSurfaceVariant
+                                    } else {
+                                        MaterialTheme.colorScheme.onSecondary
+                                    }
+                                )
+                            }
                     }
                 }
+            }
 
-                items(items = quantityForProducts.toList()) { item ->
-                    // Handle padding for first, last, or single items
-                    val modifier = when {
-                        quantityForProducts.toList().size == 1 ->
-                            Modifier.padding(vertical = 16.dp)
+            items(items = quantityForProducts) { item ->
+                // Handle padding for first, last, or single items
+                val modifier = when {
+                    quantityForProducts.size == 1 ->
+                        Modifier.padding(vertical = 16.dp)
 
-                        quantityForProducts.toList().indexOf(item) == 0 ->
-                            Modifier.padding(top = 16.dp)
+                    quantityForProducts.indexOf(item) == 0 ->
+                        Modifier.padding(top = 16.dp)
 
-                        quantityForProducts.toList()
-                            .indexOf(item) == quantityForProducts.toList().size - 1 ->
-                            Modifier.padding(bottom = 16.dp)
+                    quantityForProducts.indexOf(item) == quantityForProducts.size - 1 ->
+                        Modifier.padding(bottom = 16.dp)
 
-                        else -> Modifier
-                    }
-                    OrderPreparationListItem(
-                        modifier = modifier,
-                        product = item.first,
-                        quantity = item.second,
-                        itemsPerClients = ordersByDeliveryDate[deliveryDate] ?: listOf(),
-                        deliveryDate = deliveryDate,
-                        isPastDate = isPastDate,
-                        preparationStatuses = preparationStatuses,
-                        onUpdateStatus = onUpdateStatus
-                    )
+                    else -> Modifier
                 }
+                OrderPreparationListItem(
+                    modifier = modifier,
+                    product = item.first,
+                    quantity = item.second,
+                    itemsPerClients = ordersForDate,
+                    group = group,
+                    isPastDate = isPastDate,
+                    preparationStatuses = preparationStatuses,
+                    onUpdateStatus = onUpdateStatus,
+                    onMarkPaidOnSite = onMarkPaidOnSite
+                )
             }
         }
     }
@@ -196,10 +261,11 @@ fun OrderPreparationListItem(
     product: String,
     quantity: Int,
     itemsPerClients: List<Order>,
-    deliveryDate: String,
+    group: PreparationGroup,
     isPastDate: Boolean,
     preparationStatuses: List<PreparationStatus>,
-    onUpdateStatus: (PreparationStatus) -> Unit
+    onUpdateStatus: (PreparationStatus) -> Unit,
+    onMarkPaidOnSite: (Order) -> Unit = {}
 ) {
 
     // Map each order to its products for this delivery date
@@ -213,8 +279,9 @@ fun OrderPreparationListItem(
     }
 
     val showDetails = remember { mutableStateOf(false) }
-    // Generate a unique ID for the preparation status of this product on this date
-    val statusId = "${deliveryDate.replace("/", "")}_${product.replace(" ", "")}"
+    // Unique per (batch, product): deliveries keep the historical id so ticks already
+    // stored in Firestore keep matching, pickups get the point appended.
+    val statusId = group.statusIdFor(product)
     val isDone = preparationStatuses.find { it.id == statusId }?.isPrepared ?: false
 
     val rotation = animateFloatAsState(
@@ -263,7 +330,7 @@ fun OrderPreparationListItem(
                         onUpdateStatus(
                             PreparationStatus(
                                 id = statusId,
-                                date = deliveryDate,
+                                date = group.deliveryDate,
                                 productName = product,
                                 isPrepared = isChecked
                             )
@@ -355,6 +422,30 @@ fun OrderPreparationListItem(
                                                 ),
                                                 color = MaterialTheme.colorScheme.secondary
                                             )
+                                        }
+
+                                        // Money owed at the counter. Shown only for the
+                                        // orders that carry it, so a delivery round is never
+                                        // cluttered with a button that cannot apply.
+                                        if (order.paymentMode == PaymentMode.ON_SITE) {
+                                            Spacer(modifier = Modifier.height(4.dp))
+                                            if (order.status == OrderStatus.PAID) {
+                                                Text(
+                                                    text = "Encaissé",
+                                                    style = MaterialTheme.typography.labelMedium,
+                                                    color = MaterialTheme.colorScheme.primary
+                                                )
+                                            } else {
+                                                TextButton(
+                                                    contentPadding = PaddingValues(0.dp),
+                                                    onClick = { onMarkPaidOnSite(order) }
+                                                ) {
+                                                    Text(
+                                                        text = "À encaisser • marquer payé",
+                                                        style = MaterialTheme.typography.labelMedium
+                                                    )
+                                                }
+                                            }
                                         }
 
                                         // Highlighted handwritten-style custom instruction/comment note

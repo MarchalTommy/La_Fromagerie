@@ -226,11 +226,40 @@ fun CheckoutScreen(
                     item {
                         uiData.value.deliveryDate?.let {
                             UserInfoFormComposable(
-                                field = "Date de livraison",
+                                // The date means "come and get it", not "stay in": a customer
+                                // reading "livraison" on a collected order has been told the
+                                // one thing they must not believe.
+                                field = if (uiData.value.fulfillmentType.isPickup) {
+                                    "Date de retrait"
+                                } else {
+                                    "Date de livraison"
+                                },
                                 value = SimpleDateFormat("dd/MM/yyyy", Locale.FRANCE).format(
                                     it
                                 )
                             )
+                        }
+                    }
+
+                    // Where to come, and when the door is open. The spec asks for the opening
+                    // window by name: it is the only thing on this screen a collecting customer
+                    // actually needs, and it was carried in the state without being shown.
+                    if (uiData.value.fulfillmentType.isPickup) {
+                        item {
+                            // One Column, not three loose rows: a lazy item lays out a single
+                            // child, and siblings emitted straight into it overlap.
+                            Column(modifier = Modifier.fillMaxWidth()) {
+                                Spacer(modifier = Modifier.height(12.dp))
+                                uiData.value.pickupLabel?.takeIf { it.isNotBlank() }?.let {
+                                    UserInfoFormComposable(field = "Retrait", value = it)
+                                }
+                                uiData.value.pickupAddress?.takeIf { it.isNotBlank() }?.let {
+                                    UserInfoFormComposable(field = "Adresse", value = it)
+                                }
+                                uiData.value.pickupTimeRange?.takeIf { it.isNotBlank() }?.let {
+                                    UserInfoFormComposable(field = "Horaires", value = it)
+                                }
+                            }
                         }
                     }
                 }
@@ -268,12 +297,16 @@ fun CheckoutScreen(
                         style = MaterialTheme.typography.bodyMedium,
                         fontSize = 20.sp
                     )
-                    Text(
-                        modifier = Modifier.padding(top = 4.dp),
-                        text = "${uiData.value.buyerAddress}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontSize = 20.sp
-                    )
+                    // A collected order carries no delivery address, so this line rendered
+                    // empty — a blank row under the customer's name, reading as missing data.
+                    if (!uiData.value.fulfillmentType.isPickup) {
+                        Text(
+                            modifier = Modifier.padding(top = 4.dp),
+                            text = "${uiData.value.buyerAddress}",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontSize = 20.sp
+                        )
+                    }
 
                     Spacer(modifier = Modifier.height(12.dp))
 
@@ -447,6 +480,29 @@ fun CheckoutScreen(
                     }
                 }
             )
+
+            /**
+             * Pay on collection. Offered only for a collected order: there is nobody to hand
+             * cash to on a delivery round, and offering it there would create orders the shop
+             * can never settle.
+             */
+            if (uiData.value.fulfillmentType.isPickup) {
+                PrimaryButton(
+                    modifier = Modifier
+                        .testTag("payOnSiteButton")
+                        .fillMaxWidth()
+                        .padding(start = 32.dp, end = 32.dp, bottom = 16.dp),
+                    text = "Payer sur place au retrait",
+                    trailingIcon = null,
+                    // The two online buttons above hand over to an external surface, which
+                    // rules out a second tap on its own. This one keeps the customer here
+                    // while the order is written, so the loading flag has to disable it.
+                    enabled = isEmailValid && !uiData.value.isLoading,
+                    // Navigation is already driven by isPaymentSuccess above, which the
+                    // ViewModel raises once the order is written.
+                    onClick = { checkoutViewModel.placeOrderToPayOnSite { } }
+                )
+            }
 
             // Debug tool
             if (BuildConfig.DEBUG) {

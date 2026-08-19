@@ -3,6 +3,8 @@ package com.mtdevelopment.core.domain
 import android.location.Location
 import android.util.Log
 import java.text.NumberFormat
+import java.time.DayOfWeek
+import java.time.format.TextStyle
 import java.util.Locale
 import kotlin.math.roundToLong
 
@@ -46,6 +48,39 @@ fun String.toLongPrice(): Long {
 }
 
 /**
+ * [toLongPrice] for text that is still being typed, where "not a price yet" is normal rather
+ * than exceptional. Returns null instead of throwing [NumberFormatException].
+ */
+fun String.toLongPriceOrNull(): Long? = runCatching { toLongPrice() }.getOrNull()
+
+/**
+ * Formats cents as the bare decimal a price *field* holds while it is being edited -- "3,70",
+ * never "3,70 EUR".
+ *
+ * [toStringPrice] is the display format and bakes in the currency symbol plus a non-breaking
+ * space. Feeding that back into an editable field is what made the admin price fields
+ * unusable: the symbol sits exactly where the next keystroke lands, so typing a "," after it
+ * produced a second separator and [toLongPrice] threw on the result.
+ *
+ * Only for seeding a field from a stored value -- a field must never be re-rendered from the
+ * model on every keystroke, or the cursor moves under the typist's fingers.
+ */
+fun Long.toEditablePrice(): String = "${this / 100},${(this % 100).toString().padStart(2, '0')}"
+
+/**
+ * Whether raw field text is still on its way to being a price: digits, then at most one
+ * separator, then at most two decimals. Empty is allowed -- a field has to be clearable.
+ *
+ * A separator with no digit in front ("," alone) is refused deliberately: it parses to 0,50 EUR
+ * once a digit follows, which is a price the typist did not mean to be halfway through.
+ *
+ * Callers drop the keystroke when this is false. That is what the price fields always intended
+ * -- they just did it by throwing and dismissing the keyboard mid-word.
+ */
+fun String.isEditablePriceInput(): Boolean =
+    isEmpty() || matches("^\\d+([.,]\\d{0,2})?$".toRegex())
+
+/**
  * Formatter for dates in "dd/MM/yyyy" format using the system timezone.
  * Pinned to [Locale.ROOT]: stored dates use ASCII digits, and a formatter built on the
  * device default locale fails to parse them on locales with non-Latin digits, silently
@@ -75,12 +110,46 @@ fun String.toTimeStamp(): Long {
 }
 
 /**
+ * Formats a [java.time.LocalDate] the way dates are stored, so a stored value can be compared
+ * as a string.
+ *
+ * Shares [DATE_FORMATTER_DDMMYYYY] with the parsing side rather than calling `String.format`:
+ * that one uses the device locale, so on a locale with non-Latin digits it produces a string
+ * no stored date can ever equal, and the comparison fails silently.
+ */
+fun java.time.LocalDate.toStoredDate(): String = DATE_FORMATTER_DDMMYYYY.format(this)
+
+/**
  * Formats a Unix timestamp (milliseconds) into a "dd/MM/yyyy" date string.
  * Uses UTC to ensure stable formatting.
  */
 fun Long.toStringDate(): String {
     val instant = java.time.Instant.ofEpochMilli(this)
     return DATE_FORMATTER_DDMMYYYY.withZone(java.time.ZoneOffset.UTC).format(instant)
+}
+
+/**
+ * Whether this reads as a French phone number the shop could actually ring.
+ *
+ * Permissive about shape, strict about substance. Customers type numbers with spaces, dots,
+ * dashes or in +33 form, and rejecting any of those would be validation getting in the way of
+ * a sale. What it refuses is a field that cannot be a number at all: on a collected order the
+ * one failure mode is a customer who never turns up, the number is the only way to resolve it,
+ * and "a" is not something anyone can call.
+ *
+ * No attempt is made to tell a mobile from a landline or to reject an unallocated range — that
+ * would reject real numbers to catch typos a confirmation call catches anyway.
+ */
+fun String.isValidFrenchPhoneNumber(): Boolean {
+    val digits = filter { it.isDigit() }
+    // Both ways of writing the country code fold back to the national form, so the length
+    // check below has a single shape to compare against.
+    val national = when {
+        digits.length == 11 && digits.startsWith("33") -> "0" + digits.drop(2)
+        digits.length == 13 && digits.startsWith("0033") -> "0" + digits.drop(4)
+        else -> digits
+    }
+    return national.length == 10 && national.startsWith("0")
 }
 
 /**
@@ -161,6 +230,20 @@ fun <T> reorderList(list: List<T>, indices: List<Int?>): List<T> {
 }
 
 /**
+ * Formats a stored `DayOfWeek` name ("MONDAY") into its French display name ("lundi").
+ * Returns null for anything that is not a day, so callers can drop it rather than render
+ * a placeholder.
+ */
+fun frenchDayName(dayOfWeekName: String): String? {
+    return runCatching {
+        DayOfWeek.valueOf(dayOfWeekName.uppercase()).getDisplayName(
+            TextStyle.FULL,
+            Locale.FRENCH
+        )
+    }.getOrNull()
+}
+
+/**
  * Formats the delivery day and frequency into a localized French string.
  * Supporting full or short display formats (short format for admin UI).
  */
@@ -170,9 +253,9 @@ fun getFormattedDeliveryDayAndFrequency(
     shortFormat: Boolean = false
 ): String {
     val dayName = try {
-        java.time.DayOfWeek.valueOf(deliveryDay.uppercase()).getDisplayName(
-            java.time.format.TextStyle.FULL,
-            java.util.Locale.FRENCH
+        DayOfWeek.valueOf(deliveryDay.uppercase()).getDisplayName(
+            TextStyle.FULL,
+            Locale.FRENCH
         )
     } catch (e: Exception) {
         ""

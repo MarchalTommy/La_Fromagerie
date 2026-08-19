@@ -2,6 +2,7 @@ package com.mtdevelopment.home.presentation.viewmodel
 
 import app.cash.turbine.test
 import com.mtdevelopment.core.presentation.R
+import com.mtdevelopment.core.repository.SharedDatastore
 import com.mtdevelopment.core.usecase.GetIsNetworkConnectedUseCase
 import com.mtdevelopment.core.util.DataResult
 import com.mtdevelopment.core.util.UiText
@@ -38,6 +39,9 @@ class HomeViewModelTest {
 
     private val testDispatcher: TestDispatcher = StandardTestDispatcher()
 
+    // relaxed: the pricing collectors only need the flows to emit something harmless.
+    private val sharedDatastore: SharedDatastore = mockk(relaxed = true)
+
     @Before
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
@@ -63,7 +67,8 @@ class HomeViewModelTest {
                 getAllProductsUseCase,
                 getAllCheesesUseCase,
                 getLastFirestoreDatabaseUpdateUseCase,
-                getIsNetworkConnectedUseCase
+                getIsNetworkConnectedUseCase,
+                sharedDatastore
             )
 
             testScheduler.advanceUntilIdle()
@@ -94,7 +99,8 @@ class HomeViewModelTest {
                 getAllProductsUseCase,
                 getAllCheesesUseCase,
                 getLastFirestoreDatabaseUpdateUseCase,
-                getIsNetworkConnectedUseCase
+                getIsNetworkConnectedUseCase,
+                sharedDatastore
             )
 
             testScheduler.advanceUntilIdle()
@@ -124,7 +130,8 @@ class HomeViewModelTest {
                 getAllProductsUseCase,
                 getAllCheesesUseCase,
                 getLastFirestoreDatabaseUpdateUseCase,
-                getIsNetworkConnectedUseCase
+                getIsNetworkConnectedUseCase,
+                sharedDatastore
             )
             testScheduler.advanceUntilIdle()
 
@@ -152,7 +159,8 @@ class HomeViewModelTest {
                 getAllProductsUseCase,
                 getAllCheesesUseCase,
                 getLastFirestoreDatabaseUpdateUseCase,
-                getIsNetworkConnectedUseCase
+                getIsNetworkConnectedUseCase,
+                sharedDatastore
             )
             testScheduler.advanceUntilIdle()
 
@@ -177,7 +185,8 @@ class HomeViewModelTest {
             getAllProductsUseCase,
             getAllCheesesUseCase,
             getLastFirestoreDatabaseUpdateUseCase,
-            getIsNetworkConnectedUseCase
+            getIsNetworkConnectedUseCase,
+            sharedDatastore
         )
 
         testScheduler.advanceUntilIdle()
@@ -202,7 +211,8 @@ class HomeViewModelTest {
             getAllProductsUseCase,
             getAllCheesesUseCase,
             getLastFirestoreDatabaseUpdateUseCase,
-            getIsNetworkConnectedUseCase
+            getIsNetworkConnectedUseCase,
+            sharedDatastore
         )
 
         testScheduler.advanceUntilIdle()
