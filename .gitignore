@@ -23,3 +23,13 @@ local.properties
 /checkout/build/
 /admin/build/
 .aider*
+
+# R8/ProGuard mapping dumped at the repo root by a local release build (~100 MB)
+/app/mapping.txt
+# Local agent tooling
+.antigravitycli/
+# Vendored third-party agent skills, reinstallable from skills-lock.json
+la-fromagerie-backend/.agents/skills/
+la-fromagerie-backend/skills-lock.json
+# Cloud-storage / editor scratch copies (e.g. ".!61655!gradle.properties")
+.!*!*
