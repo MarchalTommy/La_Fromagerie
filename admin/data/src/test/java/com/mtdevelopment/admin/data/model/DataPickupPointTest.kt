@@ -1,8 +1,10 @@
 package com.mtdevelopment.admin.data.model
 
+import com.google.firebase.firestore.Exclude
 import com.mtdevelopment.core.model.PickupPoint
 import com.mtdevelopment.core.model.PickupPointType
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -74,6 +76,16 @@ class DataPickupPointTest {
             PickupPointType.SHOP,
             DataPickupPoint(type = "DRIVE_THROUGH").toPickupPoint().type
         )
+    }
+
+    @Test
+    fun `the id is kept out of the document body`() {
+        // add() only learns the document id after the write, so an `id` field written by
+        // creation could only ever hold the empty string. Firestore reads this annotation
+        // reflectively off the getter, which is exactly what is asserted here.
+        val getter = DataPickupPoint::class.java.getDeclaredMethod("getId")
+
+        assertNotNull(getter.getAnnotation(Exclude::class.java))
     }
 
     @Test

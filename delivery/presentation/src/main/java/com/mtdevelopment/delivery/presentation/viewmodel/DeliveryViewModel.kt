@@ -327,12 +327,6 @@ class DeliveryViewModel(
         }
     }
 
-    /** True once a collected order has everything it needs to reach the checkout. */
-    val canContinueWithPickup: Boolean
-        get() = deliveryUiDataState.userNameFieldText.isNotBlank() &&
-                deliveryUiDataState.userPhoneFieldText.isNotBlank() &&
-                deliveryUiDataState.pickupDates.isNotEmpty()
-
     /**
      * Persists the user's name, address, and selected path to the DataStore.
      */

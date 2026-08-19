@@ -1,6 +1,7 @@
 package com.mtdevelopment.admin.data.model
 
 import androidx.annotation.Keep
+import com.google.firebase.firestore.Exclude
 import com.mtdevelopment.core.model.PickupPoint
 import com.mtdevelopment.core.model.PickupPointType
 
@@ -19,10 +20,15 @@ import com.mtdevelopment.core.model.PickupPointType
  *
  * Every field carries a default: Firestore's mapper needs a no-arg construction path, and a
  * document written by a future version with fewer keys must still map.
+ *
+ * [id] is `@get:Exclude`d from the write. The identity of a point IS its document id, and
+ * `add()` only learns that id after the document exists — so without this every created point
+ * stored an `id: ""` field that nothing could ever read as anything but wrong. Reads are
+ * unaffected: both sides map the id off `DocumentSnapshot.id`, never off the document body.
  */
 @Keep
 data class DataPickupPoint(
-    val id: String = "",
+    @get:Exclude val id: String = "",
     val type: String = PickupPointType.SHOP.name,
     val label: String = "",
     val address: String = "",
