@@ -16,6 +16,25 @@ const val ON_SITE_ORDER_GRACE_DAYS = 3L
  * Refuses anything that was paid online: those orders are settled by the payment chain, and
  * a manual "encaissé" on one would paper over whatever went wrong there instead of
  * surfacing it.
+ *
+ * ⚠️ **Known coupling, not yet resolved: this writes payment into the lifecycle field.**
+ * "Encaissé" is a fact about money, and the only place it is recorded is
+ * [OrderStatus.PAID] — the same field that also says where an order is in its life. Lot 1
+ * separated those two ideas by giving payment its own [PaymentMode] column precisely so they
+ * would stop being one thing; this reintroduces the conflation from the other end, and there
+ * is currently no way to express "collected, and paid for" or "paid, but not yet prepared".
+ *
+ * The coupling bites through [CancelStaleOnSiteOrdersUseCase], which sweeps on
+ * `status == PENDING` alone. Anything moved off PENDING is therefore permanently out of reach
+ * of the write-off — including an unpaid collected order that someone advanced to
+ * [OrderStatus.IN_PREPARATION]. **Today that cannot happen**: the only two writers of
+ * IN_PREPARATION are `DeliveryHelperScreen` and the `DeliveryAddDialog` it opens, and
+ * collected orders are kept out of the delivery round. So the exposure is a coupling waiting
+ * for a screen that does not exist yet, not a live bug — which is exactly why it is written
+ * down rather than guarded against with a runtime check nothing can currently trigger.
+ *
+ * Resolving it means a payment state of its own (a `paid_at`, or a status on [PaymentMode]),
+ * which changes the Firestore schema and is a decision for the shop, not for this use case.
  */
 class MarkOrderPaidOnSiteUseCase(
     private val firebaseAdminRepository: FirebaseAdminRepository
@@ -42,6 +61,14 @@ class MarkOrderPaidOnSiteUseCase(
  * when the shop opens its order list, which is enough for a write-off with no deadline of
  * its own. Moving it to a Cloud Function would make it run unattended — an open decision
  * in the spec, not an oversight.
+ *
+ * ⚠️ **The `status == PENDING` filter is the sweep's whole reach, and that is narrower than
+ * it looks.** An unpaid collected order that leaves PENDING by any route — today only
+ * [MarkOrderPaidOnSiteUseCase], which is the correct exit — never comes back into scope, so a
+ * future screen that moves a collected order to [OrderStatus.IN_PREPARATION] would put it
+ * beyond write-off for good. Nothing writes IN_PREPARATION for a collected order today (see
+ * [MarkOrderPaidOnSiteUseCase] for where that is enforced and why the two use cases have to
+ * be read together). Widen this filter before adding such a screen, not after.
  */
 class CancelStaleOnSiteOrdersUseCase(
     private val firebaseAdminRepository: FirebaseAdminRepository

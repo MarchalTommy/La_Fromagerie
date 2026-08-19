@@ -35,6 +35,18 @@ data class Product(
      * shop can differ. A shop price is never allowed to exceed the delivery one — the admin
      * editor refuses it — which is what makes "the total can only go down when the customer
      * switches mode" true by construction, with no runtime check anywhere.
+     *
+     * ⚠️ **That invariant is relative to delivery, and only to delivery.** Between the two
+     * collected modes it runs the other way: a customer who has filled a basket at the shop
+     * price and then switches to [FulfillmentType.PICKUP_MARKET] falls back to the reference
+     * price, and their total **goes up** — silently, because nothing in the journey treats a
+     * rise as worth mentioning. It is the one transition that can cost the customer more than
+     * the screen before it said, and the app does not currently say so.
+     *
+     * Warning them is a product decision (which wording, and whether a market is allowed to be
+     * dearer than the shop at all), so it is documented here rather than half-solved in the
+     * cart. Whoever settles it: this method is the single place the price for a mode is
+     * resolved, so it is also the place to reason from.
      */
     fun priceFor(fulfillmentType: FulfillmentType): Long = when (fulfillmentType) {
         FulfillmentType.PICKUP_SHOP -> priceInCentsPickupShop ?: priceInCents
