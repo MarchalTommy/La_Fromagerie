@@ -26,6 +26,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -166,20 +167,25 @@ private fun PickupPointCard(
                 style = MaterialTheme.typography.bodyMedium
             )
 
-            val schedule = when (point.type) {
-                PickupPointType.SHOP -> point.openingDays
-                    .mapNotNull { frenchDayName(it) }
-                    .joinToString(", ")
+            // A locale lookup per opening day, plus two joins, for a card that redraws
+            // whenever the list around it does. The point is what it depends on.
+            val schedule = remember(point) {
+                val days = when (point.type) {
+                    PickupPointType.SHOP -> point.openingDays
+                        .mapNotNull { frenchDayName(it) }
+                        .joinToString(", ")
 
-                PickupPointType.MARKET -> point.date.orEmpty()
+                    PickupPointType.MARKET -> point.date.orEmpty()
+                }
+                listOf(days, point.timeRange)
+                    .filter { it.isNotBlank() }
+                    .joinToString(" · ")
             }
 
-            if (schedule.isNotBlank() || point.timeRange.isNotBlank()) {
+            if (schedule.isNotBlank()) {
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = listOf(schedule, point.timeRange)
-                        .filter { it.isNotBlank() }
-                        .joinToString(" · "),
+                    text = schedule,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

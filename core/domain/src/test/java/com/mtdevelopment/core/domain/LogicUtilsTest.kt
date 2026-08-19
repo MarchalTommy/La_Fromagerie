@@ -196,4 +196,35 @@ class LogicUtilsTest {
     }
 
     // endregion
+
+    // region French phone numbers
+
+    @Test
+    fun `a French number is accepted however the customer spaces it out`() {
+        assertTrue("0612345678".isValidFrenchPhoneNumber())
+        assertTrue("06 12 34 56 78".isValidFrenchPhoneNumber())
+        assertTrue("06.12.34.56.78".isValidFrenchPhoneNumber())
+        assertTrue("06-12-34-56-78".isValidFrenchPhoneNumber())
+        assertTrue("03 81 39 00 00".isValidFrenchPhoneNumber())
+    }
+
+    @Test
+    fun `both spellings of the country code are accepted`() {
+        assertTrue("+33 6 12 34 56 78".isValidFrenchPhoneNumber())
+        assertTrue("0033 6 12 34 56 78".isValidFrenchPhoneNumber())
+    }
+
+    @Test
+    fun `a field that could not be called is refused`() {
+        // The whole point of asking for a number on a collected order: this is what the shop
+        // rings when the customer does not turn up.
+        assertFalse("a".isValidFrenchPhoneNumber())
+        assertFalse("".isValidFrenchPhoneNumber())
+        assertFalse("   ".isValidFrenchPhoneNumber())
+        assertFalse("06 12 34".isValidFrenchPhoneNumber())
+        assertFalse("06 12 34 56 78 90".isValidFrenchPhoneNumber())
+        assertFalse("1612345678".isValidFrenchPhoneNumber())
+    }
+
+    // endregion
 }

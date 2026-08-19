@@ -22,12 +22,14 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import com.mtdevelopment.core.domain.isValidFrenchPhoneNumber
 import com.mtdevelopment.core.model.FulfillmentType
 import com.mtdevelopment.core.presentation.composable.PrimaryButton
 import com.mtdevelopment.delivery.domain.usecase.SelectablePickupDate
@@ -37,6 +39,8 @@ import java.util.Locale
 
 private val DATE_LABEL_FORMAT: DateTimeFormatter =
     DateTimeFormatter.ofPattern("EEEE d MMMM", Locale.FRENCH)
+
+private const val PHONE_ERROR = "Numéro invalide : 10 chiffres attendus, par exemple 06 12 34 56 78."
 
 /**
  * Picks how the customer wants their order.
@@ -80,6 +84,9 @@ fun FulfillmentTypeSelector(
  *
  * The chosen date is hoisted into [state]: it is what the order is built from, and holding it
  * here let it outlive both a change of mode and a rotation.
+ *
+ * The rule for "this order can go to checkout" lives here and nowhere else. The ViewModel used
+ * to carry a second copy that nothing called and that had already drifted from this one.
  */
 @Composable
 fun PickupContent(
@@ -93,6 +100,16 @@ fun PickupContent(
     val focusManager = LocalFocusManager.current
 
     val chosen = state.selectedPickupDate
+
+    // Only complain once there is something to complain about: a form that is red before the
+    // customer has typed anything reads as broken rather than as helpful.
+    val phoneError = remember(state.userPhoneFieldText) {
+        val phone = state.userPhoneFieldText
+        PHONE_ERROR.takeIf { phone.isNotBlank() && !phone.isValidFrenchPhoneNumber() }
+    }
+    val canContinue = chosen != null &&
+            state.userNameFieldText.isNotBlank() &&
+            state.userPhoneFieldText.isValidFrenchPhoneNumber()
 
     Card(
         modifier = Modifier
@@ -118,10 +135,13 @@ fun PickupContent(
                 fieldText = state.userPhoneFieldText,
                 label = "Téléphone",
                 imeAction = ImeAction.Done,
+                keyboardType = KeyboardType.Phone,
                 focusRequester = focusRequester,
                 focusManager = focusManager,
                 updateText = onPhoneChange,
-                leadingIcon = { Icon(Icons.Rounded.Phone, "") }
+                leadingIcon = { Icon(Icons.Rounded.Phone, "") },
+                isError = phoneError != null,
+                supportingText = phoneError
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -130,12 +150,16 @@ fun PickupContent(
                 // Never rendered as "there is nowhere to collect": the read failed, and
                 // telling the customer the shop does not do this would cost a sale.
                 state.pickupPointsUnavailable -> PickupMessage(
-                    "Impossible de récupérer les points de retrait pour le moment.\n" +
-                            "Vérifiez votre connexion et réessayez."
+                    message = "Impossible de récupérer les points de retrait pour le moment.\n" +
+                            "Vérifiez votre connexion et réessayez.",
+                    isFailure = true
                 )
 
+                // Nothing has gone wrong here: the shop simply has no date open yet. Saying
+                // so in the error colour would read as a fault of the app, and send a
+                // customer chasing a problem that is not theirs.
                 state.pickupDates.isEmpty() && !state.isLoading -> PickupMessage(
-                    when (state.fulfillmentType) {
+                    message = when (state.fulfillmentType) {
                         FulfillmentType.PICKUP_MARKET ->
                             "Aucune date de marché n'est programmée pour l'instant."
 
@@ -170,24 +194,31 @@ fun PickupContent(
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp),
                 text = "Continuer",
-                enabled = chosen != null &&
-                        state.userNameFieldText.isNotBlank() &&
-                        state.userPhoneFieldText.isNotBlank(),
+                enabled = canContinue,
                 onClick = { chosen?.let(onDateSelected) }
             )
         }
     }
 }
 
+/**
+ * @param isFailure True when something went wrong and the customer may be able to fix it.
+ *   False when the message merely states how things are — no market scheduled yet is a fact
+ *   about the shop's calendar, not a fault, and colouring it as one would misdirect.
+ */
 @Composable
-private fun PickupMessage(message: String) {
+private fun PickupMessage(message: String, isFailure: Boolean = false) {
     Text(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp),
         text = message,
         style = MaterialTheme.typography.bodyMedium,
-        color = MaterialTheme.colorScheme.error,
+        color = if (isFailure) {
+            MaterialTheme.colorScheme.error
+        } else {
+            MaterialTheme.colorScheme.onSurfaceVariant
+        },
         textAlign = TextAlign.Center
     )
 }
@@ -213,14 +244,18 @@ private fun PickupDateCard(
             }
         )
     ) {
+        // Formatting a date allocates; the cards redraw on every keystroke in the form above.
+        val dateLabel = remember(pickupDate.date) {
+            pickupDate.date.format(DATE_LABEL_FORMAT).replaceFirstChar { it.uppercase() }
+        }
+
         Column(modifier = Modifier.padding(12.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    text = pickupDate.date.format(DATE_LABEL_FORMAT)
-                        .replaceFirstChar { it.uppercase() },
+                    text = dateLabel,
                     style = MaterialTheme.typography.titleSmall.copy(
                         fontWeight = FontWeight.Bold
                     )

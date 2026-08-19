@@ -94,6 +94,30 @@ fun Long.toStringDate(): String {
 }
 
 /**
+ * Whether this reads as a French phone number the shop could actually ring.
+ *
+ * Permissive about shape, strict about substance. Customers type numbers with spaces, dots,
+ * dashes or in +33 form, and rejecting any of those would be validation getting in the way of
+ * a sale. What it refuses is a field that cannot be a number at all: on a collected order the
+ * one failure mode is a customer who never turns up, the number is the only way to resolve it,
+ * and "a" is not something anyone can call.
+ *
+ * No attempt is made to tell a mobile from a landline or to reject an unallocated range — that
+ * would reject real numbers to catch typos a confirmation call catches anyway.
+ */
+fun String.isValidFrenchPhoneNumber(): Boolean {
+    val digits = filter { it.isDigit() }
+    // Both ways of writing the country code fold back to the national form, so the length
+    // check below has a single shape to compare against.
+    val national = when {
+        digits.length == 11 && digits.startsWith("33") -> "0" + digits.drop(2)
+        digits.length == 13 && digits.startsWith("0033") -> "0" + digits.drop(4)
+        else -> digits
+    }
+    return national.length == 10 && national.startsWith("0")
+}
+
+/**
  * Calculates the straight-line distance between two coordinates in meters.
  * Uses Android's internal [Location.distanceBetween] method.
  */

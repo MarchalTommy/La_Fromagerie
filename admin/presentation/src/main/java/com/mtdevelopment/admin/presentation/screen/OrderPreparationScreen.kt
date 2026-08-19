@@ -98,6 +98,17 @@ fun OrderPreparationScreen() {
 }
 
 /**
+ * One preparation batch as the list needs it: the group it is keyed by, the orders that fall in
+ * it, and the product totals they add up to. Built once per change of [Order] list rather than
+ * per frame — see [OrderPreparationList].
+ */
+private data class PreparationBatch(
+    val group: PreparationGroup,
+    val orders: List<Order>,
+    val products: List<Pair<String, Int>>
+)
+
+/**
  * Displays the list of delivery dates as sticky headers, with aggregated products under each date.
  */
 @OptIn(ExperimentalFoundationApi::class)
@@ -112,12 +123,37 @@ fun OrderPreparationList(
     // pickups and a market of the same day into one aggregate, leaving no way to tell what
     // goes in the van — hence the group, which also carries the pickup point so two
     // markets on one day stay apart.
-    val ordersByGroup = orders.groupBy { it.preparationGroup }
-    val groups = ordersByGroup.keys.sortedWith(
-        compareByDescending<PreparationGroup> { it.deliveryDate.toTimeStamp() }
-            .thenBy { it.fulfillmentType }
-            .thenBy { ordersByGroup[it]?.firstOrNull()?.pickupLabel.orEmpty() }
-    )
+    //
+    // Keyed on the orders because this screen recomposes on every preparation tick: unkeyed,
+    // one tap on one checkbox regrouped, re-sorted and re-aggregated the shop's entire order
+    // book before anything was drawn.
+    val batches = remember(orders) {
+        val ordersByGroup = orders.groupBy { it.preparationGroup }
+        ordersByGroup.keys
+            .sortedWith(
+                compareByDescending<PreparationGroup> { it.deliveryDate.toTimeStamp() }
+                    .thenBy { it.fulfillmentType }
+                    .thenBy { ordersByGroup[it]?.firstOrNull()?.pickupLabel.orEmpty() }
+            )
+            .mapNotNull { group ->
+                val groupOrders = ordersByGroup[group]?.takeIf { it.isNotEmpty() }
+                    ?: return@mapNotNull null
+                PreparationBatch(
+                    group = group,
+                    orders = groupOrders,
+                    // Aggregate product quantities for the batch.
+                    // e.g., if Order A has 2 Milk and Order B has 3 Milk, results in {Milk=5}
+                    products = groupOrders
+                        .fold(mutableMapOf<String, Int>()) { accumulator, currentMap ->
+                            currentMap.products.forEach { (product, quantity) ->
+                                accumulator.merge(product, quantity, Int::plus)
+                            }
+                            accumulator
+                        }
+                        .toList()
+                )
+            }
+    }
 
     // Captured once so every item of a frame compares against the same day and
     // scrolling does not re-evaluate the clock.
@@ -125,101 +161,90 @@ fun OrderPreparationList(
 
     LazyColumn {
 
-        for (group in groups) {
+        for (batch in batches) {
+            val group = batch.group
             val deliveryDate = group.deliveryDate
-            val ordersForDate = ordersByGroup[group] ?: emptyList()
+            val ordersForDate = batch.orders
+            val quantityForProducts = batch.products
             val isPastDate = deliveryDate.toLocalDate()?.isBefore(today) == true
-            if (ordersForDate.isNotEmpty()) {
 
-                // Aggregate product quantities for the current batch.
-                // e.g., if Order A has 2 Milk and Order B has 3 Milk, results in {Milk=5}
-                val quantityForProducts: Map<String, Int> =
-                    ordersForDate.fold(mutableMapOf()) { accumulator, currentMap ->
-                        currentMap.products.forEach { (product, quantity) ->
-                            accumulator.merge(product, quantity, Int::plus)
-                        }
-                        accumulator
-                    }
-
-                stickyHeader {
-                    // Past dates get a muted header so expired deliveries read as history
-                    Box(
+            stickyHeader {
+                // Past dates get a muted header so expired deliveries read as history
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            color = if (isPastDate) {
+                                MaterialTheme.colorScheme.surfaceVariant
+                            } else {
+                                MaterialTheme.colorScheme.secondary
+                            }
+                        )
+                ) {
+                    Column(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .background(
-                                color = if (isPastDate) {
-                                    MaterialTheme.colorScheme.surfaceVariant
-                                } else {
-                                    MaterialTheme.colorScheme.secondary
-                                }
-                            )
+                            .padding(horizontal = 32.dp, vertical = 16.dp)
+                            .align(Alignment.CenterStart)
                     ) {
-                        Column(
-                            modifier = Modifier
-                                .padding(horizontal = 32.dp, vertical = 16.dp)
-                                .align(Alignment.CenterStart)
-                        ) {
-                            Text(
-                                text = deliveryDate,
-                                style = MaterialTheme.typography.titleLarge,
-                                color = if (isPastDate) {
-                                    MaterialTheme.colorScheme.onSurfaceVariant
-                                } else {
-                                    MaterialTheme.colorScheme.onSecondary
-                                }
-                            )
-                            // Deliveries keep a date-only header, exactly as before. Only a
-                            // pickup batch needs naming, because that is the only case where
-                            // one date carries several destinations.
-                            //
-                            // Read off the batch's first order rather than carried on the
-                            // group: the label is a per-order snapshot, so a renamed market
-                            // would otherwise split one point into two batches sharing the
-                            // same preparation ticks.
-                            ordersForDate.firstOrNull()?.pickupLabel
-                                ?.takeIf { group.fulfillmentType.isPickup }
-                                ?.let { label ->
-                                    Text(
-                                        text = label,
-                                        style = MaterialTheme.typography.titleSmall,
-                                        color = if (isPastDate) {
-                                            MaterialTheme.colorScheme.onSurfaceVariant
-                                        } else {
-                                            MaterialTheme.colorScheme.onSecondary
-                                        }
-                                    )
-                                }
-                        }
+                        Text(
+                            text = deliveryDate,
+                            style = MaterialTheme.typography.titleLarge,
+                            color = if (isPastDate) {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            } else {
+                                MaterialTheme.colorScheme.onSecondary
+                            }
+                        )
+                        // Deliveries keep a date-only header, exactly as before. Only a
+                        // pickup batch needs naming, because that is the only case where
+                        // one date carries several destinations.
+                        //
+                        // Read off the batch's first order rather than carried on the
+                        // group: the label is a per-order snapshot, so a renamed market
+                        // would otherwise split one point into two batches sharing the
+                        // same preparation ticks.
+                        ordersForDate.firstOrNull()?.pickupLabel
+                            ?.takeIf { group.fulfillmentType.isPickup }
+                            ?.let { label ->
+                                Text(
+                                    text = label,
+                                    style = MaterialTheme.typography.titleSmall,
+                                    color = if (isPastDate) {
+                                        MaterialTheme.colorScheme.onSurfaceVariant
+                                    } else {
+                                        MaterialTheme.colorScheme.onSecondary
+                                    }
+                                )
+                            }
                     }
                 }
+            }
 
-                items(items = quantityForProducts.toList()) { item ->
-                    // Handle padding for first, last, or single items
-                    val modifier = when {
-                        quantityForProducts.toList().size == 1 ->
-                            Modifier.padding(vertical = 16.dp)
+            items(items = quantityForProducts) { item ->
+                // Handle padding for first, last, or single items
+                val modifier = when {
+                    quantityForProducts.size == 1 ->
+                        Modifier.padding(vertical = 16.dp)
 
-                        quantityForProducts.toList().indexOf(item) == 0 ->
-                            Modifier.padding(top = 16.dp)
+                    quantityForProducts.indexOf(item) == 0 ->
+                        Modifier.padding(top = 16.dp)
 
-                        quantityForProducts.toList()
-                            .indexOf(item) == quantityForProducts.toList().size - 1 ->
-                            Modifier.padding(bottom = 16.dp)
+                    quantityForProducts.indexOf(item) == quantityForProducts.size - 1 ->
+                        Modifier.padding(bottom = 16.dp)
 
-                        else -> Modifier
-                    }
-                    OrderPreparationListItem(
-                        modifier = modifier,
-                        product = item.first,
-                        quantity = item.second,
-                        itemsPerClients = ordersForDate,
-                        group = group,
-                        isPastDate = isPastDate,
-                        preparationStatuses = preparationStatuses,
-                        onUpdateStatus = onUpdateStatus,
-                        onMarkPaidOnSite = onMarkPaidOnSite
-                    )
+                    else -> Modifier
                 }
+                OrderPreparationListItem(
+                    modifier = modifier,
+                    product = item.first,
+                    quantity = item.second,
+                    itemsPerClients = ordersForDate,
+                    group = group,
+                    isPastDate = isPastDate,
+                    preparationStatuses = preparationStatuses,
+                    onUpdateStatus = onUpdateStatus,
+                    onMarkPaidOnSite = onMarkPaidOnSite
+                )
             }
         }
     }

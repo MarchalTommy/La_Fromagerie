@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -20,12 +21,14 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Clear
 import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDefaults
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SelectableDates
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -57,9 +60,12 @@ import com.mtdevelopment.core.presentation.composable.AddressAutocompleteTextFie
 import com.mtdevelopment.core.presentation.composable.ErrorOverlay
 import com.mtdevelopment.core.presentation.composable.PrimaryButton
 import com.mtdevelopment.core.presentation.composable.RiveAnimation
+import kotlinx.coroutines.delay
 import kotlinx.serialization.json.Json
 import org.koin.androidx.compose.koinViewModel
 import java.time.DayOfWeek
+import java.time.LocalDate
+import java.time.ZoneOffset
 
 /**
  * Survives configuration changes the same way the path editor's draft does: a half-filled
@@ -114,7 +120,8 @@ fun PickupPointEditScreen(
         }
         state.points.find { it.id == pointId }?.let { existing ->
             draft = existing
-            viewModel.setAddressText(existing.address)
+            // Shown, not searched: see AdminViewModel.prefillAddressText.
+            viewModel.prefillAddressText(existing.address)
             draftInitialised = true
         }
     }
@@ -139,12 +146,15 @@ fun PickupPointEditScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
+                // Labelled once. The whole form recomposes on every keystroke below.
+                val typeChips = remember { PickupPointType.entries.map { it to it.frenchLabel() } }
+
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    PickupPointType.entries.forEach { entry ->
+                    typeChips.forEach { (entry, label) ->
                         FilterChip(
                             selected = draft.type == entry,
                             onClick = { draft = draft.copy(type = entry) },
-                            label = { Text(entry.frenchLabel()) }
+                            label = { Text(label) }
                         )
                     }
                 }
@@ -213,21 +223,26 @@ fun PickupPointEditScreen(
                             )
                         )
                         Spacer(modifier = Modifier.height(8.dp))
+                        // Seven locale lookups, done once rather than on every keystroke.
+                        val dayChips = remember {
+                            DayOfWeek.entries.map { it.name to frenchDayName(it.name).orEmpty() }
+                        }
+
                         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            DayOfWeek.entries.forEach { day ->
-                                val isSelected = draft.openingDays.contains(day.name)
+                            dayChips.forEach { (dayName, dayLabel) ->
+                                val isSelected = draft.openingDays.contains(dayName)
                                 FilterChip(
                                     selected = isSelected,
                                     onClick = {
                                         draft = draft.copy(
                                             openingDays = if (isSelected) {
-                                                draft.openingDays - day.name
+                                                draft.openingDays - dayName
                                             } else {
-                                                draft.openingDays + day.name
+                                                draft.openingDays + dayName
                                             }
                                         )
                                     },
-                                    label = { Text(frenchDayName(day.name).orEmpty()) }
+                                    label = { Text(dayLabel) }
                                 )
                             }
                         }
@@ -256,7 +271,12 @@ fun PickupPointEditScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
 
-                        draft.closedDates.sortedBy { it.toLocalDate() }.forEach { closed ->
+                        // Sorting parses every stored date; only redo it when the list moves.
+                        val sortedClosures = remember(draft.closedDates) {
+                            draft.closedDates.sortedBy { it.toLocalDate() }
+                        }
+
+                        sortedClosures.forEach { closed ->
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 verticalAlignment = Alignment.CenterVertically
@@ -330,6 +350,10 @@ fun PickupPointEditScreen(
 
     datePickerTarget?.let { target ->
         PickupDatePickerDialog(
+            // A market in the past can never be ordered from, so offering it is offering a
+            // mistake. A closure in the past is merely a record of one, and the shop is
+            // entitled to enter it late.
+            allowPastDates = target == DatePickerTarget.CLOSURE,
             onDismiss = { datePickerTarget = null },
             onDateSelected = { date ->
                 draft = when (target) {
@@ -351,6 +375,25 @@ fun PickupPointEditScreen(
 
 private enum class DatePickerTarget { MARKET_DATE, CLOSURE }
 
+/**
+ * Today included: the cut-off in `BuildSelectablePickupDatesUseCase` decides whether a market
+ * happening today is still orderable, and that is not this calendar's call to make.
+ *
+ * Compared in UTC because that is the zone the picker reports its selection in and the zone
+ * [toStringDate] formats it back out of — mixing in the device zone here would put the boundary
+ * a few hours off.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+private object FromTodayOnwards : SelectableDates {
+    override fun isSelectableDate(utcTimeMillis: Long): Boolean =
+        utcTimeMillis >= LocalDate.now(ZoneOffset.UTC)
+            .atStartOfDay(ZoneOffset.UTC)
+            .toInstant()
+            .toEpochMilli()
+
+    override fun isSelectableYear(year: Int): Boolean = year >= LocalDate.now(ZoneOffset.UTC).year
+}
+
 private fun PickupPointType.frenchLabel(): String = when (this) {
     PickupPointType.SHOP -> "Boutique"
     PickupPointType.MARKET -> "Marché"
@@ -360,14 +403,20 @@ private fun PickupPointType.frenchLabel(): String = when (this) {
  * Plain calendar, deliberately not the customer-facing [DatePickerComposable]: that one only
  * offers the dates a delivery path actually serves, which is the opposite of what the shop
  * needs when declaring a market or a week of holiday.
+ *
+ * @param allowPastDates True for closures, which may legitimately be recorded after the fact;
+ *   false for a market date, which is a date orders will be taken for.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun PickupDatePickerDialog(
+    allowPastDates: Boolean,
     onDismiss: () -> Unit,
     onDateSelected: (String) -> Unit
 ) {
-    val pickerState = rememberDatePickerState()
+    val pickerState = rememberDatePickerState(
+        selectableDates = if (allowPastDates) DatePickerDefaults.AllDates else FromTodayOnwards
+    )
 
     DatePickerDialog(
         onDismissRequest = onDismiss,
@@ -391,20 +440,36 @@ private fun PickupDatePickerDialog(
     }
 }
 
+/** How long the button stays armed before it goes back to being a plain delete button. */
+private const val DELETE_CONFIRMATION_WINDOW_MS = 4000L
+
 /**
  * Two-step delete, matching the confirmation pattern the admin dialogs already use: a point
  * removed by a stray tap would take its market date with it, and there is no undo.
+ *
+ * The armed state expires. Left latched it turned the screen into one where a single tap
+ * deletes, indefinitely and with nothing on screen to say the meaning of that tap had changed
+ * minutes ago — which is the exact accident the confirmation exists to prevent.
  */
 @Composable
 private fun DeletePickupPointButton(onConfirmed: () -> Unit) {
     var confirming by remember { mutableStateOf(false) }
+
+    LaunchedEffect(confirming) {
+        if (confirming) {
+            delay(DELETE_CONFIRMATION_WINDOW_MS)
+            confirming = false
+        }
+    }
 
     TextButton(
         modifier = Modifier.fillMaxWidth(),
         onClick = { if (confirming) onConfirmed.invoke() else confirming = true }
     ) {
         Icon(Icons.Default.Delete, contentDescription = null)
-        Spacer(modifier = Modifier.height(4.dp))
+        // Row content: height() would separate nothing. DeliveryOptionScreen gets this right
+        // two files over.
+        Spacer(modifier = Modifier.width(8.dp))
         Text(
             text = if (confirming) "Confirmer la suppression" else "Supprimer ce point",
             color = MaterialTheme.colorScheme.error

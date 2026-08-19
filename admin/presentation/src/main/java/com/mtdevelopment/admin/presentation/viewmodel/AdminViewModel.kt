@@ -177,6 +177,24 @@ class AdminViewModel(
         _searchQuery.value = address
     }
 
+    /**
+     * Puts an already-settled address in the field without treating it as something the user
+     * just typed.
+     *
+     * [setAddressText] feeds [_searchQuery], which is what fires the Géoplateforme lookup and
+     * opens the suggestions dropdown. That is right for a keystroke and wrong for a value read
+     * back from Firestore: opening an existing record would cost a network call and drop a
+     * dropdown over the form every single time, offering the user alternatives to an address
+     * they already chose.
+     */
+    fun prefillAddressText(address: String) {
+        _orderScreenState.value = _orderScreenState.value.copy(
+            searchQuery = address,
+            suggestions = emptyList(),
+            showSuggestions = false
+        )
+    }
+
     ///////////////////////////////////////////////////////////////////////////
     // Product Operations
     ///////////////////////////////////////////////////////////////////////////
