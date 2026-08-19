@@ -51,6 +51,7 @@ import com.mtdevelopment.core.repository.AutocompleteRepository
 import com.mtdevelopment.core.repository.AutocompleteRepositoryImpl
 import com.mtdevelopment.core.repository.NetworkRepository
 import com.mtdevelopment.core.repository.NetworkRepositoryImpl
+import com.mtdevelopment.core.repository.CatalogPriceSource
 import com.mtdevelopment.core.repository.SharedDatastore
 import com.mtdevelopment.core.source.AutoCompleteApiDataSource
 import com.mtdevelopment.core.usecase.ClearCartUseCase
@@ -149,6 +150,11 @@ val mainAppModule = module {
     single<com.mtdevelopment.home.domain.repository.ProductRepository> {
         com.mtdevelopment.home.data.repository.ProductRepositoryImpl(get(), get(), get())
     }
+    // Lets the basket and the checkout price themselves from the catalogue without either
+    // module depending on it: the port they see lives in core:domain.
+    single<CatalogPriceSource> {
+        com.mtdevelopment.home.data.repository.CatalogPriceSourceImpl(get())
+    }
     single<RoomDeliveryRepository> {
         RoomDeliveryRepositoryImpl(
             get()
@@ -164,9 +170,9 @@ val mainAppModule = module {
     }
 
     // Use Cases (Factories)
-    factory { GetCheckoutDataUseCase(get()) }
+    factory { GetCheckoutDataUseCase(get(), get()) }
     factory { SaveToDatastoreUseCase(get()) }
-    factory { GetCartDataUseCase(get()) }
+    factory { GetCartDataUseCase(get(), get()) }
     factory { ClearCartUseCase(get()) }
     factory { GetUserInfoFromDatastoreUseCase(get()) }
     factory { ClearDatastoreUseCase(get()) }
