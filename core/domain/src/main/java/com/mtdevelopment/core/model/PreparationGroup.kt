@@ -13,14 +13,19 @@ package com.mtdevelopment.core.model
  * @property fulfillmentType How that batch leaves the shop.
  * @property pickupPointId Which pickup point, when [fulfillmentType] is a pickup; null for
  *   deliveries. Two markets on the same day are therefore two distinct batches.
- * @property pickupLabel Human-readable name of the pickup point, for display; null for
- *   deliveries, whose header is the date alone.
+ *
+ * The point's **label is deliberately not a property here**, though the order carries one.
+ * The label is a per-order snapshot taken when the customer bought, so renaming a market
+ * splits its orders into a before and an after — same [pickupPointId], different labels. As a
+ * field it would count in `equals`/`hashCode` and therefore in the `groupBy`, producing two
+ * batches on screen that [statusIdFor] still maps onto **one** set of preparation ticks:
+ * ticking "4 Comté" in either would tick both. Identity is what the ticks are keyed by,
+ * nothing more; the label is display, and the screen reads it off the batch's first order.
  */
 data class PreparationGroup(
     val deliveryDate: String,
     val fulfillmentType: FulfillmentType = FulfillmentType.DELIVERY,
-    val pickupPointId: String? = null,
-    val pickupLabel: String? = null
+    val pickupPointId: String? = null
 ) {
 
     /**
@@ -46,8 +51,7 @@ val Order.preparationGroup: PreparationGroup
     get() = PreparationGroup(
         deliveryDate = deliveryDate,
         fulfillmentType = fulfillmentType,
-        pickupPointId = pickupPointId,
-        pickupLabel = pickupLabel
+        pickupPointId = pickupPointId
     )
 
 /**

@@ -116,7 +116,7 @@ fun OrderPreparationList(
     val groups = ordersByGroup.keys.sortedWith(
         compareByDescending<PreparationGroup> { it.deliveryDate.toTimeStamp() }
             .thenBy { it.fulfillmentType }
-            .thenBy { it.pickupLabel.orEmpty() }
+            .thenBy { ordersByGroup[it]?.firstOrNull()?.pickupLabel.orEmpty() }
     )
 
     // Captured once so every item of a frame compares against the same day and
@@ -171,7 +171,13 @@ fun OrderPreparationList(
                             // Deliveries keep a date-only header, exactly as before. Only a
                             // pickup batch needs naming, because that is the only case where
                             // one date carries several destinations.
-                            group.pickupLabel?.takeIf { group.fulfillmentType.isPickup }
+                            //
+                            // Read off the batch's first order rather than carried on the
+                            // group: the label is a per-order snapshot, so a renamed market
+                            // would otherwise split one point into two batches sharing the
+                            // same preparation ticks.
+                            ordersForDate.firstOrNull()?.pickupLabel
+                                ?.takeIf { group.fulfillmentType.isPickup }
                                 ?.let { label ->
                                     Text(
                                         text = label,

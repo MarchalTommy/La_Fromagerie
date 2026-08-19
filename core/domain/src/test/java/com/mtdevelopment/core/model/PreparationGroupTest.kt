@@ -109,6 +109,35 @@ class PreparationGroupTest {
         assertEquals(2, orders.groupBy { it.preparationGroup }.size)
     }
 
+    /**
+     * The label is a per-order snapshot taken at purchase, so renaming a market splits its
+     * orders into a before and an after. While the label was part of the group's identity
+     * that produced two batches on screen for one point — and statusIdFor keys only on the
+     * point, so both shared one set of ticks: ticking "4 Comté" in either ticked the other.
+     */
+    @Test
+    fun `two orders for one point with different labels form a single batch`() {
+        val orders = listOf(
+            order(
+                "market-1",
+                fulfillmentType = FulfillmentType.PICKUP_MARKET,
+                pickupPointId = "market-pontarlier-0507",
+                pickupLabel = "Marché de Pontarlier"
+            ),
+            order(
+                "market-2",
+                fulfillmentType = FulfillmentType.PICKUP_MARKET,
+                pickupPointId = "market-pontarlier-0507",
+                pickupLabel = "Grand marché de Pontarlier"
+            )
+        )
+
+        val batches = orders.groupBy { it.preparationGroup }
+
+        assertEquals(1, batches.size)
+        assertEquals(2, batches.values.first().size)
+    }
+
     @Test
     fun `deliveries of the same day still aggregate into one batch`() {
         val orders = listOf(order("delivery-1"), order("delivery-2"))
