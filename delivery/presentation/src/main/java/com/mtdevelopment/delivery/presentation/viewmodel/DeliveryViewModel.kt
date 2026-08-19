@@ -234,6 +234,11 @@ class DeliveryViewModel(
      * A read failure raises [DeliveryUiDataState.pickupPointsUnavailable] rather than leaving
      * an empty list behind: "we could not check" and "you cannot collect" look identical on
      * screen and mean opposite things, and only one of them should cost the shop a sale.
+     *
+     * Both callbacks drop their answer when the customer has switched mode since the read
+     * started. Switching Boutique → Marché quickly leaves two reads in flight and the last
+     * one to *arrive* wins, which is how the state ends up claiming PICKUP_MARKET while
+     * offering the shop's dates — and an order snapshotted onto the wrong pickup point.
      */
     fun loadPickupPoints(type: FulfillmentType = deliveryUiDataState.fulfillmentType) {
         val wanted = when (type) {
@@ -248,6 +253,7 @@ class DeliveryViewModel(
         )
         getPickupPointsUseCase.invoke(
             onSuccess = { points ->
+                if (deliveryUiDataState.fulfillmentType != type) return@invoke
                 val matching = points.filter { it.type == wanted }
                 deliveryUiDataState = deliveryUiDataState.copy(
                     isLoading = false,
@@ -259,6 +265,7 @@ class DeliveryViewModel(
                 )
             },
             onFailure = {
+                if (deliveryUiDataState.fulfillmentType != type) return@invoke
                 deliveryUiDataState = deliveryUiDataState.copy(
                     isLoading = false,
                     pickupPoints = emptyList(),

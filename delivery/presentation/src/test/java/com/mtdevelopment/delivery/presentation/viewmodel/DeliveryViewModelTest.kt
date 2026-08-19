@@ -3,6 +3,8 @@ package com.mtdevelopment.delivery.presentation.viewmodel
 import com.mtdevelopment.core.model.DeliveryCity
 import com.mtdevelopment.core.model.AutoCompleteSuggestion
 import com.mtdevelopment.core.model.FulfillmentType
+import com.mtdevelopment.core.model.PickupPoint
+import com.mtdevelopment.core.model.PickupPointType
 import com.mtdevelopment.core.model.UserInformation
 import com.mtdevelopment.core.repository.SharedDatastore
 import com.mtdevelopment.core.usecase.GetAutocompleteSuggestionsUseCase
@@ -37,6 +39,9 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class DeliveryViewModelTest {
@@ -421,6 +426,80 @@ class DeliveryViewModelTest {
         testDispatcher.scheduler.advanceUntilIdle()
 
         assertTrue(errored)
+    }
+
+    ///////////////////////////////////////////////////////////////////////////
+    // Pickup points — two reads can be in flight at once.
+    ///////////////////////////////////////////////////////////////////////////
+
+    private val shopPoint = PickupPoint(
+        id = "shop",
+        type = PickupPointType.SHOP,
+        label = "La Fromagerie",
+        address = "1 place du Marché, 25270 Levier",
+        timeRange = "9h-12h",
+        openingDays = listOf("MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY")
+    )
+
+    private val marketPoint = PickupPoint(
+        id = "market",
+        type = PickupPointType.MARKET,
+        label = "Marché de Pontarlier",
+        address = "Place d'Arçon, 25300 Pontarlier",
+        timeRange = "8h-13h",
+        date = LocalDate.now().plusDays(3)
+            .format(DateTimeFormatter.ofPattern("dd/MM/yyyy", Locale.ROOT))
+    )
+
+    /**
+     * Switching Boutique → Marché faster than Firestore answers leaves two reads in flight.
+     * The stale one must not repaint the screen it no longer describes.
+     */
+    @Test
+    fun `a late shop response is dropped once the customer has switched to market`() =
+        runTest(testDispatcher) {
+            val successCallbacks = mutableListOf<(List<PickupPoint>) -> Unit>()
+            every { getPickupPointsUseCase.invoke(any(), any()) } answers {
+                successCallbacks.add(firstArg())
+            }
+            val viewModel = buildViewModel()
+
+            viewModel.setFulfillmentType(FulfillmentType.PICKUP_SHOP)
+            viewModel.setFulfillmentType(FulfillmentType.PICKUP_MARKET)
+            testScheduler.advanceUntilIdle()
+            assertEquals(2, successCallbacks.size)
+
+            // The market read lands first, then the shop read the customer already left.
+            successCallbacks[1].invoke(listOf(shopPoint, marketPoint))
+            successCallbacks[0].invoke(listOf(shopPoint, marketPoint))
+
+            val state = viewModel.deliveryUiDataState
+            assertEquals(FulfillmentType.PICKUP_MARKET, state.fulfillmentType)
+            assertEquals(listOf("market"), state.pickupPoints.map { it.id })
+            assertTrue(state.pickupDates.all { it.pointId == "market" })
+        }
+
+    /** Same reasoning on the failure path: a stale error must not blank a loaded screen. */
+    @Test
+    fun `a late shop failure does not blank the market dates`() = runTest(testDispatcher) {
+        val successCallbacks = mutableListOf<(List<PickupPoint>) -> Unit>()
+        val failureCallbacks = mutableListOf<() -> Unit>()
+        every { getPickupPointsUseCase.invoke(any(), any()) } answers {
+            successCallbacks.add(firstArg())
+            failureCallbacks.add(secondArg())
+        }
+        val viewModel = buildViewModel()
+
+        viewModel.setFulfillmentType(FulfillmentType.PICKUP_SHOP)
+        viewModel.setFulfillmentType(FulfillmentType.PICKUP_MARKET)
+        testScheduler.advanceUntilIdle()
+
+        successCallbacks[1].invoke(listOf(marketPoint))
+        failureCallbacks[0].invoke()
+
+        val state = viewModel.deliveryUiDataState
+        assertFalse(state.pickupPointsUnavailable)
+        assertEquals(listOf("market"), state.pickupPoints.map { it.id })
     }
 
     ///////////////////////////////////////////////////////////////////////////
