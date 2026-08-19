@@ -281,12 +281,12 @@ also bump the timestamp.** (This is why the admin datasource pairs writes with
 
 ## 5. Room caches (the local mirror)
 
-There is **one** Room `@Database`: `FromagerieDatabase` (in `app`, schema **version 7** as of
-2026-08-17), with entities:
+There is **one** Room `@Database`: `FromagerieDatabase` (in `app`, schema **version 8** as of
+2026-08-19), with entities:
 
 | Entity | Table | Columns |
 |---|---|---|
-| `ProductEntity` (`home/data`) | `products` | `id`, `name`, `priceInCents` (Long), `imageUrl`, `type`, `description`, `allergens`, `isAvailable` |
+| `ProductEntity` (`home/data`) | `products` | `id`, `name`, `priceInCents` (Long), `imageUrl`, `type`, `description`, `allergens`, `isAvailable`, `priceInCentsPickupShop` (Long?, null = same price wherever collected) |
 | `PathEntity` (`delivery/data`) | `paths` | `id`, `name`, `availableCities` (Map&lt;String,Int&gt;), `cityStreets` (Map&lt;String,List&lt;String&gt;&gt;), `cityCoordinates` (Map&lt;String,Coordinate&gt;), `locations` (List&lt;Coordinate&gt;), `deliveryDay`, `deliveryFrequency`, `geojson` (String) |
 
 ⚠️ **Room column names are the Kotlin property names, NOT the `@SerialName` values.**
@@ -304,14 +304,28 @@ actual DB and DAOs come from `FromagerieDatabase` (`db.homeDao`, `db.deliveryDao
 
 ### Migrations — real ones, with the destructive fallback still armed behind them
 
-`AppModule.provideDataBase` registers `.addMigrations(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)`
-**and** `.fallbackToDestructiveMigration(true)`. All three live in `FromagerieDatabase.kt`:
+`AppModule.provideDataBase` registers `.addMigrations(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7,
+MIGRATION_7_8)` **and** `.fallbackToDestructiveMigration(true)`. All four live in
+`FromagerieDatabase.kt`:
 
 | Migration | Does |
 |---|---|
 | `MIGRATION_4_5` | `ALTER TABLE paths ADD COLUMN deliveryFrequency TEXT NOT NULL DEFAULT 'WEEKLY'` |
 | `MIGRATION_5_6` | `ALTER TABLE paths ADD COLUMN cityStreets TEXT NOT NULL DEFAULT '{}'` (2026-07-29, PR #59) |
 | `MIGRATION_6_7` | `ALTER TABLE paths ADD COLUMN cityCoordinates TEXT NOT NULL DEFAULT '{}'` (2026-08-17, PR #72) |
+| `MIGRATION_7_8` | `ALTER TABLE products ADD COLUMN priceInCentsPickupShop INTEGER DEFAULT NULL` (2026-08-19, click & collect) |
+
+⚠️ **The version number is a shared resource across parallel `claude/*` branches — check `main`
+before you claim one.** On 2026-08-19 two branches each wrote a `MIGRATION_6_7` and each stamped
+`version = 7`: PR #72 added `paths.cityCoordinates` and shipped as 1.0.1, while a click & collect
+branch forked earlier added `products.priceInCentsPickupShop`. Both built, both passed their tests,
+and the admin build crashed at startup on any device holding the other 7 —
+`IllegalStateException: Room cannot verify the data integrity`, thrown by the identity-hash check
+because the version number matched while the schema did not. **`fallbackToDestructiveMigration`
+does not cover this**: it fires only when the version number changes and no migration path exists.
+The fix is to renumber, never to reuse — the migration already in the field keeps its number, the
+newcomer becomes the next one up (here: `MIGRATION_7_8`, `version = 8`). Before adding a migration,
+run `git fetch && git show origin/main:app/src/main/java/com/mtdevelopment/lafromagerie/FromagerieDatabase.kt | grep -n 'version =\|^val MIGRATION'`.
 
 **Why `DEFAULT '{}'` does not trip Room's schema validation**, despite the entity declaring no
 `@ColumnInfo(defaultValue = …)`: Room only compares a column's default when the **entity** side
@@ -387,7 +401,7 @@ data classes; test the `toX()/fromX()` mappers), not a live Firestore write.
 | status writers | `grep -rn 'OrderStatus\.' . \| grep '\.kt:' \| grep -v /build/ \| grep -v 'src/test\|enum class'` |
 | PREPARED/IN_DELIVERY unused | `grep -rn 'OrderStatus\.\(PREPARED\|IN_DELIVERY\)' . \| grep '\.kt' \| grep -v /build/ \| grep -v enum` (no writers = still vestigial) |
 | cache-invalidation logic | read `home/domain/.../GetLastFirestoreDatabaseUpdateUseCase.kt` |
-| Room `@Database` version/entities/migrations | `grep -n '@Database\|version =\|^val MIGRATION\|class .*Converter' app/src/main/java/com/mtdevelopment/lafromagerie/FromagerieDatabase.kt; grep -n 'addMigrations\|fallbackToDestructive' app/src/main/java/com/mtdevelopment/lafromagerie/di/AppModule.kt` (expect version 7 + `MIGRATION_4_5`, `MIGRATION_5_6`, `MIGRATION_6_7`) |
+| Room `@Database` version/entities/migrations | `grep -n '@Database\|version =\|^val MIGRATION\|class .*Converter' app/src/main/java/com/mtdevelopment/lafromagerie/FromagerieDatabase.kt; grep -n 'addMigrations\|fallbackToDestructive' app/src/main/java/com/mtdevelopment/lafromagerie/di/AppModule.kt` (expect version 8 + `MIGRATION_4_5`, `MIGRATION_5_6`, `MIGRATION_6_7`, `MIGRATION_7_8`) |
 | Room agrees with the migration on the column name | `f=$(find app/build/generated -name 'FromagerieDatabase_Impl*' \| head -1); grep -n 'CREATE TABLE.*paths' "$f"` (the generated `CREATE TABLE` is the authority; a column named there but not in the `ALTER TABLE` is a runtime migration crash) |
 | Room columns = Kotlin property names | `grep -n 'val [a-zA-Z]*:' delivery/data/src/main/java/com/mtdevelopment/delivery/data/model/entity/PathEntity.kt` and check the `ALTER TABLE` statements name those, not the `@SerialName`s |
 | Home/Delivery DB are facades | `head -10 home/data/.../source/local/HomeDatabase.kt` (no `@Database` = still a wrapper) |

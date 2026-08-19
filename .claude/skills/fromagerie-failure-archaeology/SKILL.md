@@ -253,6 +253,48 @@ is slow. The same shape produced §14 a month earlier at whole-list granularity 
 per-path instance of it, and the §14 fix (empty ⇒ failure) did not cover it because one survivor
 made the list non-empty. **If you are about to write "not in `fetched`, so delete", stop.**
 
+## 17. Two branches, one schema version 7 (2026-08-19)
+
+The admin build crashed at startup, on a device that had been running the 1.0.1 from the store:
+
+```
+java.lang.IllegalStateException: Room cannot verify the data integrity.
+Expected identity hash: c1841cb2878790d9cca60e883839389d, found: b532bac7b0a1e50250dd9e98f8bb31bc
+```
+
+The first hypothesis on the table was an admin build installed over a client one — both flavors
+share the `applicationId`, so they share the database file. **It was not that**, and the check that
+settled it takes one command: the identity hash lives in the KSP-generated database impl, and the
+two flavors of the same build type produce the *same* hash, because the schema is entirely in
+`src/main`.
+
+```bash
+for v in adminDebug clientDebug adminRelease clientRelease; do
+  printf "%-14s %s\n" "$v" "$(grep -o '[0-9a-f]\{32\}' \
+    app/build/generated/ksp/$v/kotlin/com/mtdevelopment/lafromagerie/FromagerieDatabase_Impl.kt | head -1)"
+done
+```
+
+The hashes split by **date**, not by flavor. Diffing the two generated impls named the real cause
+in one line each: two branches had each written a `MIGRATION_6_7` and each stamped `version = 7`.
+PR #72 added `paths.cityCoordinates` and shipped to the store as 1.0.1; the click & collect branch,
+forked before #72 merged, added `products.priceInCentsPickupShop`. Same number, different schema —
+so Room's identity check fired on the first build that met the other one's database.
+`fallbackToDestructiveMigration(true)` was armed and did nothing, by design: it fires on an
+unhandled version *change*, and here the version never changed.
+
+Fixed by renumbering rather than reusing — #72's migration keeps 6 → 7 because it is the one in the
+field, the collection price became `MIGRATION_7_8`, `version = 8`. A 1.0.1 phone upgrades cleanly
+and keeps its cache; only a dev device that had run the branch's own 7 needs its data cleared.
+
+**What to take from it:** the schema version is a *shared* resource, but every branch reads it from
+its own fork point, which is stale by definition. Check `origin/main` before claiming a number, and
+treat "both branches built and both test suites were green" as no evidence at all here — nothing in
+a single branch's build can see the collision. Deriving this from the crash took reading generated
+code rather than source: `app/build/generated/ksp/*/kotlin/.../FromagerieDatabase_Impl.kt` is where
+the hash and the exact `CREATE TABLE` of every build live. The rule and the pre-flight command are
+in `fromagerie-firestore-data-model` §5.
+
 ## When NOT to use this skill
 
 - You need current payment mechanics (not history) → **fromagerie-payments-reference**
