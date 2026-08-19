@@ -18,6 +18,7 @@ import com.mtdevelopment.delivery.domain.usecase.GetPickupPointsUseCase
 import com.mtdevelopment.delivery.domain.usecase.GetDeliveryPathUseCase
 import com.mtdevelopment.delivery.domain.usecase.GetStreetSuggestionsUseCase
 import com.mtdevelopment.delivery.domain.usecase.GetUserInfoFromDatastoreUseCase
+import com.mtdevelopment.delivery.domain.usecase.SelectablePickupDate
 import com.mtdevelopment.delivery.presentation.model.UiDeliveryPath
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -501,6 +502,34 @@ class DeliveryViewModelTest {
         assertFalse(state.pickupPointsUnavailable)
         assertEquals(listOf("market"), state.pickupPoints.map { it.id })
     }
+
+    /**
+     * The selection used to live in the composable, so it survived a change of mode: the list
+     * redrew, nothing looked selected, yet Continue was still armed with the old mode's date.
+     */
+    @Test
+    fun `changing fulfillment type clears the chosen collection date`() =
+        runTest(testDispatcher) {
+            val viewModel = buildViewModel()
+            viewModel.setFulfillmentType(FulfillmentType.PICKUP_SHOP)
+            viewModel.setSelectedPickupDate(
+                SelectablePickupDate(
+                    date = LocalDate.now().plusDays(1),
+                    pointId = "shop",
+                    pointLabel = "La Fromagerie",
+                    pointAddress = "1 place du Marché, 25270 Levier",
+                    timeRange = "9h-12h",
+                    isPastDeadline = false
+                )
+            )
+            testScheduler.advanceUntilIdle()
+            assertNotNull(viewModel.deliveryUiDataState.selectedPickupDate)
+
+            viewModel.setFulfillmentType(FulfillmentType.PICKUP_MARKET)
+            testScheduler.advanceUntilIdle()
+
+            assertNull(viewModel.deliveryUiDataState.selectedPickupDate)
+        }
 
     ///////////////////////////////////////////////////////////////////////////
     // Street suggestions (admin path editor)

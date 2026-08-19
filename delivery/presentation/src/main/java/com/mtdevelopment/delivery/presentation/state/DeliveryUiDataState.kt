@@ -47,6 +47,10 @@ import com.mtdevelopment.delivery.presentation.model.UiDeliveryPath
  * @property pickupDates Dates offered for those points, cut-off already applied.
  * @property pickupPointsUnavailable True when the points could not be read. Distinct from an
  *   empty list on purpose: "we could not check" must never be shown as "you cannot collect".
+ * @property selectedPickupDate The date the customer picked, and the point it belongs to. Held
+ *   here rather than in the composable because it is what the order is built from: kept in the
+ *   view it survived a change of mode — the list redrew, nothing looked selected, and the
+ *   Continue button still carried the previous mode's date — and it was lost on rotation.
  */
 data class DeliveryUiDataState(
     val datePickerVisibility: Boolean = false,
@@ -84,5 +88,6 @@ data class DeliveryUiDataState(
     val userPhoneFieldText: String = "",
     val pickupPoints: List<PickupPoint> = emptyList(),
     val pickupDates: List<SelectablePickupDate> = emptyList(),
-    val pickupPointsUnavailable: Boolean = false
+    val pickupPointsUnavailable: Boolean = false,
+    val selectedPickupDate: SelectablePickupDate? = null
 )

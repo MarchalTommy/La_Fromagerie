@@ -130,6 +130,7 @@ fun DeliveryOptionScreen(
                     state = state.value,
                     onNameChange = { deliveryViewModel.setUserNameFieldText(it) },
                     onPhoneChange = { deliveryViewModel.setUserPhoneFieldText(it) },
+                    onDateChosen = { deliveryViewModel.setSelectedPickupDate(it) },
                     onDateSelected = { selection ->
                         deliveryViewModel.savePickupSelection(selection)
                         navigateToCheckout.invoke()

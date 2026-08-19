@@ -20,10 +20,7 @@ import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -80,18 +77,22 @@ fun FulfillmentTypeSelector(
  * No address field, deliberately. It serves no purpose here — there is nothing to drive to —
  * and the phone number takes its place, because a customer who does not turn up is the one
  * failure mode this mode has and a number is the only way to resolve it.
+ *
+ * The chosen date is hoisted into [state]: it is what the order is built from, and holding it
+ * here let it outlive both a change of mode and a rotation.
  */
 @Composable
 fun PickupContent(
     state: DeliveryUiDataState,
     onNameChange: (String) -> Unit,
     onPhoneChange: (String) -> Unit,
+    onDateChosen: (SelectablePickupDate) -> Unit,
     onDateSelected: (SelectablePickupDate) -> Unit
 ) {
     val focusRequester = remember { FocusRequester() }
     val focusManager = LocalFocusManager.current
 
-    var chosen by remember { mutableStateOf<SelectablePickupDate?>(null) }
+    val chosen = state.selectedPickupDate
 
     Card(
         modifier = Modifier
@@ -156,7 +157,7 @@ fun PickupContent(
                         PickupDateCard(
                             pickupDate = pickupDate,
                             isSelected = chosen == pickupDate,
-                            onClick = { chosen = pickupDate }
+                            onClick = { onDateChosen(pickupDate) }
                         )
                     }
                 }

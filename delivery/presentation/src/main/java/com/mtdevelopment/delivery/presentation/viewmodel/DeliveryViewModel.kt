@@ -216,7 +216,12 @@ class DeliveryViewModel(
      * "livraison" would otherwise have to retype their address.
      */
     fun setFulfillmentType(type: FulfillmentType) {
-        deliveryUiDataState = deliveryUiDataState.copy(fulfillmentType = type)
+        // The chosen date belongs to the mode it was picked in. Carrying it across would let
+        // the customer confirm a shop date while the state says market.
+        deliveryUiDataState = deliveryUiDataState.copy(
+            fulfillmentType = type,
+            selectedPickupDate = null
+        )
         // Persisted globally, not kept on this screen: the catalogue prices itself from it,
         // so the customer sees what they will be charged while filling their basket rather
         // than discovering it at payment.
@@ -226,6 +231,11 @@ class DeliveryViewModel(
 
     fun setUserPhoneFieldText(phone: String) {
         deliveryUiDataState = deliveryUiDataState.copy(userPhoneFieldText = phone)
+    }
+
+    /** Records which collection date the customer tapped, before they confirm it. */
+    fun setSelectedPickupDate(selection: SelectablePickupDate?) {
+        deliveryUiDataState = deliveryUiDataState.copy(selectedPickupDate = selection)
     }
 
     /**
