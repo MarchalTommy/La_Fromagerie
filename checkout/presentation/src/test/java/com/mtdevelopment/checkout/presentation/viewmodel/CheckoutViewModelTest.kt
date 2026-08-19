@@ -29,6 +29,7 @@ import com.mtdevelopment.checkout.domain.usecase.UpdateOrderStatus
 import com.mtdevelopment.checkout.domain.usecase.VerifyHostedCheckoutStatusUseCase
 import com.mtdevelopment.core.model.CartItem
 import com.mtdevelopment.core.model.CartItems
+import com.mtdevelopment.core.model.FulfillmentType
 import com.mtdevelopment.core.model.Order
 import com.mtdevelopment.core.model.OrderStatus
 import com.mtdevelopment.core.model.PaymentMode
@@ -534,7 +535,7 @@ class CheckoutViewModelTest {
     // Pay on collection — the one button that keeps the customer on the screen.
     ///////////////////////////////////////////////////////////////////////////
 
-    private fun seedCheckoutData() {
+    private fun seedCheckoutData(fulfillmentType: FulfillmentType = FulfillmentType.DELIVERY) {
         val cart = CartItems(
             cartItems = listOf(CartItem(name = "Comté", price = 1000L, quantity = 2)),
             totalPrice = 2000L
@@ -547,9 +548,56 @@ class CheckoutViewModelTest {
                 cartItems = cart,
                 totalPrice = 2000L,
                 deliveryDate = 42L,
-                billingAddress = "2 rue de la Facture"
+                billingAddress = "2 rue de la Facture",
+                fulfillmentType = fulfillmentType.name,
+                pickupPointId = "shop",
+                pickupLabel = "La Fromagerie",
+                pickupAddress = "1 place du Marché, 25270 Levier",
+                pickupTimeRange = "9h-12h"
             )
         )
+    }
+
+    /**
+     * The datastore keeps the customer's home address so a later delivery can reuse it, which
+     * is exactly why a collected order must state its own answer instead of inheriting it:
+     * otherwise the home address rides along on an order nobody is driving anywhere.
+     */
+    @Test
+    fun `a collected order carries no customer address`() = runTest(testDispatcher) {
+        seedCheckoutData(FulfillmentType.PICKUP_SHOP)
+        val placedOrder = slot<Order>()
+        coEvery { createNewOrderUseCase.invoke(capture(placedOrder)) } returns true
+
+        val viewModel = buildViewModel()
+        testScheduler.advanceUntilIdle()
+        viewModel.updateUiState()
+        testScheduler.advanceUntilIdle()
+
+        viewModel.placeOrderToPayOnSite { }
+        testScheduler.advanceUntilIdle()
+
+        assertEquals("", placedOrder.captured.customerAddress)
+        // The point stays snapshotted: the customer still knows where to come.
+        assertEquals("La Fromagerie", placedOrder.captured.pickupLabel)
+    }
+
+    /** Delivery is untouched: the address it was given is the address it carries. */
+    @Test
+    fun `a delivered order still carries the customer address`() = runTest(testDispatcher) {
+        seedCheckoutData(FulfillmentType.DELIVERY)
+        val placedOrder = slot<Order>()
+        coEvery { createNewOrderUseCase.invoke(capture(placedOrder)) } returns true
+
+        val viewModel = buildViewModel()
+        testScheduler.advanceUntilIdle()
+        viewModel.updateUiState()
+        testScheduler.advanceUntilIdle()
+
+        viewModel.placeOrderToPayOnSite { }
+        testScheduler.advanceUntilIdle()
+
+        assertEquals("1 rue du Fromage", placedOrder.captured.customerAddress)
     }
 
     @Test

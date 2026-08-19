@@ -292,6 +292,11 @@ class DeliveryViewModel(
      * The point's label, address and opening window are stored alongside the id so the order
      * carries a snapshot: a market date edited or deleted afterwards must not rewrite a
      * purchase already made.
+     *
+     * Everything the customer is not choosing here survives untouched, the home address
+     * included: the datastore holds who the customer is, not what this order is. The two were
+     * the same object while delivery was the only mode, and separating them is what lets
+     * [setFulfillmentType] keep its promise that trying collection clears nothing.
      */
     fun savePickupSelection(selection: SelectablePickupDate) {
         viewModelScope.launch {
@@ -300,9 +305,11 @@ class DeliveryViewModel(
                 userInformation = UserInformation(
                     name = deliveryUiDataState.userNameFieldText,
                     email = existingUserInfo?.email ?: "",
-                    // No delivery address in this mode. The billing address Google Pay
-                    // returns is what ends up on the invoice.
-                    address = "",
+                    // The remembered home address, kept. It is not this order's delivery
+                    // address — a collected order carries none, and CheckoutViewModel blanks
+                    // it there. Clearing it here instead would cost a returning customer the
+                    // address they typed once, permanently, for having tried collection.
+                    address = existingUserInfo?.address ?: "",
                     billingAddress = existingUserInfo?.billingAddress ?: "",
                     lastSelectedPath = existingUserInfo?.lastSelectedPath ?: "",
                     phone = deliveryUiDataState.userPhoneFieldText,

@@ -531,6 +531,49 @@ class DeliveryViewModelTest {
             assertNull(viewModel.deliveryUiDataState.selectedPickupDate)
         }
 
+    /**
+     * setFulfillmentType promises that trying collection clears nothing already typed. That
+     * was true in memory and false in the datastore: saving a collection selection rewrote
+     * the whole UserInformation with a hardcoded empty address, so a returning customer who
+     * tried collection once lost their home address for good.
+     */
+    @Test
+    fun `the home address survives a pickup then delivery round trip`() =
+        runTest(testDispatcher) {
+            val saved = mutableListOf<UserInformation>()
+            coEvery {
+                saveToDatastoreUseCase.invoke(any(), capture(saved), any())
+            } returns Unit
+            coEvery { getUserInfoFromDatastoreUseCase.invoke() } returns flowOf(
+                UserInformation(
+                    name = "Jane",
+                    email = "jane@example.com",
+                    address = "1 rue du Fromage, 25270 Levier",
+                    billingAddress = "1 rue du Fromage, 25270 Levier",
+                    lastSelectedPath = "Tournée du Lundi"
+                )
+            )
+
+            val viewModel = buildViewModel()
+            viewModel.setFulfillmentType(FulfillmentType.PICKUP_SHOP)
+            viewModel.setUserNameFieldText("Jane")
+            viewModel.setUserPhoneFieldText("0600000000")
+            viewModel.savePickupSelection(
+                SelectablePickupDate(
+                    date = LocalDate.now().plusDays(1),
+                    pointId = "shop",
+                    pointLabel = "La Fromagerie",
+                    pointAddress = "1 place du Marché, 25270 Levier",
+                    timeRange = "9h-12h",
+                    isPastDeadline = false
+                )
+            )
+            testScheduler.advanceUntilIdle()
+
+            assertEquals(1, saved.size)
+            assertEquals("1 rue du Fromage, 25270 Levier", saved.first().address)
+        }
+
     ///////////////////////////////////////////////////////////////////////////
     // Street suggestions (admin path editor)
     ///////////////////////////////////////////////////////////////////////////

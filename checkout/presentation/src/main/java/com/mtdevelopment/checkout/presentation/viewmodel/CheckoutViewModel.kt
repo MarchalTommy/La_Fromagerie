@@ -485,7 +485,15 @@ class CheckoutViewModel(
                         id = orderId,
                         customerName = _paymentScreenState.value.buyerName.toString(),
                         customerEmail = _paymentScreenState.value.buyerEmail,
-                        customerAddress = _paymentScreenState.value.buyerAddress.toString(),
+                        // A collected order has no delivery address, and the customer's
+                        // remembered home address must not leak onto it: the datastore keeps
+                        // it so a later delivery can reuse it, which is exactly why this
+                        // order has to state its own answer rather than inherit that one.
+                        customerAddress = if (_paymentScreenState.value.fulfillmentType.isPickup) {
+                            ""
+                        } else {
+                            _paymentScreenState.value.buyerAddress.toString()
+                        },
                         customerBillingAddress = _paymentScreenState.value.buyerBillingAddress.toString(),
                         deliveryDate = _paymentScreenState.value.deliveryDate?.toStringDate() ?: "",
                         orderDate = Timestamp.now().toDate().time.toStringDate(),
