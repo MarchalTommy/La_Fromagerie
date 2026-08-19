@@ -1,6 +1,7 @@
 package com.mtdevelopment.lafromagerie
 
 import com.mtdevelopment.checkout.domain.repository.OrderReminderScheduler
+import com.mtdevelopment.core.model.FulfillmentType
 
 /**
  * Admin-flavor binding for [OrderReminderScheduler].
@@ -15,7 +16,13 @@ import com.mtdevelopment.checkout.domain.repository.OrderReminderScheduler
  */
 class NoOpOrderReminderScheduler : OrderReminderScheduler {
 
-    override fun scheduleReminder(orderId: String, deliveryDate: String) = Unit
+    override fun scheduleReminder(
+        orderId: String,
+        deliveryDate: String,
+        fulfillmentType: FulfillmentType,
+        pickupLabel: String?,
+        pickupTimeRange: String?
+    ) = Unit
 
     override fun cancelReminder(orderId: String) = Unit
 }

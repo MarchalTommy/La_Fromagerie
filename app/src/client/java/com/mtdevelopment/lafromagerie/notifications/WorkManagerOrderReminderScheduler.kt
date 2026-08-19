@@ -8,6 +8,7 @@ import androidx.work.WorkManager
 import androidx.work.workDataOf
 import com.mtdevelopment.checkout.domain.model.OrderReminder
 import com.mtdevelopment.checkout.domain.repository.OrderReminderScheduler
+import com.mtdevelopment.core.model.FulfillmentType
 import java.util.concurrent.TimeUnit
 
 /**
@@ -23,7 +24,13 @@ class WorkManagerOrderReminderScheduler(
     private val context: Context
 ) : OrderReminderScheduler {
 
-    override fun scheduleReminder(orderId: String, deliveryDate: String) {
+    override fun scheduleReminder(
+        orderId: String,
+        deliveryDate: String,
+        fulfillmentType: FulfillmentType,
+        pickupLabel: String?,
+        pickupTimeRange: String?
+    ) {
         val reminderMillis = OrderReminder.reminderTimeMillis(
             deliveryDate = deliveryDate,
             nowMillis = System.currentTimeMillis()
@@ -37,7 +44,17 @@ class WorkManagerOrderReminderScheduler(
 
         val request = OneTimeWorkRequestBuilder<OrderReminderWorker>()
             .setInitialDelay(reminderMillis - System.currentTimeMillis(), TimeUnit.MILLISECONDS)
-            .setInputData(workDataOf(OrderReminderWorker.KEY_ORDER_ID to orderId))
+            .setInputData(
+                workDataOf(
+                    OrderReminderWorker.KEY_ORDER_ID to orderId,
+                    // The worker cannot read the order back: the cart and its saved order
+                    // are cleared as soon as the purchase completes, long before the
+                    // morning this fires. What it needs to word the reminder travels here.
+                    OrderReminderWorker.KEY_FULFILLMENT_TYPE to fulfillmentType.name,
+                    OrderReminderWorker.KEY_PICKUP_LABEL to pickupLabel,
+                    OrderReminderWorker.KEY_PICKUP_TIME_RANGE to pickupTimeRange
+                )
+            )
             .build()
 
         // REPLACE keyed on the order: re-finalizing the same payment (in-app flow racing

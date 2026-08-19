@@ -2,6 +2,7 @@ package com.mtdevelopment.checkout.domain.usecase
 
 import com.mtdevelopment.checkout.domain.repository.CheckoutDatastorePreference
 import com.mtdevelopment.checkout.domain.repository.OrderReminderScheduler
+import com.mtdevelopment.core.model.FulfillmentType
 import com.mtdevelopment.core.model.Order
 import com.mtdevelopment.core.model.OrderStatus
 import io.mockk.Runs
@@ -24,7 +25,7 @@ class OrderReminderUseCasesTest {
 
     @Before
     fun setUp() {
-        every { scheduler.scheduleReminder(any(), any()) } just Runs
+        every { scheduler.scheduleReminder(any(), any(), any(), any(), any()) } just Runs
         every { scheduler.cancelReminder(any()) } just Runs
     }
 
@@ -47,7 +48,40 @@ class OrderReminderUseCasesTest {
         val scheduled = ScheduleOrderReminderUseCase(preferences, scheduler).invoke("order-1")
 
         assertTrue(scheduled)
-        verify(exactly = 1) { scheduler.scheduleReminder("order-1", "15/08/2026") }
+        verify(exactly = 1) {
+            scheduler.scheduleReminder(
+                orderId = "order-1",
+                deliveryDate = "15/08/2026",
+                fulfillmentType = FulfillmentType.DELIVERY,
+                pickupLabel = null,
+                pickupTimeRange = null
+            )
+        }
+    }
+
+    /** The reminder cannot word itself for a collection without these three. */
+    @Test
+    fun `carries the pickup snapshot to the scheduler`() = runTest {
+        coEvery { preferences.orderFlow } returns flowOf(
+            order().copy(
+                fulfillmentType = FulfillmentType.PICKUP_MARKET,
+                pickupLabel = "Marché de Pontarlier",
+                pickupTimeRange = "8h-13h"
+            )
+        )
+
+        val scheduled = ScheduleOrderReminderUseCase(preferences, scheduler).invoke("order-1")
+
+        assertTrue(scheduled)
+        verify(exactly = 1) {
+            scheduler.scheduleReminder(
+                orderId = "order-1",
+                deliveryDate = "15/08/2026",
+                fulfillmentType = FulfillmentType.PICKUP_MARKET,
+                pickupLabel = "Marché de Pontarlier",
+                pickupTimeRange = "8h-13h"
+            )
+        }
     }
 
     @Test
@@ -57,7 +91,7 @@ class OrderReminderUseCasesTest {
         val scheduled = ScheduleOrderReminderUseCase(preferences, scheduler).invoke("order-1")
 
         assertFalse(scheduled)
-        verify(exactly = 0) { scheduler.scheduleReminder(any(), any()) }
+        verify(exactly = 0) { scheduler.scheduleReminder(any(), any(), any(), any(), any()) }
     }
 
     @Test
@@ -69,7 +103,7 @@ class OrderReminderUseCasesTest {
         val scheduled = ScheduleOrderReminderUseCase(preferences, scheduler).invoke("order-1")
 
         assertFalse(scheduled)
-        verify(exactly = 0) { scheduler.scheduleReminder(any(), any()) }
+        verify(exactly = 0) { scheduler.scheduleReminder(any(), any(), any(), any(), any()) }
     }
 
     @Test
@@ -79,7 +113,7 @@ class OrderReminderUseCasesTest {
         val scheduled = ScheduleOrderReminderUseCase(preferences, scheduler).invoke("order-1")
 
         assertFalse(scheduled)
-        verify(exactly = 0) { scheduler.scheduleReminder(any(), any()) }
+        verify(exactly = 0) { scheduler.scheduleReminder(any(), any(), any(), any(), any()) }
     }
 
     @Test

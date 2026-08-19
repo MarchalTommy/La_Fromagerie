@@ -1,5 +1,7 @@
 package com.mtdevelopment.checkout.domain.repository
 
+import com.mtdevelopment.core.model.FulfillmentType
+
 /**
  * Schedules the local, on-device reminder that tells the customer their order is due on
  * the current day.
@@ -20,8 +22,20 @@ interface OrderReminderScheduler {
      * Scheduling the same [orderId] twice replaces the previous reminder rather than
      * adding a second one. A date that resolves to an instant already in the past is
      * skipped: a reminder for a day that is over would only confuse.
+     *
+     * [fulfillmentType] and the two pickup fields travel with the order because they
+     * decide what the reminder can honestly say: telling a customer who is coming to
+     * collect to "stay reachable for the delivery" is wrong, and for them the place and
+     * the opening window are the useful content. All three come from the snapshot already
+     * stored on the order, so nothing has to be looked up when the reminder fires.
      */
-    fun scheduleReminder(orderId: String, deliveryDate: String)
+    fun scheduleReminder(
+        orderId: String,
+        deliveryDate: String,
+        fulfillmentType: FulfillmentType = FulfillmentType.DELIVERY,
+        pickupLabel: String? = null,
+        pickupTimeRange: String? = null
+    )
 
     /** Drops a previously scheduled reminder; a no-op when none exists. */
     fun cancelReminder(orderId: String)

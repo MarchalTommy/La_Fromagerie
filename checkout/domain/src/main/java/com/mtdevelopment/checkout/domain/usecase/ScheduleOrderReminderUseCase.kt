@@ -28,7 +28,13 @@ class ScheduleOrderReminderUseCase(
             ?: return false
         if (order.id != expectedOrderId || order.deliveryDate.isBlank()) return false
 
-        orderReminderScheduler.scheduleReminder(order.id, order.deliveryDate)
+        orderReminderScheduler.scheduleReminder(
+            orderId = order.id,
+            deliveryDate = order.deliveryDate,
+            fulfillmentType = order.fulfillmentType,
+            pickupLabel = order.pickupLabel,
+            pickupTimeRange = order.pickupTimeRange
+        )
         return true
     }
 }
