@@ -8,7 +8,7 @@ plugins {
 
 android {
     namespace = "com.mtdevelopment.admin.data"
-    compileSdk = 36
+    compileSdk = 37
     android.buildFeatures.buildConfig = true
 
     defaultConfig {

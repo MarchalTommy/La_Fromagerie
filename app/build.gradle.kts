@@ -10,7 +10,7 @@ plugins {
 
 android {
     namespace = "com.mtdevelopment.lafromagerie"
-    compileSdk = 36
+    compileSdk = 37
     android.buildFeatures.buildConfig = true
 
     signingConfigs {
