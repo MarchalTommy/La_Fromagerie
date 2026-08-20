@@ -30,7 +30,7 @@ Rule of engagement: before "fixing" anything that matches a symptom below, read 
 
 - **Symptom:** Build breakage and IDE/Kotlin-detection issues while moving from AGP 8.13.2 to AGP 9.
 - **Root cause:** AGP 9's built-in Kotlin support and new DSL conflicted with the project's plugin setup; per-module `kotlin-android` plugin declarations had to be restored.
-- **Evidence:** `0283e20` (AGP 8.13.2), `78df833` (tried 9.1.0), `90cfdec` (migrate build config to 9.0), `62181e5` (add kotlinAndroid for IDE detection), `7343ca4` (restore kotlin-android for all modules), `9d8d53e` "Finished fixing AGP 9 for now... Temporary shit, but it will do the trick". Settled at **AGP 9.0.1** (`gradle/libs.versions.toml`: `agp = "9.0.1"`, verified 2026-07-06 — despite `78df833`'s message saying 9.1.0).
+- **Evidence:** `0283e20` (AGP 8.13.2), `78df833` (8.13.2 → `9.0.0-rc01`, despite its subject saying 9.1.0), `90cfdec` (migrate build config to 9.0), `62181e5` (add kotlinAndroid for IDE detection), `7343ca4` (restore kotlin-android for all modules), `9d8d53e` "Finished fixing AGP 9 for now... Temporary shit, but it will do the trick". Settled at **AGP 9.0.1** (`gradle/libs.versions.toml`: `agp = "9.0.1"`, verified 2026-07-06 — despite `78df833`'s message saying 9.1.0).
 - **Status:** **settled, with two OPEN opt-outs** in `gradle.properties` (verified 2026-07-06): `android.builtInKotlin=false` and `android.newDsl=false`. Gradle prints a warning about them on every build. They are deliberate and **must be migrated before AGP 10** — do not remove them casually (removal requires the built-in-Kotlin migration; see https://kotl.in/gradle/agp-built-in-kotlin). Do not "upgrade AGP" as a drive-by.
 
 ## 3. Notification / foreground-service saga (admin delivery helper)

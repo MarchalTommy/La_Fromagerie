@@ -57,6 +57,28 @@ Regenerate this map any time:
 grep -rn 'collection(' . | grep '\.kt:' | grep -v /build/
 ```
 
+⚠️ **Every collection in that table also needs a `match` block in the deployed Firestore
+rules — a collection that has none is DENIED, not open.** The live ruleset has been
+per-collection with **no catch-all** since 2026-07-08. So *adding a collection to the app
+means adding its rules block and deploying it, in the same change*, or the feature ships
+dead: reads and writes both fail with `PERMISSION_DENIED`, and this codebase swallows that
+into a `Result` nobody unwraps (one `W/Firestore` line in logcat is the whole signal).
+Click & collect's `pickup_points` shipped without a block and cost a full debugging session
+on 2026-08-19.
+
+And **do not read `la-fromagerie-backend/firestore.rules` as truth** — it was stale from
+2026-07-08 to 2026-08-19, still advertising the pre-hardening `allow write: if true`
+catch-all while the console had moved on, which is precisely why nobody suspected the rules.
+Re-export before believing it:
+
+```bash
+mkdir /tmp/rules && cd /tmp/rules && yes "" | firebase init firestore --project la-fromagerie-25560
+```
+
+(the firebase CLI is authenticated as `marchal.development@gmail.com`, which owns the
+project; `firebase init firestore` downloads the deployed ruleset). Then diff against the
+repo file. Triage row: **fromagerie-debugging-playbook**.
+
 ---
 
 ## 2. Field contracts (real names and types)
@@ -370,6 +392,9 @@ still reading and writing prod. Therefore:
 - **New enum values must degrade gracefully.** Readers already default unknown `OrderStatus`
   to `PENDING`; keep that pattern for any new status.
 - **Bump the `database_update` timestamp** whenever you change product/path data (§4).
+- **A new collection is not done until its rules block is deployed.** Rules deny by default
+  (§1) — ship the `match` block with the code, and re-export the live ruleset to confirm it
+  landed rather than trusting the repo's `firestore.rules`.
 
 **Safe prod inspection (read-only only):**
 - Use the **Firebase console** to view collections/documents. Read, never write.
@@ -389,6 +414,7 @@ data classes; test the `toX()/fromX()` mappers), not a live Firestore write.
 | Claim | Re-verification command |
 |---|---|
 | Collection names & owners | `grep -rn 'collection(' . \| grep '\.kt:' \| grep -v /build/` |
+| Every collection has a deployed rules block | `mkdir /tmp/rules && cd /tmp/rules && yes "" \| firebase init firestore --project la-fromagerie-25560`, then diff the downloaded ruleset against `la-fromagerie-backend/firestore.rules` and against the collection list above |
 | `OrderData` fields | `sed -n '1,30p' core/data/src/main/java/com/mtdevelopment/core/model/OrderData.kt` |
 | Still no path field on orders | `grep -in "path" core/domain/src/main/java/com/mtdevelopment/core/model/Order.kt core/data/src/main/java/com/mtdevelopment/core/model/OrderData.kt` (expect no hits) |
 | No two paths share a day+frequency | read `delivery_paths` in the Firebase console (read-only) and compare `delivery_day` + `delivery_frequency` pairwise |
