@@ -503,8 +503,8 @@ class CheckoutViewModel(
                         totalPrice = _paymentScreenState.value.totalPrice,
                         // The pickup point is snapshotted onto the order, not referenced:
                         // editing or deleting that point later must not rewrite this
-                        // purchase. Payment stays ONLINE here — paying on collection is a
-                        // separate chain that does not exist yet.
+                        // purchase. The payment mode is the caller's to state: ONLINE by
+                        // default, ON_SITE only from placeOrderToPayOnSite.
                         fulfillmentType = _paymentScreenState.value.fulfillmentType,
                         paymentMode = paymentMode,
                         customerPhone = _paymentScreenState.value.buyerPhone,
@@ -534,8 +534,20 @@ class CheckoutViewModel(
      * connection would mint a fresh order id and place a second ON_SITE order that no
      * reconciliation chain would ever catch. The loading flag is both that guard and the
      * customer's feedback, so it has to be released on every way out.
+     *
+     * Restricted to [FulfillmentType.PICKUP_SHOP], and this is the only place that writes
+     * [PaymentMode.ON_SITE]: the shop takes money over its own counter and nowhere else.
+     * `CheckoutScreen` already hides the button for the other two modes, so the check below
+     * is not what enforces the rule day to day — it catches the tap that was already in
+     * flight when the mode changed underneath the screen, which the live datastore collect in
+     * [updateUiState] makes possible. Nothing is reported when it fires: the customer watched
+     * the button disappear, and an order that was never written is not an incident.
      */
     fun placeOrderToPayOnSite(onResult: (Boolean) -> Unit) {
+        if (_paymentScreenState.value.fulfillmentType != FulfillmentType.PICKUP_SHOP) {
+            onResult.invoke(false)
+            return
+        }
         if (_paymentScreenState.value.isLoading) return
         _paymentScreenState.update { it.copy(isLoading = true) }
 

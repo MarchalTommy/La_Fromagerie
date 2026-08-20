@@ -17,6 +17,13 @@ const val ON_SITE_ORDER_GRACE_DAYS = 3L
  * a manual "encaissé" on one would paper over whatever went wrong there instead of
  * surfacing it.
  *
+ * Reads [PaymentMode] alone, and deliberately ignores [Order.fulfillmentType] even though the
+ * client can no longer place an ON_SITE order anywhere but the shop (2026-08-20). The rule
+ * belongs to the checkout, where an order is written; this use case only records that money
+ * arrived. Adding the collection mode here would leave any ON_SITE order that is not a shop
+ * collection — written by a build predating the rule, or by a hand — with no way to be cashed
+ * at all, which is a worse outcome than an order that breaks the rule.
+ *
  * ⚠️ **Known coupling, not yet resolved: this writes payment into the lifecycle field.**
  * "Encaissé" is a fact about money, and the only place it is recorded is
  * [OrderStatus.PAID] — the same field that also says where an order is in its life. Lot 1

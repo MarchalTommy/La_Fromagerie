@@ -18,7 +18,8 @@ La livraison à domicile existante n'est pas modifiée dans son fonctionnement.
 
 ### Dans le périmètre v1
 
-Les trois modes de retrait ; le paiement en ligne **ou** sur place ; la tarification différenciée
+Les trois modes de retrait ; le paiement en ligne **ou** sur place (boutique uniquement,
+voir §3.4) ; la tarification différenciée
 par mode ; la gestion des jours de fermeture ; les rappels le jour J (retrait **et** livraison) ;
 les adaptations admin indispensables à la sécurité opérationnelle.
 
@@ -77,7 +78,21 @@ En mode retrait, l'écran de livraison actuel est réduit :
 ### 3.4 Paiement
 
 Le client choisit entre **payer en ligne** (Google Pay → SumUp, chaîne strictement inchangée) et
-**payer sur place** au moment du retrait. Le mode de paiement est indépendant du mode de retrait.
+**payer sur place** au moment du retrait.
+
+⚠️ **Règle modifiée le 20/08/2026 : le paiement sur place n'est offert qu'en retrait boutique.**
+La v1 les avait déclarés indépendants ; ils ne le sont plus. Un retrait sur marché, comme une
+livraison, se paie en ligne — la boutique encaisse à son comptoir et nulle part ailleurs.
+
+Concrètement : `payment_mode = ON_SITE` **implique** `fulfillment_type = PICKUP_SHOP`. La règle
+est portée par les deux champs existants, aucun champ n'est ajouté. Elle est tenue à deux endroits
+et pas un de plus — `CheckoutScreen` n'affiche le bouton qu'en boutique, et
+`CheckoutViewModel.placeOrderToPayOnSite`, seul écrivain de `ON_SITE`, refuse tout autre mode
+(le clic déjà parti quand le mode change sous l'écran). Rien n'est dit au client en retrait
+marché : le bouton est simplement absent, décision du 20/08/2026.
+
+Côté admin, rien n'est restreint : l'encaissement et l'annulation J+3 continuent de ne lire que
+`payment_mode`, sans regarder le mode de retrait (voir §6.2 et §6.3).
 
 ---
 
@@ -227,7 +242,7 @@ lancement sans réseau (corrigé le 29/07 sur les parcours).
 | Commande créée, paiement en ligne en cours | `PENDING` | `ONLINE` |
 | Paiement en ligne réussi | `PAID` | `ONLINE` |
 | Paiement en ligne échoué | `CANCELED` | `ONLINE` |
-| Commande à payer sur place | `PENDING` | `ON_SITE` |
+| Commande à payer sur place (retrait boutique **uniquement**, §3.4) | `PENDING` | `ON_SITE` |
 | Encaissée par l'admin au retrait | `PAID` | `ON_SITE` |
 
 Le champ `payment_mode` est ce qui **désambiguïse `PENDING`**, aujourd'hui porteur de deux sens
@@ -240,6 +255,11 @@ retomberait dans la confusion qu'on cherche à lever. Un champ inconnu, lui, est
 
 Action admin « Encaissé » sur la commande → passage en `PAID`. **Aucune facture n'est émise** pour
 ce chemin : le flux Invoice Ninja reste réservé aux paiements en ligne.
+
+L'action ne lit que `payment_mode`, jamais `fulfillment_type`, et cela reste vrai après la règle
+du 20/08/2026. L'admin lit ce qui a été écrit, il n'applique pas la règle : une commande `ON_SITE`
+qui ne serait pas en boutique doit rester encaissable, sans quoi l'argent qu'elle représente
+n'aurait plus aucun écran pour être enregistré.
 
 ### 6.3 Annulation automatique des commandes non retirées
 
@@ -347,11 +367,14 @@ l'admin sache la distinguer d'une livraison.
 6. Modifier ou supprimer un point de retrait ne modifie aucune commande existante.
 7. Une commande `ON_SITE` non retirée passe en `CANCELED` à J+3 ; une commande `ONLINE` en
    `PENDING` n'est **jamais** annulée automatiquement.
-8. Sans réseau au premier lancement, l'absence de points de retrait est signalée comme une erreur,
+8. Depuis le 20/08/2026, aucune commande `ON_SITE` ne peut être créée hors
+   `fulfillment_type = PICKUP_SHOP` ; l'encaissement admin, lui, reste possible sur toute
+   commande `ON_SITE` quel que soit son mode de retrait.
+9. Sans réseau au premier lancement, l'absence de points de retrait est signalée comme une erreur,
    jamais présentée comme « aucun retrait possible ».
-9. Le rappel jour J se déclenche pour une commande en livraison comme pour une commande en retrait,
-   et survit à un redémarrage de l'appareil.
-10. Les deux flavors compilent, et la suite de tests ne régresse pas au-delà des 2 échecs connus
+10. Le rappel jour J se déclenche pour une commande en livraison comme pour une commande en retrait,
+    et survit à un redémarrage de l'appareil.
+11. Les deux flavors compilent, et la suite de tests ne régresse pas au-delà des 2 échecs connus
     d'`AdminViewModelTest`.
 
 ---
@@ -362,7 +385,11 @@ l'admin sache la distinguer d'une livraison.
 2. **Fermer une date sur laquelle des commandes existent déjà** — refuser, ou avertir et laisser
    faire en listant les clients à prévenir ?
 3. **Adresse de facturation en retrait avec paiement sur place** — aucune adresse n'est alors
-   collectée. Acceptable puisqu'aucune facture n'est émise, à confirmer.
+   collectée. Acceptable puisqu'aucune facture n'est émise, à confirmer. Depuis le 20/08/2026 la
+   question ne porte plus que sur le retrait boutique. Elle en soulève en revanche une autre :
+   un retrait marché se paie désormais toujours en ligne, donc **est toujours facturé**, avec une
+   commande qui ne porte ni `customer_address` ni, souvent, `billing_address`
+   (`billing.ts:81` retombe alors sur une chaîne vide). Défaut préexistant, fréquence accrue.
 
 Aucune de ces trois questions ne bloque le démarrage : les lots 0 à 4 peuvent être menés sans y
 répondre, seul le lot 5 attend la réponse à la n°1.
