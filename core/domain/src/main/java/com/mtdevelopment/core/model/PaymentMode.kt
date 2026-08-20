@@ -18,7 +18,15 @@ enum class PaymentMode {
     /** Paid in the app through Google Pay / SumUp before the order is honoured. */
     ONLINE,
 
-    /** Paid to the shop when the order is collected. */
+    /**
+     * Paid to the shop when the order is collected.
+     *
+     * Only ever written on a [FulfillmentType.PICKUP_SHOP] order, by the shop's decision of
+     * 2026-08-20: money is taken over the counter, not on a market stall. `CheckoutViewModel`
+     * is the single writer and holds the check; nothing here enforces it, because a reader —
+     * the admin app above all — must still be able to make sense of any ON_SITE order it
+     * finds, whatever its collection mode.
+     */
     ON_SITE;
 
     companion object {

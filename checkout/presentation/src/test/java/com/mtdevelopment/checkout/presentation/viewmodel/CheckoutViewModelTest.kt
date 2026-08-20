@@ -582,7 +582,12 @@ class CheckoutViewModelTest {
         assertEquals("La Fromagerie", placedOrder.captured.pickupLabel)
     }
 
-    /** Delivery is untouched: the address it was given is the address it carries. */
+    /**
+     * Delivery is untouched: the address it was given is the address it carries.
+     *
+     * Placed through [CheckoutViewModel.createOrder] rather than the on-site entry point,
+     * which now refuses anything that is not a shop collection.
+     */
     @Test
     fun `a delivered order still carries the customer address`() = runTest(testDispatcher) {
         seedCheckoutData(FulfillmentType.DELIVERY)
@@ -594,16 +599,45 @@ class CheckoutViewModelTest {
         viewModel.updateUiState()
         testScheduler.advanceUntilIdle()
 
-        viewModel.placeOrderToPayOnSite { }
+        viewModel.createOrder { }
         testScheduler.advanceUntilIdle()
 
         assertEquals("1 rue du Fromage", placedOrder.captured.customerAddress)
     }
 
+    /**
+     * Paying at collection is the shop's counter and nowhere else. The button is hidden on a
+     * market, so reaching this at all means the mode changed under the screen with a tap
+     * already in flight — and the order that tap would have written is exactly the one the
+     * shop no longer accepts.
+     */
+    @Test
+    fun `placeOrderToPayOnSite refuses a market collection`() = runTest(testDispatcher) {
+        seedCheckoutData(FulfillmentType.PICKUP_MARKET)
+
+        val viewModel = buildViewModel()
+        testScheduler.advanceUntilIdle()
+        viewModel.updateUiState()
+        testScheduler.advanceUntilIdle()
+
+        var result: Boolean? = null
+        viewModel.placeOrderToPayOnSite { result = it }
+        testScheduler.advanceUntilIdle()
+
+        assertEquals(false, result)
+        coVerify(exactly = 0) { createNewOrderUseCase.invoke(any()) }
+        // Nothing was started, so nothing may be left behind: no cart cleared, no reminder
+        // scheduled, and above all no success the customer could read as an order placed.
+        coVerify(exactly = 0) { clearCartUseCase.invoke() }
+        coVerify(exactly = 0) { scheduleOrderReminderUseCase.invoke(any()) }
+        assertFalse(viewModel.paymentScreenState.value.isPaymentSuccess)
+        assertFalse(viewModel.paymentScreenState.value.isLoading)
+    }
+
     @Test
     fun `placeOrderToPayOnSite creates a single order when tapped twice in a row`() =
         runTest(testDispatcher) {
-            seedCheckoutData()
+            seedCheckoutData(FulfillmentType.PICKUP_SHOP)
             val placedOrder = slot<Order>()
             coEvery { createNewOrderUseCase.invoke(capture(placedOrder)) } returns true
 
@@ -627,7 +661,7 @@ class CheckoutViewModelTest {
     @Test
     fun `placeOrderToPayOnSite releases the loading flag when the order cannot be created`() =
         runTest(testDispatcher) {
-            seedCheckoutData()
+            seedCheckoutData(FulfillmentType.PICKUP_SHOP)
             coEvery { createNewOrderUseCase.invoke(any()) } returns false
 
             val viewModel = buildViewModel()
@@ -649,7 +683,7 @@ class CheckoutViewModelTest {
     @Test
     fun `placeOrderToPayOnSite still confirms the order when the reminder cannot be scheduled`() =
         runTest(testDispatcher) {
-            seedCheckoutData()
+            seedCheckoutData(FulfillmentType.PICKUP_SHOP)
             coEvery { createNewOrderUseCase.invoke(any()) } returns true
             coEvery { scheduleOrderReminderUseCase.invoke(any()) } throws
                     IllegalStateException("WorkManager unavailable")

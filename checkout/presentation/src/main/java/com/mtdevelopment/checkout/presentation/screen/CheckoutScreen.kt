@@ -61,6 +61,7 @@ import com.mtdevelopment.checkout.presentation.BuildConfig
 import com.mtdevelopment.checkout.presentation.composable.UserInfoFormComposable
 import com.mtdevelopment.checkout.presentation.viewmodel.CheckoutViewModel
 import com.mtdevelopment.core.domain.toStringPrice
+import com.mtdevelopment.core.model.FulfillmentType
 import com.mtdevelopment.core.presentation.MainViewModel
 import com.mtdevelopment.core.presentation.composable.ErrorOverlay
 import com.mtdevelopment.core.presentation.composable.PrimaryButton
@@ -482,11 +483,12 @@ fun CheckoutScreen(
             )
 
             /**
-             * Pay on collection. Offered only for a collected order: there is nobody to hand
-             * cash to on a delivery round, and offering it there would create orders the shop
-             * can never settle.
+             * Pay on collection. Offered for a collection at the shop and nowhere else: the
+             * shop takes money over its own counter, not on a market stall and not on a
+             * delivery round. Anywhere else the button would create an order nobody can
+             * settle.
              */
-            if (uiData.value.fulfillmentType.isPickup) {
+            if (uiData.value.fulfillmentType == FulfillmentType.PICKUP_SHOP) {
                 PrimaryButton(
                     modifier = Modifier
                         .testTag("payOnSiteButton")
