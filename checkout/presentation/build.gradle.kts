@@ -7,7 +7,7 @@ plugins {
 
 android {
     namespace = "com.mtdevelopment.checkout.presentation"
-    compileSdk = 36
+    compileSdk = 37
     android.buildFeatures.buildConfig = true
 
     defaultConfig {
